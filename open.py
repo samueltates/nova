@@ -100,3 +100,36 @@ while running == 1:
     file.write('\nNova:' + answer)
     file.close()
 
+
+def exit_handler():
+    summariseConvo()
+
+def summariseConvo():
+    global runningPrompt 
+    runningPrompt += '\nSam: Ok thanks Nova! Please summarise this conversation as succinctly as possible in a way that will give you the best context later on. This summary will be added to future conversations for context.\nNova: '
+
+    print ('\n-----------------\n SummarisingConvo on quit \n-----------------\n')
+
+    #sending prompt
+    response = openai.Completion.create(
+    model="text-davinci-003",
+    prompt = runningPrompt,
+    temperature=0.9,
+    max_tokens=150,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0.6,
+    stop=[" Sam:", " Nova:"]
+    )
+
+    
+    id = datetime.now().strftime("%Y%m%d%H%M%S")
+    answer = '\n'+id+'-'+response["choices"][0]["text"]
+
+    print('\n-----------------\n Summary of conversation is : \n' + answer + '\n-----------------\n')
+
+    summaryFile = open('summary.txt','a')
+    summaryFile.write(answer)
+    summaryFile.close()
+
+atexit.register(exit_handler)
