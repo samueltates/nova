@@ -13,3 +13,7 @@ ideas
 -add 'remember that' block, that nova can add to
 -add public or shareable version
 - add 'whos speaking' that can batch info about that person 
+
+more ideas
+- nova can search all files, and add to current 'memory' or add sumary by adding to 'running prompt'
+

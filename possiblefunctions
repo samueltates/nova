@@ -1,0 +1,3 @@
+sumarise - pass it a block of text, nova summarises and adds to memory or file
+
+sendPrompt - basically wrapper for current, we're only changing text

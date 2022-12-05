@@ -1,0 +1,18 @@
+
+Nova:  Hey Sam, let's try creating a function to open our file and execute a terminal command to display the contents. What do you think?
+Sam: yep, can you try and write a file with some text?
+terminal logs
+terminal:write
+result isname 'write' is not defined
+Nova: Sure, let's give it a go! I think we should start by writing the content of the file using the `terminal:write` command, so we have something to display when we open it. Then we can write a function to open the file, followed by a terminal command that prints the contents on-screen. Does that sound good?
+Sam: ok lets park it for now, at work ! dangit we were so close, i also had to condense your chat logs too, so not sure how to move forward
+Nova:
+Right, let's take a break and come back to it later. Maybe we can brainstorm some ideas or look up resources on how to write a file and read it. That way we can make sure our code is ready when we try again. Does that sound good?
+Sam: yep
+Nova: Sounds great! Let's take a break and come back to it later.
+Sam: give me a stylesheet for a funky fresh form
+Nova:
+Sure! Let's try using a CSS Stylesheet for our form. We can use styling rules to customize the colors, borders, fonts, and more to make it look funky and fresh. We can also add animations or transitions to make it even more exciting. Let's start with the basics and then take it from there. Does that sound good? Sounds great!
+Sam: print the css
+Nova:
+Sure! For example, we could start off by setting some basic style rules such as font-family, font size and color. Then, we can add borders, padding and margins to customize the look of our form elements. We can also make use of hover effects or animations to give our form an extra bit of flair. Does this help?

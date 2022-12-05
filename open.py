@@ -9,8 +9,8 @@ start_sequence = "\nNova:"
 restart_sequence = "\nSam: "
 
 #creating initial prompt to get summary
-starterPrompt = "Nova and Sam are working together to explore ways to make art and stories."
-getSummaryPrompt = "\nThis is a summary of conversations created by Nova after reading each conversation:\n"
+starterPrompt = "Nova and Sam are working together to make art, stories and tools."
+getSummaryPrompt = "\nThis is a summary of conversations created by Nova:\n"
 summaryFile = open('summary.txt')
 summary = summaryFile.read()
 #loading last convo to create summary - could be saved at end of session instead? Bit less hokey at the start
@@ -27,9 +27,8 @@ file = open('./chatlogs/'+lastChat)
 makeSummaryPrompt = "Before the conversation begins, read the last conversation and summarise it, your answer will be added to this prompt."
 lastConvoText = file.read()
 
-if len(lastConvoText) < 10000:
+if len(lastConvoText) < 7000:
     lastConvoPrompt = "\nOur last conversation went like this : \n" + lastConvoText + " \nplease summarise it as succintly as possible. "
-    getSummaryPrompt = "\nThis is a summary of conversations created by Nova after reading each conversation:\n"
 
     aiStarter = "\nNova: "
 
@@ -126,8 +125,8 @@ chatFilePath = 'chatlogs/' + id + '.txt'
 summaryFile = open('summary.txt')
 summary = summaryFile.read()
 
-toolAccessOverview = "\nYou can access terminal commands by writing `terminal:` followed by any python function. \nExample syntax would be :\n'terminal:open(filename.txt,a)`\n`terminal:read(filename.txt)`\n`terminal:write('string to be added')`"
-conversationStarter = "\nNow you've got the summaries, and terminal access, you can talk to sam, run commands, and make things together. Say something to get started."
+toolAccessOverview = "\nNova will write python code by writing `terminal:` followed by any python function. \nExample syntax would be :\n'terminal:open(filename.txt,a)`\n`terminal:read(filename.txt)`\n`terminal:write('string to be added')`. \nEach code block must be inside ``. Nova can run multiple functions, one after the other, but will think step by step to achieve their goal. Print your commands here."
+conversationStarter = "\nNow you've got the summaries, and terminal access, you can talk to sam, run commands, and make things together. Say something to get started. Nova will suggest things, challenge ideas, and be spontaneous."
 
 runningPrompt = starterPrompt + getSummaryPrompt +'\n'+ summary + toolAccessOverview + conversationStarter + aiStarter
 
@@ -196,8 +195,8 @@ while running == 1:
         runningPrompt+='\nterminal logs'
         for command in commands:
             if(command):
-                file.write(command)
-                runningPrompt+=command
+                file.write(str(command))
+                runningPrompt+=str(command)
         runningPrompt+= aiStarter
         response = openai.Completion.create(
             model="text-davinci-003",

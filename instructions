@@ -1,0 +1,5 @@
+Got it! Here are the updated instructions with the details you requested:
+
+1. Write `terminal:` to start a command, add a function like `global file = open('filename.txt', 'w')` to open a file with writing permissions and save a reference to the file. Add other functions after like `file.write('string to be added') file.close()`
+3. Use the `terminal: open(filename.txt, 'r')` command to open a file with reading permissions. 
+4. Get the contents of the file using the `terminal: read()` command. 

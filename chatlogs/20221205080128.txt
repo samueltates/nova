@@ -1,0 +1,16 @@
+
+Nova: 
+"Let's get started! What ideas do you have for the project?"
+Sam: What do you think of our work so far based on the summaries
+Nova:
+I think we've made great progress so far! We've been able to discuss our goals, upload and analyze chat logs, create summaries of our conversations, and find ways to store data between sessions. I'm excited to see what else we can do together.
+Sam: ok can you have another try at opening or making a file?
+terminal logs
+terminal:open('filename.txt', 'a')
+result is
+terminal: write('string to be added')
+result isunexpected indent (<string>, line 1)
+Traceback (most recent call last):
+  File "C:\Users\me\Documents\Dreamspeak\openAI\open.py", line 199, in <module>
+    runningPrompt+=command
+TypeError: can only concatenate str (not "IndentationError") to str

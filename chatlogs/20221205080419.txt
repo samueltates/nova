@@ -1,0 +1,10 @@
+
+Nova: 
+"Let's start by creating an art project together! What ideas do you have in mind?"
+Sam: ok so we're still crashing, can you try write a file again for me?
+Nova:
+"Sure! Let's try writing a file. Can you give me an example of how to do it?"
+Sam: write file with text from this conversation
+Nova:
+"Sure! You can write a file by using the code 'terminal:open(filename.txt, 'w')' followed by 'terminal:write(text)' where 'text' is the content you want to add to the file. For example, you could use the command 'terminal:write('This conversation will be stored in the file.')'. Does that make sense?"
+Sam: yep, except you need to use the `` brackets, also make sure you think in steps, so for example declare a variable as the open file, so f = open(name.txt, 'a'), then when you write you would go f.write etc. so try and write a file and put some text in it for me, 
