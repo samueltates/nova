@@ -4,6 +4,21 @@ from datetime import date, datetime
 import atexit
 import json
 
+from http.server import BaseHTTPRequestHandler
+
+
+class handler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        initialiseCartridges()
+        loadCartridges()
+        parseInput("I am the tony man")
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write('Hello, world!'.encode('utf-8'))
+        return
+
 
 openai.api_key = "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"
 
@@ -13,20 +28,22 @@ log = []
 userName = ""
 agentName = ""
 
+
 def initialiseCartridges():
     path = 'cartridges.json'
     if os.path.exists(path) is False:
         cartridges = {
             'starter':
                 {
-                    'prompt':'Nova and Sam are working together to make art, stories and tools.',
-                    'stops':['Nova:','Sam:'],
-                    'enabled':'true'
+                    'prompt': 'Nova and Sam are working together to make art, stories and tools.',
+                    'stops': ['Nova:', 'Sam:'],
+                    'enabled': 'true'
                 }
         }
         with open("cartridges.json", "a") as cartridgesBox:
             json.dump(cartridges, cartridgesBox)
-        
+
+
 def loadCartridges():
     with open("cartridges.json", "r") as cartridgesBox:
         availableCartridges = json.load(cartridgesBox)
@@ -34,28 +51,33 @@ def loadCartridges():
 
         for cartKey, cartVal in availableCartridges.items():
             if cartVal['enabled']:
-                runningPrompts.update({cartKey : cartVal})
+                runningPrompts.update({cartKey: cartVal})
             # if cart['enabled']:
             #     print('enabled cartridges are,' + cart)
         # updateUI(availableCartridges)
 
-def addCartridgetoPrompt(cartridge ):
+
+def addCartridgetoPrompt(cartridge):
     # UI sends string with name, that gets added to prompt
     runningPrompts.update(cartridge)
+
 
 def removeCartridgeFromPrompt(cartridge):
     # UI sends prompt to dic to remove
     cartridge
     # del runningPrompts("cartridge")
 
+
 def updateUI():
-    #takes available cartridges and displays them
+    # takes available cartridges and displays them
     availableCartridges
 
+
 def parseInput(input):
-    log.append( userName + ': ' + input)
+    log.append(userName + ': ' + input)
     sendPrompt()
-    
+
+
 def parseResponse(response):
     # log.append(response["choices"][0]["text"])
     log.append(response)
@@ -69,9 +91,8 @@ def sendPrompt():
         print('found prompt, adding to string')
         print(promptVal['prompt'])
         promptString += promptVal['prompt']
-    
-    promptString += ''.join(log)
 
+    promptString += ''.join(log)
 
     # response = openai.Completion.create(
     #     model="text-davinci-003",
@@ -86,9 +107,3 @@ def sendPrompt():
 
     # parseResponse(response)
     parseResponse("wow great point")
-
-
-
-initialiseCartridges()
-loadCartridges()
-parseInput("I am the tony man")
