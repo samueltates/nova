@@ -9,15 +9,30 @@ from http.server import BaseHTTPRequestHandler
 
 class handler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
+    def do_POST(self):
+        print("in python function")
+        # print(recieved)
         initialiseCartridges()
         loadCartridges()
-        parseInput("I am the tony man")
+        data = self.rfile
+
+        # gets body from message, needs length of file and reads that length
+        # not sure why this is so it doesn't go forever I guess
+        content_len = int(self.headers['content-length'])
+        post_body = self.rfile.read(content_len)
+        post_body_py = json.loads(post_body)
+        parseInput(post_body_py['message'])
+        # recieved = json.load(self)
+        # print(data)
+        chatLog = json.dumps(log)
+
+        content = bytes(chatLog, 'utf-8')
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
+        self.send_header("Content-Length", len(content))
         self.end_headers()
-        self.wfile.write('Hello, world!'.encode('utf-8'))
-        return
+        self.wfile.write(content)
+        return content
 
 
 openai.api_key = "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"
