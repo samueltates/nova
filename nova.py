@@ -25,6 +25,7 @@ class handler(BaseHTTPRequestHandler):
         # recieved = json.load(self)
         # print(data)
         chatLog = json.dumps(log)
+        print(chatLog)
 
         content = bytes(chatLog, 'utf-8')
         self.send_response(200)
@@ -32,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", len(content))
         self.end_headers()
         self.wfile.write(content)
-        return content
+        return
 
 
 openai.api_key = "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"
@@ -40,8 +41,8 @@ openai.api_key = "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"
 runningPrompts = dict()
 availableCartridges = dict()
 log = []
-userName = ""
-agentName = ""
+userName = "sam"
+agentName = "nova"
 
 
 def initialiseCartridges():
@@ -89,13 +90,19 @@ def updateUI():
 
 
 def parseInput(input):
-    log.append(userName + ': ' + input)
+    log.append(
+        {"name": userName,
+         "message": input
+         })
     sendPrompt()
 
 
 def parseResponse(response):
     # log.append(response["choices"][0]["text"])
-    log.append(response)
+    log.append(
+        {"name": agentName,
+         "message": response
+         })
     print(log)
 
 
@@ -107,7 +114,8 @@ def sendPrompt():
         print(promptVal['prompt'])
         promptString += promptVal['prompt']
 
-    promptString += ''.join(log)
+    # log.map()
+    # promptString += ''.join(log)
 
     # response = openai.Completion.create(
     #     model="text-davinci-003",
