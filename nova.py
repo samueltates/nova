@@ -1,76 +1,50 @@
 import os
 import openai
-from datetime import date, datetime
-import atexit
 import json
 
 from http.server import BaseHTTPRequestHandler
-
-
-class handler(BaseHTTPRequestHandler):
-
-    def do_POST(self):
-        print("in python function")
-        # print(recieved)
-        initialiseCartridges()
-        loadCartridges()
-        data = self.rfile
-
-        # gets body from message, needs length of file and reads that length
-        # not sure why this is so it doesn't go forever I guess
-        content_len = int(self.headers['content-length'])
-        post_body = self.rfile.read(content_len)
-        post_body_py = json.loads(post_body)
-        parseInput(post_body_py['message'])
-        # recieved = json.load(self)
-        # print(data)
-        chatLog = json.dumps(log)
-        print(chatLog)
-
-        content = bytes(chatLog, 'utf-8')
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.send_header("Content-Length", len(content))
-        self.end_headers()
-        self.wfile.write(content)
-        return
-
 
 openai.api_key = "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"
 
 runningPrompts = dict()
 availableCartridges = dict()
-log = []
+logs = dict()
 userName = "sam"
 agentName = "nova"
+
+
+def parseCartridgeAction(action):
+
+    match action["action"]:
+        case "Get":
+            initialiseCartridges()
+            loadCartridges(action)
+        case _:
+            initialiseCartridges()
+            loadCartridges(action)
 
 
 def initialiseCartridges():
     path = 'cartridges.json'
     if os.path.exists(path) is False:
-        cartridges = {
-            'starter':
-                {
-                    'prompt': 'Nova and Sam are working together to make art, stories and tools.',
-                    'stops': ['Nova:', 'Sam:'],
-                    'enabled': 'true'
-                }
-        }
+        cartridges = {'cartridge':
+                      {'label': 'starter',
+                       'prompt': 'Nova and Sam are working together to make art, stories and tools.',
+                       'stops': ['Nova:', 'Sam:'],
+                       'enabled': 'true'}
+                      }
         with open("cartridges.json", "a") as cartridgesBox:
             json.dump(cartridges, cartridgesBox)
 
 
-def loadCartridges():
+def loadCartridges(action):
     with open("cartridges.json", "r") as cartridgesBox:
         availableCartridges = json.load(cartridgesBox)
         # print('available cartridges are ,' .join(availableCartridges))
-
         for cartKey, cartVal in availableCartridges.items():
             if cartVal['enabled']:
-                runningPrompts.update({cartKey: cartVal})
-            # if cart['enabled']:
-            #     print('enabled cartridges are,' + cart)
-        # updateUI(availableCartridges)
+                runningPrompts.setdefault(action['UUID'], []).append(
+                    {cartKey: cartVal})
 
 
 def addCartridgetoPrompt(cartridge):
@@ -90,20 +64,27 @@ def updateUI():
 
 
 def parseInput(input):
-    log.append(
+    # here it handles the UIID / persistence and orchestrates the convo
+    logs.setdefault(input['UUID'], []).append(
         {"name": userName,
-         "message": input
+         "message": input['message']
          })
-    sendPrompt()
 
+    response = sendPrompt()
 
-def parseResponse(response):
-    # log.append(response["choices"][0]["text"])
-    log.append(
+    logs.setdefault(input['UUID'], []).append(
         {"name": agentName,
          "message": response
          })
-    print(log)
+
+# def parseResponse(response):
+# this is being parsed in parse input, doesn;'t need to be a return
+#     # log.append(response["choices"][0]["text"])
+#     log.append(
+#         {"name": agentName,
+#          "message": response
+#          })
+#     print(log)
 
 
 def sendPrompt():
@@ -129,4 +110,5 @@ def sendPrompt():
     # )
 
     # parseResponse(response)
+    return "wow great point"
     parseResponse("wow great point")
