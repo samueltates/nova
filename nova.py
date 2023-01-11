@@ -16,9 +16,11 @@ agentName = "nova"
 def parseCartridgeAction(action):
 
     match action["action"]:
-        case "Get":
+        case "get":
             initialiseCartridges()
             loadCartridges(action)
+        case "set":
+            print(action)
         case _:
             initialiseCartridges()
             loadCartridges(action)
