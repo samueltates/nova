@@ -1,4 +1,3 @@
-
 Nova: 
 Hi Sam! Let's make something amazing together.
 Sam: hey nova, ok so you keep crashing when you do run the code, sorry about that, do you understand how to write code here? we have to put all our code and notes in this terminal
