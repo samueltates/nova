@@ -17,6 +17,8 @@ class handler(BaseHTTPRequestHandler):
         # gets body from message, needs length of file and reads that length
         # not sure why this is so it doesn't go forever I guess
         prompts = json.dumps(runningPrompts[post_body_py["UUID"]])
+        print('printing prompts pulled from running??')
+        print(prompts)
         content = bytes(prompts, 'utf-8')
 
         self.send_response(200)

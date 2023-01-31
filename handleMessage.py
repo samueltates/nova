@@ -13,11 +13,18 @@ class handler(BaseHTTPRequestHandler):
         post_body = self.rfile.read(content_len)
         post_body_py = json.loads(post_body)
         parseInput(post_body_py)
+        print(post_body_py["UUID"])
+        # will need to wait for runningPrompts to be populated
+        # which means probably the brain can handle the 'response'
+        match post_body_py["action"]:
+            case "getPrompts":
+                responseJson = json.dumps(runningPrompts[post_body_py["UUID"]])
+            case "sendInput":
+                responseJson = json.dumps(logs[post_body_py["UUID"]])
 
-        chatLog = json.dumps(logs[post_body_py["UUID"]])
-        print(chatLog)
+        print('printing prompts pulled from running??')
 
-        content = bytes(chatLog, 'utf-8')
+        content = bytes(responseJson, 'utf-8')
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.send_header("Content-Length", len(content))

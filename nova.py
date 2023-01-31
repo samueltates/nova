@@ -8,22 +8,27 @@ openai.api_key = "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"
 
 runningPrompts = dict()
 availableCartridges = dict()
+responses = dict()
 logs = dict()
 userName = "sam"
 agentName = "nova"
 
 
-def parseCartridgeAction(action):
-
-    match action["action"]:
-        case "get":
-            initialiseCartridges()
-            loadCartridges(action)
-        case "set":
-            print(action)
-        case _:
-            initialiseCartridges()
-            loadCartridges(action)
+# def parseCartridgeAction(action):
+#     print('parse cartridge action  ' + action['action'])
+#     print(runningPrompts)
+#     match action["action"]:
+#         case "get":
+#             print('get prompt triggered')
+#             initialiseCartridges()
+#             loadCartridges(action)
+#         case "set":
+#             print('set prompt triggered')
+#             print(action)
+#             updateCartridges(action)
+#         case _:
+#             initialiseCartridges()
+#             loadCartridges(action)
 
 
 def initialiseCartridges():
@@ -41,76 +46,107 @@ def initialiseCartridges():
 
 def loadCartridges(action):
     with open("cartridges.json", "r") as cartridgesBox:
-        availableCartridges = json.load(cartridgesBox)
-        # print('available cartridges are ,' .join(availableCartridges))
-        for cartKey, cartVal in availableCartridges.items():
+        availableCartridges.setdefault(
+            action['UUID'], json.load(cartridgesBox))
+        for cartKey, cartVal in availableCartridges[action['UUID']].items():
+            print('printing cartridges in first format')
+            print(cartKey, cartVal)
             if cartVal['enabled']:
                 runningPrompts.setdefault(action['UUID'], []).append(
                     {cartKey: cartVal})
-
-
-def addCartridgetoPrompt(cartridge):
-    # UI sends string with name, that gets added to prompt
-    runningPrompts.update(cartridge)
-
-
-def removeCartridgeFromPrompt(cartridge):
-    # UI sends prompt to dic to remove
-    cartridge
-    # del runningPrompts("cartridge")
-
-
-def updateUI():
-    # takes available cartridges and displays them
-    availableCartridges
+    print(runningPrompts)
+    print('load cartridges complete')
+    # print(runningPrompts)
 
 
 def parseInput(input):
     # here it handles the UIID / persistence and orchestrates the convo
-    logs.setdefault(input['UUID'], []).append(
-        {"name": userName,
-         "message": input['message']
-         })
+    print('parse input')
+    match input["action"]:
+        case "getPrompts":
+            print('get prompts triggered')
+            initialiseCartridges()
+            loadCartridges(input)
+        case "sendInput":
+            print('send input triggered')
+            print(input)
+            updateCartridges(input)
+            logs.setdefault(input['UUID'], []).append(
+                {"name": userName,
+                 "message": input['message']
+                 })
+            sendPrompt(input['UUID'])
 
-    response = sendPrompt()
-
-    logs.setdefault(input['UUID'], []).append(
-        {"name": agentName,
-         "message": response
-         })
-
-# def parseResponse(response):
-# this is being parsed in parse input, doesn;'t need to be a return
-#     # log.append(response["choices"][0]["text"])
-#     log.append(
-#         {"name": agentName,
-#          "message": response
-#          })
-#     print(log)
+# issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
 
-def sendPrompt():
+def updateCartridges(input):
+    print('updating cartridges')
+    runningPrompts[input['UUID']] = input['prompts']
+    print(runningPrompts)
+
+    # with open("runningPrompts.json", "a") as cartridgesBox:
+    #     json.dump(runningPrompts, cartridgesBox)
+    # print('running prompt complete')
+    # # print(runningPrompts)
+
+
+# def addCartridgetoPrompt(cartridge):
+#     # UI sends string with name, that gets added to prompt
+#     runningPrompts.update(cartridge)
+
+
+# def removeCartridgeFromPrompt(cartridge):
+#     # UI sends prompt to dic to remove
+#     cartridge
+#     # del runningPrompts("cartridge")
+
+
+# def updateUI():
+#     # takes available cartridges and displays them
+#     availableCartridges
+
+
+def sendPrompt(UUID):
+
     promptString = ""
-
-    for promptKey, promptVal in runningPrompts.items():
+    print("sending prompt")
+    print(runningPrompts)
+    for promptObj in runningPrompts[UUID]:
         print('found prompt, adding to string')
-        print(promptVal['prompt'])
-        promptString += promptVal['prompt']
+        print(promptObj)
+        promptString += " "+promptObj['cartridge']['prompt']+"\n"
 
-    # log.map()
-    # promptString += ''.join(log)
+    for chat in logs[UUID]:
+        promptString += " "+chat['name']+": "+chat['message']+"\n"
 
-    # response = openai.Completion.create(
-    #     model="text-davinci-003",
-    #     prompt = promptString,
-    #     temperature=0.9,
-    #     max_tokens=150,
-    #     top_p=1,
-    #     frequency_penalty=0,
-    #     presence_penalty=0.6,
-    #     stop=[" Sam:", " Nova:"]
-    # )
+    print("prompt string")
+    print(promptString)
 
-    # parseResponse(response)
-    return "wow great point"
-    parseResponse("wow great point")
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=promptString,
+        temperature=0.9,
+        max_tokens=150,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0.6,
+        stop=[" Sam:", " Nova:"]
+    )
+
+    print(response)
+    logs.setdefault(UUID, []).append(
+        {"name": agentName,
+         "message": response["choices"][0]["text"]})
+    # parseResponse(UUID)
+    # return "wow great point"
+    # parseResponse("wow great point")
+
+
+def parseResponse(UUID):
+    # this is being parsed in parse input, doesn;'t need to be a return
+    logs.setdefault(UUID, []).append(
+        {"name": agentName,
+         "message":  "wow great point"})
+
+    # logs.setdefault(UUID, []).append(responses[UUID]["choices"][0]["text"])
