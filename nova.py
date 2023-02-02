@@ -8,6 +8,7 @@ openai.api_key = "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"
 
 runningPrompts = dict()
 availableCartridges = dict()
+allLogs = dict()
 responses = dict()
 logs = dict()
 userName = "sam"
@@ -36,6 +37,8 @@ def initialiseCartridges():
     if os.path.exists(path) is False:
         cartridges = {'cartridge':
                       {'label': 'starter',
+                       'type': 'prompt',
+                       'description': 'a text only prompt that gives an instruction',
                        'prompt': 'Nova and Sam are working together to make art, stories and tools.',
                        'stops': ['Nova:', 'Sam:'],
                        'enabled': 'true'}
@@ -44,15 +47,15 @@ def initialiseCartridges():
             json.dump(cartridges, cartridgesBox)
 
 
-def loadCartridges(action):
+def loadCartridges(input):
     with open("cartridges.json", "r") as cartridgesBox:
         availableCartridges.setdefault(
-            action['UUID'], json.load(cartridgesBox))
-        for cartKey, cartVal in availableCartridges[action['UUID']].items():
+            input['UUID'], json.load(cartridgesBox))
+        for cartKey, cartVal in availableCartridges[input['UUID']].items():
             print('printing cartridges in first format')
             print(cartKey, cartVal)
             if cartVal['enabled']:
-                runningPrompts.setdefault(action['UUID'], []).append(
+                runningPrompts.setdefault(input['UUID'], []).append(
                     {cartKey: cartVal})
     print(runningPrompts)
     print('load cartridges complete')
@@ -76,8 +79,10 @@ def parseInput(input):
                  "message": input['message']
                  })
             sendPrompt(input['UUID'])
+        case "addCartridge":
+            print('add cartridge triggered')
 
-# issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
+            # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
 
 def updateCartridges(input):
@@ -85,26 +90,26 @@ def updateCartridges(input):
     runningPrompts[input['UUID']] = input['prompts']
     print(runningPrompts)
 
-    # with open("runningPrompts.json", "a") as cartridgesBox:
-    #     json.dump(runningPrompts, cartridgesBox)
-    # print('running prompt complete')
-    # # print(runningPrompts)
+
+def addCartridge(input):
+    print('adding cartridge')
+    # idea here is to detect when new cartridge is added, and if it is a function then handle it
+    match input['type']:
+        case "function":
+            runFunction(input)
 
 
-# def addCartridgetoPrompt(cartridge):
-#     # UI sends string with name, that gets added to prompt
-#     runningPrompts.update(cartridge)
+def runFunction(input):
+    print('running function')
 
 
-# def removeCartridgeFromPrompt(cartridge):
-#     # UI sends prompt to dic to remove
-#     cartridge
-#     # del runningPrompts("cartridge")
-
-
-# def updateUI():
-#     # takes available cartridges and displays them
-#     availableCartridges
+def runMemory(input):
+    print('running memory')
+    with open("logs.json", "a") as logsJson:
+        allLogs.setdefault(
+            input['UUID'], json.load(logsJson))
+        for log in allLogs[input['UUID']]:
+            print(log)
 
 
 def sendPrompt(UUID):

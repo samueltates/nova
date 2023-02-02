@@ -21,6 +21,7 @@ class handler(BaseHTTPRequestHandler):
                 responseJson = json.dumps(runningPrompts[post_body_py["UUID"]])
             case "sendInput":
                 responseJson = json.dumps(logs[post_body_py["UUID"]])
+            # case "addCartridge":
 
         print('printing prompts pulled from running??')
 

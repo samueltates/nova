@@ -1,5 +1,6 @@
 {
     "starter": {
+        "type": "prompt",
         "prompt": "Nova and Sam are working together to make art, stories and tools.",
         "stops": [
             "Nova:",
@@ -7,12 +8,10 @@
         ],
         "enabled": "true"
     },
-    "tony": {
-        "prompt": "triple tony teeny town.",
-        "stops": [
-            "Nova:",
-            "Sam:"
-        ],
-        "enabled": "false"
+    "cartridge": {
+        "label": "memory",
+        "type": "function",
+        "description": "",
+        "enabled": "true"
     }
 }
