@@ -70,6 +70,7 @@ def parseInput(input):
             print('get prompts triggered')
             initialiseCartridges()
             loadCartridges(input)
+            runMemory(input)
         case "sendInput":
             print('send input triggered')
             print(input)
@@ -105,7 +106,9 @@ def runFunction(input):
 
 def runMemory(input):
     print('running memory')
-    with open("logs.json", "a") as logsJson:
+    with open("logs.json", "r") as logsJson:
+        logs = json.load(logsJson)
+        print(json.load(logs))
         allLogs.setdefault(
             input['UUID'], json.load(logsJson))
         for log in allLogs[input['UUID']]:
