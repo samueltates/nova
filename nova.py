@@ -1,6 +1,8 @@
 import os
 import openai
 import json
+import asyncio
+from prisma import Prisma
 
 from http.server import BaseHTTPRequestHandler
 
@@ -70,7 +72,7 @@ def parseInput(input):
             print('get prompts triggered')
             initialiseCartridges()
             loadCartridges(input)
-            runMemory(input)
+            asyncio.run(runMemory(input))
         case "sendInput":
             print('send input triggered')
             print(input)
@@ -79,7 +81,7 @@ def parseInput(input):
                 {"name": userName,
                  "message": input['message']
                  })
-            sendPrompt(input['UUID'])
+            constructChatPrompt(input['UUID'])
         case "addCartridge":
             print('add cartridge triggered')
 
@@ -100,22 +102,25 @@ def addCartridge(input):
             runFunction(input)
 
 
-def runFunction(input):
-    print('running function')
+# def runFunction(input):
+#     print('running function')
 
 
-def runMemory(input):
-    print('running memory')
-    with open("logs.json", "r") as logsJson:
-        logs = json.load(logsJson)
-        print(json.load(logs))
-        allLogs.setdefault(
-            input['UUID'], json.load(logsJson))
-        for log in allLogs[input['UUID']]:
-            print(log)
+def sendPrompt(promptString):
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=promptString,
+        temperature=0.9,
+        max_tokens=150,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0.6,
+        stop=[" Sam:", " Nova:"]
+    )
+    return response
 
 
-def sendPrompt(UUID):
+def constructChatPrompt(UUID):
 
     promptString = ""
     print("sending prompt")
@@ -131,16 +136,17 @@ def sendPrompt(UUID):
     print("prompt string")
     print(promptString)
 
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=promptString,
-        temperature=0.9,
-        max_tokens=150,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0.6,
-        stop=[" Sam:", " Nova:"]
-    )
+    response = sendPrompt(promptString)
+    # response = openai.Completion.create(
+    #     model="text-davinci-003",
+    #     prompt=promptString,
+    #     temperature=0.9,
+    #     max_tokens=150,
+    #     top_p=1,
+    #     frequency_penalty=0,
+    #     presence_penalty=0.6,
+    #     stop=[" Sam:", " Nova:"]
+    # )
 
     print(response)
     logs.setdefault(UUID, []).append(
@@ -151,10 +157,40 @@ def sendPrompt(UUID):
     # parseResponse("wow great point")
 
 
-def parseResponse(UUID):
-    # this is being parsed in parse input, doesn;'t need to be a return
-    logs.setdefault(UUID, []).append(
-        {"name": agentName,
-         "message":  "wow great point"})
+# def parseResponse(UUID):
+#     # this is being parsed in parse input, doesn;'t need to be a return
+#     logs.setdefault(UUID, []).append(
+#         {"name": agentName,
+#          "message":  "wow great point"})
 
-    # logs.setdefault(UUID, []).append(responses[UUID]["choices"][0]["text"])
+#     # logs.setdefault(UUID, []).append(responses[UUID]["choices"][0]["text"])
+
+
+async def runMemory(input):
+    prisma = Prisma()
+    await prisma.connect()
+    print('running memory')
+    logs = await prisma.log.find_many()
+    allLogs.setdefault(
+        input['UUID'], logs)
+    for log in allLogs[input['UUID']]:
+        print('printing log from database')
+        print(log)
+        print(log.summary)
+        if (log.summary == ""):
+            print('no summary, getting summary from OPENAI')
+            log.summary = getSummary(log.body)
+            print('summary is: '+log.summary)
+
+    log = await prisma.log.update(
+        where={'id': log.id},
+        data={'summary': log.summary}
+    )
+    await prisma.disconnect()
+
+
+def getSummary(textToSummarise):
+    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation:"
+    prompt = initialPrompt + textToSummarise
+    response = sendPrompt(prompt)
+    return response["choices"][0]["text"]

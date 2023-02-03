@@ -1,0 +1,19 @@
+// generator
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:database.db"
+}
+
+model log {
+  id        Int    @id @default(autoincrement())
+  SessionID String
+  UserID    String
+  date      String
+  summary   String
+  body      String
+}

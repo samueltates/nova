@@ -1,62 +1,12 @@
-import json
-import os
-import io
 import asyncio
 from prisma import Prisma
 
 
-directory = './chatlogs/'
-
-convos = []
-id = 0
-for filename in os.listdir(directory):
-    f = os.path.join(directory, filename)
-    print(f)
-    convo = io.open(f, encoding="utf8").read()
-    date = filename.split('.')[0]
-    # file = open('./chatlogs/' + filename)
-    convoObject = {
-        "SessionID": str(id),
-        "UserID": "Sam",
-        "date": date,
-        "summary": "",
-        "body": convo}
-    id += 1
-    convos.append(convoObject)
-
-print(convos)
-summaries = io.open('./summary1.txt', encoding="utf8").readlines()
-for line in summaries:
-    date = line.split('.')[0]
-    summary = line.split('- ')[1]
-    lastdiff = int()
-    for convo in convos:
-        print(convo['date'] + ' ' + date)
-        try:
-            diff = abs(int(convo['date']) - int(date))
-        except:
-            print('diff didnt work')
-        print(diff)
-        if diff < lastdiff:
-            lastdiff = diff
-            convo['summary'] = summary
-        if convo['date'] == date:
-            convo['summary'] = summary
-
-
-with open("./logs.json", "a") as convoJson:
-    json.dump(convos, convoJson)
-
-
-async def main():
+async def main() -> None:
     prisma = Prisma()
     await prisma.connect()
 
-    # write your queries here
-    for convo in convos:
-        log = await prisma.log.create(
-            data=convo
-        )
+    # # write your queries here
     # log = await prisma.log.create(
     #     data={
     #         "SessionID": "0",
