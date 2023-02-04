@@ -18,3 +18,5 @@ more ideas
 - nova can search all files, and add to current 'memory' or add sumary by adding to 'running prompt'
 
 https://github.com/jerryjliu/gpt_index
+
+- have whisper etc translate text and create bot in chat responding!

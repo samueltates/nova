@@ -20,7 +20,9 @@ async def main() -> None:
     # print(log)
 
     logs = await prisma.log.find_many()
-    print(logs)
+    messages = await prisma.message.find_many()
+
+    print(messages)
     await prisma.disconnect()
 
 if __name__ == '__main__':

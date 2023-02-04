@@ -16,13 +16,16 @@ class handler(BaseHTTPRequestHandler):
         print(post_body_py["UUID"])
         # will need to wait for runningPrompts to be populated
         # which means probably the brain can handle the 'response'
+        while functionsRunning > 0:
+            print('waiting for functions to finish')
+            print(functionsRunning)
+            pass
         match post_body_py["action"]:
             case "getPrompts":
                 responseJson = json.dumps(runningPrompts[post_body_py["UUID"]])
             case "sendInput":
                 responseJson = json.dumps(logs[post_body_py["UUID"]])
             # case "addCartridge":
-
         print('printing prompts pulled from running??')
 
         content = bytes(responseJson, 'utf-8')

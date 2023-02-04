@@ -17,3 +17,12 @@ model log {
   summary   String
   body      String
 }
+
+model message {
+  id        Int    @id @default(autoincrement())
+  SessionID String
+  UserID    String
+  name      String
+  timestamp String
+  body      String
+}
