@@ -174,37 +174,74 @@ async def runMemory(input):
     await prisma.connect()
     print('running memory')
     logs = await prisma.log.find_many()
-    summaryStringChunks = [""]
+    logSummaryBatches = [""]
     id = 0
     allLogs.setdefault(
         input['UUID'], logs)
     for log in allLogs[input['UUID']]:
-        print('printing log from database, summary is:')
-        # print(log)
-        print(log.summary)
-        if (len(summaryStringChunks[id]) > 5000):
-            summaryStringChunks.append("")
-            id += 1
-        summaryStringChunks[id] += "On date: " + \
-            log.date+" "+log.summary + "\n"
 
+        # Checks if log has summary, if not, gets summary from OPENAI
         if (log.summary == "" or log.summary == ''):
             print('no summary, getting summary from OPENAI')
-            log.summary = getSummary(log.body)
+
+            logID = log.SessionID
+            messageBody = ""
+            messages = await prisma.message.find_many(
+                where={'SessionID': logID})
+            print(messages)
+            messageBody += "Chat on " + messages[0].date + "\n"
+
+            for messsage in messages:
+                messageBody += "timestamp:\n"+messageBody.timestamp + \
+                    "message: \n" + messsage.body + "\n"
+            print(messageBody)
+            log.body = messageBody
+            log.summary = getSummary(messageBody)
             print('summary is: '+log.summary)
             updatedLog = await prisma.log.update(
                 where={'id': log.id},
-                data={'summary': log.summary}
+                data={'summary': log.summary,
+                      'body': log.body
+                      }
             )
+        lastDate = ""
+        # Checks if log has been batched, if not, adds it to the batch
+        if (log.batched == False):
+            print('printing log from database, summary is:')
+            logSummaryBatches.append(
+                {'startDate': '', 'endDate': '', 'summaries': ''})
+            # print(log)
+            print(log.summary)
+            if (logSummaryBatches[id]['startDate'] == ''):
+                logSummaryBatches[id]['startDate'] = log.date
+            if (len(logSummaryBatches[id]['summaries']) > 5000):
+                logSummaryBatches[id]['endDate'] = lastDate
+                id += 1
+            logSummaryBatches[id]['summaries'] += "On date: " + \
+                log.date+" "+log.summary + "\n"
+            lastDate = log.date
+            log.batched = True
 
     functionsRunning = 0
 
-    overallSummary = ""
-    for summaryStrings in summaryStringChunks:
-        print(summaryStrings)
-        overallSummary += getSummary(summaryStrings)
+    # summarises each batch if that isn't summarised, and adds to summary
+    # how do we know if the batch has been created and summarised
+    # so a batch is only being created if there's lots of logs, and then it's being summarised
+    # the 'stored' batch summaries shouldn't overlap with the new batch summaries
+    # so will need to add the new batch summaries to remote, access those, then add the unbatched logs -
+    # will also need to check remote and any batches that get too big .. wll need to be batched... I'm confused
 
-    print(overallSummary)
+    for batch in logSummaryBatches:
+        print(batch)
+
+        batch = await prisma.batch.create(
+            data={'dateRange': batch['startDate']+" to "+batch['endDate'],
+                  'summary': getSummary(batch['summaries']), 'batched': False, })
+
+    # now all logs should be summarised and in batches, so need to loop through batches and add to overall summary, or batch the batches if too many
+    # could actually apply this logic up the top, so that the batches are created and summarised as they're added to the database in the same way the logs are
+    batches = await prisma.batch.find_many()
+
     summaryCartridge = {'label': 'starter',
                         'type': 'prompt',
                         'description': 'a text only prompt that gives an instruction',

@@ -9,13 +9,21 @@ datasource db {
   url      = "file:database.db"
 }
 
+model batch {
+  id        Int     @id @default(autoincrement())
+  dateRange String
+  summary   String
+  batched   Boolean
+}
+
 model log {
-  id        Int    @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   SessionID String
   UserID    String
   date      String
   summary   String
   body      String
+  batched   Boolean
 }
 
 model message {
