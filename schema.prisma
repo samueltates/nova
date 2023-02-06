@@ -18,12 +18,12 @@ model batch {
 
 model log {
   id        Int     @id @default(autoincrement())
-  SessionID String
-  UserID    String
-  date      String
-  summary   String
-  body      String
-  batched   Boolean
+  SessionID String  @default("")
+  UserID    String  @default("")
+  date      String  @default("")
+  summary   String  @default("")
+  body      String  @default("")
+  batched   Boolean @default(false)
 }
 
 model message {

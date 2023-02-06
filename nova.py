@@ -2,9 +2,10 @@ import os
 import openai
 import json
 import asyncio
+
 from prisma import Prisma
 
-import datetime
+from datetime import date, datetime
 
 
 from http.server import BaseHTTPRequestHandler
@@ -48,6 +49,7 @@ def parseInput(input):
             initialiseCartridges()
             loadCartridges(input)
             functionsRunning = 1
+
         case "sendInput":
             print('send input triggered')
             print(input)
@@ -170,11 +172,39 @@ async def logMessage(UUID, name, message):
     functionsRunning = 0
 
 
+#  def startSession(input):
+#     functionsRunning = 1
+#     print('starting session')
+#     log = await prisma.log.create(
+#         data={
+#             "SessionID": input['UUID'],
+#             "timestamp": datetime.now().strftime("%Y%m%d%H%M%S"),
+#             "name": input['name'],
+#             "UserID": 'Sam',
+#         }
+#     )
+#     functionsRunning = 0
+
+
 async def runMemory(input):
     await prisma.connect()
     print('running memory')
+    log = await prisma.log.create(
+        data={
+            "SessionID": input['UUID'],
+            "UserID": 'Sam',
+            "date": datetime.now().strftime("%Y%m%d%H%M%S"),
+            "summary": "",
+            "body": "",
+            "batched": False,
+        }
+    )
+
+    print('log created for session')
+
     logs = await prisma.log.find_many()
-    logSummaryBatches = [""]
+    logSummaryBatches = []
+    overallSummary = ""
     id = 0
     allLogs.setdefault(
         input['UUID'], logs)
@@ -207,20 +237,28 @@ async def runMemory(input):
         lastDate = ""
         # Checks if log has been batched, if not, adds it to the batch
         if (log.batched == False):
-            print('printing log from database, summary is:')
+            print('printing log from database, summary is:' + log.summary)
             logSummaryBatches.append(
-                {'startDate': '', 'endDate': '', 'summaries': ''})
+                {'startDate': "", 'endDate': "", 'summaries': ""})
             # print(log)
             print(log.summary)
-            if (logSummaryBatches[id]['startDate'] == ''):
+            print(logSummaryBatches)
+            if (logSummaryBatches[id]['startDate'] == ""):
                 logSummaryBatches[id]['startDate'] = log.date
-            if (len(logSummaryBatches[id]['summaries']) > 5000):
+            if (len(logSummaryBatches[id]['summaries']) > 2000):
+                print('batch is too long, creating new batch')
                 logSummaryBatches[id]['endDate'] = lastDate
+                log.batched = True
+                updatedLog = await prisma.log.update(
+                    where={'id': log.id},
+                    data={'summary': log.summary,
+                          'body': log.batched
+                          }
+                )
                 id += 1
             logSummaryBatches[id]['summaries'] += "On date: " + \
                 log.date+" "+log.summary + "\n"
             lastDate = log.date
-            log.batched = True
 
     functionsRunning = 0
 
@@ -231,23 +269,68 @@ async def runMemory(input):
     # so will need to add the new batch summaries to remote, access those, then add the unbatched logs -
     # will also need to check remote and any batches that get too big .. wll need to be batched... I'm confused
 
+    runningBatchedSummaries = ""
+    runningBatches = []
+    latestLogs = ""
+    batchRangeStart = ""
+    batchRangeEnd = ""
+    multiBatchSummary = ""
+
+    remoteBatches = await prisma.batch.find_many()
+    if (len(remoteBatches) > 0):
+        print('remote batches found ')
+        for batch in remoteBatches:
+            if (batch.batched == False):
+                batchRangeStart = batch.dateRange.split(":")[0]
+                runningBatches.append(batch)
+                runningBatchedSummaries += batch.summary
+
     for batch in logSummaryBatches:
+        if (batch['endDate'] == ""):
+            latestLogs = batch['summaries']
+            break
         print(batch)
+        if (batchRangeStart == ""):
+            batchRangeStart = batch['startDate']
+        batchSummary = getSummary(batch['summaries'])
+        runningBatchedSummaries += batchSummary
+        runningBatches.append(batch)
+        print('batch summary is: ' + batchSummary)
 
-        batch = await prisma.batch.create(
-            data={'dateRange': batch['startDate']+" to "+batch['endDate'],
-                  'summary': getSummary(batch['summaries']), 'batched': False, })
+        batchRemote = await prisma.batch.create(
+            data={'dateRange': batch['startDate']+":" + batch['endDate'],
+                  'summary': batchSummary, 'batched': False, })
 
-    # now all logs should be summarised and in batches, so need to loop through batches and add to overall summary, or batch the batches if too many
-    # could actually apply this logic up the top, so that the batches are created and summarised as they're added to the database in the same way the logs are
-    batches = await prisma.batch.find_many()
+        if runningBatchedSummaries > 1000:
+            print('batch is too long, creating new batch')
+            summaryRequest = "between " + batchRangeStart + " and " + \
+                batchRangeEnd + " " + runningBatchedSummaries
 
+            multiBatchSummary += getSummary(summaryRequest)
+            batchRangeEnd = batch['endDate']
+
+            batchBatch = await prisma.batch.create(
+                data={'dateRange': batch['startDate']+":" + batch['endDate'],
+                      'summary': multiBatchSummary, 'batched': False, })
+
+            for batch in runningBatches:
+                updateBatch = await prisma.batch.update(
+                    data={'batched': True, })
+
+            runningBatchedSummaries = ""
+            runningBatches = []
+
+    overallSummary = "previously:" + multiBatchSummary + "more recently" + \
+        runningBatchedSummaries + "and most recently" + latestLogs
+
+    print("overall summary is: " + overallSummary)
     summaryCartridge = {'label': 'starter',
                         'type': 'prompt',
                         'description': 'a text only prompt that gives an instruction',
                         'prompt': overallSummary,
                         'stops': ['Nova:', 'Sam:'],
                         'enabled': 'true'}
+
     runningPrompts.setdefault(input['UUID'], []).append(
         {'cartridge': summaryCartridge})
 
