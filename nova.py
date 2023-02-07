@@ -219,21 +219,23 @@ async def runMemory(input):
             messages = await prisma.message.find_many(
                 where={'SessionID': logID})
             print(messages)
-            messageBody += "Chat on " + messages[0].date + "\n"
 
-            for messsage in messages:
-                messageBody += "timestamp:\n"+messageBody.timestamp + \
-                    "message: \n" + messsage.body + "\n"
-            print(messageBody)
-            log.body = messageBody
-            log.summary = getSummary(messageBody)
-            print('summary is: '+log.summary)
-            updatedLog = await prisma.log.update(
-                where={'id': log.id},
-                data={'summary': log.summary,
-                      'body': log.body
-                      }
-            )
+            if (len(messages) != 0):
+                messageBody += "Chat on " + str(messages[0].timestamp) + "\n"
+
+                for messsage in messages:
+                    messageBody += "timestamp:\n"+str(messageBody.timestamp) + \
+                        "message: \n" + messsage.body + "\n"
+                print(messageBody)
+                log.body = messageBody
+                log.summary = getSummary(messageBody)
+                print('summary is: '+log.summary)
+                updatedLog = await prisma.log.update(
+                    where={'id': log.id},
+                    data={'summary': log.summary,
+                          'body': log.body
+                          }
+                )
         lastDate = ""
         # Checks if log has been batched, if not, adds it to the batch
         if (log.batched == False):
@@ -252,7 +254,7 @@ async def runMemory(input):
                 updatedLog = await prisma.log.update(
                     where={'id': log.id},
                     data={'summary': log.summary,
-                          'body': log.batched
+                          'batched': log.batched
                           }
                 )
                 id += 1
