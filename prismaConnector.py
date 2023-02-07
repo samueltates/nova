@@ -21,9 +21,17 @@ async def main() -> None:
     # print(log)
 
     logs = await prisma.log.find_many()
+    # for log in logs:
+    #     updatedLog = await prisma.log.update(
+    #         where={'id': log.id},
+    #         data={'batched': False,
+    #               'body': log.body
+    #               }
+    #     )
+    batches = await prisma.batch.find_many()
     messages = await prisma.message.find_many()
 
-    print(logs)
+    print(batches)
     # print(messages)
     await prisma.disconnect()
 

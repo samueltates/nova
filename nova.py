@@ -224,7 +224,7 @@ async def runMemory(input):
                 messageBody += "Chat on " + str(messages[0].timestamp) + "\n"
 
                 for messsage in messages:
-                    messageBody += "timestamp:\n"+str(messageBody.timestamp) + \
+                    messageBody += "timestamp:\n"+str(messsage.timestamp) + \
                         "message: \n" + messsage.body + "\n"
                 print(messageBody)
                 log.body = messageBody
