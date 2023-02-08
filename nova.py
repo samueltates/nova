@@ -284,7 +284,7 @@ async def runMemory(input):
               str(batchID) + '\n\n\n     ________\n\n\n')
         print(logBatch)
         batchID += 1
-    return
+    # return
     # summarises each batch if that isn't summarised, and adds to summary
     # how do we know if the batch has been created and summarised
     # so a batch is only being created if there's lots of logs, and then it's being summarised
@@ -300,31 +300,58 @@ async def runMemory(input):
     multiBatchSummary = ""
 
     remoteBatches = await prisma.batch.find_many()
+    print('\n\n\n_______________________________\n\n\n')
+    print('starting log batch sumamarisations')
+    print('\n\n\n_______________________________\n\n\n')
+
     if (len(remoteBatches) > 0):
+        print('\n\n\n_______________________________\n\n\n')
         print('remote batches found ')
+        print('\n\n\n_______________________________\n\n\n')
+
         for batch in remoteBatches:
             if (batch.batched == False):
+                print('\n\n\n_______________________________\n\n\n')
+                print('remote batches found ')
+                print('\n\n\n_______________________________\n\n\n')
                 batchRangeStart = batch.dateRange.split(":")[0]
                 runningBatches.append(batch)
                 runningBatchedSummaries += batch.summary
 
     for batch in logSummaryBatches:
+
         if (batch['endDate'] == ""):
+            print('\n\n\n_______________________________\n\n\n')
+            print('no end log batch found so not summarising ')
+            print('\n\n\n_______________________________\n\n\n')
             latestLogs = batch['summaries']
             break
-        print(batch)
         if (batchRangeStart == ""):
             batchRangeStart = batch['startDate']
+            print('\n\n\n_______________________________\n\n\n')
+            print('no end log batch found so not summarising ')
+            print('\n\n\n_______________________________\n\n\n')
+
         batchSummary = getSummary(batch['summaries'])
         runningBatchedSummaries += batchSummary
-        runningBatches.append(batch)
         print('batch summary is: ' + batchSummary)
 
         batchRemote = await prisma.batch.create(
             data={'dateRange': batch['startDate']+":" + batch['endDate'],
                   'summary': batchSummary, 'batched': False, })
 
-        if runningBatchedSummaries > 1000:
+        runningBatches.append(batchRemote)
+
+        log.batched = True
+        # to do this shouldn't be marked as batched till it's been summarised
+        updatedLog = await prisma.log.update(
+            where={'id': log.id},
+            data={
+                'batched': log.batched
+            }
+        )
+
+        if len(runningBatchedSummaries) > 1000:
             print('batch is too long, creating new batch')
             summaryRequest = "between " + batchRangeStart + " and " + \
                 batchRangeEnd + " " + runningBatchedSummaries
@@ -338,6 +365,7 @@ async def runMemory(input):
 
             for batch in runningBatches:
                 updateBatch = await prisma.batch.update(
+                    where={'id': batch.id},
                     data={'batched': True, })
 
             runningBatchedSummaries = ""

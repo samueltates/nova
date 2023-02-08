@@ -38,7 +38,7 @@ async def main() -> None:
     #     where={'summary': ''}
 
     # )
-    # batches = await prisma.batch.find_many()
+    batches = await prisma.batch.delete_many({})
     # messages = await prisma.message.find_many()
 
     print(logs)
