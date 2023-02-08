@@ -21,7 +21,7 @@ userName = "sam"
 agentName = "nova"
 functionsRunning = 0
 prisma = Prisma()
-
+logCreated = 0
 
 # def parseCartridgeAction(action):
 #     print('parse cartridge action  ' + action['action'])
@@ -153,10 +153,25 @@ def constructChatPrompt(UUID):
          "message": response["choices"][0]["text"]})
 
 
+async def createNewLog():
+    logCreated = 1
+    log = await prisma.log.create(
+        data={
+            "SessionID": input['UUID'],
+            "UserID": 'Sam',
+            "date": datetime.now().strftime("%Y%m%d%H%M%S"),
+            "summary": "",
+            "body": "",
+            "batched": False,
+        }
+    )
+
+
 async def logMessage(UUID, name, message):
     functionsRunning = 1
     await prisma.connect()
-
+    if logCreated == 0:
+        createNewLog()
     print('logging message')
     message = await prisma.message.create(
         data={
@@ -189,19 +204,6 @@ async def logMessage(UUID, name, message):
 async def runMemory(input):
     await prisma.connect()
     print('running memory')
-    log = await prisma.log.create(
-        data={
-            "SessionID": input['UUID'],
-            "UserID": 'Sam',
-            "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-            "summary": "",
-            "body": "",
-            "batched": False,
-        }
-    )
-
-    print('log created for session')
-
     logs = await prisma.log.find_many()
     logSummaryBatches = []
     overallSummary = ""
@@ -238,32 +240,51 @@ async def runMemory(input):
                 )
         lastDate = ""
         # Checks if log has been batched, if not, adds it to the batch
+        print('starting log batching \n\n_______________________\n\n')
         if (log.batched == False):
-            print('printing log from database, summary is:' + log.summary)
-            logSummaryBatches.append(
-                {'startDate': "", 'endDate': "", 'summaries': ""})
-            # print(log)
-            print(log.summary)
-            print(logSummaryBatches)
-            if (logSummaryBatches[id]['startDate'] == ""):
+            print(
+                '\n\n_______________________\n\n unbatched log found \n\n_______________________\n\n')
+
+            # setting start of batch
+            if (len(logSummaryBatches) == id):
+                logSummaryBatches.append(
+                    {'startDate': "", 'endDate': "", 'summaries': ""})
                 logSummaryBatches[id]['startDate'] = log.date
-            if (len(logSummaryBatches[id]['summaries']) > 2000):
-                print('batch is too long, creating new batch')
-                logSummaryBatches[id]['endDate'] = lastDate
-                log.batched = True
-                updatedLog = await prisma.log.update(
-                    where={'id': log.id},
-                    data={'summary': log.summary,
-                          'batched': log.batched
-                          }
-                )
-                id += 1
+                print('\n\n_______________________\n\n log: '+str(log.id) +
+                      ' is start of batch \n\n_______________________\n\n')
+
+            # adding log to batch
             logSummaryBatches[id]['summaries'] += "On date: " + \
                 log.date+" "+log.summary + "\n"
+            print('added logID: '+str(log.id) + ' batchID: ' + str(id) +
+                  ' printing logSummaryBatches \n\n_______________________\n\n')
+            print(logSummaryBatches[id])
             lastDate = log.date
+
+            # setting end of batch
+            if (len(logSummaryBatches[id]['summaries']) > 2000):
+                print(
+                    '\n\n_______________________\n\n log: '+str(log.id)+' is end of batch \n\n_______________________\n\n')
+                logSummaryBatches[id]['endDate'] = lastDate
+                # log.batched = True
+                # to do this shouldn't be marked as batched till it's been summarised
+                # updatedLog = await prisma.log.update(
+                #     where={'id': log.id},
+                #     data={
+                #         'batched': log.batched
+                #     }
+                # )
+                id += 1
 
     functionsRunning = 0
 
+    batchID = 0
+    for logBatch in logSummaryBatches:
+        print('\n\n\n     ________\n\n\nprinting batch for batch ID ' +
+              str(batchID) + '\n\n\n     ________\n\n\n')
+        print(logBatch)
+        batchID += 1
+    return
     # summarises each batch if that isn't summarised, and adds to summary
     # how do we know if the batch has been created and summarised
     # so a batch is only being created if there's lots of logs, and then it's being summarised
