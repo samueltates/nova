@@ -153,32 +153,48 @@ def constructChatPrompt(UUID):
          "message": response["choices"][0]["text"]})
 
 
-async def createNewLog():
-    logCreated = 1
-    log = await prisma.log.create(
-        data={
-            "SessionID": input['UUID'],
-            "UserID": 'Sam',
-            "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-            "summary": "",
-            "body": "",
-            "batched": False,
-        }
-    )
+# async def createNewLog(UUID, userName):
+#     await prisma.connect()
+
+#     log = await prisma.log.create(
+#         data={
+#             "SessionID": UUID,
+#             "UserID": userName,
+#             "date": datetime.now().strftime("%Y%m%d%H%M%S"),
+#             "summary": "",
+#             "body": "",
+#             "batched": False,
+#         }
+#     )
+
+#     await prisma.disconnect()
 
 
 async def logMessage(UUID, name, message):
     functionsRunning = 1
     await prisma.connect()
-    if logCreated == 0:
-        createNewLog()
+    log = await prisma.log.find_first(
+        where={'SessionID': UUID}
+    )
+    if log == None:
+        log = await prisma.log.create(
+            data={
+                "SessionID": UUID,
+                "UserID": name,
+                "date": datetime.now().strftime("%Y%m%d%H%M%S"),
+                "summary": "",
+                "body": "",
+                "batched": False,
+            }
+        )
+
     print('logging message')
     message = await prisma.message.create(
         data={
             "SessionID": UUID,
             "name": name,
             "UserID": 'Sam',
-            "timestamp": datetime.datetime.now(),
+            "timestamp": datetime.now(),
             "body": message,
         }
     )
