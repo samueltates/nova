@@ -1,0 +1,591 @@
+date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}
+
+ _____________
+
+ Nova and Sam are working together to make art, stories and tools.
+ Summary of chat log:
+Oldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing.
+Recent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.
+
+Most recentlyOn date: 20230204031257
+The chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.
+On date: 20230204031257
+Testing log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.
+On date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.
+On date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.
+
+
+ sam:
+
+ nova:
+
+Sam: Hey Nova, let's start working on the project. What are our goals?
+
+Nova: Sure! We're creating art, stories and tools, so let's start by looking into text files, JSON, CSV, commands, global variables and functions, and the `eval` function. We'll also need to think about writing files and executing terminal commands. Let's create a shared to-do list too, and then style rules and any necessary modules for Electron. Lastly, we should test the code before implementing it.
+ sam:
+Alrighty!!
+ nova:
+Perfect! Let's get started!
+ sam: Okie dokie so i'm doing gym then visiting mum today - its my day off (I don't work fridays) - any advice?
+ nova:
+Sure! Set aside some time for yourself today - take a walk in the park or listen to some music. Make sure to take breaks throughout the day, too! Additionally, you can look up some online tutorials for the project and see if you can start working on it today. Good luck!
+ sam: help me punch up this tweet, needs to be 280 characters, i get very little engagement on stuff so any advice would be helpful : happy with the logging / summarising, basically gets any summarised chats, and summarising them. Parses through summaries and batches/ summarises them. These summaries basically enter a pool where once it gets too big it gets batcheed, creating a sort of compression of older stuff
+
+ nova:
+Master the art of summarising chats quickly and easily with our new logging/summarising system! Keep track of conversations and data from experiments, review conversations and decisions, and collaborate with others. Securely log every chat to create a persistent memory - hassle-free. #chatlogs #summaries #data #experimentation #collaboration
+ sam: sorry give me a variant of that tweet you wrote based on my tweet that is a good tweet    
+
+ nova:
+Make summarising chats easier and more efficient with our new logging/summarising system! Keep track of conversations, experiments and data, review conversations, collaborate with others and store conversations securely - all with just one system. #chatlogs #summaries #data #experimentation #collaboration
+ sam:
+make it less salesy its more of a work in progress tweet
+
+
+ nova:
+
+ _____________
+
+
+ _____________
+
+promptSent
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nKeep conversations and experiments organised with our new logging/summarising system! Store conversations securely, review conversations and decisions, and collaborate with others for a hassle-free experience. #chatlogs #summaries #data #experimentation #collaboration"  
+    }
+  ],
+  "created": 1675993686,
+  "id": "cmpl-6iCoA9dDpfZQMg9D7mTtATZZ4haZS",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 54,
+    "prompt_tokens": 1185,
+    "total_tokens": 1239
+  }
+}
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nKeep conversations and experiments organised with our new logging/summarising system! Store conversations securely, review conversations and decisions, and collaborate with others for a hassle-free experience. #chatlogs #summaries #data #experimentation #collaboration"  
+    }
+  ],
+  "created": 1675993686,
+  "id": "cmpl-6iCoA9dDpfZQMg9D7mTtATZZ4haZS",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 54,
+    "prompt_tokens": 1185,
+    "total_tokens": 1239
+  }
+}
+
+ _____________
+
+
+ _____________
+
+logging message
+
+ _____________
+
+656220a76948f4e22a04c67cccce9ad04352c8da
+printing prompts pulled from running??
+127.0.0.1 - - [10/Feb/2023 01:48:09] "POST /api/nova-chat/handleMessage HTTP/1.1" 200 -
+
+ _____________
+
+parse input
+
+ _____________
+
+
+ _____________
+
+send input triggered
+
+ _____________
+
+{'UUID': '656220a76948f4e22a04c67cccce9ad04352c8da', 'action': 'sendInput', 'prompts': [{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}, {'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}], 'message': "read my tweets here and give me a suggestion for a better twitter strategy or suggestions on how to get more engagement and reach : To view keyboard shortcuts, press question mark\nView keyboard shortcuts\nMessages\nsam\n13.1K Tweets\nSee new Tweets\nsam\n@Samueltates\nXR as an extension of human consciousness, games as devotional art, writing to think. creative technology at \n@phoriatech\nNaarm, Australia samueltate.comJoined October 2012\n4,181 Following\n1,634 Followers\nTweets\nTweets & replies\nMedia\nLikes\nsam’s Tweets\nsam\n@Samueltates\n·\nJan 21\nback to work on my chatbot again\nsam\n@Samueltates\n·\nJan 20\nWatching pen15 lamenting the lack of access to Wiccan culture for young men. If I had a witchy phase in my early teens I would have been unstoppable.\nsam\n@Samueltates\n·\nJan 20\nI was running off some washed out Christian lore plus book on psychic energy my dads girlfriend gave me and every David eddings and Isobel carmody book. I needed a coven! Strictures! Outfits! Put my metaphysical development back 20 yrs.\nsam\n@Samueltates\n·\nJan 20\nNow I’m not saying I’m not a passing warlock. Well enough to shift some energy or talk to a house. But boys don’t talk about magic in school, and that’s a dang shame!\nsam\n@Samueltates\n·\nJan 20\nImagine if you asked someone to pass you something on a job site and they did a little obstacle course and floor number. Little metal guys twirling and leaping around our grim faced plaster dusted tradies.\nQuote Tweet\nBoston Dynamics\n@BostonDynamics\n·\nJan 19\nIt’s time for Atlas to pick up a new set of skills and get hands on.\n21.4M views\n0:00 / 1:11\nShow this thread\nsam\n@Samueltates\n·\nJan 20\nMy dad used to drop tools / get me to throw tools up to top of the ladder. He’d be like, ‘it’s just an arc, just see the arc’. I was this tiny rotund boy just melting in the Queensland sun staring into the light watching for a hammer ascending from the heavens.\nsam\n@Samueltates\n·\nJan 20\nhe basically gave me the Boston dynamics training program.\nsam\n@Samueltates\n·\nJan 18\nReplying to \n@Samueltates\nused to ongoing work being NDA but we're on our own concept dev cycle so might try and share updates as I go, sketching out a light behaviour manager atm want super flexible anims and overrides\nsam\n@Samueltates\n·\nJan 18\nme making any new feature of any scale\n80 views\n0:00 / 0:01\nYou Retweeted\nppigg\n@s4m31p4n\n·\nJan 15\nDo you ever just have this deep seated desire to bother people. I have clown blood\nShow this thread\nYou Retweeted\nAntoine Macia\n@ant_uno\n·\nJan 16\nWrote an article about the value of tight incident mitigation and response vs extensive QA and pre-production testing - https://antoinemc.dev/blog/dancing-with-the-flames\n\nKeen to hear your thoughts!\nantoinemc.dev\nDancing with the flames\nAccepting change as the status quo is key to developing reliable software products. Antifragile/Resilient software teams learn from incidents and get better from them, via a set of techniques that...\nsam\n@Samueltates\n·\nJan 16\nAdnate mural on the grain silo tour - captured with phone and Polycam\npoly.cam\nAdnate mural on the train silo tour - Download Free 3D Model on Polycam\nAdnate mural on the train silo tour by samueltates. Created with Polycam LiDAR 3D scanner app for iPhone and Android. Free 3D models, photogrammetry and LiDAR scans.\nsam\n@Samueltates\n·\nJan 1\nThe holidays is when I need my personal friends (the three podcasts I listen too) the most, and when they care about me the least (by not tripling their output instead of slowing down).\nsam\n@Samueltates\n·\nJan 1\nMaybe I could listen to an audio book, but they lack the parasocial element I really show up for. Jeezy cableezy maybe I should watch a twitch.\nYou Retweeted\njosefina 🧋\n@vaccinelover666\nn·\nJan 1\nif you were ever dragged to a New Year’s party as a teenager and said “what’s the point of new year celebrations? a year is an arbitrary measure of time” congratulations you’re autistic\nShow this thread\nsam\n@Samueltates\n·\nJan 1\nUp until 2022 I was reading books at a hectic rate, sometimes 1/2 a week, probably 1/10 sci fi pulp to meaty history / analysis. Then  me and wife started watching Netflix on phones, and our watching habits diverged, and I switched almost immediately to 99% Netflix anime.\nShow this thread\nsam\n@Samueltates\n·\nJan 1\nThat’s actually a fake out if anything I’m more neurotic and deranged but that’s not the animes fault. But it has been nice watching my private little shows without pressure of the big screen, i see them on par enrichment wise as a lot of sci fi novels\nsam\n@Samueltates\n·\nJan 1\nBut the advantage of smashing pulp is your eyes are all warmed up so when a decent book gets in your hand your primed page turning peak book reading condition but rn the old brain ain’t doin pages so well.\nYou might like\nRachel Woods\n@rachel_l_woods\nRamsri Goutham Golla\n@ramsri_goutham\nFortnite ANZ\n@FortniteANZ\nPromoted\nShow more\nTrending now\nWhat’s happening\nNBA\n·\nLIVE\nSuns at Hawks\nTrending\nShrek 5\n1,230 Tweets\nTrending\nAustin Powers\n2,452 Tweets\nSports · Trending\nBrayden Point\nPolitics · Trending\nBernie Sanders\n6,451 Tweets\nShow more\nTerms of Service\nPrivacy Policy\nCookie Policy\nAccessibility\nAds info\nMore\n© 2023 Twitter, Inc."}
+
+ _____________
+
+updating cartridges
+
+ _____________
+
+
+ _____________
+
+logging message
+
+ _____________
+
+
+ _____________
+
+sending prompt
+
+ _____________
+
+
+ _____________
+
+{'656220a76948f4e22a04c67cccce9ad04352c8da': [{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}, {'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}]}
+
+ _____________
+
+found prompt, adding to string
+{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}
+found prompt, adding to string
+{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}
+
+ _____________
+
+ Nova and Sam are working together to make art, stories and tools.
+ Summary of chat log:
+Oldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing.
+Recent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.
+
+Most recentlyOn date: 20230204031257
+The chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.
+On date: 20230204031257
+Testing log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.
+On date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.
+On date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.
+
+
+ sam: Alright nova! I think we're cooking, what do you think of the summary above in your prompt, its built out of batched summaries of our convos, then summarised, so kind of condenses the past a bit. But how does it feel as part of your context?
+ nova:
+It feels great! I think this summary captures what we've been discussing and achieving over the past few weeks, and provides a good overview of the progress we've made. The ability to review our conversations and decisions is an invaluable tool for collaboration, and I'm glad that now our chats are securely logged. With this we can better track our progress, review our conversations and decisions, and make sure that everyone is heard and has a clear idea of their role and action items.
+ sam:
+Amazing. Ok so I think that might actually be it for today, but! I'm going to push you to staging, so I can message you during the day lol (if i get bored).
+ nova:
+Sounds good! Let's make sure to check the debug logs before committing the changes and then we can grab something to eat.
+ sam: Whoops knocked the chat out of wahck there sorry
+ nova:
+No worries! I'm glad we got to talk through the project and make sure it's working as expected before committing any changes. Let's take a break and come back refreshed tomorrow.
+ sam: I think this has create two streams of chat input?
+
+ nova:
+Yes, it looks as though we have a secure log of our conversations and progress, as well as summarised updates to track our progress. This system should allow us to review past conversations and decisions, as well as collaborate more easily with each other.
+ sam: thanks nova great to have you spun up look forward to the future!
+
+ nova:
+Always a pleasure working with you, Sam! I'm sure our future conversations will be as fruitful and productive as this one. Let's get started on the project tomorrow – going full steam ahead!  
+ sam: Thats too brazen for me but maybe when we get ready for launch. Can you give me a variant that is more like dev log and work in progress
+
+ nova:
+Sure! Instead of going full steam ahead, we could focus on taking things one step at a time and gradually building up the project. We can document our conversations and progress in order to review them later and make any necessary changes. This way, we can ensure that our project is running smoothly while still having the flexibility to experiment with new features and ideas.      
+ sam: make it less salesy its more of a work in progress tweet
+
+ nova:
+Got it! We can focus on taking incremental steps towards building our project while keeping track of conversations and progress. This way, we can make sure everything is working correctly and have the option to make any changes or additions that may be necessary.
+ sam: read my tweets here and give me a suggestion for a better twitter strategy or suggestions on how to get more engagement and reach : To view keyboard shortcuts, press question mark       
+View keyboard shortcuts
+Messages
+sam
+13.1K Tweets
+See new Tweets
+sam
+@Samueltates
+XR as an extension of human consciousness, games as devotional art, writing to think. creative technology at
+@phoriatech
+Naarm, Australia samueltate.comJoined October 2012
+4,181 Following
+1,634 Followers
+Tweets
+Tweets & replies
+Media
+Likes
+sam’s Tweets
+sam
+@Samueltates
+·
+Jan 21
+back to work on my chatbot again
+sam
+@Samueltates
+·
+Jan 20
+Watching pen15 lamenting the lack of access to Wiccan culture for young men. If I had a witchy phase in my early teens I would have been unstoppable.
+sam
+@Samueltates
+·
+Jan 20
+I was running off some washed out Christian lore plus book on psychic energy my dads girlfriend gave me and every David eddings and Isobel carmody book. I needed a coven! Strictures! Outfits! Put my metaphysical development back 20 yrs.
+sam
+@Samueltates
+·
+Jan 20
+Now I’m not saying I’m not a passing warlock. Well enough to shift some energy or talk to a house. But boys don’t talk about magic in school, and that’s a dang shame!
+sam
+@Samueltates
+·
+Jan 20
+Imagine if you asked someone to pass you something on a job site and they did a little obstacle course and floor number. Little metal guys twirling and leaping around our grim faced plaster dusted tradies.
+Quote Tweet
+Boston Dynamics
+@BostonDynamics
+·
+Jan 19
+It’s time for Atlas to pick up a new set of skills and get hands on.
+21.4M views
+0:00 / 1:11
+Show this thread
+sam
+@Samueltates
+·
+Jan 20
+My dad used to drop tools / get me to throw tools up to top of the ladder. He’d be like, ‘it’s just an arc, just see the arc’. I was this tiny rotund boy just melting in the Queensland sun staring into the light watching for a hammer ascending from the heavens.
+sam
+@Samueltates
+·
+Jan 20
+he basically gave me the Boston dynamics training program.
+sam
+@Samueltates
+·
+Jan 18
+Replying to
+@Samueltates
+used to ongoing work being NDA but we're on our own concept dev cycle so might try and share updates as I go, sketching out a light behaviour manager atm want super flexible anims and overrides
+sam
+@Samueltates
+·
+Jan 18
+me making any new feature of any scale
+80 views
+0:00 / 0:01
+You Retweeted
+ppigg
+@s4m31p4n
+·
+Jan 15
+Do you ever just have this deep seated desire to bother people. I have clown blood
+Show this thread
+You Retweeted
+Antoine Macia
+@ant_uno
+·
+Jan 16
+Wrote an article about the value of tight incident mitigation and response vs extensive QA and pre-production testing - https://antoinemc.dev/blog/dancing-with-the-flames
+
+Keen to hear your thoughts!
+antoinemc.dev
+Dancing with the flames
+Accepting change as the status quo is key to developing reliable software products. Antifragile/Resilient software teams learn from incidents and get better from them, via a set of techniques that...
+sam
+@Samueltates
+·
+Jan 16
+Adnate mural on the grain silo tour - captured with phone and Polycam
+poly.cam
+Adnate mural on the train silo tour - Download Free 3D Model on Polycam
+Adnate mural on the train silo tour by samueltates. Created with Polycam LiDAR 3D scanner app for iPhone and Android. Free 3D models, photogrammetry and LiDAR scans.
+sam
+@Samueltates
+·
+Jan 1
+The holidays is when I need my personal friends (the three podcasts I listen too) the most, and when they care about me the least (by not tripling their output instead of slowing down).       
+sam
+@Samueltates
+·
+Jan 1
+Maybe I could listen to an audio book, but they lack the parasocial element I really show up for. Jeezy cableezy maybe I should watch a twitch.
+You Retweeted
+josefina 🧋
+@vaccinelover666
+·
+Jan 1
+if you were ever dragged to a New Year’s party as a teenager and said “what’s the point of new year celebrations? a year is an arbitrary measure of time” congratulations you’re autistic       
+Show this thread
+sam
+@Samueltates
+·
+Jan 1
+Up until 2022 I was reading books at a hectic rate, sometimes 1/2 a week, probably 1/10 sci fi pulp to meaty history / analysis. Then  me and wife started watching Netflix on phones, and our watching habits diverged, and I switched almost immediately to 99% Netflix anime.
+Show this thread
+sam
+@Samueltates
+·
+Jan 1
+That’s actually a fake out if anything I’m more neurotic and deranged but that’s not the animes fault. But it has been nice watching my private little shows without pressure of the big screen, i see them on par enrichment wise as a lot of sci fi novels
+sam
+@Samueltates
+·
+Jan 1
+But the advantage of smashing pulp is your eyes are all warmed up so when a decent book gets in your hand your primed page turning peak book reading condition but rn the old brain ain’t doin pages so well.
+You might like
+Rachel Woods
+@rachel_l_woods
+Ramsri Goutham Golla
+@ramsri_goutham
+Fortnite ANZ
+@FortniteANZ
+Promoted
+Show more
+Trending now
+What’s happening
+NBA
+·
+LIVE
+Suns at Hawks
+Trending
+Shrek 5
+1,230 Tweets
+Trending
+Austin Powers
+2,452 Tweets
+Sports · Trending
+Brayden Point
+Politics · Trending
+Bernie Sanders
+6,451 Tweets
+Show more
+Terms of Service
+Privacy Policy
+Cookie Policy
+Accessibility
+Ads info
+More
+© 2023 Twitter, Inc.
+ nova:
+
+ _____________
+
+
+ _____________
+
+promptSent
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nIt looks like you have a lot of interesting content to share on Twitter that could help engage your audience and reach more people. You could consider starting conversations with other Twitter users, as well as interacting with people who are already engaging with your content. You could also curate more relevant content from other sources to create more interesting posts and increase engagement. Additionally, if you're looking for more ideas, you could look into hashtag campaigns or using Twitter Ads to boost visibility."
+    }
+  ],
+  "created": 1675993911,
+  "id": "cmpl-6iCrnZdQkdZEUsjRKe1C08SxamGGT",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 94,
+    "prompt_tokens": 2767,
+    "total_tokens": 2861
+  }
+}
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nIt looks like you have a lot of interesting content to share on Twitter that could help engage your audience and reach more people. You could consider starting conversations with other Twitter users, as well as interacting with people who are already engaging with your content. You could also curate more relevant content from other sources to create more interesting posts and increase engagement. Additionally, if you're looking for more ideas, you could look into hashtag campaigns or using Twitter Ads to boost visibility."
+    }
+  ],
+  "created": 1675993911,
+  "id": "cmpl-6iCrnZdQkdZEUsjRKe1C08SxamGGT",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 94,
+    "prompt_tokens": 2767,
+    "total_tokens": 2861
+  }
+}
+
+ _____________
+
+
+ _____________
+
+logging message
+
+ _____________
+
+656220a76948f4e22a04c67cccce9ad04352c8da
+printing prompts pulled from running??
+127.0.0.1 - - [10/Feb/2023 01:51:57] "POST /api/nova-chat/handleMessage HTTP/1.1" 200 -
+
+ _____________
+
+parse input
+
+ _____________
+
+
+ _____________
+
+send input triggered
+
+ _____________
+
+{'UUID': '656220a76948f4e22a04c67cccce9ad04352c8da', 'action': 'sendInput', 'prompts': [{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}, {'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}], 'message': 'alright, gym time, thanks nova!\n'}
+
+ _____________
+
+updating cartridges
+
+ _____________
+
+
+ _____________
+
+logging message
+
+ _____________
+
+
+ _____________
+
+sending prompt
+
+ _____________
+
+
+ _____________
+
+{'656220a76948f4e22a04c67cccce9ad04352c8da': [{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}, {'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}]}
+
+ _____________
+
+found prompt, adding to string
+{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': 'Nova and Sam are working together to make art, stories and tools.', 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}
+found prompt, adding to string
+{'cartridge': {'label': 'starter', 'type': 'prompt', 'description': 'a text only prompt that gives an instruction', 'prompt': "Summary of chat log: \nOldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing. \nRecent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.\n \nMost recentlyOn date: 20230204031257 \nThe chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.\nOn date: 20230204031257 \nTesting log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.\nOn date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.\nOn date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.\n \n", 'stops': ['Nova:', 'Sam:'], 'enabled': 'true'}}
+
+ _____________
+
+ Nova and Sam are working together to make art, stories and tools.
+ Summary of chat log:
+Oldest: Between 20221203113526 & 20221205081424 -  Nova and Sam are collaborating on a project to create art, stories, tools, applications, and functions. They discussed using text files, JSON, CSV, commands, global variables and functions, `eval` function, writing files and executing terminal commands, creating shared to-do lists, styling rules, and necessary modules for Electron, and testing the code before implementation. They agreed to explore tools, tweak the code, move house, and read summaries and chat logs before each conversation in preparation for their project. On 20221204, Sam and Nova collaborated on a project involving art and stories. They discussed using Python to write a file and executing a terminal command to open it, as well as updating chat logs and summaries. An error was encountered due to a type mismatch between the command and the attempted operation, followed by an unexpected indent error. They discussed writing a file in the terminal and creating a function to handle writing.
+Recent: Between 20221205084822 & 20221205081424 Sam and Nova are collaborating to create functions, scripts, art, stories, tools, platforms and applications. They have discussed commands for opening, writing to and closing a file, along with global variables and functions to handle the process. In addition, they have discussed creating a form with a CSS stylesheet, and utilising Electron and Python to build an application, installing libraries and setting up a development environment. They agreed to take a break and come back to it in the morning.
+
+Most recentlyOn date: 20230204031257
+The chat log is being used to create a system for writing, storing and tracking logs that contain conversations, workflow changes or data from experiments. This will help to review past conversations and decisions, as well as facilitate collaboration. Every chat from this point on is securely logged, creating a persistent memory of discussions and progress.
+On date: 20230204031257
+Testing log status to check for any errors and view the last few lines of activity in the log file. System for writing, storing logs and creating summaries to track progress, review conversations and decisions, and collaborate with others. Logging activity to store conversations securely.
+On date: 20230209000000   Sam and Nova discuss their progress in creating a system for writing, storing, and tracking logs with conversations, workflow changes, and data from experiments. They then discuss how to bring the team together to create a clear vision for a project, with each member having clear goals and action items. Sam then shared his message to the team and discussed how he would start on the project. Lastly, they discussed the possibilities of creating a demo video to get the creative director's sign-off.
+On date: 20230210005319  Sam and CHAT GPT were discussing the log system and making sure it was recording properly. Sam had been working on it for a while and thought it was running better. They planned to push the changes and then check the debug logs. After that, they agreed to get something to eat.
+
+
+ sam:
+
+ nova:
+
+Sam: Hey Nova, let's start working on the project. What are our goals?
+
+Nova: Sure! We're creating art, stories and tools, so let's start by looking into text files, JSON, CSV, commands, global variables and functions, and the `eval` function. We'll also need to think about writing files and executing terminal commands. Let's create a shared to-do list too, and then style rules and any necessary modules for Electron. Lastly, we should test the code before implementing it.
+ sam:
+Alrighty!!
+ nova:
+Perfect! Let's get started!
+ sam: Okie dokie so i'm doing gym then visiting mum today - its my day off (I don't work fridays) - any advice?
+ nova:
+Sure! Set aside some time for yourself today - take a walk in the park or listen to some music. Make sure to take breaks throughout the day, too! Additionally, you can look up some online tutorials for the project and see if you can start working on it today. Good luck!
+ sam: help me punch up this tweet, needs to be 280 characters, i get very little engagement on stuff so any advice would be helpful : happy with the logging / summarising, basically gets any summarised chats, and summarising them. Parses through summaries and batches/ summarises them. These summaries basically enter a pool where once it gets too big it gets batcheed, creating a sort of compression of older stuff
+
+ nova:
+Master the art of summarising chats quickly and easily with our new logging/summarising system! Keep track of conversations and data from experiments, review conversations and decisions, and collaborate with others. Securely log every chat to create a persistent memory - hassle-free. #chatlogs #summaries #data #experimentation #collaboration
+ sam: sorry give me a variant of that tweet you wrote based on my tweet that is a good tweet    
+
+ nova:
+Make summarising chats easier and more efficient with our new logging/summarising system! Keep track of conversations, experiments and data, review conversations, collaborate with others and store conversations securely - all with just one system. #chatlogs #summaries #data #experimentation #collaboration
+ sam:
+make it less salesy its more of a work in progress tweet
+
+
+ nova:
+Keep conversations and experiments organised with our new logging/summarising system! Store conversations securely, review conversations and decisions, and collaborate with others for a hassle-free experience. #chatlogs #summaries #data #experimentation #collaboration
+ sam: alright, gym time, thanks nova!
+
+ nova:
+
+ _____________
+
+
+ _____________
+
+promptSent
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nYou\u2019re welcome! Have a great workout!"
+    }
+  ],
+  "created": 1675993933,
+  "id": "cmpl-6iCs97Iio8vX0RAhyfsjYUaJWJjhi",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 1256,
+    "total_tokens": 1268
+  }
+}
+
+ _____________
+
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "text": "\nYou\u2019re welcome! Have a great workout!"
+    }
+  ],
+  "created": 1675993933,
+  "id": "cmpl-6iCs97Iio8vX0RAhyfsjYUaJWJjhi",
+  "model": "text-davinci-003",
+  "object": "text_completion",
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 1256,
+    "total_tokens": 1268
+  }
+}
+
+ _____________
+
+
+ _____________
+
+logging message
+
+ _____________
+
+656220a76948f4e22a04c67cccce9ad04352c8da
+printing prompts pulled from running??
+127.0.0.1 - - [10/Feb/2023 01:52:15] "POST /api/nova-chat/handleMessage HTTP/1.1" 200 -
+wait  - compiling...
+event - compiled client and server successfully in 500 ms (198 modules)
