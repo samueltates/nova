@@ -20,3 +20,8 @@ more ideas
 https://github.com/jerryjliu/gpt_index
 
 - have whisper etc translate text and create bot in chat responding!
+
+
+
+database
+- make functions that make it easier to trigger database calls / wrappers there 

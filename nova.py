@@ -42,16 +42,16 @@ logCreated = 0
 
 def parseInput(input):
     # here it handles the UIID / persistence and orchestrates the convo
-    print('parse input')
+    eZprint('parse input')
     match input["action"]:
         case "getPrompts":
-            print('get prompts triggered')
+            eZprint('get prompts triggered')
             initialiseCartridges()
             loadCartridges(input)
             functionsRunning = 1
 
         case "sendInput":
-            print('send input triggered')
+            eZprint('send input triggered')
             print(input)
             updateCartridges(input)
             asyncio.run(logMessage(input['UUID'], userName, input['message']))
@@ -61,7 +61,7 @@ def parseInput(input):
                  })
             constructChatPrompt(input['UUID'])
         case "addCartridge":
-            print('add cartridge triggered')
+            eZprint('add cartridge triggered')
 
             # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
@@ -86,19 +86,19 @@ def loadCartridges(input):
         availableCartridges.setdefault(
             input['UUID'], json.load(cartridgesBox))
         for cartKey, cartVal in availableCartridges[input['UUID']].items():
-            print('printing cartridges in first format')
+            eZprint('printing cartridges in first format')
             print(cartKey, cartVal)
             if cartVal['enabled']:
                 runningPrompts.setdefault(input['UUID'], []).append(
                     {cartKey: cartVal})
-    print('load cartridges complete')
+    eZprint('load cartridges complete')
     asyncio.run(runMemory(input))
 
     # print(runningPrompts)
 
 
 def updateCartridges(input):
-    print('updating cartridges')
+    eZprint('updating cartridges')
     runningPrompts[input['UUID']] = input['prompts']
 
 
@@ -125,14 +125,17 @@ def sendPrompt(promptString):
         presence_penalty=0.6,
         stop=[" Sam:", " Nova:"]
     )
+
+    eZprint('promptSent')
+    print(response)
     return response
 
 
 def constructChatPrompt(UUID):
 
     promptString = ""
-    print("sending prompt")
-    print(runningPrompts)
+    eZprint("sending prompt")
+    eZprint(runningPrompts)
     for promptObj in runningPrompts[UUID]:
         print('found prompt, adding to string')
         print(promptObj)
@@ -142,10 +145,9 @@ def constructChatPrompt(UUID):
         promptString += " "+chat['name']+": "+chat['message']+"\n"
 
     promptString += " "+agentName+": "
-    print("prompt string")
-    print(promptString)
+    eZprint(promptString)
     response = sendPrompt(promptString)
-    print(response)
+    eZprint(response)
     asyncio.run(logMessage(UUID, userName, response["choices"][0]["text"]))
 
     logs.setdefault(UUID, []).append(
@@ -176,6 +178,7 @@ async def logMessage(UUID, name, message):
     log = await prisma.log.find_first(
         where={'SessionID': UUID}
     )
+    # need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
     if log == None:
         log = await prisma.log.create(
             data={
@@ -188,7 +191,7 @@ async def logMessage(UUID, name, message):
             }
         )
 
-    print('logging message')
+    eZprint('logging message')
     message = await prisma.message.create(
         data={
             "SessionID": UUID,
@@ -216,72 +219,93 @@ async def logMessage(UUID, name, message):
 #     )
 #     functionsRunning = 0
 
+def eZprint(string):
+    print('\n _____________ \n')
+    print(string)
+    print('\n _____________ \n')
+
 
 async def runMemory(input):
     await prisma.connect()
-    print('running memory')
+    eZprint('running memory')
     logs = await prisma.log.find_many()
+    newLogSummaries = []
     logSummaryBatches = []
     overallSummary = ""
-    id = 0
+    lastDate = ""
+    summaryBatchID = 0
+
     allLogs.setdefault(
         input['UUID'], logs)
     for log in allLogs[input['UUID']]:
 
         # Checks if log has summary, if not, gets summary from OPENAI
         if (log.summary == "" or log.summary == ''):
-            print('no summary, getting summary from OPENAI')
-
-            logID = log.SessionID
+            eZprint('no summary, getting summary from OPENAI')
+            sessionID = log.SessionID
             messageBody = ""
+            # Gets messages with corresponding ID
             messages = await prisma.message.find_many(
-                where={'SessionID': logID})
-            print(messages)
+                where={'SessionID': sessionID})
 
+            # makes sure messages aren't zero (this should be blocked as log isn't created until first message now)
             if (len(messages) != 0):
                 messageBody += "Chat on " + str(messages[0].timestamp) + "\n"
 
-                for messsage in messages:
-                    messageBody += "timestamp:\n"+str(messsage.timestamp) + \
-                        "message: \n" + messsage.body + "\n"
-                print(messageBody)
-                log.body = messageBody
-                log.summary = getSummary(messageBody)
-                print('summary is: '+log.summary)
+                for message in messages:
+                    messageBody += "timestamp:\n"+str(message.timestamp) + \
+                        message.name + ":" + message.body + "\n"
+
+                eZprint('printing   messageBody')
+                eZprint(messageBody)
+
+                messageSummary = getSummary(messageBody)
+                eZprint('summary is: '+messageSummary)
                 updatedLog = await prisma.log.update(
                     where={'id': log.id},
-                    data={'summary': log.summary,
-                          'body': log.body
+                    data={'summary': messageSummary,
+                          'body': messageBody
                           }
                 )
-        lastDate = ""
         # Checks if log has been batched, if not, adds it to the batch
-        print('starting log batching \n\n_______________________\n\n')
+
+    eZprint('starting log batching')
+
+    # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
+    updatedLogs = await prisma.log.find_many()
+    for log in updatedLogs:
         if (log.batched == False):
-            print(
-                '\n\n_______________________\n\n unbatched log found \n\n_______________________\n\n')
+            eZprint('unbatched log found')
 
-            # setting start of batch
-            if (len(logSummaryBatches) == id):
+            ############################
+            # STARTBATCH - setting start of batch #
+            # if no batch, and ID is 0, creates new batch, when ID ticks over this is triggered again as batch ## == ID, until new batch added, etc
+            if (len(logSummaryBatches) == summaryBatchID):
                 logSummaryBatches.append(
-                    {'startDate': "", 'endDate': "", 'summaries': ""})
-                logSummaryBatches[id]['startDate'] = log.date
-                print('\n\n_______________________\n\n log: '+str(log.id) +
-                      ' is start of batch \n\n_______________________\n\n')
+                    {'startDate': "", 'endDate': "", 'summaries': "", 'idList': []})
+                logSummaryBatches[summaryBatchID]['startDate'] = log.date
+                eZprint('log: ' + str(log.id) + ' is start of batch')
+            ############################
 
-            # adding log to batch
-            logSummaryBatches[id]['summaries'] += "On date: " + \
+            ############################
+            # EVERYBATCH - adding actual log sumamry to batch
+            # this happens every loop, book ended by start / end
+            logSummaryBatches[summaryBatchID]['summaries'] += "On date: " + \
                 log.date+" "+log.summary + "\n"
-            print('added logID: '+str(log.id) + ' batchID: ' + str(id) +
-                  ' printing logSummaryBatches \n\n_______________________\n\n')
-            print(logSummaryBatches[id])
+            logSummaryBatches[summaryBatchID]['idList'].append(
+                log.id)
+            eZprint('added logID: '+str(log.id) + ' batchID: ' + str(summaryBatchID) +
+                    ' printing logSummaryBatches')
+            # eZprint(logSummaryBatches[summaryBatchID])
             lastDate = log.date
+            ############################
 
-            # setting end of batch
-            if (len(logSummaryBatches[id]['summaries']) > 2000):
-                print(
-                    '\n\n_______________________\n\n log: '+str(log.id)+' is end of batch \n\n_______________________\n\n')
-                logSummaryBatches[id]['endDate'] = lastDate
+            ############################
+            # ENDBATCH -- setting end of batch
+            if (len(logSummaryBatches[summaryBatchID]['summaries']) > 2000):
+                eZprint(' log: '+str(log.id)+' is end of batch')
+                logSummaryBatches[summaryBatchID]['endDate'] = lastDate
+
                 # log.batched = True
                 # to do this shouldn't be marked as batched till it's been summarised
                 # updatedLog = await prisma.log.update(
@@ -290,14 +314,17 @@ async def runMemory(input):
                 #         'batched': log.batched
                 #     }
                 # )
-                id += 1
+
+                summaryBatchID += 1
 
     functionsRunning = 0
 
+    # END OF SUMMARY BATCHING AND PRINT RESULTS
+    eZprint('END OF SUMMARY BATCHING AND PRINT RESULTS')
     batchID = 0
     for logBatch in logSummaryBatches:
-        print('\n\n\n     ________\n\n\nprinting batch for batch ID ' +
-              str(batchID) + '\n\n\n     ________\n\n\n')
+        eZprint('printing batch for batch ID ' +
+                str(batchID))
         print(logBatch)
         batchID += 1
     # return
@@ -313,44 +340,42 @@ async def runMemory(input):
     latestLogs = ""
     batchRangeStart = ""
     batchRangeEnd = ""
+
+    multiBatchRangeStart = ""
+    multiBatchRangeEnd = ""
+
     multiBatchSummary = ""
 
     remoteBatches = await prisma.batch.find_many()
-    print('\n\n\n_______________________________\n\n\n')
-    print('starting log batch sumamarisations')
-    print('\n\n\n_______________________________\n\n\n')
+    eZprint('starting summary batch sumamarisations')
 
+    # checks if there is any remote batches that haven't been summarised
     if (len(remoteBatches) > 0):
-        print('\n\n\n_______________________________\n\n\n')
-        print('remote batches found ')
-        print('\n\n\n_______________________________\n\n\n')
-
+        eZprint('remote batches found ')
         for batch in remoteBatches:
             if (batch.batched == False):
-                print('\n\n\n_______________________________\n\n\n')
-                print('remote batches found ')
-                print('\n\n\n_______________________________\n\n\n')
+                eZprint('remote unsumarised batches found ')
                 batchRangeStart = batch.dateRange.split(":")[0]
                 runningBatches.append(batch)
                 runningBatchedSummaries += batch.summary
 
+    # goes through the new batches of summaries, and summarises them
     for batch in logSummaryBatches:
-
         if (batch['endDate'] == ""):
-            print('\n\n\n_______________________________\n\n\n')
-            print('no end log batch found so not summarising ')
-            print('\n\n\n_______________________________\n\n\n')
+            eZprint('no end log batch found so not summarising ')
             latestLogs = batch['summaries']
             break
         if (batchRangeStart == ""):
             batchRangeStart = batch['startDate']
-            print('\n\n\n_______________________________\n\n\n')
-            print('no end log batch found so not summarising ')
-            print('\n\n\n_______________________________\n\n\n')
+            eZprint('batch with full range found so summarising ')
+
+        eZprint('batch with date range: ' +
+                batch['startDate']+":" + batch['endDate'] + ' about to get summarised')
 
         batchSummary = getSummary(batch['summaries'])
-        runningBatchedSummaries += batchSummary
-        print('batch summary is: ' + batchSummary)
+        runningBatchedSummaries += batchSummary + "\n"
+        eZprint('batch summary is: ' + batchSummary)
+        eZprint('running batched summary is: ' + runningBatchedSummaries)
 
         batchRemote = await prisma.batch.create(
             data={'dateRange': batch['startDate']+":" + batch['endDate'],
@@ -358,26 +383,42 @@ async def runMemory(input):
 
         runningBatches.append(batchRemote)
 
-        log.batched = True
-        # to do this shouldn't be marked as batched till it's been summarised
-        updatedLog = await prisma.log.update(
-            where={'id': log.id},
-            data={
-                'batched': log.batched
-            }
-        )
+        # goes through logs that were in that batch and marked as batched (summarised)
+
+        for id in batch['idList']:
+            eZprint('session ID found to mark as batched : ' +
+                    str(sessionID) + ' id: ' + str(id))
+            try:
+                updatedLog = await prisma.log.update(
+                    where={'id': id},
+                    data={
+                        'batched': True
+                    }
+                )
+                eZprint('updated log as batched' + str(sessionID))
+            except Exception as e:
+                eZprint('error updating log as batched' + str(sessionID))
+                eZprint(e)
 
         if len(runningBatchedSummaries) > 1000:
-            print('batch is too long, creating new batch')
+            if (multiBatchRangeStart == ""):
+                multiBatchRangeStart = batch['startDate']
+
+            multiBatchRangeEnd = batch['endDate']
+            batchRangeEnd = batch['endDate']
+            eZprint('summaries of batches ' + batchRangeStart +
+                    batchRangeEnd+' is too long, so summarising')
+
             summaryRequest = "between " + batchRangeStart + " and " + \
                 batchRangeEnd + " " + runningBatchedSummaries
+            eZprint('summary request is: ' + summaryRequest)
 
-            multiBatchSummary += getSummary(summaryRequest)
-            batchRangeEnd = batch['endDate']
+            batchSummary = getSummary(summaryRequest)
+            multiBatchSummary += batchSummary
 
             batchBatch = await prisma.batch.create(
                 data={'dateRange': batch['startDate']+":" + batch['endDate'],
-                      'summary': multiBatchSummary, 'batched': False, })
+                      'summary': batchSummary, 'batched': False, })
 
             for batch in runningBatches:
                 updateBatch = await prisma.batch.update(
@@ -385,12 +426,22 @@ async def runMemory(input):
                     data={'batched': True, })
 
             runningBatchedSummaries = ""
+            batchRangeStart = ""
             runningBatches = []
 
-    overallSummary = "previously:" + multiBatchSummary + "more recently" + \
-        runningBatchedSummaries + "and most recently" + latestLogs
+    overallSummary = "Summary of chat log: \n"
 
-    print("overall summary is: " + overallSummary)
+    overallSummary += "Oldest: Between " + multiBatchRangeStart + \
+        " & " + multiBatchRangeEnd + " - " + multiBatchSummary + " \n"
+
+    if (runningBatchedSummaries != ""):
+        overallSummary += "Recent: Between " + batchRangeStart + \
+            " & " + batchRangeEnd + runningBatchedSummaries + " \n"
+
+    if (latestLogs != ""):
+        overallSummary += "Most recently" + latestLogs + " \n"
+
+    eZprint("overall summary is: " + overallSummary)
     summaryCartridge = {'label': 'starter',
                         'type': 'prompt',
                         'description': 'a text only prompt that gives an instruction',
@@ -405,8 +456,9 @@ async def runMemory(input):
 
 
 def getSummary(textToSummarise):
-    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation:"
+    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation.\nTEXT TO SUMMARISE:\n"
     stopString = "\n Summary:"
-    prompt = initialPrompt + textToSummarise
+    prompt = initialPrompt + textToSummarise + stopString
     response = sendPrompt(prompt)
+
     return response["choices"][0]["text"]
