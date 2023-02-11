@@ -20,12 +20,12 @@ class handler(BaseHTTPRequestHandler):
             print('waiting for functions to finish')
             print(functionsRunning)
             pass
-        match post_body_py["action"]:
-            case "getPrompts":
-                responseJson = json.dumps(
-                    runningPrompts[post_body_py["sessionID"]])
-            case "sendInput":
-                responseJson = json.dumps(logs[post_body_py["sessionID"]])
+
+        if (post_body_py["action"] == "getPrompts"):
+            responseJson = json.dumps(
+                runningPrompts[post_body_py["sessionID"]])
+        if (post_body_py["action"] == "sendInput"):
+            responseJson = json.dumps(logs[post_body_py["sessionID"]])
             # case "addCartridge":
         print('printing prompts pulled from running??')
 
