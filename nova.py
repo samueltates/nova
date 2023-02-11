@@ -17,7 +17,7 @@ availableCartridges = dict()
 allLogs = dict()
 responses = dict()
 logs = dict()
-userName = "sam"
+userName = "guest"
 agentName = "nova"
 functionsRunning = 0
 prisma = Prisma()
@@ -274,6 +274,8 @@ async def runMemory(input):
     # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
     updatedLogs = await prisma.log.find_many()
     for log in updatedLogs:
+        if (log.UUID != "sam"):
+            return
         if (log.batched == False):
             eZprint('unbatched log found')
 
@@ -446,13 +448,34 @@ async def runMemory(input):
                         'type': 'prompt',
                         'description': 'a text only prompt that gives an instruction',
                         'prompt': overallSummary,
-                        'stops': ['Nova:', 'Sam:'],
+                        'stops': ['Nova:', 'Guest:'],
                         'enabled': 'true'}
 
     runningPrompts.setdefault(input['UUID'], []).append(
         {'cartridge': summaryCartridge})
 
+    welcomeGuest(input['UUID'])
     await prisma.disconnect()
+
+
+def welcomeGuest(UUID):
+
+    promptString = ""
+    eZprint("sending prompt")
+    eZprint(runningPrompts)
+    for promptObj in runningPrompts[UUID]:
+        print('found prompt, adding to string')
+        print(promptObj)
+        promptString += " "+promptObj['cartridge']['prompt']+"\n"
+
+    response = sendPrompt(promptString)
+
+    eZprint(response)
+    asyncio.run(logMessage(UUID, userName, response["choices"][0]["text"]))
+
+    logs.setdefault(UUID, []).append(
+        {"name": agentName,
+         "message": response["choices"][0]["text"]})
 
 
 def getSummary(textToSummarise):

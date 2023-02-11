@@ -7,10 +7,10 @@ async def main() -> None:
     await prisma.connect()
 
     ###### PRINTS MESSAGES#########
-    # messages = await prisma.message.find_many()
-    # for message in messages:
-    #     print('\n\n\n _________________________________________________________ \n\n\n printing message \n\n\n _________________________________________________________ \n\n\n')
-    #     print(message)
+    messages = await prisma.message.find_many()
+    for message in messages:
+        print('\n\n\n _________________________________________________________ \n\n\n printing message \n\n\n _________________________________________________________ \n\n\n')
+        print(message)
 
     ###### CREATES LOG #########
     # log = await prisma.log.create(
@@ -36,17 +36,17 @@ async def main() -> None:
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     #### FINDS LOG #########
-    logs = await prisma.log.find_many()
-    for log in logs:
-        print(log)
-        print('\n\n\n _________________________________________________________ \n\n\n')
+    # logs = await prisma.log.find_many()
+    # for log in logs:
+    #     print(log)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
 
-    updatedLog = await prisma.log.find_many(
-        where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }
+    # updatedLog = await prisma.log.find_many(
+    #     where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }
 
-    )
+    # )
 
-    print(updatedLog)
+    # print(updatedLog)
     ###### DELETES LOGS #########
     # # logToDelete = await prisma.log.delete_many(
     # #     where={'id': 1}
