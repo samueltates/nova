@@ -54,12 +54,13 @@ def parseInput(input):
             eZprint('send input triggered')
             print(input)
             updateCartridges(input)
-            asyncio.run(logMessage(input['UUID'], userName, input['message']))
-            logs.setdefault(input['UUID'], []).append(
-                {"name": userName,
+            asyncio.run(logMessage(
+                input['sessionID'], input['userName'], input['message']))
+            logs.setdefault(input['sessionID'], []).append(
+                {"userName": input['userName'],
                  "message": input['message']
                  })
-            constructChatPrompt(input['UUID'])
+            constructChatPrompt(input)
         case "addCartridge":
             eZprint('add cartridge triggered')
 
@@ -84,12 +85,12 @@ def initialiseCartridges():
 def loadCartridges(input):
     with open("cartridges.json", "r") as cartridgesBox:
         availableCartridges.setdefault(
-            input['UUID'], json.load(cartridgesBox))
-        for cartKey, cartVal in availableCartridges[input['UUID']].items():
+            input['sessionID'], json.load(cartridgesBox))
+        for cartKey, cartVal in availableCartridges[input['sessionID']].items():
             eZprint('printing cartridges in first format')
             print(cartKey, cartVal)
             if cartVal['enabled']:
-                runningPrompts.setdefault(input['UUID'], []).append(
+                runningPrompts.setdefault(input['sessionID'], []).append(
                     {cartKey: cartVal})
     eZprint('load cartridges complete')
     asyncio.run(runMemory(input))
@@ -99,7 +100,7 @@ def loadCartridges(input):
 
 def updateCartridges(input):
     eZprint('updating cartridges')
-    runningPrompts[input['UUID']] = input['prompts']
+    runningPrompts[input['sessionID']] = input['prompts']
 
 
 def addCartridge(input):
@@ -131,27 +132,28 @@ def sendPrompt(promptString):
     return response
 
 
-def constructChatPrompt(UUID):
+def constructChatPrompt(input):
 
     promptString = ""
     eZprint("sending prompt")
     eZprint(runningPrompts)
-    for promptObj in runningPrompts[UUID]:
+    for promptObj in runningPrompts[input['sessionID']]:
         print('found prompt, adding to string')
         print(promptObj)
         promptString += " "+promptObj['cartridge']['prompt']+"\n"
 
-    for chat in logs[UUID]:
-        promptString += " "+chat['name']+": "+chat['message']+"\n"
+    for chat in logs[input['sessionID']]:
+        promptString += " "+chat['userName']+": "+chat['message']+"\n"
 
     promptString += " "+agentName+": "
     eZprint(promptString)
     response = sendPrompt(promptString)
     eZprint(response)
-    asyncio.run(logMessage(UUID, userName, response["choices"][0]["text"]))
+    asyncio.run(logMessage(input['sessionID'], agentName,
+                response["choices"][0]["text"]))
 
-    logs.setdefault(UUID, []).append(
-        {"name": agentName,
+    logs.setdefault(input['sessionID'], []).append(
+        {"userName": agentName,
          "message": response["choices"][0]["text"]})
 
 
@@ -172,17 +174,17 @@ def constructChatPrompt(UUID):
 #     await prisma.disconnect()
 
 
-async def logMessage(UUID, name, message):
+async def logMessage(sessionID, name, message):
     functionsRunning = 1
     await prisma.connect()
     log = await prisma.log.find_first(
-        where={'SessionID': UUID}
+        where={'SessionID': sessionID}
     )
     # need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
     if log == None:
         log = await prisma.log.create(
             data={
-                "SessionID": UUID,
+                "SessionID": sessionID,
                 "UserID": name,
                 "date": datetime.now().strftime("%Y%m%d%H%M%S"),
                 "summary": "",
@@ -194,9 +196,9 @@ async def logMessage(UUID, name, message):
     eZprint('logging message')
     message = await prisma.message.create(
         data={
-            "SessionID": UUID,
+            "SessionID": sessionID,
             "name": name,
-            "UserID": 'Sam',
+            "UserID": name,
             "timestamp": datetime.now(),
             "body": message,
         }
@@ -236,9 +238,10 @@ async def runMemory(input):
     summaryBatchID = 0
 
     allLogs.setdefault(
-        input['UUID'], logs)
-    for log in allLogs[input['UUID']]:
-
+        input['sessionID'], logs)
+    for log in allLogs[input['sessionID']]:
+        if (input['userID'] == "guest"):
+            return
         # Checks if log has summary, if not, gets summary from OPENAI
         if (log.summary == "" or log.summary == ''):
             eZprint('no summary, getting summary from OPENAI')
@@ -274,7 +277,7 @@ async def runMemory(input):
     # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
     updatedLogs = await prisma.log.find_many()
     for log in updatedLogs:
-        if (log.UUID != "sam"):
+        if (input['userID'] == "guest"):
             return
         if (log.batched == False):
             eZprint('unbatched log found')
@@ -433,8 +436,9 @@ async def runMemory(input):
 
     overallSummary = "Summary of chat log: \n"
 
-    overallSummary += "Oldest: Between " + multiBatchRangeStart + \
-        " & " + multiBatchRangeEnd + " - " + multiBatchSummary + " \n"
+    if (multiBatchSummary != ""):
+        overallSummary += "Oldest: Between " + multiBatchRangeStart + \
+            " & " + multiBatchRangeEnd + " - " + multiBatchSummary + " \n"
 
     if (runningBatchedSummaries != ""):
         overallSummary += "Recent: Between " + batchRangeStart + \
@@ -451,19 +455,18 @@ async def runMemory(input):
                         'stops': ['Nova:', 'Guest:'],
                         'enabled': 'true'}
 
-    runningPrompts.setdefault(input['UUID'], []).append(
+    runningPrompts.setdefault(input['sessionID'], []).append(
         {'cartridge': summaryCartridge})
 
-    welcomeGuest(input['UUID'])
     await prisma.disconnect()
 
 
-def welcomeGuest(UUID):
+def welcomeGuest(sessionID, userName):
 
     promptString = ""
     eZprint("sending prompt")
     eZprint(runningPrompts)
-    for promptObj in runningPrompts[UUID]:
+    for promptObj in runningPrompts[sessionID]:
         print('found prompt, adding to string')
         print(promptObj)
         promptString += " "+promptObj['cartridge']['prompt']+"\n"
@@ -471,10 +474,11 @@ def welcomeGuest(UUID):
     response = sendPrompt(promptString)
 
     eZprint(response)
-    asyncio.run(logMessage(UUID, userName, response["choices"][0]["text"]))
+    asyncio.run(logMessage(sessionID, userName,
+                response["choices"][0]["text"]))
 
-    logs.setdefault(UUID, []).append(
-        {"name": agentName,
+    logs.setdefault(sessionID, []).append(
+        {"userName": agentName,
          "message": response["choices"][0]["text"]})
 
 

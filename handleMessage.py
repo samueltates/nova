@@ -13,7 +13,7 @@ class handler(BaseHTTPRequestHandler):
         post_body = self.rfile.read(content_len)
         post_body_py = json.loads(post_body)
         parseInput(post_body_py)
-        print(post_body_py["UUID"])
+        print(post_body_py["sessionID"])
         # will need to wait for runningPrompts to be populated
         # which means probably the brain can handle the 'response'
         while functionsRunning > 0:
@@ -22,9 +22,10 @@ class handler(BaseHTTPRequestHandler):
             pass
         match post_body_py["action"]:
             case "getPrompts":
-                responseJson = json.dumps(runningPrompts[post_body_py["UUID"]])
+                responseJson = json.dumps(
+                    runningPrompts[post_body_py["sessionID"]])
             case "sendInput":
-                responseJson = json.dumps(logs[post_body_py["UUID"]])
+                responseJson = json.dumps(logs[post_body_py["sessionID"]])
             # case "addCartridge":
         print('printing prompts pulled from running??')
 
