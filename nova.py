@@ -106,9 +106,9 @@ def updateCartridges(input):
 def addCartridge(input):
     print('adding cartridge')
     # idea here is to detect when new cartridge is added, and if it is a function then handle it
-    match input['type']:
-        case "function":
-            runFunction(input)
+    # match input['type']:
+    #     case "function":
+    #         # runFunction(input)
 
 
 # def runFunction(input):
