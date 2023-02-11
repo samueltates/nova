@@ -20,7 +20,6 @@ class handler(BaseHTTPRequestHandler):
             print('waiting for functions to finish')
             print(functionsRunning)
             pass
-
         if (post_body_py["action"] == "getPrompts"):
             responseJson = json.dumps(
                 runningPrompts[post_body_py["sessionID"]])
