@@ -5,10 +5,7 @@ import asyncio
 
 from prisma import Prisma
 
-from datetime import date, datetime
-
-
-from http.server import BaseHTTPRequestHandler
+from datetime import datetime
 
 openai.api_key = "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"
 
