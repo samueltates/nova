@@ -1,0 +1,45 @@
+// generator
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:database.db"
+}
+
+model batch {
+  id        Int     @id @default(autoincrement())
+  dateRange String
+  summary   String
+  batched   Boolean
+  UserID    String  @default("sam")
+}
+
+model log {
+  id        Int     @id @default(autoincrement())
+  SessionID String  @default("")
+  UserID    String  @default("")
+  date      String  @default("")
+  summary   String  @default("")
+  body      String  @default("")
+  batched   Boolean @default(false)
+}
+
+model message {
+  id        Int    @id @default(autoincrement())
+  SessionID String
+  UserID    String
+  name      String
+  timestamp String
+  body      String
+}
+
+// model user {
+//   id     Int    @id @default(autoincrement())
+//   name   String
+//   UserID String
+//   // password String
+//   // email    String @unique
+// }
