@@ -1,2 +1,0 @@
-[tool.prisma]
-binary_cache_dir = '../'
