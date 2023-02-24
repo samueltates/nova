@@ -9,6 +9,7 @@ class handler(BaseHTTPRequestHandler):
 
         # gets body from message, needs length of file and reads that length
         # not sure why this is so it doesn't go forever I guess
+
         content_len = int(self.headers['content-length'])
         post_body = self.rfile.read(content_len)
         post_body_py = json.loads(post_body)
