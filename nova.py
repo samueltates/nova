@@ -72,30 +72,38 @@ def parseInput(input):
 
 
 def initialiseCartridges():
-    path = 'cartridges.json'
-    if os.path.exists(path) is False:
-        cartridges = {'cartridge':
-                      {'label': 'starter',
-                       'type': 'prompt',
-                       'description': 'a text only prompt that gives an instruction',
-                       'prompt': 'Nova and Sam are working together to make art, stories and tools.',
-                       'stops': ['Nova:', 'Sam:'],
-                       'enabled': 'true'}
-                      }
-        with open("cartridges.json", "a") as cartridgesBox:
-            json.dump(cartridges, cartridgesBox)
+    # path = 'cartridges.json'
+    cartridges = {'cartridge':
+                    {'label': 'starter',
+                    'type': 'prompt',
+                    'description': 'a text only prompt that gives an instruction',
+                    'prompt': 'Nova and Sam are working together to make art, stories and tools.',
+                    'stops': ['Nova:', 'Sam:'],
+                    'enabled': 'true'}
+                    }
+    # if os.path.exists(path) is False:
+    #     with open("cartridges.json", "a") as cartridgesBox:
+    #         json.dump(cartridges, cartridgesBox)
 
 
 def loadCartridges(input):
-    with open("cartridges.json", "r") as cartridgesBox:
-        availableCartridges.setdefault(
-            input['sessionID'], json.load(cartridgesBox))
-        for cartKey, cartVal in availableCartridges[input['sessionID']].items():
-            eZprint('printing cartridges in first format')
-            print(cartKey, cartVal)
-            if cartVal['enabled']:
-                runningPrompts.setdefault(input['sessionID'], []).append(
-                    {cartKey: cartVal})
+    # with open("cartridges.json", "r") as cartridgesBox:
+    cartridges = {'cartridge':
+                    {'label': 'starter',
+                    'type': 'prompt',
+                    'description': 'a text only prompt that gives an instruction',
+                    'prompt': 'Nova and Sam are working together to make art, stories and tools.',
+                    'stops': ['Nova:', 'Sam:'],
+                    'enabled': 'true'}
+                    }
+    availableCartridges.setdefault(
+        input['sessionID'], cartridges)
+    for cartKey, cartVal in availableCartridges[input['sessionID']].items():
+        eZprint('printing cartridges in first format')
+        print(cartKey, cartVal)
+        if cartVal['enabled']:
+            runningPrompts.setdefault(input['sessionID'], []).append(
+                {cartKey: cartVal})
     eZprint('load cartridges complete')
     asyncio.run(runMemory(input))
 
