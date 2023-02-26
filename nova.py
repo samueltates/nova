@@ -4,15 +4,15 @@ import json
 import asyncio
 from pathlib import Path
 
-import sys
+# import sys
 
-path_root = Path(__file__).parents[2]
-sys.path.append((str(path_root)))
-print (sys.path)
+# path_root = Path(__file__).parents[2]
+# sys.path.append((str(path_root)))
+# print (sys.path)
 
-from prismalocal import Prisma
+# # from prismalocal import Prisma
 
-# from prisma import Prisma
+from prisma import Prisma
 
 from datetime import datetime
 
