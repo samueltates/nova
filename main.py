@@ -1,4 +1,4 @@
-from .nova import parseInput, runningPrompts, logs, functionsRunning
+from nova import parseInput, runningPrompts, logs, functionsRunning
 from http.server import BaseHTTPRequestHandler
 import json
 
