@@ -1,17 +1,1 @@
-{
-    "starter": {
-        "type": "prompt",
-        "prompt": "Nova and Sam are working together to make art, stories and tools.",
-        "stops": [
-            "Nova:",
-            "Sam:"
-        ],
-        "enabled": "true"
-    },
-    "cartridge": {
-        "label": "memory",
-        "type": "function",
-        "description": "",
-        "enabled": "true"
-    }
-}
+{"cartridge": {"label": "starter", "type": "prompt", "description": "a text only prompt that gives an instruction", "prompt": "Nova and Sam are working together to make art, stories and tools.", "stops": ["Nova:", "Sam:"], "enabled": "true"}}
