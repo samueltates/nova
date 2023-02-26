@@ -1,6 +1,9 @@
 from nova import parseInput, runningPrompts, logs, functionsRunning
 from http.server import BaseHTTPRequestHandler
 import json
+import os
+
+os.sys('prisma generate')
 
 
 class handler(BaseHTTPRequestHandler):
