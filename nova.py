@@ -1,9 +1,10 @@
 import os
 import openai
+from decouple import config
 import json
 import asyncio
 from pathlib import Path
-
+import os
 import sys
 
 path_root = Path(__file__).parents[1]
@@ -15,8 +16,7 @@ from prismalocal import Prisma
 # from prisma import Prisma
 
 from datetime import datetime
-
-openai.api_key = "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"
+openai.api_key = print(os.getenv('OPENAIKEY', default=None))
 
 runningPrompts = dict()
 availableCartridges = dict()
