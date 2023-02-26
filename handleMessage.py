@@ -34,7 +34,7 @@ class handler(BaseHTTPRequestHandler):
 
         content = bytes(responseJson, 'utf-8')
         self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
+        self.send_header('Content-type', 'text/plain', 'Access-Control-Allow-Origin', '*')
         self.send_header("Content-Length", len(content))
         self.end_headers()
         self.wfile.write(content)
