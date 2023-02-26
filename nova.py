@@ -1,10 +1,16 @@
 import os
 import openai
-from prisma import Prisma
 import json
 import asyncio
 from pathlib import Path
 
+import sys
+
+path_root = Path(__file__).parents[1]
+sys.path.append((str(path_root)))
+print (sys.path)
+
+from prismalocal import Prisma
 
 # from prisma import Prisma
 
