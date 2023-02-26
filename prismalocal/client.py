@@ -64,7 +64,7 @@ __all__ = (
     'get_client',
 )
 
-SCHEMA_PATH = Path('/Users/sam/Documents/Projects/nextjs-blog/api/nova-chat/schema.prisma')
+SCHEMA_PATH = Path('/Users/sam/Documents/Projects/nova-flask/nova-server/nova/schema.prisma')
 PACKAGED_SCHEMA_PATH = Path(__file__).parent.joinpath('schema.prisma')
 ENGINE_TYPE: EngineType = EngineType.binary
 BINARY_PATHS = BinaryPaths.parse_obj({'queryEngine': {'darwin-arm64': '/Users/sam/.cache/prisma-python/binaries/4.10.1/aead147aa326ccb985dcfed5b065b4fdabd44b19/node_modules/prisma/query-engine-darwin-arm64'}, 'introspectionEngine': {}, 'migrationEngine': {}, 'libqueryEngine': {}, 'prismaFmt': {}})
@@ -406,7 +406,7 @@ class Prisma:
     def _default_datasource(self) -> DatasourceOverride:
         return {
             'name': 'db',
-            'url': OptionalValueFromEnvVar(**{'value': 'file:database.db', 'fromEnvVar': None}).resolve(),
+            'url': OptionalValueFromEnvVar(**{'value': None, 'fromEnvVar': 'DATABASE_URL'}).resolve(),
         }
 
 
