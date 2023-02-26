@@ -16,7 +16,7 @@ from prismalocal import Prisma
 
 from datetime import datetime
 
-openai.api_key = "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"
+openai.api_key = "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"
 
 runningPrompts = dict()
 availableCartridges = dict()
