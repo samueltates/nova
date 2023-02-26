@@ -1,3 +1,0 @@
-[tool.prisma]
-# cache engine binaries in a directory relative to your project
-binary_cache_dir = './binaries'
