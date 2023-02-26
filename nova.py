@@ -10,7 +10,7 @@ path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
 from prismalocal import Prisma
 # from prisma import Prisma
-os.system('prisma py fetch')
+os.system('prisma generate')
 from datetime import datetime
 openai.api_key = os.getenv('OPENAIKEY', default=None)
 
