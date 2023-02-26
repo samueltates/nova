@@ -1,3 +1,3 @@
 import os
 
-os.sys('prisma generate')
+os.sys('python -m prisma generate')
