@@ -8,7 +8,7 @@ import sys
 
 path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
-from prismalocal import Prisma
+from prisma import Prisma
 # from prisma import Prisma
 os.system('prisma generate')
 from datetime import datetime

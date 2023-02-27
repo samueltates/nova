@@ -1,9 +1,9 @@
-[phases.setup]
-nixPkgs = ['...', 'python']
+
+[phases.install]
+cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate']
 
 [phases.build]
-cmds = ['prisma generate']
 
 [start]
-cmd = 'python main.py'
+cmd = 'pipenv run python main.py'
 
