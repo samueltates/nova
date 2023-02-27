@@ -9,6 +9,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+print('main running')
 
 @app.route('/')
 def index():

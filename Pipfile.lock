@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e975bad45a30fc57a83f96968ef96d702b292d69e22d534e430bbad4952e9605"
+            "sha256": "41377b6c1d8171a0cbcad4a102b35d63f0fc823a86242912ecc10e319dc35941"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -133,6 +133,13 @@
             "index": "pypi",
             "version": "==7.1.2"
         },
+        "distlib": {
+            "hashes": [
+                "sha256:14bad2d9b04d3a36127ac97f30b12a19268f211063d8f8ee4f47108896e11b46",
+                "sha256:f35c4b692542ca110de7ef0bea44d73981caeb34ca0b9b6b2e6d7790dda8f80e"
+            ],
+            "version": "==0.3.6"
+        },
         "et-xmlfile": {
             "hashes": [
                 "sha256:8eb9e2bc2f8c97e37a2dc85a09ecdcdec9d8a396530a6d5a33b30b9a92da0c5c",
@@ -140,6 +147,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==1.1.0"
+        },
+        "filelock": {
+            "hashes": [
+                "sha256:7b319f24340b51f55a2bf7a12ac0755a9b03e718311dac567a0f4f7fabd2f5de",
+                "sha256:f58d535af89bb9ad5cd4df046f741f8553a418c01a7856bf0d173bbc9f6bd16d"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==3.9.0"
         },
         "flask": {
             "hashes": [
@@ -369,6 +384,14 @@
             "markers": "python_version < '3.12' and python_version >= '3.8'",
             "version": "==1.5.3.230214"
         },
+        "platformdirs": {
+            "hashes": [
+                "sha256:8a1228abb1ef82d788f74139988b137e78692984ec7b08eaa6c65f1723af28f9",
+                "sha256:b1d5eb14f221506f50d6604a561f4c5786d9e80355219694a1b244bcd96f4567"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==3.0.0"
+        },
         "prisma": {
             "hashes": [
                 "sha256:62a87032f19cddb0cacdb33c56f4606ece7e09f1c372de994d1ebcc682e978e9",
@@ -522,6 +545,14 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'",
             "version": "==1.26.14"
+        },
+        "virtualenv": {
+            "hashes": [
+                "sha256:37a640ba82ed40b226599c522d411e4be5edb339a0c0de030c0dc7b646d61590",
+                "sha256:54eb59e7352b573aa04d53f80fc9736ed0ad5143af445a1e539aada6eb947dd1"
+            ],
+            "index": "pypi",
+            "version": "==20.19.0"
         },
         "werkzeug": {
             "hashes": [

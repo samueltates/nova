@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ['...', 'python']
+
+[phases.build]
+cmds = ['prisma generate']
+
+[start]
+cmd = 'python main.py'
+
