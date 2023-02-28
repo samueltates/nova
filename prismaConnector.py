@@ -136,7 +136,7 @@ async def main() -> None:
     # batches = await prisma.batch.delete_many({})
 
 
-    ##### DELETES MESSAGES #########
+    # #### DELETES MESSAGES #########
 
     # messages = await prisma.message.delete_many({})
 
