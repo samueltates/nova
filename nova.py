@@ -271,10 +271,10 @@ async def runMemory(input):
             messages = await prisma.message.find_many(
                 where={'SessionID': sessionID})
             
-            updateMessages = await prisma.message.update(
-                where={'SessionID': sessionID},
-                data={'batched': True}
-            )
+            # updateMessages = await prisma.message.update(
+            #     where={'SessionID': sessionID},
+            #     data={'batched': True}
+            # )
 
             # makes sure messages aren't zero (this should be blocked as log isn't created until first message now)
             if (len(messages) != 0):
