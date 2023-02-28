@@ -58,13 +58,13 @@ async def main() -> None:
 
     ##### pushes DB #########
 
-    # dbJson = json.load(open('./scrape.json'))
-    # for message in dbJson['messages']:
-    #     print(message)
-    #     print('\n\n\n _________________________________________________________ \n\n\n')
-    #     message = await prisma.message.create(
-    #         data=message
-    #     )
+    dbJson = json.load(open('./scrape.json'))
+    for message in dbJson['messages']:
+        print(message)
+        print('\n\n\n _________________________________________________________ \n\n\n')
+        message = await prisma.message.create(
+            data=message
+        )
     # for log in dbJson['logs']:  
     #     print(log)  
     #     print('\n\n\n _________________________________________________________ \n\n\n')

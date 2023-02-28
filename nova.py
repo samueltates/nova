@@ -176,6 +176,8 @@ def constructChatPrompt(input):
 
 async def logMessage(sessionID, name, message):
     functionsRunning = 1
+    await prisma.disconnect()
+
     await prisma.connect()
     log = await prisma.log.find_first(
         where={'SessionID': sessionID}
@@ -228,6 +230,8 @@ def eZprint(string):
 
 
 async def runMemory(input):
+    await prisma.disconnect()
+
     await prisma.connect()
     eZprint('running memory')
     logs = await prisma.log.find_many()
@@ -237,6 +241,22 @@ async def runMemory(input):
     lastDate = ""
     summaryBatchID = 0
 
+    # unbatchedMessages   = await prisma.message.find_many(
+    #     where={'batched': False}
+    # )
+
+    # orphanedMessagelogs = [] 
+    # currentParentID = ""
+    # for message in unbatchedMessages:
+
+    #     if (message.SessionID != currentParentID):
+    #         currentParentID = message.SessionID
+    #         orphanedMessagelogs.append({message.SessionID : ""})
+        
+    #     orphanedMessagelogs[message.SessionID] += message.body + " "
+        
+
+    
     allLogs.setdefault(
         input['sessionID'], logs)
     for log in allLogs[input['sessionID']]:
@@ -250,6 +270,11 @@ async def runMemory(input):
             # Gets messages with corresponding ID
             messages = await prisma.message.find_many(
                 where={'SessionID': sessionID})
+            
+            updateMessages = await prisma.message.update(
+                where={'SessionID': sessionID},
+                data={'batched': True}
+            )
 
             # makes sure messages aren't zero (this should be blocked as log isn't created until first message now)
             if (len(messages) != 0):
@@ -271,7 +296,7 @@ async def runMemory(input):
                           }
                 )
         # Checks if log has been batched, if not, adds it to the batch
-
+        
     eZprint('starting log batching')
 
     # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
