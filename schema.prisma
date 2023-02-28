@@ -5,14 +5,14 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:database.db"
+  provider = "mysql"
+  url      =  env("DATABASE_URL")
 }
 
 model batch {
   id        Int     @id @default(autoincrement())
   dateRange String
-  summary   String
+  summary   String  @db.Text @default("")
   batched   Boolean
   UserID    String  @default("sam")
 }
@@ -22,8 +22,8 @@ model log {
   SessionID String  @default("")
   UserID    String  @default("")
   date      String  @default("")
-  summary   String  @default("")
-  body      String  @default("")
+  summary   String? @db.Text @default("")
+  body      String? @db.Text @default("")
   batched   Boolean @default(false)
 }
 
@@ -33,7 +33,9 @@ model message {
   UserID    String
   name      String
   timestamp String
-  body      String
+  body      String? @db.Text @default("")
+  batched   Boolean @default(false)
+
 }
 
 // model user {

@@ -1,0 +1,87 @@
+raise value
+File "/app/.venv/lib/python3.10/site-packages/flask/app.py", line 1950, in full_dispatch_request
+rv = self.dispatch_request()
+File "/app/.venv/lib/python3.10/site-packages/flask/app.py", line 1936, in dispatch_request
+return self.view_functions[rule.endpoint](**req.view_args)
+File "/app/main.py", line 27, in message
+parseInput(post_body_py)
+File "/app/nova.py", line 51, in parseInput
+loadCartridges(input)
+File "/app/nova.py", line 96, in loadCartridges
+asyncio.run(runMemory(input))
+File "/nix/store/al6g1zbk8li6p8mcyp0h60d08jaahf8c-python3-3.10.9/lib/python3.10/asyncio/runners.py", line 44, in run
+return loop.run_until_complete(main)
+File "/nix/store/al6g1zbk8li6p8mcyp0h60d08jaahf8c-python3-3.10.9/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+return future.result()
+File "/app/nova.py", line 231, in runMemory
+await prisma.connect()
+File "/app/.venv/lib/python3.10/site-packages/prisma/client.py", line 243, in connect
+await self.__engine.connect(
+File "/app/.venv/lib/python3.10/site-packages/prisma/engine/query.py", line 125, in connect
+raise errors.AlreadyConnectedError('Already connected to the query engine')
+prisma.engine.errors.AlreadyConnectedError: Already connected to the query engine
+10.10.10.3 - - [28/Feb/2023 02:06:36] "POST /message HTTP/1.1" 500 -
+_____________
+promptSent
+_____________
+{
+"choices": [
+{
+"finish_reason": "stop",
+"index": 0,
+"logprobs": null,
+"text": " Sam is setting up the tech strategy for a project while Nova is working on the art, stories, tools, code, styling rules and libraries. Nova ran into a problem and James asked Nova to tell Sam to say hello."
+}
+],
+"created": 1677549996,
+"id": "cmpl-6ojfwFHvRshetl0ED7Pp5ZMZtrsK9",
+"model": "text-davinci-003",
+"object": "text_completion",
+"usage": {
+"completion_tokens": 45,
+"prompt_tokens": 226,
+"total_tokens": 271
+}
+}
+_____________
+summary is:  Sam is setting up the tech strategy for a project while Nova is working on the art, stories, tools, code, styling rules and libraries. Nova ran into a problem and James asked Nova to tell Sam to say hello.
+_____________
+_____________
+starting log batching
+_____________
+_____________
+unbatched log found
+_____________
+_____________
+log: 61 is start of batch
+_____________
+_____________
+added logID: 61 batchID: 0 printing logSummaryBatches
+_____________
+_____________
+END OF SUMMARY BATCHING AND PRINT RESULTS
+_____________
+_____________
+printing batch for batch ID 0
+_____________
+{'startDate': '20230228012348', 'endDate': '', 'summaries': 'On date: 20230228012348  Sam is setting up the tech strategy for a project while Nova is working on the art, stories, tools, code, styling rules and libraries. Nova ran into a problem and James asked Nova to tell Sam to say hello.\n', 'idList': [61]}
+_____________
+starting summary batch sumamarisations
+_____________
+_____________
+remote batches found
+_____________
+_____________
+remote unsumarised batches found
+_____________
+_____________
+no end log batch found so not summarising
+_____________
+_____________
+overall summary is: Summary of chat log:
+Recent: Between 20230213003007 &  Sam and Nova are collaborating on a project involving art, stories, tools, code, styling rules and libraries. On 20230204031257 and 20230211061517 they set up a system for writing, storing and tracking conversations, discussed styles and modules for Electron, and tested code. Sam is also preparing a tech strategy with dinosaur fossils and culture, booking calls with stakeholders and sending emails, while they have encountered a problem with their project and James has asked Nova to tell Sam to say hello.
+Most recentlyOn date: 20230228012348  Sam is setting up the tech strategy for a project while Nova is working on the art, stories, tools, code, styling rules and libraries. Nova ran into a problem and James asked Nova to tell Sam to say hello.
+ 
+_____________
+printing prompts pulled from running??
+10.10.10.3 - - [28/Feb/2023 02:06:39] "POST /message HTTP/1.1" 200 -

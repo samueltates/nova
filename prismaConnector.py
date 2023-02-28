@@ -1,4 +1,5 @@
 import asyncio
+import json
 from prisma import Prisma
 
 
@@ -8,9 +9,74 @@ async def main() -> None:
 
     ###### PRINTS MESSAGES#########
     messages = await prisma.message.find_many()
-    for message in messages:
-        print('\n\n\n _________________________________________________________ \n\n\n printing message \n\n\n _________________________________________________________ \n\n\n')
-        print(message)
+    print(messages)
+
+    # ####### SCRAPES ALL DATABASE FROM SOURCE TO JSON#########
+    # scrape = {'messages':[],'logs':[],'batches':[]}
+    # messages = await prisma.message.find_many()
+    # for message in messages:
+    #     messageObject ={
+    #         "id": message.id,
+    #         "SessionID": message.SessionID,
+    #         "UserID": message.UserID,
+    #         "name": message.name,
+    #         "timestamp": message.timestamp,
+    #         "body": message.body, 
+    #     }
+    #     # print (messageObject)
+    #     scrape['messages'].append(messageObject)
+
+    # logs = await prisma.log.find_many()
+    # for log in logs:
+    #     logObject ={
+    #         "id": log.id,
+    #         "SessionID": log.SessionID,
+    #         "UserID": log.UserID,
+    #         "date": log.date,
+    #         "summary": log.summary,
+    #         "body": log.body,
+    #         "batched": log.batched,
+    #     }
+    #     scrape['logs'].append(logObject)
+
+    # batches = await prisma.batch.find_many()
+
+    # for batch in batches:
+    #     batchObject ={
+    #         "id": batch.id,
+    #         "dateRange": batch.dateRange,
+    #         "summary": batch.summary,
+    #         "batched": log.batched,
+    #         "UserID": batch.UserID,
+    #     }
+    #     scrape['batches'].append(batchObject)
+
+    # with open("./scrape.json", "a") as scrapeJson:
+    #     json.dump(scrape, scrapeJson)
+
+
+
+    ##### pushes DB #########
+
+    # dbJson = json.load(open('./scrape.json'))
+    # for message in dbJson['messages']:
+    #     print(message)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    #     message = await prisma.message.create(
+    #         data=message
+    #     )
+    # for log in dbJson['logs']:  
+    #     print(log)  
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    #     log = await prisma.log.create(
+    #         data=log
+    #     )               
+    # for batch in dbJson['batches']:
+    #     print(batch)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    #     batch = await prisma.batch.create(
+    #         data=batch
+    #     )
 
     ###### CREATES LOG #########
     # log = await prisma.log.create(
@@ -68,6 +134,11 @@ async def main() -> None:
     ##### DELETES BATCHES #########
 
     # batches = await prisma.batch.delete_many({})
+
+
+    ##### DELETES MESSAGES #########
+
+    # messages = await prisma.message.delete_many({})
 
     await prisma.disconnect()
 
