@@ -9,6 +9,7 @@ import sys
 path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
 from prisma import Prisma
+from prisma import Json
 # from prisma import Prisma
 os.system('prisma generate')
 from datetime import datetime
@@ -47,8 +48,9 @@ def parseInput(input):
     eZprint('parse input')
     if (input["action"] == "getPrompts"):
         eZprint('get prompts triggered')
-        initialiseCartridges()
-        loadCartridges(input)
+        # initialiseCartridges()
+        asyncio.run(loadCartridges(input))
+        runCartridges(input)
         functionsRunning = 1
     if (input["action"] == "sendInput"):
         eZprint('send input triggered')
@@ -67,36 +69,50 @@ def parseInput(input):
         # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
 
-def initialiseCartridges():
-    path = 'cartridges.json'
-    if os.path.exists(path) is False:
-        cartridges = {'cartridge':
-                      {'label': 'starter',
-                       'type': 'prompt',
-                       'description': 'a text only prompt that gives an instruction',
-                       'prompt': 'Nova and Sam are working together to make art, stories and tools.',
-                       'stops': ['Nova:', 'Sam:'],
-                       'enabled': 'true'}
-                      }
-        with open("cartridges.json", "a") as cartridgesBox:
-            json.dump(cartridges, cartridgesBox)
+# def initialiseCartridges():
+#     path = 'cartridges.json'
+#     if os.path.exists(path) is False:
+#         cartridges = {'cartridge':
+#                       {'label': 'starter',
+#                        'type': 'prompt',
+#                        'description': 'a text only prompt that gives an instruction',
+#                        'prompt': 'Nova and Sam are working together to make art, stories and tools.',
+#                        'stops': ['Nova:', 'Sam:'],
+#                        'enabled': 'true'}
+#                       }
+#         with open("cartridges.json", "a") as cartridgesBox:
+#             json.dump(cartridges, cartridgesBox)
 
 
-def loadCartridges(input):
-    with open("cartridges.json", "r") as cartridgesBox:
+async def loadCartridges(input):
+
+    await prisma.disconnect()
+
+    await prisma.connect()
+
+    cartridges = await prisma.cartridge.find_many(
+    )
+
+    for cartridge in cartridges:    
+        blob = json.loads(cartridge.json())
+        print(blob['blob'])
+        # print(cartridge['blob'])
         availableCartridges.setdefault(
-            input['sessionID'], json.load(cartridgesBox))
-        for cartKey, cartVal in availableCartridges[input['sessionID']].items():
+                input['sessionID'], blob['blob'])
+        
+    eZprint('load cartridges complete')
+    print(runningPrompts)
+
+def runCartridges(input):
+    for cartKey, cartVal in availableCartridges[input['sessionID']].items():
             eZprint('printing cartridges in first format')
             print(cartKey, cartVal)
             if cartVal['enabled']:
-                runningPrompts.setdefault(input['sessionID'], []).append(
-                    {cartKey: cartVal})
-    eZprint('load cartridges complete')
-    asyncio.run(runMemory(input))
-
-    # print(runningPrompts)
-
+                if cartVal['type'] == 'prompt':
+                    runningPrompts.setdefault(input['sessionID'], []).append(
+                        {cartKey: cartVal})
+                if cartVal['type'] == 'summary':
+                    asyncio.run(runMemory(input))
 
 def updateCartridges(input):
     eZprint('updating cartridges')

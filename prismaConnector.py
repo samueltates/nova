@@ -1,15 +1,15 @@
 import asyncio
 import json
 from prisma import Prisma
-
+from prisma import Json
 
 async def main() -> None:
     prisma = Prisma()
     await prisma.connect()
 
     ###### PRINTS MESSAGES#########
-    messages = await prisma.message.find_many()
-    print(messages)
+    # messages = await prisma.message.find_many()
+    # print(messages)
 
     # ####### SCRAPES ALL DATABASE FROM SOURCE TO JSON#########
     # scrape = {'messages':[],'logs':[],'batches':[]}
@@ -55,16 +55,31 @@ async def main() -> None:
     #     json.dump(scrape, scrapeJson)
 
 
+####DELETES CARTRIDGES
+    delete = await prisma.cartridge.delete_many()
+
+    cartridges = json.load(open('./cartridges.json'))
+
+
+##ADDS CARTRIDGES FROM JSON
+    for cartridge in cartridges:
+        newCartridge = await prisma.cartridge.create(
+            data={
+                "UserID" : "sam",
+                "blob": Json({cartridge : cartridges[cartridge]})
+            }
+        )
+        # print({cartridge : cartridges[cartridge]})
 
     ##### pushes DB #########
 
-    dbJson = json.load(open('./scrape.json'))
-    for message in dbJson['messages']:
-        print(message)
-        print('\n\n\n _________________________________________________________ \n\n\n')
-        message = await prisma.message.create(
-            data=message
-        )
+    # dbJson = json.load(open('./scrape.json'))
+    # for message in dbJson['messages']:
+    #     print(message)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    #     message = await prisma.message.create(
+    #         data=message
+    #     )
     # for log in dbJson['logs']:  
     #     print(log)  
     #     print('\n\n\n _________________________________________________________ \n\n\n')
@@ -90,14 +105,20 @@ async def main() -> None:
     #     }
     # )
 
-    ###### FINDS LOG SETS BATCHED TO FALSE #########
-    # logs = await prisma.log.find_many()
-    # for log in logs:
-    #     updatedLog = await prisma.log.update(
-    #         where={'id': log.id},
-    #         data={'batched': False,
-    #               }
-    #     )
+    ##### FINDS LOG SETS BATCHED TO FALSE #########
+    logs = await prisma.log.find_many(             where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+)
+    print(logs)
+
+    for log in logs:
+        updatedLog = await prisma.log.update(
+            where={'id': log.id},
+            data={'batched': True,
+                  'summary': 'fix me'
+                  }
+            # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+            # data={'batched': True,}
+        )
     #     print(log)
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 

@@ -45,3 +45,10 @@ model message {
 //   // password String
 //   // email    String @unique
 // }
+
+model cartridge {
+  id        Int    @id @default(autoincrement())
+  UserID    String
+  blob      Json? @default("{}")
+  
+  }
