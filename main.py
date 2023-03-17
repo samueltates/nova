@@ -30,6 +30,7 @@ def message():
                     print(functionsRunning)
                     pass
         if (post_body_py["action"] == "getPrompts"):
+            print(runningPrompts)
             responseJson = json.dumps(
                 runningPrompts[post_body_py["sessionID"]])
         if (post_body_py["action"] == "sendInput"):

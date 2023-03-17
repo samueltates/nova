@@ -69,20 +69,6 @@ def parseInput(input):
         # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
 
-# def initialiseCartridges():
-#     path = 'cartridges.json'
-#     if os.path.exists(path) is False:
-#         cartridges = {'cartridge':
-#                       {'label': 'starter',
-#                        'type': 'prompt',
-#                        'description': 'a text only prompt that gives an instruction',
-#                        'prompt': 'Nova and Sam are working together to make art, stories and tools.',
-#                        'stops': ['Nova:', 'Sam:'],
-#                        'enabled': 'true'}
-#                       }
-#         with open("cartridges.json", "a") as cartridgesBox:
-#             json.dump(cartridges, cartridgesBox)
-
 
 async def loadCartridges(input):
 
@@ -98,19 +84,23 @@ async def loadCartridges(input):
         print(blob['blob'])
         # print(cartridge['blob'])
         availableCartridges.setdefault(
-                input['sessionID'], blob['blob'])
+                input['sessionID'], []).append(blob['blob'])
         
     eZprint('load cartridges complete')
-    print(runningPrompts)
+    print(availableCartridges)
+    await prisma.disconnect()
+
 
 def runCartridges(input):
-    for cartKey, cartVal in availableCartridges[input['sessionID']].items():
+    for cartridge in availableCartridges[input['sessionID']]:
+        for cartKey, cartVal in cartridge.items():
             eZprint('printing cartridges in first format')
             print(cartKey, cartVal)
             if cartVal['enabled']:
                 if cartVal['type'] == 'prompt':
                     runningPrompts.setdefault(input['sessionID'], []).append(
                         {cartKey: cartVal})
+                    print(runningPrompts)
                 if cartVal['type'] == 'summary':
                     asyncio.run(runMemory(input))
 
