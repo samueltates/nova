@@ -6,6 +6,9 @@ from pathlib import Path
 import os
 import sys
 
+from human_id import generate_id
+
+
 path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
 from prisma import Prisma
@@ -55,7 +58,7 @@ def parseInput(input):
     if (input["action"] == "sendInput"):
         eZprint('send input triggered')
         print(input)
-        updateCartridges(input)
+        asyncio.run(updateCartridges(input))
         asyncio.run(logMessage(
             input['sessionID'], input['userName'], input['message']))
         logs.setdefault(input['sessionID'], []).append(
@@ -104,11 +107,60 @@ def runCartridges(input):
                 if cartVal['type'] == 'summary':
                     asyncio.run(runMemory(input))
 
-def updateCartridges(input):
+async def updateCartridges(input):
+    await prisma.disconnect()
+    await prisma.connect()
     eZprint('updating cartridges')
+    # checks prompts, if values don't match in DB then updates DB
+    for prompt in input['prompts']:
+        for promptKey, promptVal in prompt.items():
+            matchFound = 0
+            for oldPrompt in runningPrompts[input['sessionID']]:
+                for oldPromptKey, oldPromptVal in oldPrompt.items():
+                    if promptKey == oldPromptKey and oldPromptVal['type'] == 'prompt':
+                        matchFound = 1
+                        if oldPromptVal != promptVal:
+                            print('found prompt, updating')
+                            print(promptVal)
+                            matchedCart = await prisma.cartridge.find_first(
+                                where={
+                                'blob':
+                                 {'equals': Json({oldPromptKey: oldPromptVal})}
+                                    # 'blob': {
+                                    #     'path':'$.'+promptKey,
+                                    #     'array_contains': 
+                                    # }
+                                }, 
+                            )
+                            updatedCart = await prisma.cartridge.update(    
+                                where={ 'id': matchedCart.id },     
+                                data = {
+                                    
+                                    'UserID': 'sam',
+                                    'blob':  Json({promptKey:promptVal})
+                                }
+                            )
+                            print(matchedCart)
+            if(matchFound == 0 and promptVal['type'] == 'prompt'):
+                print('no match found, creating new prompt')
+                newCart = await prisma.cartridge.create(
+                    data={
+                        'UserID': 'sam',
+                        'blob': Json({generate_id():promptVal})
+                    }
+                )
+                print(newCart)
+
+
+                     
     runningPrompts[input['sessionID']] = input['prompts']
 
+    await prisma.disconnect()
 
+
+            
+
+                
 def addCartridge(input):
     print('adding cartridge')
     # idea here is to detect when new cartridge is added, and if it is a function then handle it
@@ -144,9 +196,10 @@ def constructChatPrompt(input):
     eZprint("sending prompt")
     eZprint(runningPrompts)
     for promptObj in runningPrompts[input['sessionID']]:
-        print('found prompt, adding to string')
-        print(promptObj)
-        promptString += " "+promptObj['cartridge']['prompt']+"\n"
+        for promptKey, promptVal in promptObj.items():
+            print('found prompt, adding to string')
+            print(promptObj)
+            promptString += " "+promptVal['prompt']+"\n"
 
     for chat in logs[input['sessionID']]:
         promptString += " "+chat['userName']+": "+chat['message']+"\n"
@@ -479,15 +532,15 @@ async def runMemory(input):
         overallSummary += "Most recently" + latestLogs + " \n"
 
     eZprint("overall summary is: " + overallSummary)
-    summaryCartridge = {'label': 'starter',
-                        'type': 'prompt',
-                        'description': 'a text only prompt that gives an instruction',
+    summaryCartridge = {'label': 'summary-output',
+                        'type': 'summary-output',
+                        'description': 'an output that has then been stored as a cartridge',
                         'prompt': overallSummary,
                         'stops': ['Nova:', 'Guest:'],
                         'enabled': 'true'}
 
     runningPrompts.setdefault(input['sessionID'], []).append(
-        {'cartridge': summaryCartridge})
+        {'summary-output': summaryCartridge})
 
     await prisma.disconnect()
 

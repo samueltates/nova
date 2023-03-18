@@ -2,6 +2,7 @@ import asyncio
 import json
 from prisma import Prisma
 from prisma import Json
+from human_id import generate_id
 
 async def main() -> None:
     prisma = Prisma()
@@ -56,19 +57,20 @@ async def main() -> None:
 
 
 ####DELETES CARTRIDGES
-    delete = await prisma.cartridge.delete_many()
+    # delete = await prisma.cartridge.delete_many()
 
-    cartridges = json.load(open('./cartridges.json'))
-
+    # cartridges = json.load(open('./cartridges.json'))
+    cartridges = await prisma.cartridge.find_many()
+    print(cartridges)
 
 ##ADDS CARTRIDGES FROM JSON
-    for cartridge in cartridges:
-        newCartridge = await prisma.cartridge.create(
-            data={
-                "UserID" : "sam",
-                "blob": Json({cartridge : cartridges[cartridge]})
-            }
-        )
+    # for cartridge in cartridges:
+    #     newCartridge = await prisma.cartridge.create(
+    #         data={
+    #             "UserID" : "sam",
+    #             "blob": Json({generate_id() : cartridges[cartridge]})
+    #         }
+    #     )
         # print({cartridge : cartridges[cartridge]})
 
     ##### pushes DB #########
@@ -106,19 +108,19 @@ async def main() -> None:
     # )
 
     ##### FINDS LOG SETS BATCHED TO FALSE #########
-    logs = await prisma.log.find_many(             where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
-)
-    print(logs)
+#     logs = await prisma.log.find_many(             where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+# )
+#     print(logs)
 
-    for log in logs:
-        updatedLog = await prisma.log.update(
-            where={'id': log.id},
-            data={'batched': True,
-                  'summary': 'fix me'
-                  }
-            # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
-            # data={'batched': True,}
-        )
+#     for log in logs:
+#         updatedLog = await prisma.log.update(
+#             where={'id': log.id},
+#             data={'batched': True,
+#                   'summary': 'fix me'
+#                   }
+#             # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+#             # data={'batched': True,}
+#         )
     #     print(log)
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 

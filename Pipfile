@@ -16,5 +16,6 @@ werkzeug = "==1.0.1"
 flask-cors = "*"
 virtualenv = "*"
 python-dotenv = "*"
+human-id = "*"
 
 [dev-packages]
