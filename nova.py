@@ -63,15 +63,14 @@ def parseInput(input):
             input['sessionID'], input['userName'], input['message']))
         logs.setdefault(input['sessionID'], []).append(
             {"userName": input['userName'],
-             "message": input['message']
+            "message": input['message'],
+            "role": "user"
              })
         constructChatPrompt(input)
     if (input["action"] == "addCartridge"):
         eZprint('add cartridge triggered')
 
         # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
-
-
 
 async def loadCartridges(input):
 
@@ -156,10 +155,6 @@ async def updateCartridges(input):
     runningPrompts[input['sessionID']] = input['prompts']
 
     await prisma.disconnect()
-
-
-            
-
                 
 def addCartridge(input):
     print('adding cartridge')
@@ -169,8 +164,12 @@ def addCartridge(input):
     #         # runFunction(input)
 
 
-# def runFunction(input):
-#     print('running function')
+def sendChat(promptObj):
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=promptObj,
+    )
+    return response
 
 
 def sendPrompt(promptString):
@@ -192,45 +191,33 @@ def sendPrompt(promptString):
 
 def constructChatPrompt(input):
 
-    promptString = ""
+    promptObject = []
     eZprint("sending prompt")
     eZprint(runningPrompts)
     for promptObj in runningPrompts[input['sessionID']]:
         for promptKey, promptVal in promptObj.items():
             print('found prompt, adding to string')
             print(promptObj)
-            promptString += " "+promptVal['prompt']+"\n"
+            promptObject.append({"role": "system", "content": promptVal['prompt']})
 
     for chat in logs[input['sessionID']]:
-        promptString += " "+chat['userName']+": "+chat['message']+"\n"
+        if chat['role'] == 'system':
+            promptObject.append({"role": "assistant", "content": chat['message']})
+        if chat['role'] == 'user':  
+            promptObject.append({"role": "user", "content": chat['message']})
 
-    promptString += " "+agentName+": "
-    eZprint(promptString)
-    response = sendPrompt(promptString)
+    # promptObject += " "+agentName+": "
+    eZprint(promptObject)
+    response = sendChat(promptObject)
     eZprint(response)
     asyncio.run(logMessage(input['sessionID'], agentName,
-                response["choices"][0]["text"]))
+                response["choices"][0]["message"]["content"]))
 
     logs.setdefault(input['sessionID'], []).append(
         {"userName": agentName,
-         "message": response["choices"][0]["text"]})
-
-
-# async def createNewLog(UUID, userName):
-#     await prisma.connect()
-
-#     log = await prisma.log.create(
-#         data={
-#             "SessionID": UUID,
-#             "UserID": userName,
-#             "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-#             "summary": "",
-#             "body": "",
-#             "batched": False,
-#         }
-#     )
-
-#     await prisma.disconnect()
+         "message": response["choices"][0]["message"]["content"],
+         "role": "system"
+         })
 
 
 async def logMessage(sessionID, name, message):
@@ -268,19 +255,6 @@ async def logMessage(sessionID, name, message):
 
     functionsRunning = 0
 
-
-#  def startSession(input):
-#     functionsRunning = 1
-#     print('starting session')
-#     log = await prisma.log.create(
-#         data={
-#             "SessionID": input['UUID'],
-#             "timestamp": datetime.now().strftime("%Y%m%d%H%M%S"),
-#             "name": input['name'],
-#             "UserID": 'Sam',
-#         }
-#     )
-#     functionsRunning = 0
 
 def eZprint(string):
     print('\n _____________ \n')
@@ -567,9 +541,12 @@ def welcomeGuest(sessionID, userName):
 
 
 def getSummary(textToSummarise):
-    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation.\nTEXT TO SUMMARISE:\n"
-    stopString = "\n Summary:"
-    prompt = initialPrompt + textToSummarise + stopString
-    response = sendPrompt(prompt)
+    promptObject = []
 
-    return response["choices"][0]["text"]
+    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation.\nTEXT TO SUMMARISE:\n"
+    promptObject.append({'role' : 'system', 'content' : initialPrompt})
+    promptObject.append({'role' : 'system', 'content' : initialPrompt})
+    promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    response = sendChat(promptObject)
+
+    return response["choices"][0]["message"]["content"]

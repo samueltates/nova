@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-openai = "==0.25.0"
+openai = "==0.27.2"
 prisma = "==0.8.1"
 click = "==7.1.2"
 flask = "==1.1.2"
