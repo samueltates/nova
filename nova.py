@@ -543,7 +543,7 @@ def welcomeGuest(sessionID, userName):
 def getSummary(textToSummarise):
     promptObject = []
 
-    initialPrompt = "Summarise this text as succintly as possible to retain as much information that CHAT GPT can use to reference the conversation.\nTEXT TO SUMMARISE:\n"
+    initialPrompt = "Create a concise and coherent summary of this text, focusing on the key information, main topics, and outcomes. Ensure that the summary is easy to understand and remember, providing enough context for CHAT GPT to accurately reference the conversation.\nTEXT TO SUMMARISE:\n"
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
