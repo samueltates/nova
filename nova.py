@@ -213,7 +213,8 @@ def constructChatPrompt(input):
         for promptKey, promptVal in promptObj.items():
             print('found prompt, adding to string')
             print(promptObj)
-            promptObject.append({"role": "system", "content": promptVal['prompt']})
+            if (promptVal['enabled'] == True):
+                promptObject.append({"role": "system", "content": promptVal['prompt']})
 
     for chat in logs[input['sessionID']]:
         if chat['role'] == 'system':
