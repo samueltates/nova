@@ -98,13 +98,13 @@ def runCartridges(input):
         for cartKey, cartVal in cartridge.items():
             eZprint('printing cartridges in first format')
             print(cartKey, cartVal)
-            if cartVal['enabled']:
-                if cartVal['type'] == 'prompt':
-                    runningPrompts.setdefault(input['sessionID'], []).append(
-                        {cartKey: cartVal})
-                    print(runningPrompts)
-                if cartVal['type'] == 'summary':
-                    asyncio.run(runMemory(input))
+            # if cartVal['enabled']:
+            if cartVal['type'] == 'prompt':
+                runningPrompts.setdefault(input['sessionID'], []).append(
+                    {cartKey: cartVal})
+                print(runningPrompts)
+            if cartVal['type'] == 'summary':
+                asyncio.run(runMemory(input))
 
 async def updateCartridges(input):
     await prisma.disconnect()
@@ -118,13 +118,26 @@ async def updateCartridges(input):
                 for oldPromptKey, oldPromptVal in oldPrompt.items():
                     if promptKey == oldPromptKey and oldPromptVal['type'] == 'prompt':
                         matchFound = 1
+                        # if(promptVal['label']=="" and promptVal['prompt'] ==""):
+                        #         print('deleting prompt')
+                        #         matchedCart = await prisma.cartridge.find_first(
+                        #             where={
+                        #             'blob':
+                        #             {'equals': Json({oldPromptKey: oldPromptVal})}
+                        #             }, 
+                        #         )
+                        #         updatedCart = await prisma.cartridge.delete(
+                        #             where={ 'id': matchedCart.id }
+                        #         )
+                        #         print(matchedCart)
                         if oldPromptVal != promptVal:
                             print('found prompt, updating')
                             print(promptVal)
+
                             matchedCart = await prisma.cartridge.find_first(
                                 where={
                                 'blob':
-                                 {'equals': Json({oldPromptKey: oldPromptVal})}
+                                {'equals': Json({oldPromptKey: oldPromptVal})}
                                     # 'blob': {
                                     #     'path':'$.'+promptKey,
                                     #     'array_contains': 
