@@ -144,15 +144,17 @@ async def updateCartridges(input):
                                     # }
                                 }, 
                             )
-                            updatedCart = await prisma.cartridge.update(    
-                                where={ 'id': matchedCart.id },     
-                                data = {
-                                    
-                                    'UserID': 'sam',
-                                    'blob':  Json({promptKey:promptVal})
-                                }
-                            )
                             print(matchedCart)
+                            if matchedCart is not None:
+                                updatedCart = await prisma.cartridge.update(    
+                                    where={ 'id': matchedCart.id },     
+                                    data = {
+                                        
+                                        'UserID': 'sam',
+                                        'blob':  Json({promptKey:promptVal})
+                                    }
+                                )
+                                print(matchedCart)
             if(matchFound == 0 and promptVal['type'] == 'prompt'):
                 print('no match found, creating new prompt')
                 newCart = await prisma.cartridge.create(

@@ -50,5 +50,6 @@ model cartridge {
   id        Int    @id @default(autoincrement())
   UserID    String
   blob      Json? @default("{}")
-  
+  archived  Boolean @default(false)
+  indexOrder Int @default(0)  
   }

@@ -56,6 +56,8 @@ async def main() -> None:
     #     json.dump(scrape, scrapeJson)
 
 
+    cartridges = await prisma.cartridge.find_many()
+    print(cartridges)
 ####DELETES CARTRIDGES
     # delete = await prisma.cartridge.delete_many()
 
@@ -147,12 +149,12 @@ async def main() -> None:
     # )
 
     ##### FINDS BATCHES #########
-    batches = await prisma.batch.find_many()
-    print(batches)
-    for batch in batches:
-        print('\n\n\n _________________________________________________________ \n\n\n')
-        print(batch)
-        print('\n\n\n _________________________________________________________ \n\n\n')
+    # batches = await prisma.batch.find_many()
+    # print(batches)
+    # for batch in batches:
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    #     print(batch)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     ##### DELETES BATCHES #########
 
