@@ -118,19 +118,20 @@ async def updateCartridges(input):
                 for oldPromptKey, oldPromptVal in oldPrompt.items():
                     if promptKey == oldPromptKey and oldPromptVal['type'] == 'prompt':
                         matchFound = 1
-                        # if(promptVal['label']=="" and promptVal['prompt'] ==""):
-                        #         print('deleting prompt')
-                        #         matchedCart = await prisma.cartridge.find_first(
-                        #             where={
-                        #             'blob':
-                        #             {'equals': Json({oldPromptKey: oldPromptVal})}
-                        #             }, 
-                        #         )
-                        #         updatedCart = await prisma.cartridge.delete(
-                        #             where={ 'id': matchedCart.id }
-                        #         )
-                        #         print(matchedCart)
-                        if oldPromptVal != promptVal:
+                        if(promptVal['label']=="" and promptVal['prompt'] ==""):
+                                print('deleting prompt')
+                                matchedCart = await prisma.cartridge.find_first(
+                                    where={
+                                    'blob':
+                                    {'equals': Json({oldPromptKey: oldPromptVal})}
+                                    }, 
+                                )
+                                updatedCart = await prisma.cartridge.delete(
+                                    where={ 'id': matchedCart.id }
+                                )
+                                print(matchedCart)
+                        
+                        elif oldPromptVal != promptVal:
                             print('found prompt, updating')
                             print(promptVal)
 
