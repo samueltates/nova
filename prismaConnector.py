@@ -126,11 +126,11 @@ async def main() -> None:
     #     print(log)
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 
-    #### FINDS LOG #########
-    # logs = await prisma.log.find_many()
-    # for log in logs:
-    #     print(log)
-    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    ### FINDS LOG #########
+    logs = await prisma.log.find_many()
+    for log in logs:
+        print(log)
+        print('\n\n\n _________________________________________________________ \n\n\n')
 
     # updatedLog = await prisma.log.find_many(
     #     where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }
