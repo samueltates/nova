@@ -1,6 +1,6 @@
 import json
 from nova import parseInput, runningPrompts, logs, functionsRunning
-
+from gptindex import indexDocument
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -38,7 +38,32 @@ def message():
         print('printing prompts pulled from running??')
 
         return responseJson
+    
 
+@app.route('/indexdoc', methods=['POST','GET'])
+def indexdoc():
+    print('indexdoc route hit   ')
+    userID = request.json["userID"]
+    file_content = request.json["file_content"]
+    file_name = request.json["file_name"]
+    indexRecord = indexDocument(userID, file_content, file_name)
+
+    for indexKey, indexVal in indexRecord.items():
+        indexCartridge = {
+             indexKey: {
+                'label' : indexVal['label'],
+                'type' : indexVal['type'],
+                'enabled' : indexVal['enabled'],
+             }
+        }
+
+    response = {
+        "success": True,
+        "message":"File indexed successfully.",
+        "data": indexCartridge
+
+    }
+    return jsonify(response)
 
 if __name__ == '__main__':
     # app.run(debug=True, port=os.getenv("PORT", default=5000))

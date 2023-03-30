@@ -56,10 +56,26 @@ async def main() -> None:
     #     json.dump(scrape, scrapeJson)
 
 
-    cartridges = await prisma.cartridge.find_many()
-    print(cartridges)
-####DELETES CARTRIDGES
-    # delete = await prisma.cartridge.delete_many()
+    # cartridges = await prisma.cartridge.find_many()
+    # for cartridge in cartridges:
+    #     print(cartridge.id)
+    #     print(cartridge.blob)
+    #     val = list(cartridge.blob.values())[0]
+    #     # # subval = list(val.values())[0]
+    #     print(val)
+    #     # print (val['label'])
+    #     # file = json.load(cartridge)
+    #     # print (file)
+    #     # for blob in cartridge['blob']:
+    #     #     print(blob)
+    #     # print(cartridges['blob']['id'])
+
+
+#DELETES CARTRIDGES
+    delete = await prisma.cartridge.delete_many(
+        where={'id': 52},
+        
+    )
 
     # cartridges = json.load(open('./cartridges.json'))
     # cartridges = await prisma.cartridge.find_many()
@@ -127,10 +143,10 @@ async def main() -> None:
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     ### FINDS LOG #########
-    logs = await prisma.log.find_many()
-    for log in logs:
-        print(log)
-        print('\n\n\n _________________________________________________________ \n\n\n')
+    # logs = await prisma.log.find_many()
+    # for log in logs:
+    #     print(log)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     # updatedLog = await prisma.log.find_many(
     #     where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }

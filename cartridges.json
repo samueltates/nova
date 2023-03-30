@@ -1,15 +1,25 @@
 {
- {
+    "starter": {
         "label": "starter", 
         "type": "prompt", 
         "description": "a text only prompt that gives an instruction", 
         "prompt": "Nova and Sam are working together to make art, stories and tools.", 
         "stops": ["Nova:", "Sam:"], 
         "enabled": "true"
-    }, {
+    },
+    "summary": {
         "label": "summary", 
         "type": "summary", 
         "description": "a function that runs to summarise conversations and bring them into the prompt", 
         "enabled": "true"
+    },
+    "magna-carta": {
+        "label": "magna-carta", 
+        "type": "index", 
+        "description": "a file store and index queriable by GPT", 
+        "enabled": "true",
+        "file": "name + data",
+        "index": "huge sub json that I haven't quite cracked"
     }
+
 }
