@@ -61,7 +61,7 @@ async def main() -> None:
         print(cartridge)
         # print(cartridge.id)
         # print(cartridge.blob)
-        val = list(cartridge.blob.values())[0]
+        # val = list(cartridge.blob.values())[0]
         # # subval = list(val.values())[0]
         # print(val)
         # print (val['label'])
@@ -74,7 +74,7 @@ async def main() -> None:
 
 # # #DELETES CARTRIDGES
 #     delete = await prisma.cartridge.delete_many(
-#         where={'id': 57},
+#         where={'id': 61},
         
 #     )
 
