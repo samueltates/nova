@@ -44,7 +44,7 @@ def indexDocument(userID, file_content, file_name):
     string = base64.b64decode(file_content).decode('utf-8')
     strings = [string,'']
     documents = StringIterableReader().load_data(strings)
-    print(documents)
+    # print(documents)
     index = GPTSimpleVectorIndex(documents)
     # print(index)
     # index. 
@@ -56,7 +56,7 @@ def indexDocument(userID, file_content, file_name):
     # print(tmpfile)
     # index_json=json.load(tmpfile)
     index_json = json.load(open(tmpfile.name))
-    print(index_json)
+    # print(index_json)
 
     # # for doc in index_json:
     # #     print(doc)
@@ -71,7 +71,8 @@ def indexDocument(userID, file_content, file_name):
 
     tmpfile.close()
     newCart = nova.addCartridgeTrigger(userID, cartval)
-
+    nova.eZprint('printing new cartridge')
+    print(newCart)
     return newCart
 
     # with tempfile.NamedTemporaryFile() as tmpfile:
@@ -96,13 +97,19 @@ def indexDocument(userID, file_content, file_name):
 # index.save_to_disk('index_simple.json')
 # index = GPTSimpleVectorIndex.load_from_disk('index_simple.json')
 
-def queryIndex(storedIndex, queryString):
+def queryIndex(queryString,storedIndex ):
     print(storedIndex)
+    # orderedStoredIndex = {
+    #     'index_struct_id':storedIndex['index_struct_id'],
+    #     'docstore':storedIndex['docstore'],
+    #     'vector_store':storedIndex['vector_store'],
+    #                           }
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     json.dump(storedIndex, tmpfile)
     tmpfile.seek(0)
 
     index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
+    index.set_text("Used to extract key decisions and actions from a meeting.")
     response_gpt4 = index.query(
         queryString,
         query_transform=step_decompose_transform,

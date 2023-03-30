@@ -56,26 +56,27 @@ async def main() -> None:
     #     json.dump(scrape, scrapeJson)
 
 
-    # cartridges = await prisma.cartridge.find_many()
-    # for cartridge in cartridges:
-    #     print(cartridge.id)
-    #     print(cartridge.blob)
-    #     val = list(cartridge.blob.values())[0]
-    #     # # subval = list(val.values())[0]
-    #     print(val)
-    #     # print (val['label'])
-    #     # file = json.load(cartridge)
-    #     # print (file)
-    #     # for blob in cartridge['blob']:
-    #     #     print(blob)
-    #     # print(cartridges['blob']['id'])
+    cartridges = await prisma.cartridge.find_many()
+    for cartridge in cartridges:
+        print(cartridge)
+        # print(cartridge.id)
+        # print(cartridge.blob)
+        val = list(cartridge.blob.values())[0]
+        # # subval = list(val.values())[0]
+        # print(val)
+        # print (val['label'])
+        # file = json.load(cartridge)
+        # print (file)
+        # for blob in cartridge['blob']:
+        #     print(blob)
+        # print(cartridges['blob']['id'])
 
 
-#DELETES CARTRIDGES
-    delete = await prisma.cartridge.delete_many(
-        where={'id': 52},
+# # #DELETES CARTRIDGES
+#     delete = await prisma.cartridge.delete_many(
+#         where={'id': 57},
         
-    )
+#     )
 
     # cartridges = json.load(open('./cartridges.json'))
     # cartridges = await prisma.cartridge.find_many()

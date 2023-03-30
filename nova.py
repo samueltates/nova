@@ -67,7 +67,7 @@ def parseInput(input):
             "message": input['message'],
             "role": "user"
              })
-        checkCartridges(input)
+        asyncio.run(checkCartridges(input))
         constructChatPrompt(input)
     if (input["action"] == "addCartridge"):
         eZprint('add cartridge triggered')
@@ -112,6 +112,7 @@ def runCartridges(input):
                         'label': cartVal['label'],
                         'type': cartVal ['type'],
                         'prompt': cartVal['label'],
+                        'index': cartVal['index'],
                         'enabled': cartVal['enabled'],
                     }})
 
@@ -189,15 +190,24 @@ def addCartridgeTrigger(userID, cartVal):
     
 async def addCartridgeAsync(userID, cartVal):
     eZprint('adding cartridge async')
-    print(cartVal)
+    # print(cartVal)
     await prisma.disconnect()
     await prisma.connect()
+    # indexJsonsed = Json(cartVal['index'])
     newCart = await prisma.cartridge.create(
         data={
             'UserID': userID,
-            'blob': Json({generate_id():cartVal})
+            'blob': Json({generate_id():{
+        
+                'label': cartVal['label'],
+                'type': cartVal ['type'],   
+                'enabled': True,
+                'index':cartVal['index']
+                  ,
+            }})
         }
     )
+    eZprint('new index cartridge added to [nova]')
     return newCart.blob
     await prisma.disconnect()
 
@@ -207,19 +217,44 @@ async def addCartridgeAsync(userID, cartVal):
     #     case "function":
     #         # runFunction(input)
 
-def checkCartridges(input):
+async def checkCartridges(input):
     for prompt in input['prompts']:
         for promptKey, promptVal in prompt.items():
             if promptVal['type'] == 'index':
                 eZprint('index query detected')
-                insert = queryIndex(input['message'],promptVal)
-                asyncio.run(logMessage(input['sessionID'], 'index-query', insert))
+                print(promptVal)
+                for prompt in runningPrompts[input['sessionID']]:
+                    for runningPromptKey, runningPromptVal in prompt.items():
+                        if runningPromptKey == promptKey:
+                            matchedCart = runningPromptVal
+                            eZprint ('matched cart found')
+                            print(matchedCart)
+                # await prisma.disconnect()
+                # await prisma.connect()
+                # matchedCart = await prisma.cartridge.find_first(
+                #     where={ 'blob': {'path':'$.'+promptKey}},
+                # )
+                # eZprint('matched cart')
+                # print(matchedCart)
+                # eZprint('matched cart blob + index:')
+                # print(matchedCart.blob[promptKey]['index'])
+                # matchedCart.blob[promptKey]['index']
+                insert = queryIndex(input['message'], matchedCart['index'])
+                await asyncio.run(logMessage(input['sessionID'], 'index-query', insert))
                 logs.setdefault(input['sessionID'], []).append(
                     {"userName": 'index-query',
                     "message": insert,
                     "role": "system"
                     })
 
+
+# def logQueryReply(input, insert):
+#     asyncio.run(logMessage(input['sessionID'], 'index-query', insert))
+#     logs.setdefault(input['sessionID'], []).append(
+#         {"userName": 'index-query',
+#         "message": insert,
+#         "role": "system"
+#         })
 
 
 
