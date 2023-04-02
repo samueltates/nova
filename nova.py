@@ -46,7 +46,7 @@ def parseInput(input):
         # print(input)
         asyncio.run(updateCartridges(input))
         asyncio.run(logMessage(
-            input['sessionID'], input['userName'], input['message']))
+            input['sessionID'], input['userID'], input['userName'], input['message']))
         logs.setdefault(input['sessionID'], []).append(
             {"userName": input['userName'],
             "message": input['message'],
@@ -91,17 +91,20 @@ def runCartridges(input):
     if(availableCartridges[input['sessionID']]): 
         for cartridge in availableCartridges[input['sessionID']]:
             for cartKey, cartVal in cartridge.items():
-                eZprint('printing cartridges in first format')
+                eZprint('prompt cartridge found: '+ cartVal['label'] )
                 print(cartKey, cartVal)
                 # if cartVal['enabled']:
                 if cartVal['type'] == 'prompt':
-                    runningPrompts[input['sessionID']].setdefault(input['sessionID'], []).append(
+                    runningPrompts.setdefault(input['sessionID'], []).append(
                         {cartKey: cartVal})
                     # print(runningPrompts)
                 if cartVal['type'] == 'summary':
+                    eZprint('summary cartridge found'+ cartVal['label'])
                     asyncio.run(runMemory(input))
                 if cartVal['type'] == 'index':
-                    runningPrompts[input['sessionID']].setdefault(input['sessionID'], []).append(
+                    eZprint('summary cartridge found'+ cartVal['label'])
+
+                    runningPrompts.setdefault(input['sessionID'], []).append(
                         {cartKey: {
                             'label': cartVal['label'],
                             'type': cartVal ['type'],
@@ -132,7 +135,7 @@ def runCartridges(input):
         addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
         availableCartridges.setdefault(
             input['sessionID'], []).append({cartKey: cartVal})
-        asyncio.run(runMemory(input))
+        # asyncio.run(runMemory(input))
         runCartridges(input)
 
 
@@ -286,7 +289,7 @@ def triggerQueryIndex(input, index):
     eZprint('index query complete')
     print(insert)
     if(insert != None):
-        asyncio.run(logMessage(input['sessionID'], 'index-query', str(insert)))
+        asyncio.run(logMessage(input['sessionID'], 'index-query', 'index-query' , str(insert)))
         logs.setdefault(input['sessionID'], []).append(
             {"userName": 'index-query',
             "message": str(insert),
@@ -359,7 +362,7 @@ def constructChatPrompt(input):
             if (promptVal['enabled'] == True and promptVal['type'] != 'index'):
                 print('found prompt, adding to string')
                 print(promptObj)
-                promptObject.append({"role": "system", "content": promptVal['prompt']})
+                promptObject.append({"role": "system", "content": "\n Prompt - " + promptVal['prompt'] + ":\n" + promptVal['prompt'] + "\n" })
 
     for chat in logs[input['sessionID']]:
         if chat['role'] == 'system':
@@ -372,17 +375,18 @@ def constructChatPrompt(input):
     print(promptObject)
     response = sendChat(promptObject)
     # eZprint(response)
-    asyncio.run(logMessage(input['sessionID'], agentName,
+    asyncio.run(logMessage(input['sessionID'], agentName, agentName,
                 response["choices"][0]["message"]["content"]))
 
     logs.setdefault(input['sessionID'], []).append(
         {"userName": agentName,
+         
          "message": response["choices"][0]["message"]["content"],
          "role": "system"
          })
 
 
-async def logMessage(sessionID, name, message):
+async def logMessage(sessionID, userID, userName, message):
     functionsRunning = 1
     # return
     await prisma.disconnect()
@@ -396,7 +400,7 @@ async def logMessage(sessionID, name, message):
         log = await prisma.log.create(
             data={
                 "SessionID": sessionID,
-                "UserID": name,
+                "UserID": userID,
                 "date": datetime.now().strftime("%Y%m%d%H%M%S"),
                 "summary": "",
                 "body": "",
@@ -408,8 +412,8 @@ async def logMessage(sessionID, name, message):
     message = await prisma.message.create(
         data={
             "SessionID": sessionID,
-            "name": name,
-            "UserID": name,
+            "name": userName,
+            "UserID": userID,
             "timestamp": datetime.now(),
             "body": message,
         }
@@ -430,7 +434,7 @@ async def runMemory(input):
 
     await prisma.connect()
     eZprint('running memory')
-    logs = await prisma.log.find_many(
+    remoteLogs = await prisma.log.find_many(
         where={'UserID': input['userID']}
     )
     newLogSummaries = []
@@ -438,10 +442,14 @@ async def runMemory(input):
     overallSummary = ""
     lastDate = ""
     summaryBatchID = 0
+    eZprint('result of remote log check')
+    print(remoteLogs)
 
-    if(logs != None):
+    if(len(remoteLogs) > 0):
+        eZprint('logs found')
+        print(remoteLogs)
         allLogs.setdefault(
-            input['sessionID'], logs)
+            input['sessionID'], remoteLogs)
         for log in allLogs[input['sessionID']]:
             # Checks if log has summary, if not, gets summary from OPENAI
             if (log.summary == "" or log.summary == ''):
@@ -476,7 +484,9 @@ async def runMemory(input):
         eZprint('starting log batching')
 
         # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
-        updatedLogs = await prisma.log.find_many()
+        updatedLogs = await prisma.log.find_many(
+            where={'UserID': input['userID']}
+        )
         for log in updatedLogs:
           
             if (log.batched == False):
@@ -640,23 +650,38 @@ async def runMemory(input):
                     " & " + batchRangeEnd + runningBatchedSummaries + " \n"
 
             if (latestLogs != ""):
-                overallSummary += "\nMost recently" + latestLogs + " \n"
+                overallSummary += "\nMost recently: " + latestLogs + " \n"
 
             eZprint("overall summary is: " + overallSummary)
             summaryCartridge = {'label': 'summary-output',
                                 'type': 'summary-output',
                                 'description': 'an output that has then been stored as a cartridge',
                                 'prompt': overallSummary,
-                                'stops': ['Nova:', 'Guest:'],
+                                'stops': ['Nova:', input['userName']],
                                 'enabled': 'true'}
 
-            runningPrompts[input['sessionID']].setdefault(input['sessionID'], []).append(
+            runningPrompts.setdefault(input['sessionID'], []).append(
                 {'summary-output': summaryCartridge})
+            
 
             await prisma.disconnect()
+    else :
+        eZprint("No logs found for this user, so starting fresh")
+        summaryCartridge = {'label': 'summary-output',
+                    'type': 'summary-output',
+                    'description': 'an output that has then been stored as a cartridge',
+                    'prompt': "No prior conversations to summarise. This cartridge will show the summaries of your past conversations, and add to context if unmuted.",
+                    'stops': ['Nova:', input['userName']],
+                    'enabled': 'true'}
+
+        runningPrompts.setdefault(input['sessionID'], []).append(
+            {'summary-output': summaryCartridge})
+        await prisma.disconnect()
 
 
-def welcomeGuest(sessionID, userName):
+
+
+def welcomeGuest(sessionID, userID, userName):
 
     promptString = ""
     eZprint("sending prompt")
@@ -669,7 +694,7 @@ def welcomeGuest(sessionID, userName):
     response = sendPrompt(promptString)
 
     eZprint(response)
-    asyncio.run(logMessage(sessionID, userName,
+    asyncio.run(logMessage(sessionID, userID, userName,
                 response["choices"][0]["text"]))
 
     logs.setdefault(sessionID, []).append(
