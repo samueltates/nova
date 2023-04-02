@@ -424,6 +424,7 @@ async def logMessage(sessionID, userID, userName, message):
 
 
 def eZprint(string):
+    return
     print('\n _____________ \n')
     print(string)
     print('\n _____________ \n')
