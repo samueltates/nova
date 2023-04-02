@@ -275,7 +275,7 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
 def checkCartridges(input):
     for prompt in input['prompts']:
         for promptKey, promptVal in prompt.items():
-            if promptVal['type'] == 'index':
+            if promptVal['type'] == 'index' and promptVal['enabled'] == True:
                 eZprint('index query detected')
                 # print(promptVal)
                 for prompt in runningPrompts[input['sessionID']]:
