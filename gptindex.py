@@ -21,7 +21,7 @@ from llama_index import (
 
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
-from IPython.display import Markdown, display
+# from IPython.display import Markdown, display
 
 
 llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003"))
