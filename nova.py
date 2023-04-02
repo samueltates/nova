@@ -373,10 +373,15 @@ def constructChatPrompt(input):
                 promptObject.append({"role": "system", "content": "\n Prompt - " + promptVal['prompt'] + ":\n" + promptVal['prompt'] + "\n" })
 
     for chat in logs[input['sessionID']]:
+        eZprint('found chat, adding to string')
+        eZprint(chat)
         if chat['role'] == 'system':
             promptObject.append({"role": "assistant", "content": chat['message']})
+            print(chat['message'])
         if chat['role'] == 'user':  
             promptObject.append({"role": "user", "content": chat['message']})
+            print(chat['message'])
+
 
     # promptObject += " "+agentName+": "
     eZprint('prompt constructed')

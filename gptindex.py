@@ -37,7 +37,7 @@ def indexDocument(userID, file_content, file_name):
     string = base64.b64decode(file_content).decode('utf-8')
     strings = [string,'']
     documents = StringIterableReader().load_data(strings)
-    index = GPTSimpleVectorIndex(documents)
+    index = GPTSimpleVectorIndex.from_documents(documents)
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     index.save_to_disk(tmpfile.name)
     tmpfile.seek(0)
@@ -66,7 +66,7 @@ def queryIndex(queryString, storedIndex ):
     tmpfile.seek(0)
 
     index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
-    index.set_text("Body of text uploaded to be summarised or have question answered")
+    # index.set_text("Body of text uploaded to be summarised or have question answered")
     llm_predictor_gpt4 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
 
     step_decompose_transform = StepDecomposeQueryTransform(
@@ -74,9 +74,7 @@ def queryIndex(queryString, storedIndex ):
 
     )
     response_gpt4 = index.query(
-        queryString,
-        query_transform=step_decompose_transform,
-        llm_predictor=llm_predictor_gpt4
+        queryString
     )
     nova.eZprint(response_gpt4)
     return response_gpt4
