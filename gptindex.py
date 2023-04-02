@@ -55,6 +55,7 @@ def indexDocument(userID, file_content, file_name):
     tmpfile.close()
     newCart = nova.addCartridgeTrigger(userID, cartval)
     nova.eZprint('printing new cartridge')
+
     # print(newCart)
     return newCart
 
@@ -65,7 +66,7 @@ def queryIndex(queryString, storedIndex ):
     tmpfile.seek(0)
 
     index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
-    index.set_text("Used to extract key decisions and actions from a meeting.")
+    index.set_text("Body of text uploaded to be summarised or have question answered")
     llm_predictor_gpt4 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
 
     step_decompose_transform = StepDecomposeQueryTransform(

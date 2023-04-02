@@ -79,7 +79,7 @@ async def loadCartridges(input):
                 input['sessionID'], []).append(blob['blob'])
         
         for cartKey, cartVal in blob['blob'].items():
-            cartdigeLookup.update({cartKey: blob['id']}) 
+            cartdigeLookup.update({cartKey: cartridge.id}) 
             # ({cartKey: blob['id']})  
         
     eZprint('load cartridges complete')
@@ -143,6 +143,7 @@ async def updateCartridges(input):
     await prisma.disconnect()
     await prisma.connect()
     eZprint('updating cartridges')
+    print(input['prompts'])
     # checks prompts, if values don't match in DB then updates DB
     for prompt in input['prompts']:
         for promptKey, promptVal in prompt.items():
@@ -215,11 +216,12 @@ async def addCartridgeAsync(userID, cartVal):
     eZprint(cartVal)
     await prisma.disconnect()
     await prisma.connect()
+    cartKey = generate_id()
     # indexJsonsed = Json(cartVal['index'])
     newCart = await prisma.cartridge.create(
         data={
             'UserID': userID,
-            'blob': Json({generate_id():{
+            'blob': Json({cartKey:{
         
                 'label': cartVal['label'],
                 'type': cartVal ['type'],   
@@ -230,6 +232,8 @@ async def addCartridgeAsync(userID, cartVal):
         }
     )
     eZprint('new index cartridge added to [nova]')
+    cartdigeLookup.update({cartKey: newCart.id}) 
+
     await prisma.disconnect()
     return newCart.blob
 
@@ -357,8 +361,12 @@ def constructChatPrompt(input):
     promptObject = []
     eZprint("sending prompt")
     # eZprint(runningPrompts)
+    eZprint(runningPrompts[input['sessionID']])
     for promptObj in runningPrompts[input['sessionID']]:
         for promptKey, promptVal in promptObj.items():
+            eZprint('found val printing')
+
+            eZprint(promptVal)
             if (promptVal['enabled'] == True and promptVal['type'] != 'index'):
                 eZprint('found prompt, adding to string')
                 eZprint(promptObj)
@@ -424,7 +432,7 @@ async def logMessage(sessionID, userID, userName, message):
 
 
 def eZprint(string):
-    return
+    # return
     print('\n _____________ \n')
     print(string)
     print('\n _____________ \n')
@@ -659,7 +667,7 @@ async def runMemory(input):
                                 'description': 'an output that has then been stored as a cartridge',
                                 'prompt': overallSummary,
                                 'stops': ['Nova:', input['userName']],
-                                'enabled': 'true'}
+                                'enabled': True}
 
             runningPrompts.setdefault(input['sessionID'], []).append(
                 {'summary-output': summaryCartridge})
@@ -673,7 +681,7 @@ async def runMemory(input):
                     'description': 'an output that has then been stored as a cartridge',
                     'prompt': "No prior conversations to summarise. This cartridge will show the summaries of your past conversations, and add to context if unmuted.",
                     'stops': ['Nova:', input['userName']],
-                    'enabled': 'true'}
+                    'enabled': True}
 
         runningPrompts.setdefault(input['sessionID'], []).append(
             {'summary-output': summaryCartridge})
