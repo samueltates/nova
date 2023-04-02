@@ -77,7 +77,7 @@ def queryIndex(queryString, storedIndex ):
         query_transform=step_decompose_transform,
         llm_predictor=llm_predictor_gpt4
     )
-    print(response_gpt4)
+    nova.eZprint(response_gpt4)
     return response_gpt4
 
 def indexGoogleDoc(userID, docIDs, file_name):

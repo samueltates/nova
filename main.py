@@ -1,5 +1,5 @@
 import json
-from nova import parseInput, runningPrompts, logs, functionsRunning
+from nova import parseInput, runningPrompts, logs, functionsRunning, eZprint
 from gptindex import indexDocument
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-print('main running')
+eZprint('main running')
 
 @app.route('/')
 def index():
@@ -17,17 +17,17 @@ def index():
 
 @app.route('/message', methods=['POST','GET'])
 def message():
-    print('message route hit   ')
+    eZprint('message route hit   ')
     if request.method == 'GET':
         return jsonify({"ok this is working"})
     if request.method == 'POST':
-        print('post hit')
+        eZprint('post hit')
         post_body_py = request.get_json()
-        print(post_body_py["sessionID"])
+        eZprint(post_body_py["sessionID"])
         parseInput(post_body_py)
         while functionsRunning > 0:
-                    print('waiting for functions to finish')
-                    print(functionsRunning)
+                    eZprint('waiting for functions to finish')
+                    eZprint(functionsRunning)
                     pass
         if (post_body_py["action"] == "getPrompts"):
             responseJson = json.dumps(
@@ -35,14 +35,14 @@ def message():
         if (post_body_py["action"] == "sendInput"):
             responseJson = json.dumps(logs[post_body_py["sessionID"]])
             # case "addCartridge":
-        print('printing prompts pulled from running??')
+        eZprint('printing prompts pulled from running??')
 
         return responseJson
     
 
 @app.route('/indexdoc', methods=['POST','GET'])
 def indexdoc():
-    print('indexdoc route hit   ')
+    eZprint('indexdoc route hit   ')
     userID = request.json["userID"]
     file_content = request.json["file_content"]
     file_name = request.json["file_name"]
