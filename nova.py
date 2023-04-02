@@ -150,7 +150,7 @@ async def updateCartridges(input):
             matchFound = 0
             for oldPrompt in runningPrompts[input['sessionID']]:
                 for oldPromptKey, oldPromptVal in oldPrompt.items():
-                    if promptKey == oldPromptKey and oldPromptVal['type'] == 'prompt':
+                    if promptKey == oldPromptKey:
                         matchFound = 1
                         if(promptVal['label']=="" and promptVal['prompt'] ==""):
                                 eZprint('deleting prompt')

@@ -41,7 +41,7 @@ def indexDocument(userID, file_content, file_name):
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     index.save_to_disk(tmpfile.name)
     tmpfile.seek(0)
-
+    
     index_json = json.load(open(tmpfile.name))
 
     cartval = {
