@@ -21,7 +21,6 @@ llama-index = "*"
 langchain = "*"
 ipython = "*"
 unstructured = "*"
-pdfminer = "*"
 "pdfminer.six" = "*"
 
 [dev-packages]
