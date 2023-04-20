@@ -1,5 +1,5 @@
 import json
-from nova import parseInput, runningPrompts, logs, functionsRunning, eZprint
+from nova import initialiseCartridges, handleChatInput, runningPrompts, logs, functionsRunning, eZprint
 from gptindex import indexDocument, indexGoogleDoc
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -37,6 +37,27 @@ def message():
             # case "addCartridge":
         eZprint('printing prompts pulled from running??')
 
+        return responseJson
+    
+
+@app.route('/initialise', methods=['POST','GET'])
+def initialise():
+    if request.method == 'POST':
+        eZprint('initialise called')
+        post_body_py = request.get_json()
+        initialiseCartridges(post_body_py)
+        responseJson = json.dumps(
+            runningPrompts[post_body_py["sessionID"]])
+        return responseJson
+    
+
+@app.route('/handleInput', methods=['POST','GET'])
+def handleInput():
+    if request.method == 'POST':
+        eZprint('handleInput called')
+        post_body_py = request.get_json()
+        handleChatInput(post_body_py)
+        responseJson = json.dumps(logs[post_body_py["sessionID"]])
         return responseJson
     
 

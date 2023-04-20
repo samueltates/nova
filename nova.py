@@ -31,33 +31,25 @@ prisma = Prisma()
 logCreated = 0
 cartdigeLookup = dict()
 
+def initialiseCartridges(data):
+    eZprint('get prompts triggered')
+    asyncio.run(loadCartridges(data))
+    runCartridges(data)
 
-def parseInput(input):
-    # here it handles the UIID / persistence and orchestrates the convo
-    eZprint('parse input')
-    if (input["action"] == "getPrompts"):
-        eZprint('get prompts triggered')
-        # initialiseCartridges()
-        asyncio.run(loadCartridges(input))
-        runCartridges(input)
-        functionsRunning = 1
-    if (input["action"] == "sendInput"):
-        eZprint('send input triggered')
-        # print(input)
-        asyncio.run(updateCartridges(input))
-        asyncio.run(logMessage(
-            input['sessionID'], input['userID'], input['userName'], input['message']))
-        logs.setdefault(input['sessionID'], []).append(
-            {"userName": input['userName'],
-            "message": input['message'],
-            "role": "user"
-             })
-        checkCartridges(input)
-        constructChatPrompt(input)
-    if (input["action"] == "addCartridge"):
-        eZprint('add cartridge triggered')
+def handleChatInput(input):
+    eZprint('send input triggered')
+    # print(input)
+    asyncio.run(updateCartridges(input))
+    asyncio.run(logMessage(
+        input['sessionID'], input['userID'], input['userName'], input['message']))
+    logs.setdefault(input['sessionID'], []).append(
+        {"userName": input['userName'],
+        "message": input['message'],
+        "role": "user"
+            })
+    checkCartridges(input)
+    constructChatPrompt(input)
 
-        # issue or concern here is that i'm basically replacing the whole array, this is due to the fact that i'm making all prompts editable fields, so when you send the message it just sends with that prompt. So basicaly no confirmation state in prompts, so interface really is where its stored. Only difference in 'data driven' is that updates from UI go direct to the python server, but whats the point? So really python just ingests the data, but its mostly held in the front end? Not sure.
 
 async def loadCartridges(input):
 
