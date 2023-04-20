@@ -30,13 +30,24 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
 GoogleDocsReader = download_loader('GoogleDocsReader')
+UnstructuredReader = download_loader("UnstructuredReader")
 
+def indexDocument(userID, file_content, file_name, file_type):
+    #reconstruct file
+    binary_data = base64.b64decode(file_content)
 
-def indexDocument(userID, file_content, file_name):
+    # Save the binary data to a temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
+    temp_file.write(binary_data)
 
-    string = base64.b64decode(file_content).decode('utf-8')
-    strings = [string,'']
-    documents = StringIterableReader().load_data(strings)
+    # Read and process the reconstructed file
+    temp_file.close()
+
+    unstructured_reader = UnstructuredReader()
+    documents = unstructured_reader.load_data(temp_file.name)
+    # Cleanup: delete the temporary file after processing
+    os.unlink(temp_file.name)
+
     index = GPTSimpleVectorIndex.from_documents(documents)
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     index.save_to_disk(tmpfile.name)
@@ -44,10 +55,16 @@ def indexDocument(userID, file_content, file_name):
     
     index_json = json.load(open(tmpfile.name))
 
+    name = queryIndex('give this document a title', index_json)
+    name = str(name).strip()
+    description = queryIndex('give this document a description', index_json) 
+    description = str(description).strip()
+
     cartval = {
-        'label': file_name,
+        'label': name,
         'type': 'index',
         'enabled': True,
+        'description': description,
         # 'file':{file_content},
         'index': index_json,
     }
@@ -79,11 +96,14 @@ def queryIndex(queryString, storedIndex ):
     nova.eZprint(response_gpt4)
     return response_gpt4
 
-def indexGoogleDoc(userID, docIDs, file_name):
-    loader = GoogleDocsReader()
-    documents = loader.load_data(document_ids=docIDs)
+
+def indexGoogleDoc(userID, docIDs):
+
+
+    loader = GoogleDocsReader() 
+    documents = loader.load_data(document_ids=[docIDs])
     
-    index = GPTSimpleVectorIndex(documents)
+    index = GPTSimpleVectorIndex.from_documents(documents)
 
     # return
 
@@ -92,10 +112,15 @@ def indexGoogleDoc(userID, docIDs, file_name):
     tmpfile.seek(0)
 
     index_json = json.load(open(tmpfile.name))
+    name = queryIndex('give this document a title', index_json)
+    name = str(name).strip()
+    description = queryIndex('give this document a description', index_json) 
+    description = str(description).strip()
 
     cartval = {
-        'label': file_name,
+        'label': name,
         'type': 'index',
+        'description': description,
         'enabled': True,
         # 'file':{file_content},
         'index': index_json,

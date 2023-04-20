@@ -75,6 +75,7 @@ async def loadCartridges(input):
         blob = json.loads(cartridge.json())
         # print(blob['blob'])
         # print(cartridge['blob'])
+
         availableCartridges.setdefault(
                 input['sessionID'], []).append(blob['blob'])
         
@@ -105,13 +106,8 @@ def runCartridges(input):
                     eZprint('summary cartridge found'+ cartVal['label'])
 
                     runningPrompts.setdefault(input['sessionID'], []).append(
-                        {cartKey: {
-                            'label': cartVal['label'],
-                            'type': cartVal ['type'],
-                            'prompt': cartVal['label'],
-                            'index': cartVal['index'],
-                            'enabled': cartVal['enabled'],
-                        }})
+                        {cartKey: cartVal 
+                        })
     else    :
         eZprint('no cartridges found, loading default')
         cartKey = generate_id()
@@ -143,7 +139,7 @@ async def updateCartridges(input):
     await prisma.disconnect()
     await prisma.connect()
     eZprint('updating cartridges')
-    print(input['prompts'])
+    # print(input['prompts'])
     # checks prompts, if values don't match in DB then updates DB
     for prompt in input['prompts']:
         for promptKey, promptVal in prompt.items():
@@ -152,7 +148,7 @@ async def updateCartridges(input):
                 for oldPromptKey, oldPromptVal in oldPrompt.items():
                     if promptKey == oldPromptKey:
                         matchFound = 1
-                        if(promptVal['label']=="" and promptVal['prompt'] ==""):
+                        if "softDelete" in promptVal:
                                 eZprint('deleting prompt')
                                 matchedCart = await prisma.cartridge.find_first(
                                     where={
@@ -213,7 +209,7 @@ def addCartridgeTrigger(userID, cartVal):
     
 async def addCartridgeAsync(userID, cartVal):
     eZprint('adding cartridge async')
-    eZprint(cartVal)
+    # eZprint(cartVal)
     await prisma.disconnect()
     await prisma.connect()
     cartKey = generate_id()
@@ -224,6 +220,7 @@ async def addCartridgeAsync(userID, cartVal):
             'blob': Json({cartKey:{
         
                 'label': cartVal['label'],
+                'description': cartVal['description'],
                 'type': cartVal ['type'],   
                 'enabled': True,
                 'index':cartVal['index']
@@ -291,7 +288,7 @@ def triggerQueryIndex(input, index):
     eZprint('triggering index query')
     insert = gptindex.queryIndex(input['message'], index)
     eZprint('index query complete')
-    eZprint(insert)
+    # eZprint(insert)
     if(insert != None):
         asyncio.run(logMessage(input['sessionID'], 'index-query', 'index-query' , str(insert)))
         logs.setdefault(input['sessionID'], []).append(
@@ -352,7 +349,7 @@ def sendPrompt(promptString):
     )
 
     eZprint('promptSent')
-    eZprint(response)
+    # eZprint(response)
     return response
 
 
@@ -361,15 +358,15 @@ def constructChatPrompt(input):
     promptObject = []
     eZprint("sending prompt")
     # eZprint(runningPrompts)
-    eZprint(runningPrompts[input['sessionID']])
+    # eZprint(runningPrompts[input['sessionID']])
     for promptObj in runningPrompts[input['sessionID']]:
         for promptKey, promptVal in promptObj.items():
-            eZprint('found val printing')
+            # eZprint('found val printing')
 
-            eZprint(promptVal)
+            # eZprint(promptVal)
             if (promptVal['enabled'] == True and promptVal['type'] != 'index'):
                 eZprint('found prompt, adding to string')
-                eZprint(promptObj)
+                # eZprint(promptObj)
                 promptObject.append({"role": "system", "content": "\n Prompt - " + promptVal['prompt'] + ":\n" + promptVal['prompt'] + "\n" })
 
     for chat in logs[input['sessionID']]:
@@ -377,15 +374,15 @@ def constructChatPrompt(input):
         eZprint(chat)
         if chat['role'] == 'system':
             promptObject.append({"role": "assistant", "content": chat['message']})
-            print(chat['message'])
+            # print(chat['message'])
         if chat['role'] == 'user':  
             promptObject.append({"role": "user", "content": chat['message']})
-            print(chat['message'])
+            # print(chat['message'])
 
 
     # promptObject += " "+agentName+": "
     eZprint('prompt constructed')
-    eZprint(promptObject)
+    # eZprint(promptObject)
     response = sendChat(promptObject)
     # eZprint(response)
     asyncio.run(logMessage(input['sessionID'], agentName, agentName,
@@ -483,7 +480,7 @@ async def runMemory(input):
                             message.name + ":" + message.body + "\n"
 
                     eZprint('printing   messageBody')
-                    eZprint(messageBody)
+                    # eZprint(messageBody)
 
                     messageSummary = getSummary(messageBody)
                     eZprint('summary is: '+messageSummary)
@@ -707,7 +704,7 @@ def welcomeGuest(sessionID, userID, userName):
 
     response = sendPrompt(promptString)
 
-    eZprint(response)
+    # eZprint(response)
     asyncio.run(logMessage(sessionID, userID, userName,
                 response["choices"][0]["text"]))
 

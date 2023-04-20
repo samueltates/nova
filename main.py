@@ -1,6 +1,6 @@
 import json
 from nova import parseInput, runningPrompts, logs, functionsRunning, eZprint
-from gptindex import indexDocument
+from gptindex import indexDocument, indexGoogleDoc
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -46,7 +46,8 @@ def indexdoc():
     userID = request.json["userID"]
     file_content = request.json["file_content"]
     file_name = request.json["file_name"]
-    indexRecord = indexDocument(userID, file_content, file_name)
+    file_type = request.json["file_type"]
+    indexRecord = indexDocument(userID, file_content, file_name, file_type)
 
     for indexKey, indexVal in indexRecord.items():
         indexCartridge = {
@@ -54,9 +55,40 @@ def indexdoc():
                 'label' : indexVal['label'],
                 'type' : indexVal['type'],
                 'enabled' : indexVal['enabled'],
+                'description' : indexVal['description'],
+
+
              }
         }
 
+    response = {
+        "success": True,
+        "message":"File indexed successfully.",
+        "data": indexCartridge
+
+    }
+    return jsonify(response)
+
+@app.route('/indexGDoc', methods=['POST','GET'])
+def indexGDoc():
+    eZprint('indexGDoc route hit   ')
+    userID = request.json["userID"]
+    gDocID = request.json["gDocID"]
+
+    indexRecord = indexGoogleDoc(userID, gDocID )
+
+    for indexKey, indexVal in indexRecord.items():
+        indexCartridge = {
+             indexKey: {
+                'label' : indexVal['label'],
+                'description' : indexVal['description'],
+                'type' : indexVal['type'],
+                'enabled' : indexVal['enabled'],
+             }
+        }
+        
+    eZprint('printing index cartridge')
+    print (indexCartridge)
     response = {
         "success": True,
         "message":"File indexed successfully.",
