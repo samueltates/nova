@@ -6,18 +6,18 @@ from pathlib import Path
 import os
 import sys
 import gptindex
-import fakeCartridgeLoader
 from human_id import generate_id
-
 
 path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
+
 from prisma import Prisma
 from prisma import Json
 # from prisma import Prisma
 os.system('prisma generate')
 from datetime import datetime
 openai.api_key = os.getenv('OPENAIKEY', default=None)
+from socketHandler import socketio
 
 runningPrompts = dict()
 availableCartridges = dict()
@@ -51,55 +51,40 @@ def handleChatInput(input):
     constructChatPrompt(input)
 
 
-async def loadCartridges(input):
+async def loadCartridges(data):
 
     await prisma.disconnect()
     await prisma.connect()
-    # print(input)
     cartridges = await prisma.cartridge.find_many(
         where = {  
-        "UserID": input['userID'],
+        "UserID": data['userID'],
         }
     )
-    availableCartridges.setdefault(
-                input['sessionID'], [])
     for cartridge in cartridges:    
         blob = json.loads(cartridge.json())
-        # print(blob['blob'])
-        # print(cartridge['blob'])
-
-        availableCartridges.setdefault(
-                input['sessionID'], []).append(blob['blob'])
-        
         for cartKey, cartVal in blob['blob'].items():
+            availableCartridges.setdefault(
+                data['sessionID'], dict()).update({cartKey: cartVal})
             cartdigeLookup.update({cartKey: cartridge.id}) 
-            # ({cartKey: blob['id']})  
-        
+            if cartVal['type'] == 'summary':
+                cartVal.update({'status': 'loading'})
+    socketio.emit('sendCartridges', availableCartridges[data['sessionID']])
+    socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
+
     eZprint('load cartridges complete')
-    # print(availableCartridges)
     await prisma.disconnect()
 
 
 def runCartridges(input):
+    socketio.emit('sendCartridgeStatus', 'Running Cartridge Functions')
+
     if(availableCartridges[input['sessionID']]): 
         for cartridge in availableCartridges[input['sessionID']]:
-            for cartKey, cartVal in cartridge.items():
-                eZprint('prompt cartridge found: '+ cartVal['label'] )
-                # print(cartKey, cartVal)
-                # if cartVal['enabled']:
-                if cartVal['type'] == 'prompt':
-                    runningPrompts.setdefault(input['sessionID'], []).append(
-                        {cartKey: cartVal})
-                    # print(runningPrompts)
-                if cartVal['type'] == 'summary':
-                    eZprint('summary cartridge found'+ cartVal['label'])
-                    asyncio.run(runMemory(input))
-                if cartVal['type'] == 'index':
-                    eZprint('summary cartridge found'+ cartVal['label'])
+            # print(availableCartridges[input['sessionID']][cartridge])
+            if availableCartridges[input['sessionID']][cartridge]['type'] == 'summary':
+                cartVal = availableCartridges[input['sessionID']][cartridge]
+                asyncio.run(runMemory(input, cartridge, cartVal))
 
-                    runningPrompts.setdefault(input['sessionID'], []).append(
-                        {cartKey: cartVal 
-                        })
     else    :
         eZprint('no cartridges found, loading default')
         cartKey = generate_id()
@@ -111,7 +96,7 @@ def runCartridges(input):
                         }
         addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
         availableCartridges.setdefault(
-            input['sessionID'], []).append({cartKey: cartVal})
+            input['sessionID'], dict()).update({cartKey: cartVal})
         
         cartKey = "summary"
         cartVal = {
@@ -122,7 +107,7 @@ def runCartridges(input):
                             }
         addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
         availableCartridges.setdefault(
-            input['sessionID'], []).append({cartKey: cartVal})
+            input['sessionID'], dict()).update({cartKey: cartVal})
         # asyncio.run(runMemory(input))
         runCartridges(input)
 
@@ -133,64 +118,64 @@ async def updateCartridges(input):
     eZprint('updating cartridges')
     # print(input['prompts'])
     # checks prompts, if values don't match in DB then updates DB
-    for prompt in input['prompts']:
-        for promptKey, promptVal in prompt.items():
-            matchFound = 0
-            for oldPrompt in runningPrompts[input['sessionID']]:
-                for oldPromptKey, oldPromptVal in oldPrompt.items():
-                    if promptKey == oldPromptKey:
-                        matchFound = 1
-                        if "softDelete" in promptVal:
-                                eZprint('deleting prompt')
-                                matchedCart = await prisma.cartridge.find_first(
-                                    where={
-                                    'blob':
-                                    {'equals': Json({oldPromptKey: oldPromptVal})}
-                                    }, 
-                                )
-                                updatedCart = await prisma.cartridge.delete(
-                                    where={ 'id': matchedCart.id }
-                                )
-                                eZprint(matchedCart)
-                        
-                        elif oldPromptVal != promptVal:
-                            eZprint('found prompt, updating')
-                            # print(promptVal)
+    for promptKey in input['prompts']:
+        promptVal = input['prompts'][promptKey]
+        matchFound = 0
+        for oldPromptKey in availableCartridges[input['sessionID']]:
+            oldPromptVal = availableCartridges[input['sessionID']][oldPromptKey]
+            if promptKey == oldPromptKey:
+                matchFound = 1
+                if "softDelete" in input['prompts'][promptKey]:
+                        eZprint('deleting prompt')
+                        matchedCart = await prisma.cartridge.find_first(
+                            where={
+                            'blob':
+                            {'equals': Json({oldPromptKey: oldPromptVal})}
+                            }, 
+                        )
+                        updatedCart = await prisma.cartridge.delete(
+                            where={ 'id': matchedCart.id }
+                        )
+                        eZprint(matchedCart)
+                
+                elif oldPromptVal != promptVal:
+                    eZprint('found prompt, updating')
+                    # print(promptVal)
 
-                            matchedCart = await prisma.cartridge.find_first(
-                                where={
-                                'blob':
-                                {'equals': Json({oldPromptKey: oldPromptVal})}
-                                    # 'blob': {
-                                    #     'path':'$.'+promptKey,
-                                    #     'array_contains': 
-                                    # }
-                                }, 
-                            )
-                            # print(matchedCart)
-                            if matchedCart is not None:
-                                updatedCart = await prisma.cartridge.update(    
-                                    where={ 'id': matchedCart.id },     
-                                    data = {
-                                        
-                                        'UserID': input['userID'],
-                                        'blob':  Json({promptKey:promptVal})
-                                    }
-                                )
-                                # print(matchedCart)
-            if(matchFound == 0 and promptVal['type'] == 'prompt'):
-                eZprint('no match found, creating new prompt')
-                newCart = await prisma.cartridge.create(
-                    data={
-                        'UserID':input['userID'],
-                        'blob': Json({generate_id():promptVal})
-                    }
-                )
-                # print(newCart)
+                    matchedCart = await prisma.cartridge.find_first(
+                        where={
+                        'blob':
+                        {'equals': Json({oldPromptKey: oldPromptVal})}
+                            # 'blob': {
+                            #     'path':'$.'+promptKey,
+                            #     'array_contains': 
+                            # }
+                        }, 
+                    )
+                    # print(matchedCart)
+                    if matchedCart is not None:
+                        updatedCart = await prisma.cartridge.update(    
+                            where={ 'id': matchedCart.id },     
+                            data = {
+                                
+                                'UserID': input['userID'],
+                                'blob':  Json({promptKey:promptVal})
+                            }
+                        )
+                        # print(matchedCart)
+        if(matchFound == 0 and promptVal['type'] == 'prompt'):
+            eZprint('no match found, creating new prompt')
+            newCart = await prisma.cartridge.create(
+                data={
+                    'UserID':input['userID'],
+                    'blob': Json({generate_id():promptVal})
+                }
+            )
+            # print(newCart)
 
 
                      
-    runningPrompts[input['sessionID']] = input['prompts']
+    availableCartridges[input['sessionID']] = input['prompts']
 
     await prisma.disconnect()
 
@@ -262,16 +247,17 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
     #         # runFunction(input)
 
 def checkCartridges(input):
-    for prompt in input['prompts']:
-        for promptKey, promptVal in prompt.items():
-            if promptVal['type'] == 'index' and promptVal['enabled'] == True:
-                eZprint('index query detected')
-                # print(promptVal)
-                for prompt in runningPrompts[input['sessionID']]:
-                    for runningPromptKey, runningPromptVal in prompt.items():
-                        if runningPromptKey == promptKey:
-                            matchedCart = promptVal
-                            eZprint ('matched cart found')
+    for promptKey in input['prompts']:
+        promptVal = input['prompts'][promptKey]
+        # for promptKey, promptVal in prompt.items():
+        if promptVal['type'] == 'index' and promptVal['enabled'] == True:
+            eZprint('index query detected')
+            # print(promptVal)
+            for runningPromptKey in availableCartridges[input['sessionID']]:
+                runningPromptVal = availableCartridges[input['sessionID']][runningPromptKey]
+                if runningPromptKey == promptKey:
+                    matchedCart = promptVal
+                    eZprint ('matched cart found')
                 index = asyncio.run(getCartridgeDetail(promptKey))
                 triggerQueryIndex(input, index)
 
@@ -386,6 +372,8 @@ def constructChatPrompt(input):
          "message": response["choices"][0]["message"]["content"],
          "role": "system"
          })
+    
+    socketio.emit('sendResponse', logs[input['sessionID']])
 
 
 async def logMessage(sessionID, userID, userName, message):
@@ -427,36 +415,48 @@ async def logMessage(sessionID, userID, userName, message):
 
 def eZprint(string):
     # return
+    # socketio.emit('sendDebug', str(string))
+
     print('\n _____________ \n')
     print(string)
     print('\n _____________ \n')
 
 
-async def runMemory(input):
+async def runMemory(input, cartKey, cartVal):
     await prisma.disconnect()
 
     await prisma.connect()
     eZprint('running memory')
+    
     remoteLogs = await prisma.log.find_many(
         where={'UserID': input['userID']}
     )
+
     newLogSummaries = []
     logSummaryBatches = []
     overallSummary = ""
     lastDate = ""
     summaryBatchID = 0
+    cartVal['blocks'] = []
     eZprint('result of remote log check')
     # print(remoteLogs)
 
     if(len(remoteLogs) > 0):
         eZprint('logs found')
-        eZprint(remoteLogs)
+
         allLogs.setdefault(
             input['sessionID'], remoteLogs)
         for log in allLogs[input['sessionID']]:
             # Checks if log has summary, if not, gets summary from OPENAI
             if (log.summary == "" or log.summary == ''):
                 eZprint('no summary, getting summary from OPENAI')
+
+                cartVal['status'] = 'unsumarised chats found'
+                updatePayload = {
+                    'key': cartKey,
+                    'val' : cartVal
+                    }
+                socketio.emit('updateCartridge', updatePayload)
                 sessionID = log.SessionID
                 messageBody = ""
                 # Gets messages with corresponding ID
@@ -471,11 +471,19 @@ async def runMemory(input):
                         messageBody += "timestamp:\n"+str(message.timestamp) + \
                             message.name + ":" + message.body + "\n"
 
-                    eZprint('printing   messageBody')
+                    eZprint('printing messageBody')
                     # eZprint(messageBody)
 
                     messageSummary = getSummary(messageBody)
                     eZprint('summary is: '+messageSummary)
+                    cartVal['blocks'].append(str(messageSummary))
+                    cartVal['status'] = 'new summary added'
+                    updatePayload = {
+                        'key': cartKey,
+                        'val' : cartVal
+                        }
+                    socketio.emit('updateCartridge', updatePayload)
+                    print(cartVal['blocks'])
                     updatedLog = await prisma.log.update(
                         where={'id': log.id},
                         data={'summary': messageSummary,
@@ -529,13 +537,15 @@ async def runMemory(input):
         functionsRunning = 0
 
         # END OF SUMMARY BATCHING AND PRINT RESULTS
-        eZprint('END OF SUMMARY BATCHING AND PRINT RESULTS')
-        batchID = 0
-        # for logBatch in logSummaryBatches:
-        #     eZprint('printing batch for batch ID ' +
-        #             str(batchID))
-        #     # print(logBatch)
-        #     batchID += 1
+        eZprint('END OF SUMMARY BATCHING')
+        cartVal['status'] = 'unbatched summaries found'
+        for batch in logSummaryBatches:
+            cartVal['blocks'].append(str(batch['summaries']))
+        updatePayload = {
+            'key': cartKey,
+            'val' : cartVal
+            }
+        socketio.emit('updateCartridge', updatePayload)
         # return
         # summarises each batch if that isn't summarised, and adds to summary
         # how do we know if the batch has been created and summarised
@@ -560,6 +570,7 @@ async def runMemory(input):
         )
 
         eZprint('starting summary batch sumamarisations')
+
         # print(remoteBatches)
         if(remoteBatches != None):
             # checks if there is any remote batches that haven't been summarised
@@ -589,11 +600,16 @@ async def runMemory(input):
                 runningBatchedSummaries += batchSummary + "\n"
                 # eZprint('batch summary is: ' + batchSummary)
                 # eZprint('running batched summary is: ' + runningBatchedSummaries)
-
+                cartVal['status'] = 'batch summarised'
+                cartVal['blocks'].append(str(batchSummary))
+                updatePayload = {
+                    'key': cartKey,
+                    'val' : cartVal
+                    }
+                socketio.emit('updateCartridge', updatePayload)
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
                         'summary': batchSummary, 'batched': False, 'UserID': input['userID'] })
-
                 runningBatches.append(batchRemote)
 
                 # goes through logs that were in that batch and marked as batched (summarised)
@@ -628,7 +644,13 @@ async def runMemory(input):
 
                     batchSummary = getSummary(summaryRequest)
                     multiBatchSummary += batchSummary
-
+                    cartVal['status'] = 'multi batch summarised'
+                    cartVal['blocks'].append(str(batchSummary))
+                    updatePayload = {
+                        'key': cartKey,
+                        'val' : cartVal
+                        }
+                    socketio.emit('updateCartridge', updatePayload)
                     batchBatch = await prisma.batch.create(
                         data={'dateRange': batch['startDate']+":" + batch['endDate'],
                             'summary': batchSummary, 'batched': False, })
@@ -661,12 +683,18 @@ async def runMemory(input):
                                 'description': 'an output that has then been stored as a cartridge',
                                 'prompt': overallSummary,
                                 'stops': ['Nova:', input['userName']],
-                                'enabled': True}
+                                'enabled': True,
+                                'status': ''
+                                }
 
-            runningPrompts.setdefault(input['sessionID'], []).append(
-                {'summary-output': summaryCartridge})
-            
-
+            eZprint('updating summary')
+            updatePayload = {
+                'key': cartKey,
+                'val' : summaryCartridge
+                }
+            socketio.emit('updateCartridge', updatePayload)
+            availableCartridges[input['sessionID']][cartKey].update(summaryCartridge)
+           
             await prisma.disconnect()
     else :
         eZprint("No logs found for this user, so starting fresh")
@@ -676,12 +704,9 @@ async def runMemory(input):
                     'prompt': "No prior conversations to summarise. This cartridge will show the summaries of your past conversations, and add to context if unmuted.",
                     'stops': ['Nova:', input['userName']],
                     'enabled': True}
+        availableCartridges[input['sessionID']][cartKey].update(summaryCartridge)
 
-        runningPrompts.setdefault(input['sessionID'], []).append(
-            {'summary-output': summaryCartridge})
         await prisma.disconnect()
-
-
 
 
 def welcomeGuest(sessionID, userID, userName):

@@ -22,5 +22,7 @@ langchain = "*"
 ipython = "*"
 unstructured = "*"
 "pdfminer.six" = "*"
+flask-socketio = "*"
+eventlet = "*"
 
 [dev-packages]

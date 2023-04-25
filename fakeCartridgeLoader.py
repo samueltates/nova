@@ -28,7 +28,7 @@ async def fakeIndexQuerier():
         index = cartVal['index']
 
     nova.eZprint('printing fake cartridge loader index')
-    print(index)
+    # print(index)
     queryIndex ('what are the key points in this text', index)
 
 
