@@ -24,5 +24,6 @@ unstructured = "*"
 "pdfminer.six" = "*"
 flask-socketio = "*"
 eventlet = "*"
+quart-cors = "*"
 
 [dev-packages]

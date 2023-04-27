@@ -52,8 +52,8 @@ def handleChatInput(input):
         "message": input['message'],
         "role": "user"
             })
-    checkCartridges(promptObject,input['sessionID'])
     constructChatPrompt(promptObject,input['sessionID'])
+    checkCartridges(promptObject,input['sessionID'])
 
 
 async def loadCartridges(data):
