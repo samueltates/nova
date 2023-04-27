@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 import sys
 import gptindex
+import secrets
+
 from human_id import generate_id
 
 path_root = Path(__file__).parents[1]
@@ -38,17 +40,20 @@ def initialiseCartridges(data):
 
 def handleChatInput(input):
     eZprint('send input triggered')
-    # print(input)
-    asyncio.run(updateCartridges(input))
-    asyncio.run(logMessage(
-        input['sessionID'], input['userID'], input['userName'], input['message']))
+
+    promptObject=[]
+    eZprint(input)
+    # asyncio.run(updateCartridges(input))
+    # asyncio.run(logMessage(
+    #     input['sessionID'], input['userID'], input['userName'], input['message']))
     logs.setdefault(input['sessionID'], []).append(
-        {"userName": input['userName'],
+        {"ID": input['ID'],
+        "userName": input['userName'],
         "message": input['message'],
         "role": "user"
             })
-    checkCartridges(input)
-    constructChatPrompt(input)
+    checkCartridges(promptObject,input['sessionID'])
+    constructChatPrompt(promptObject,input['sessionID'])
 
 
 async def loadCartridges(data):
@@ -60,23 +65,21 @@ async def loadCartridges(data):
         "UserID": data['userID'],
         }
     )
-
     eZprint(cartridges)
-
     if len(cartridges) != 0:
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
-                availableCartridges.setdefault(
-                    data['sessionID'], dict()).update({cartKey: cartVal})
-                cartdigeLookup.update({cartKey: cartridge.id}) 
-                if cartVal['type'] == 'summary':
-                    cartVal.update({'status': 'loading'})
-        
+                if 'softDelete' not in cartVal:
+                    availableCartridges.setdefault(
+                        data['sessionID'], dict()).update({cartKey: cartVal})
+                    cartdigeLookup.update({cartKey: cartridge.id}) 
+                    if cartVal['type'] == 'summary':
+                        cartVal.update({'status': 'loading'})
         socketio.emit('sendCartridges', availableCartridges[data['sessionID']])
         socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
-
     eZprint('load cartridges complete')
+    eZprint(availableCartridges)
     await prisma.disconnect()
 
 
@@ -171,9 +174,7 @@ async def updateCartridgeField(input):
     socketio.emit('updateCartridgeFields', payload)
     await prisma.disconnect()
 
-
-
-async def updateCartridges(input):
+# async def updateCartridges(input):
     await prisma.disconnect()
     await prisma.connect()
     eZprint('updating cartridges')
@@ -233,9 +234,6 @@ async def updateCartridges(input):
             )
             availableCartridges[input['sessionID']].append(newCart['blob'])
             # print(newCart)
-
-
-                     
     availableCartridges[input['sessionID']] = input['prompts']
 
     await prisma.disconnect()
@@ -293,26 +291,34 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
     await prisma.disconnect()
     return newCart.blob
 
-
-    # idea here is to detect when new cartridge is added, and if it is a function then handle it
-    # match input['type']:
-    #     case "function":
-    #         # runFunction(input)
-
-def checkCartridges(input):
-    for promptKey in input['prompts']:
-        promptVal = input['prompts'][promptKey]
-        # for promptKey, promptVal in prompt.items():
-        if promptVal['type'] == 'index' and promptVal['enabled'] == True:
+def checkCartridges(promptObject, sessionID):
+    for cartKey in availableCartridges[sessionID]:
+        cartVal = availableCartridges[sessionID][cartKey]
+        if cartVal['enabled'] == False :
+            return
+        if cartVal['type'] == 'index':
             eZprint('index query detected')
-            # print(promptVal)
-            for runningPromptKey in availableCartridges[input['sessionID']]:
-                runningPromptVal = availableCartridges[input['sessionID']][runningPromptKey]
-                if runningPromptKey == promptKey:
-                    matchedCart = promptVal
-                    eZprint ('matched cart found')
-                index = asyncio.run(getCartridgeDetail(promptKey))
-                triggerQueryIndex(input, index)
+            print(cartVal)
+            index = asyncio.run(getCartridgeDetail(cartKey))
+            triggerQueryIndex(input, index)
+        if cartVal['type'] == 'prompt':
+            eZprint('found prompt, adding to string')
+            promptObject.append({"role": "system", "content": "\n Prompt - " + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n" })
+                
+
+    # for promptKey in input['prompts']:
+    #     promptVal = input['prompts'][promptKey]
+    #     # for promptKey, promptVal in prompt.items():
+    #     if promptVal['type'] == 'index' and promptVal['enabled'] == True:
+    #         eZprint('index query detected')
+    #         # print(promptVal)
+    #         for runningPromptKey in availableCartridges[input['sessionID']]:
+    #             runningPromptVal = availableCartridges[input['sessionID']][runningPromptKey]
+    #             if runningPromptKey == promptKey:
+    #                 matchedCart = promptVal
+    #                 eZprint ('matched cart found')
+    #             index = asyncio.run(getCartridgeDetail(promptKey))
+    #             triggerQueryIndex(input, index)
 
 
 def triggerQueryIndex(input, index):
@@ -345,7 +351,6 @@ async def getCartridgeDetail(cartKey):
     localCartridge = dbRecord['blob']
     for cartKey, cartVal in localCartridge.items():
         index = cartVal['index']
-
     await prisma.disconnect()
     return index
 
@@ -384,21 +389,11 @@ def sendPrompt(promptString):
     return response
 
 
-def constructChatPrompt(input):
+def constructChatPrompt(promptObject, sessionID):
 
-    promptObject = []
     eZprint("sending prompt")
-    # eZprint(runningPrompts)
-    # eZprint(runningPrompts[input['sessionID']])
-    for promptKey in availableCartridges[input['sessionID']]:
-            promptVal = availableCartridges[input['sessionID']][promptKey]
-            # eZprint(promptVal)
-            if (promptVal['enabled'] == True and promptVal['type'] != 'index'):
-                eZprint('found prompt, adding to string')
-                # eZprint(promptObj)
-                promptObject.append({"role": "system", "content": "\n Prompt - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
 
-    for chat in logs[input['sessionID']]:
+    for chat in logs[sessionID]:
         eZprint('found chat, adding to string')
         eZprint(chat)
         if chat['role'] == 'system':
@@ -418,15 +413,17 @@ def constructChatPrompt(input):
     #      "message": response["choices"][0]["message"]["content"],
     #      "role": "system"
     #      })
-    
-    logs.setdefault(input['sessionID'], []).append(
-        {"userName": agentName,
-         "message": "yeah baby",
-         "role": "system"
-         })
-    
+    ID = secrets.token_bytes(4).hex()
+    log = {
+        "ID":ID,
+        "userName": agentName,
+        "message": "yeah baby",
+        "role": "system"
+         }
 
-    socketio.emit('sendResponse', logs[input['sessionID']])
+    socketio.emit('sendResponse', log)
+    logs.setdefault(sessionID, []).append(log)
+    
 
 
 async def logMessage(sessionID, userID, userName, message):
