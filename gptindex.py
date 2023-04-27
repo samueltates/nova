@@ -5,6 +5,7 @@ import json
 import nova
 import base64
 import os
+from socketHandler import socketio
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
@@ -32,9 +33,12 @@ from llama_index.indices.query.query_transform.base import StepDecomposeQueryTra
 GoogleDocsReader = download_loader('GoogleDocsReader')
 UnstructuredReader = download_loader("UnstructuredReader")
 
-def indexDocument(userID, file_content, file_name, file_type):
+def indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey):
     #reconstruct file
     binary_data = base64.b64decode(file_content)
+    nova.eZprint('reconstructing file')
+    payload = { 'key':tempKey,'fields': {'status': 'indexing'}}
+    socketio.emit('updateCartridgeFields', payload)
 
     # Save the binary data to a temporary file
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
@@ -48,29 +52,38 @@ def indexDocument(userID, file_content, file_name, file_type):
     # Cleanup: delete the temporary file after processing
     os.unlink(temp_file.name)
 
+
     index = GPTSimpleVectorIndex.from_documents(documents)
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     index.save_to_disk(tmpfile.name)
     tmpfile.seek(0)
     
     index_json = json.load(open(tmpfile.name))
-
+        
+    payload = { 'key':tempKey,'fields': {'status': 'query: name'}}
+    socketio.emit('updateCartridgeFields', payload)
     name = queryIndex('give this document a title', index_json)
     name = str(name).strip()
+    payload = { 'key':tempKey,'fields': {'label': name}}
+    socketio.emit('updateCartridgeFields', payload)
     description = queryIndex('give this document a description', index_json) 
     description = str(description).strip()
+    # payload = { 'key':tempKey,'fields': {'blocks': {description}}, 'action':'append'}
+    # socketio.emit('updateCartridgeFields', payload)
 
     cartval = {
         'label': name,
         'type': 'index',
         'enabled': True,
-        'description': description,
+        'description': 'a document indexed to be queriable by NOVA',
+
+        'blocks': {description},
         # 'file':{file_content},
         'index': index_json,
     }
 
     tmpfile.close()
-    newCart = nova.addCartridgeTrigger(userID, cartval)
+    newCart = nova.addCartridgeTrigger(userID, sessionID, cartval)
     nova.eZprint('printing new cartridge')
 
     # print(newCart)
@@ -97,10 +110,12 @@ def queryIndex(queryString, storedIndex ):
     return response_gpt4
 
 
-def indexGoogleDoc(userID, docIDs):
+def indexGoogleDoc(userID, sessionID, docIDs,tempKey):
 
+    payload = { 'key':tempKey,'fields': {'status': 'indexing'}}
+    socketio.emit('updateCartridgeFields', payload)
 
-    loader = GoogleDocsReader() 
+    loader =    GoogleDocsReader() 
     documents = loader.load_data(document_ids=[docIDs])
     
     index = GPTSimpleVectorIndex.from_documents(documents)
@@ -111,25 +126,36 @@ def indexGoogleDoc(userID, docIDs):
     index.save_to_disk(tmpfile.name)
     tmpfile.seek(0)
 
+    payload = { 'key':tempKey,'fields': {'status': 'query-name'}}
+    socketio.emit('updateCartridgeFields', payload)
+
     index_json = json.load(open(tmpfile.name))
     name = queryIndex('give this document a title', index_json)
     name = str(name).strip()
-    description = queryIndex('give this document a description', index_json) 
-    description = str(description).strip()
+    payload = { 'key':tempKey,'fields': {'label': name}}
+    socketio.emit('updateCartridgeFields', payload) 
 
+    payload = { 'key':tempKey,'fields': {'status': 'query-description'}}
+    socketio.emit('updateCartridgeFields', payload)
+    blocks = []
+    documentDescription = queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index_json) 
+    documentDescription = str(documentDescription).strip()
+    blocks.append(documentDescription)
     cartval = {
         'label': name,
         'type': 'index',
-        'description': description,
+        'description': 'a document indexed to be queriable by NOVA',
+        'blocks': blocks,
         'enabled': True,
         # 'file':{file_content},
         'index': index_json,
     }
 
     tmpfile.close()
-    newCart = nova.addCartridgeTrigger(userID, cartval)
+    newCart = nova.addCartridgeTrigger(userID, sessionID, cartval)
     nova.eZprint('printing new cartridge')
     # print(newCart)
+    #TO DO - add to running cartridges
     return newCart
 
 
