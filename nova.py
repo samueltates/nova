@@ -44,8 +44,8 @@ def handleChatInput(input):
     promptObject=[]
     eZprint(input)
     # asyncio.run(updateCartridges(input))
-    # asyncio.run(logMessage(
-    #     input['sessionID'], input['userID'], input['userName'], input['message']))
+    asyncio.run(logMessage(
+        input['sessionID'], input['userID'], input['userName'], input['message']))
     logs.setdefault(input['sessionID'], []).append(
         {"ID": input['ID'],
         "userName": input['userName'],
@@ -174,7 +174,7 @@ async def updateCartridgeField(input):
     socketio.emit('updateCartridgeFields', payload)
     await prisma.disconnect()
 
-# async def updateCartridges(input):
+async def updateCartridges(input):
     await prisma.disconnect()
     await prisma.connect()
     eZprint('updating cartridges')
@@ -405,19 +405,17 @@ def constructChatPrompt(promptObject, sessionID):
 
     #fake response
 
-    # response = sendChat(promptObject)
-    # asyncio.run(logMessage(input['sessionID'], agentName, agentName,
-    #             response["choices"][0]["message"]["content"]))
-    # logs.setdefault(input['sessionID'], []).append(
-    #     {"userName": agentName,
-    #      "message": response["choices"][0]["message"]["content"],
-    #      "role": "system"
-    #      })
+    response = sendChat(promptObject)
+    print(response)
+    content = str(response["choices"][0]["message"]["content"])
+    asyncio.run(logMessage(sessionID, agentName, agentName,
+                content))
     ID = secrets.token_bytes(4).hex()
+
     log = {
         "ID":ID,
         "userName": agentName,
-        "message": "yeah baby",
+        "message": content,
         "role": "system"
          }
 
