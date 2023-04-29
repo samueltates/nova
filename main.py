@@ -17,13 +17,6 @@ CORS(app)
 socketio.init_app(app,log_output=True, cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS'))
 
 
-# eZprint('main running')
-
-# @app.route('/')
-# def index():
-#     # return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
-#     return render_template('index.html')
-
 @socketio.on('requestCartridges')
 def requestCartridges(data):
     eZprint('requestCartridges called')
@@ -158,5 +151,4 @@ async def fakeWait():
 if __name__ == '__main__':
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
     socketio.run(app, host=os.getenv("HOST", default='0.0.0.0'), port=int(os.getenv("PORT", default=5000)))
-    logging.getLogger('prisma').setLevel(logging.DEBUG)
-
+    # logging.getLogger('prisma').setLevel(logging.DEBUG)
