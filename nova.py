@@ -34,13 +34,12 @@ logCreated = 0
 cartdigeLookup = dict()
 
 def initialiseCartridges(data):
-    eZprint('get prompts triggered')
+    eZprint('intialising cartridges')
     asyncio.run(loadCartridges(data))
     runCartridges(data)
 
 def handleChatInput(input):
-    eZprint('send input triggered')
-
+    eZprint('handling message')
     promptObject=[]
     eZprint(input)
     # asyncio.run(updateCartridges(input))
@@ -65,7 +64,7 @@ async def loadCartridges(data):
         "UserID": data['userID'],
         }
     )
-    eZprint(cartridges)
+    # eZprint(cartridges)
     if len(cartridges) != 0:
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
@@ -75,11 +74,11 @@ async def loadCartridges(data):
                         data['sessionID'], dict()).update({cartKey: cartVal})
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
-                        cartVal.update({'status': 'loading'})
+                        cartVal.update({'state': 'loading'})
         socketio.emit('sendCartridges', availableCartridges[data['sessionID']])
         socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
     eZprint('load cartridges complete')
-    eZprint(availableCartridges)
+    # eZprint(availableCartridges)
     await prisma.disconnect()
 
 
@@ -90,6 +89,7 @@ def runCartridges(input):
         for cartridge in availableCartridges[input['sessionID']]:
             # print(availableCartridges[input['sessionID']][cartridge])
             if availableCartridges[input['sessionID']][cartridge]['type'] == 'summary':
+                eZprint('running cartridge: ' + cartridge)
                 cartVal = availableCartridges[input['sessionID']][cartridge]
                 asyncio.run(runMemory(input, cartridge, cartVal))
 
@@ -111,7 +111,6 @@ def runCartridges(input):
                             'label': 'summary',
                             'type': 'summary',
                             'description':' a summary function that will summarise the conversation and store it in the database',
-                            'blocks': [' a summary function that will summarise the conversation and store it in the database'],
                             'enabled': True,
                             }
         addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
@@ -146,7 +145,7 @@ async def addCartridgePrompt(input):
 async def updateCartridgeField(input):
     await prisma.disconnect()
     await prisma.connect()
-    eZprint('soft deleting cartridge')
+    # eZprint('soft deleting cartridge')
     cartridges = availableCartridges[input['sessionID']]
     targetCartKey = input['cartKey']
     targetCartVal = cartridges[targetCartKey]
@@ -162,14 +161,15 @@ async def updateCartridgeField(input):
     input['fields']['state'] = ''
 
     print(targetCartVal)
-    updatedCart = await prisma.cartridge.update(
-        where={ 'id': matchedCart.id },
-        data={
-            'UserID': input['userID'],
-            'blob' : Json({targetCartKey:targetCartVal})
-        }
-    )
-    eZprint(updatedCart)
+    if matchedCart:
+        updatedCart = await prisma.cartridge.update(
+            where={ 'id': matchedCart.id },
+            data={
+                'UserID': input['userID'],
+                'blob' : Json({targetCartKey:targetCartVal})
+            }
+        )
+        eZprint(updatedCart)
     payload = { 'key':targetCartKey,'fields': input['fields']}
     socketio.emit('updateCartridgeFields', payload)
     await prisma.disconnect()
@@ -475,7 +475,7 @@ async def runMemory(input, cartKey, cartVal):
 
     await prisma.connect()
     eZprint('running memory')
-    
+    eZprint(cartKey)
     remoteLogs = await prisma.log.find_many(
         where={'UserID': input['userID']}
     )
@@ -498,13 +498,9 @@ async def runMemory(input, cartKey, cartVal):
             # Checks if log has summary, if not, gets summary from OPENAI
             if (log.summary == "" or log.summary == ''):
                 eZprint('no summary, getting summary from OPENAI')
-
-                cartVal['status'] = 'unsumarised chats found'
-                updatePayload = {
-                    'key': cartKey,
-                    'val' : cartVal
-                    }
-                socketio.emit('updateCartridge', updatePayload)
+                payload = { 'key':cartKey,'fields': {'status': 'unsumarised chats found'}}
+                socketio.emit('updateCartridgeFields', payload)
+ 
                 sessionID = log.SessionID
                 messageBody = ""
                 # Gets messages with corresponding ID
@@ -526,11 +522,10 @@ async def runMemory(input, cartKey, cartVal):
                     eZprint('summary is: '+messageSummary)
                     cartVal['blocks'].append(str(messageSummary))
                     cartVal['status'] = 'new summary added'
-                    updatePayload = {
-                        'key': cartKey,
-                        'val' : cartVal
-                        }
-                    socketio.emit('updateCartridge', updatePayload)
+                    payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
+                                                         'blocks':cartVal['blocks'] }}
+                    socketio.emit('updateCartridgeFields', payload)
+ 
                     print(cartVal['blocks'])
                     updatedLog = await prisma.log.update(
                         where={'id': log.id},
@@ -589,11 +584,12 @@ async def runMemory(input, cartKey, cartVal):
         cartVal['status'] = 'unbatched summaries found'
         for batch in logSummaryBatches:
             cartVal['blocks'].append(str(batch['summaries']))
-        updatePayload = {
-            'key': cartKey,
-            'val' : cartVal
-            }
-        socketio.emit('updateCartridge', updatePayload)
+
+        cartVal['status'] = 'unbatched summaries found'
+        payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
+                                                'blocks':cartVal['blocks'] }}
+        socketio.emit('updateCartridgeFields', payload)
+
         # return
         # summarises each batch if that isn't summarised, and adds to summary
         # how do we know if the batch has been created and summarised
@@ -650,11 +646,7 @@ async def runMemory(input, cartKey, cartVal):
                 # eZprint('running batched summary is: ' + runningBatchedSummaries)
                 cartVal['status'] = 'batch summarised'
                 cartVal['blocks'].append(str(batchSummary))
-                updatePayload = {
-                    'key': cartKey,
-                    'val' : cartVal
-                    }
-                socketio.emit('updateCartridge', updatePayload)
+
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
                         'summary': batchSummary, 'batched': False, 'UserID': input['userID'] })
@@ -694,11 +686,9 @@ async def runMemory(input, cartKey, cartVal):
                     multiBatchSummary += batchSummary
                     cartVal['status'] = 'multi batch summarised'
                     cartVal['blocks'].append(str(batchSummary))
-                    updatePayload = {
-                        'key': cartKey,
-                        'val' : cartVal
-                        }
-                    socketio.emit('updateCartridge', updatePayload)
+                    payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
+                                                            'blocks':cartVal['blocks'] }}
+                    socketio.emit('updateCartridgeFields', payload)
                     batchBatch = await prisma.batch.create(
                         data={'dateRange': batch['startDate']+":" + batch['endDate'],
                             'summary': batchSummary, 'batched': False, })
@@ -726,23 +716,15 @@ async def runMemory(input, cartKey, cartVal):
                 overallSummary += "\nMost recently: " + latestLogs + " \n"
 
             eZprint("overall summary is: " + overallSummary)
-            summaryCartridge = {'label': 'summary-output',
-                                'type': 'summary-output',
-                                'description': 'an output that has then been stored as a cartridge',
-                                'blocks': [overallSummary],
-                                'stops': ['Nova:', input['userName']],
-                                'enabled': True,
-                                'status': ''
-                                }
-
-            eZprint('updating summary')
-            updatePayload = {
-                'key': cartKey,
-                'val' : summaryCartridge
-                }
-            socketio.emit('updateCartridge', updatePayload)
-            availableCartridges[input['sessionID']][cartKey].update(summaryCartridge)
-           
+            cartVal['status'] = ''
+            cartVal['state'] = ''
+            cartVal['blocks'] = [overallSummary]
+            payload = { 'key':cartKey,'fields': {
+                                        'status': cartVal['status'],
+                                        'blocks':cartVal['blocks'],
+                                        'state': cartVal['state']
+                                         }}
+            socketio.emit('updateCartridgeFields', payload)
             await prisma.disconnect()
     else :
         eZprint("No logs found for this user, so starting fresh")
@@ -750,7 +732,6 @@ async def runMemory(input, cartKey, cartVal):
                     'type': 'summary-output',
                     'description': 'an output that has then been stored as a cartridge',
                     'blocks': ["No prior conversations to summarise. This cartridge will show the summaries of your past conversations, and add to context if unmuted."],
-                    'stops': ['Nova:', input['userName']],
                     'state': '',
                     'enabled': True}
 

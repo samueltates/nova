@@ -2,6 +2,7 @@ import os
 import eventlet
 eventlet.monkey_patch()
 import asyncio
+import logging
 
 import json
 from nova import initialiseCartridges, availableCartridges, addCartridgePrompt, loadCartridges, runCartridges, handleChatInput, updateCartridgeField, runningPrompts, logs, functionsRunning, eZprint
@@ -25,6 +26,7 @@ socketio.init_app(app,log_output=True, cors_allowed_origins=os.environ.get('CORS
 
 @socketio.on('requestCartridges')
 def requestCartridges(data):
+    eZprint('requestCartridges called')
     socketio.emit('sendCartridgeStatus', 'loading cartridges')
     initialiseCartridges(data)
     socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
@@ -156,4 +158,5 @@ async def fakeWait():
 if __name__ == '__main__':
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
     socketio.run(app, host=os.getenv("HOST", default='0.0.0.0'), port=int(os.getenv("PORT", default=5000)))
+    logging.getLogger('prisma').setLevel(logging.DEBUG)
 
