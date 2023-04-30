@@ -51,7 +51,7 @@ def handleChatInput(input):
         "message": input['message'],
         "role": "user"
             })
-    # constructChatPrompt(promptObject,input['sessionID'])
+    constructChatPrompt(promptObject,input['sessionID'])
     checkCartridges(input)
 
 
@@ -750,7 +750,7 @@ async def runMemory(input, cartKey, cartVal):
             cartVal['status'] = ''
             cartVal['state'] = ''
             cartVal['blocks'] = [overallSummary]
-            payload = { 'key':cartKey,'fields': {
+            payload = { 'key': cartKey,'fields': {
                                         'status': cartVal['status'],
                                         'blocks':cartVal['blocks'],
                                         'state': cartVal['state']
@@ -759,20 +759,16 @@ async def runMemory(input, cartKey, cartVal):
             await prisma.disconnect()
     else :
         eZprint("No logs found for this user, so starting fresh")
-        summaryCartridge = {'label': 'summary-output',
-                    'type': 'summary-output',
-                    'description': 'an output that has then been stored as a cartridge',
-                    'blocks': ["No prior conversations to summarise. This cartridge will show the summaries of your past conversations, and add to context if unmuted."],
-                    'state': '',
-                    'enabled': True}
-
-        updatePayload = {
-            'key': cartKey,
-            'val' : summaryCartridge
-            }
-        
-        socketio.emit('updateCartridge', updatePayload)
-        availableCartridges[input['sessionID']][cartKey].update(summaryCartridge)
+        cartVal['status'] = ''
+        cartVal['state'] = ''
+        cartVal['blocks'] = []
+        payload = { 'key': cartKey,'fields': {
+                                    'status': cartVal['status'],
+                                    'blocks':cartVal['blocks'],
+                                    'state': cartVal['state']
+                                    }}
+        socketio.emit('updateCartridgeFields', payload)
+        # availableCartridges[input['sessionID']][cartKey].update(summaryCartridge)
 
         await prisma.disconnect()
 
