@@ -57,7 +57,7 @@ def handleChatInput(input):
 
 async def loadCartridges(data):
 
-    # await prisma.disconnect()
+    await prisma.disconnect()
     await prisma.connect()
     cartridges = await prisma.cartridge.find_many(
         where = {  
@@ -461,7 +461,6 @@ async def logMessage(sessionID, userID, userName, message):
     functionsRunning = 1
     # return
     await prisma.disconnect()
-
     await prisma.connect()
     log = await prisma.log.find_first(
         where={'SessionID': sessionID}
@@ -505,7 +504,6 @@ def eZprint(string):
 
 async def runMemory(input, cartKey, cartVal):
     await prisma.disconnect()
-
     await prisma.connect()
     eZprint('running memory')
     eZprint(cartKey)
