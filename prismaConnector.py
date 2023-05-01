@@ -3,6 +3,8 @@ import json
 from prisma import Prisma
 from prisma import Json
 from human_id import generate_id
+import logging
+logging.basicConfig()
 
 async def main() -> None:
     prisma = Prisma()

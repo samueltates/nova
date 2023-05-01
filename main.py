@@ -1,154 +1,86 @@
 import os
-import eventlet
-eventlet.monkey_patch()
-import asyncio
-import logging
-
 import json
-from nova import initialiseCartridges, availableCartridges, addCartridgePrompt, loadCartridges, runCartridges, handleChatInput, updateCartridgeField, runningPrompts, logs, functionsRunning, eZprint
+
+# import json
+from nova import initialiseCartridges, availableCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, loadCartridges, runCartridges, handleChatInput, updateCartridgeField, runningPrompts, logs, functionsRunning, eZprint
 from gptindex import indexDocument, indexGoogleDoc
-from flask import Flask, jsonify, request, render_template
-from flask_cors import CORS
-from socketHandler import socketio
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') 
-CORS(app)
-socketio.init_app(app,log_output=True, cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS'))
+import logging
+import asyncio
+from appHandler import app, websocket
 
 
-@socketio.on('requestCartridges')
-def requestCartridges(data):
-    eZprint('requestCartridges called')
-    socketio.emit('sendCartridgeStatus', 'loading cartridges')
-    initialiseCartridges(data)
-    socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
-    # socketio.emit('sendCartridges', availableCartridges[data["sessionID"]])
+@app.before_serving
+async def startup():
+    await prismaConnect()
 
-@socketio.on('sendMessage')
-def messageRecieved(data):
-    eZprint('handleInput called')
-    handleChatInput(data)
+@app.after_serving
+async def shutdown():
+    await prismaDisconnect()
+    print("Disconnected from Prisma")
 
+@app.websocket('/ws')
+async def ws():
+    while True:
+        data = await websocket.receive()
+        parsed_data = json.loads(data)
+        if(parsed_data['type'] == 'requestCartridges'):
+            await initialiseCartridges(parsed_data['data'])
+        # print(parsed_data['type']) # Will print 'requestCartridges'
+        # print(parsed_data['data']) # Will print the data sent by the client
+        if(parsed_data['type'] == 'sendMessage'):
+            cartridges = await asyncio.ensure_future( initialiseCartridges(parsed_data['data'])  )
+            eZprint('handleInput called')
+            await handleChatInput(parsed_data['data'])
+        if(parsed_data['type']== 'updateCartridgeField'):
+            print('updateCartridgeField route hit')
+            print(parsed_data['data']['fields'])
+            await updateCartridgeField(parsed_data['data'])
+        if(parsed_data['type']== 'newPrompt'):
+            await addCartridgePrompt(parsed_data['data'])
+        if(parsed_data['type']== 'requestDocIndex'):
+             data = parsed_data['data']
+             if 'gDocID' in data:
+                eZprint('indexing gDoc')
+                indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'])
+                if indexRecord:
+                    payload = {
+                        'tempKey': data['tempKey'],
+                        'newCartridge': indexRecord,
+                    }
+                await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+        if(parsed_data['type'])== 'indexdoc)':
+            eZprint('indexdoc route hit   ')
+            userID = data["userID"]
+            file_content = data["file_content"]
+            file_name = data["file_name"]
+            file_type = data["file_type"]
+            tempKey = data["tempKey"]
+            indexRecord = await indexDocument(userID, file_content, file_name, file_type, tempKey)
 
-@app.route('/indexdoc', methods=['POST','GET'])
-def indexdoc():
-    eZprint('indexdoc route hit   ')
-    userID = request.json["userID"]
-    file_content = request.json["file_content"]
-    file_name = request.json["file_name"]
-    file_type = request.json["file_type"]
-    tempKey = request.json["tempKey"]
-    indexRecord = indexDocument(userID, file_content, file_name, file_type, tempKey)
+            for indexKey, indexVal in indexRecord.items():
+                indexCartridge = {
+                    indexKey: {
+                        'label' : indexVal['label'],
+                        'type' : indexVal['type'],
+                        'enabled' : indexVal['enabled'],
+                        'description' : indexVal['description'],
+                    }
+                }
 
-    for indexKey, indexVal in indexRecord.items():
-        indexCartridge = {
-             indexKey: {
-                'label' : indexVal['label'],
-                'type' : indexVal['type'],
-                'enabled' : indexVal['enabled'],
-                'description' : indexVal['description'],
-             }
-        }
-
-    response = {
-        "success": True,
-        "message":"File indexed successfully.",
-        "tempKey": tempKey,
-        # "data": indexCartridge
-    }
-    payload = {
-        'tempKey': tempKey,
-        'newCartridge': indexCartridge,
-    }
-    socketio.emit('updateTempCart', payload)
-    return jsonify(response)
-
-
-@socketio.on('newPrompt')
-def requestNewPrompt(data):
-    asyncio.run(addCartridgePrompt(data))
-
-
-@socketio.on('requestFileIndex')
-def requestFileIndex(file, callback):
-    eZprint('requestFileIndex called')
-    # callback({ 'message':' err ?' "failure" : "success" })
-
-
-@socketio.on('requestDocIndex')
-def requestDocIndex(data):
-    eZprint('requestDocIndex called')
-    eZprint(data)
-    if 'gDocID' in data:
-        eZprint('indexing gDoc')
-        indexRecord = indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'])
-        if indexRecord:
-            # for indexKey, indexVal in indexRecord.items():
-            #     indexCartridge = {
-            #         indexKey: indexVal
-            #     }
-            payload = {
-                'tempKey': data['tempKey'],
-                'newCartridge': indexRecord,
+            response = {
+                "success": True,
+                "message":"File indexed successfully.",
+                "tempKey": tempKey,
+                # "data": indexCartridge
             }
-        # asyncio.run(fakeWait())
-        # ## fake index cartridge
-        # indexCartridge = {  
-        #     'index': {
-        #         'label': 'Index',
-        #         'description': 'fake index for testing purposes',
-        #         'type': 'index',
-        #         'enabled': True,
-        #     }
-        # }
-        # ##fake payload
-        # payload = { 
-        #     'tempKey': data['tempKey'],
-        #     'newCartridge': indexCartridge,
-        # }
-        socketio.emit('updateTempCart', payload)
-        # socketio.emit('sendCartridgeStatus', 'cartridgesLoaded')
- 
-@socketio.on('updateCartridgeField')
-def requestUpdateCartridgeField(data):
-    eZprint('softDeleteCartridge called')
-    asyncio.run(updateCartridgeField(data))
-    
-async def fakeWait():
-    await asyncio.sleep(2)
-    
-    
-    
-# @app.route('/indexGDoc', methods=['POST','GET'])
-# def indexGDoc():
-#     eZprint('indexGDoc route hit   ')
-#     userID = request.json["userID"]
-#     gDocID = request.json["gDocID"]
+            payload = {
+                'tempKey': tempKey,
+                'newCartridge': indexCartridge,
+            }
+            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
-#     indexRecord = indexGoogleDoc(userID, gDocID )
-
-#     for indexKey, indexVal in indexRecord.items():
-#         indexCartridge = {
-#              indexKey: {
-#                 'label' : indexVal['label'],
-#                 'description' : indexVal['description'],
-#                 'type' : indexVal['type'],
-#                 'enabled' : indexVal['enabled'],
-#              }
-#         }
-        
-#     eZprint('printing index cartridge')
-#     print (indexCartridge)
-#     response = {
-#         "success": True,
-#         "message":"File indexed successfully.",
-#         "data": indexCartridge
-
-#     }
-#     return jsonify(response)
 
 if __name__ == '__main__':
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
-    socketio.run(app, host=os.getenv("HOST", default='0.0.0.0'), port=int(os.getenv("PORT", default=5000)))
-    # logging.getLogger('prisma').setLevel(logging.DEBUG)
+    # app.run(host=os.getenv("HOST", default='0.0.0.0'), port=int(os.getenv("PORT", default=5000)))
+    app.run(host="127.0.0.1", port=5500)
