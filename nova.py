@@ -79,9 +79,9 @@ async def loadCartridges(data):
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
-                eZprint(cartKey)
+                # eZprint(cartKey)
                 if 'softDelete' not in cartVal:
-                    eZprint('adding cartridge: ' + cartKey)
+                    # eZprint('adding cartridge: ' + cartKey)
                     availableCartridges.setdefault(
                         data['sessionID'], dict()).update({cartKey: cartVal})
                     cartdigeLookup.update({cartKey: cartridge.id}) 
@@ -130,6 +130,13 @@ async def runCartridges(input):
 
 
 async def constructChatPrompt(promptObject, sessionID):
+    for promptKey in availableCartridges[sessionID]:
+            promptVal = availableCartridges[sessionID][promptKey]
+            # eZprint(promptVal)
+            if (promptVal['enabled'] == True and promptVal['type'] != 'index'):
+                eZprint('found prompt, adding to string')
+                # eZprint(promptObj)
+                promptObject.append({"role": "system", "content": "\n Prompt - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
 
     eZprint("sending prompt")
 
@@ -147,7 +154,7 @@ async def constructChatPrompt(promptObject, sessionID):
 
     try :
         response = sendChat(promptObject)
-        print(response)
+        # print(response)
         content = str(response["choices"][0]["message"]["content"])
     except:
         content = 'API error'
@@ -198,7 +205,7 @@ async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
     targetCartVal = cartridge[targetCartKey]
     eZprint('val before update')
-    print(targetCartVal)
+    # print(targetCartVal)
     matchedCart = await prisma.cartridge.find_first(
         where={
         'blob':
@@ -311,7 +318,7 @@ async def checkCartridges(input):
 
 async def triggerQueryIndex(cartKey, cartVal, input, index):
     eZprint('triggering index query')
-    print(input['message'])
+    # print(input['message'])
     cartVal['state'] = 'loading'
     cartVal['status'] = 'indexFound'
     payload = { 'key':cartKey,'fields': {
@@ -504,7 +511,7 @@ async def runMemory(input, cartKey, cartVal):
                                                          'blocks':cartVal['blocks'] }}
                     # socketio.emit('updateCartridgeFields', payload)
  
-                    print(cartVal['blocks'])
+                    # print(cartVal['blocks'])
                     updatedLog = await prisma.log.update(
                         where={'id': log.id},
                         data={'summary': messageSummary,
@@ -593,7 +600,7 @@ async def runMemory(input, cartKey, cartVal):
 
         eZprint('starting summary batch sumamarisations')
 
-        # print(remoteBatches)
+        # print(remoteBatches)  
         if(remoteBatches != None):
             # checks if there is any remote batches that haven't been summarised
             if (len(remoteBatches) > 0):
