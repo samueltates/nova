@@ -20,5 +20,6 @@ eventlet = "*"
 quart = "==0.18.1"
 quart-cors = "==0.5.0"
 markupsafe = "*"
+hypercorn = "*"
 
 [dev-packages]

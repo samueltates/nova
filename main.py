@@ -6,8 +6,15 @@ from nova import initialiseCartridges, availableCartridges, prismaConnect, prism
 from gptindex import indexDocument, indexGoogleDoc
 import logging
 import asyncio
+
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
+
 from appHandler import app, websocket
 
+@app.route("/hello")
+async def hello():
+    return "Hello, World!"
 
 @app.before_serving
 async def startup():
@@ -81,6 +88,13 @@ async def ws():
 
 
 if __name__ == '__main__':
+
+    host=os.getenv("HOST", default='0.0.0.0')
+    port=int(os.getenv("PORT", default=5000))
+    config = Config()
+    config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
+
+    asyncio.run(serve(app, config))
+
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
-    app.run(host=os.getenv("HOST", default='0.0.0.0'), port=int(os.getenv("PORT", default=5000)))
-    # app.run(host="127.0.0.1", port=5500)
+    # app.run(host="127.0.0.1", port=5500) 
