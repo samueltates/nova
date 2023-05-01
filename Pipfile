@@ -23,5 +23,6 @@ unstructured = "*"
 eventlet = "*"
 tox = "*"
 quart = "*"
+quart-cors = "*"
 
 [dev-packages]
