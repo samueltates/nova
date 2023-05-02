@@ -204,7 +204,7 @@ async def updateCartridgeField(input):
     cartridge = availableCartridges[input['sessionID']]
     targetCartKey = input['cartKey']
     targetCartVal = cartridge[targetCartKey]
-    eZprint('val before update')
+    # eZprint('val before update')
     # print(targetCartVal)
     matchedCart = await prisma.cartridge.find_first(
         where={
@@ -457,8 +457,8 @@ def eZprint(string):
 
 async def runMemory(input, cartKey, cartVal):
 
-    eZprint('running memory')
-    eZprint(cartKey)
+    # eZprint('running memory')
+    # eZprint(cartKey)
     remoteLogs = await prisma.log.find_many(
         where={'UserID': input['userID']}
     )
@@ -469,18 +469,18 @@ async def runMemory(input, cartKey, cartVal):
     lastDate = ""
     summaryBatchID = 0
     cartVal['blocks'] = []
-    eZprint('result of remote log check')
+    # eZprint('result of remote log check')
     # print(remoteLogs)
 
     if(len(remoteLogs) > 0):
-        eZprint('logs found')
+        # eZprint('logs found')
 
         allLogs.setdefault(
             input['sessionID'], remoteLogs)
         for log in allLogs[input['sessionID']]:
             # Checks if log has summary, if not, gets summary from OPENAI
             if (log.summary == "" or log.summary == ''):
-                eZprint('no summary, getting summary from OPENAI')
+                # eZprint('no summary, getting summary from OPENAI')
                 payload = { 'key':cartKey,'fields': {'status': 'unsumarised chats found'}}
                 # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
@@ -500,11 +500,11 @@ async def runMemory(input, cartKey, cartVal):
                         messageBody += "timestamp:\n"+str(message.timestamp) + \
                             message.name + ":" + message.body + "\n"
 
-                    eZprint('printing messageBody')
+                    # eZprint('printing messageBody')
                     # eZprint(messageBody)
 
                     messageSummary = getSummary(messageBody)
-                    eZprint('summary is: '+messageSummary)
+                    # eZprint('summary is: '+messageSummary)
                     cartVal['blocks'].append(str(messageSummary))
                     cartVal['status'] = 'new summary added'
                     payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
@@ -520,7 +520,7 @@ async def runMemory(input, cartKey, cartVal):
                     )
             # Checks if log has been batched, if not, adds it to the batch
             
-        eZprint('starting log batching')
+        # eZprint('starting log batching')
 
         # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
         updatedLogs = await prisma.log.find_many(
@@ -529,7 +529,7 @@ async def runMemory(input, cartKey, cartVal):
         for log in updatedLogs:
           
             if (log.batched == False):
-                eZprint('unbatched log found')
+                # eZprint('unbatched log found')
 
                 ############################
                 # STARTBATCH - setting start of batch #
@@ -538,7 +538,7 @@ async def runMemory(input, cartKey, cartVal):
                     logSummaryBatches.append(
                         {'startDate': "", 'endDate': "", 'summaries': "", 'idList': []})
                     logSummaryBatches[summaryBatchID]['startDate'] = log.date
-                    eZprint('log: ' + str(log.id) + ' is start of batch')
+                    # eZprint('log: ' + str(log.id) + ' is start of batch')
                 ############################
 
                 ############################
@@ -548,8 +548,8 @@ async def runMemory(input, cartKey, cartVal):
                     log.date+" "+log.summary + "\n"
                 logSummaryBatches[summaryBatchID]['idList'].append(
                     log.id)
-                eZprint('added logID: '+str(log.id) + ' batchID: ' + str(summaryBatchID) +
-                        ' printing logSummaryBatches')
+                # eZprint('added logID: '+str(log.id) + ' batchID: ' + str(summaryBatchID) +
+                #         ' printing logSummaryBatches')
                 # eZprint(logSummaryBatches[summaryBatchID])
                 lastDate = log.date
                 ############################
@@ -557,7 +557,7 @@ async def runMemory(input, cartKey, cartVal):
                 ############################
                 # ENDBATCH -- setting end of batch
                 if (len(logSummaryBatches[summaryBatchID]['summaries']) > 2000):
-                    eZprint(' log: '+str(log.id)+' is end of batch')
+                    # eZprint(' log: '+str(log.id)+' is end of batch')
                     logSummaryBatches[summaryBatchID]['endDate'] = lastDate
 
                     summaryBatchID += 1
@@ -565,7 +565,7 @@ async def runMemory(input, cartKey, cartVal):
         functionsRunning = 0
 
         # END OF SUMMARY BATCHING AND PRINT RESULTS
-        eZprint('END OF SUMMARY BATCHING')
+        # eZprint('END OF SUMMARY BATCHING')
         cartVal['status'] = 'unbatched summaries found'
         for batch in logSummaryBatches:
             cartVal['blocks'].append(str(batch['summaries']))
@@ -598,16 +598,16 @@ async def runMemory(input, cartKey, cartVal):
                 where={'UserID': input['userID']}
         )
 
-        eZprint('starting summary batch sumamarisations')
+        # eZprint('starting summary batch sumamarisations')
 
         # print(remoteBatches)  
         if(remoteBatches != None):
             # checks if there is any remote batches that haven't been summarised
             if (len(remoteBatches) > 0):
-                eZprint('remote batches found ')
+                # eZprint('remote batches found ')
                 for batch in remoteBatches:
                     if (batch.batched == False):
-                        eZprint('remote unsumarised batches found ')
+                        # eZprint('remote unsumarised batches found ')
                         batchRangeStart = batch.dateRange.split(":")[0]
                         runningBatches.append(batch)
                         runningBatchedSummaries += batch.summary
@@ -615,15 +615,15 @@ async def runMemory(input, cartKey, cartVal):
             # goes through the new batches of summaries, and summarises them
             for batch in logSummaryBatches:
                 if (batch['endDate'] == ""):
-                    eZprint('no end log batch found so not summarising ')
+                    # eZprint('no end log batch found so not summarising ')
                     latestLogs = batch['summaries']
                     break
                 if (batchRangeStart == ""):
                     batchRangeStart = batch['startDate']
-                    eZprint('batch with full range found so summarising ')
+                    # eZprint('batch with full range found so summarising ')
 
-                eZprint('batch with date range: ' +
-                        batch['startDate']+":" + batch['endDate'] + ' about to get summarised')
+                # eZprint('batch with date range: ' +
+                #         batch['startDate']+":" + batch['endDate'] + ' about to get summarised')
 
                 batchSummary = getSummary(batch['summaries'])
                 runningBatchedSummaries += batchSummary + "\n"
@@ -640,8 +640,8 @@ async def runMemory(input, cartKey, cartVal):
                 # goes through logs that were in that batch and marked as batched (summarised)
 
                 for id in batch['idList']:
-                    eZprint('session ID found to mark as batched : ' +
-                            str(sessionID) + ' id: ' + str(id))
+                    # eZprint('session ID found to mark as batched : ' +
+                            # str(sessionID) + ' id: ' + str(id))
                     try:
                         updatedLog = await prisma.log.update(
                             where={'id': id},
@@ -651,7 +651,7 @@ async def runMemory(input, cartKey, cartVal):
                         )
                         eZprint('updated log as batched' + str(sessionID))
                     except Exception as e:
-                        eZprint('error updating log as batched' + str(sessionID))
+                        # eZprint('error updating log as batched' + str(sessionID))
                         eZprint(e)
 
                 if len(runningBatchedSummaries) > 1000:
@@ -660,12 +660,12 @@ async def runMemory(input, cartKey, cartVal):
 
                     multiBatchRangeEnd = batch['endDate']
                     batchRangeEnd = batch['endDate']
-                    eZprint('summaries of batches ' + batchRangeStart +
-                            batchRangeEnd+' is too long, so summarising')
+                    # eZprint('summaries of batches ' + batchRangeStart +
+                    #         batchRangeEnd+' is too long, so summarising')
 
                     summaryRequest = "between " + batchRangeStart + " and " + \
                         batchRangeEnd + " " + runningBatchedSummaries
-                    eZprint('summary request is: ' + summaryRequest)
+                    # eZprint('summary request is: ' + summaryRequest)
 
                     batchSummary = getSummary(summaryRequest)
                     multiBatchSummary += batchSummary

@@ -75,8 +75,7 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
         'type': 'index',
         'enabled': True,
         'description': 'a document indexed to be queriable by NOVA',
-
-        'blocks': {description},
+        'blocks': description,
         # 'file':{file_content},
         'index': index_json,
     }

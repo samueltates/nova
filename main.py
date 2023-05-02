@@ -11,6 +11,7 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve
 
 from appHandler import app, websocket
+from quart import request
 
 @app.route("/hello")
 async def hello():
@@ -27,6 +28,7 @@ async def shutdown():
 
 @app.websocket('/ws')
 async def ws():
+    eZprint('socket route hit')
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
@@ -39,8 +41,8 @@ async def ws():
             eZprint('handleInput called')
             await handleChatInput(parsed_data['data'])
         if(parsed_data['type']== 'updateCartridgeField'):
-            print('updateCartridgeField route hit')
-            print(parsed_data['data']['fields'])
+            # print('updateCartridgeField route hit')
+            # print(parsed_data['data']['fields'])
             await updateCartridgeField(parsed_data['data'])
         if(parsed_data['type']== 'newPrompt'):
             await addCartridgePrompt(parsed_data['data'])
@@ -55,37 +57,41 @@ async def ws():
                         'newCartridge': indexRecord,
                     }
                 await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
-        if(parsed_data['type'])== 'indexdoc)':
-            eZprint('indexdoc route hit   ')
-            userID = data["userID"]
-            file_content = data["file_content"]
-            file_name = data["file_name"]
-            file_type = data["file_type"]
-            tempKey = data["tempKey"]
-            indexRecord = await indexDocument(userID, file_content, file_name, file_type, tempKey)
 
-            for indexKey, indexVal in indexRecord.items():
-                indexCartridge = {
-                    indexKey: {
-                        'label' : indexVal['label'],
-                        'type' : indexVal['type'],
-                        'enabled' : indexVal['enabled'],
-                        'description' : indexVal['description'],
-                    }
-                }
+@app.route('/indexdoc', methods=['POST'])
+async def http():
+    eZprint('indexdoc route hit   ')
+    data = await request.get_json()
+    # print(data)
+    userID = data["userID"]
+    file_content = data["file_content"]
+    file_name = data["file_name"]
+    file_type = data["file_type"]
+    sessionID = data["sessionID"]
+    tempKey = data["tempKey"]
+    indexRecord = await indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey)
 
-            response = {
-                "success": True,
-                "message":"File indexed successfully.",
-                "tempKey": tempKey,
-                # "data": indexCartridge
+    for indexKey, indexVal in indexRecord.items():
+        indexCartridge = {
+            indexKey: {
+                'label' : indexVal['label'],
+                'type' : indexVal['type'],
+                'enabled' : indexVal['enabled'],
+                'description' : indexVal['description'],
             }
-            payload = {
-                'tempKey': tempKey,
-                'newCartridge': indexCartridge,
-            }
-            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+        }
 
+    # response = {
+    #     "success": True,
+    #     "message":"File indexed successfully.",
+    #     "tempKey": tempKey,
+    #     # "data": indexCartridge
+    # }
+    payload = {
+        'tempKey': tempKey,
+        'newCartridge': indexCartridge,
+    }
+    await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 if __name__ == '__main__':
 
