@@ -133,19 +133,16 @@ async def constructChatPrompt(promptObject, sessionID):
     eZprint('constructing chat prompt')
     for promptKey in availableCartridges[sessionID]:
         promptVal = availableCartridges[sessionID][promptKey]
-        # eZprint(promptVal)
         if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
             # eZprint('found prompt, adding to string')
             promptObject.append({"role": "system", "content": "\n Prompt instruction for NOVA to follow - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
         if (promptVal['enabled'] == True and promptVal['type'] =='summary'):
-            # eZprint('found summary, adding to string')
-            if(promptVal['blocks']):
+            if 'blocks' in promptVal:
                 promptObject.append({"role": "system", "content": "\n Summary from past conversations - " + promptVal['label'] + ":\n" + str(promptVal['blocks']) + "\n" })
         if (promptVal['enabled'] == True and promptVal['type'] =='index'):
-            if(promptVal['blocks']):
+            if 'blocks' in promptVal:
             # eZprint('found document, adding to string')
-                promptObject.append({"role": "system", "content": "\n Document " + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n" })
-                logs[sessionID].append({"role": "system", "content": "\n Document - " + promptVal['label'] + " has been queud for query." })
+                promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
 
     print(promptObject)
     
@@ -182,11 +179,12 @@ async def checkCartridges(input):
     eZprint('checking cartridges')
     for cartKey in availableCartridges[input['sessionID']]:
         cartVal = availableCartridges[input['sessionID']][cartKey]
-        # print(cartVal['type'])
+        if 'softDelete' in cartVal:
+            if cartVal['softDelete'] == True:
+                eZprint('soft delete detected')
+                cartVal['enabled'] = False
         if cartVal['type'] == 'index' and cartVal['enabled'] == True :
             eZprint('index query detected')
-            # print(cartVal)
-            # print(message)
             index = await getCartridgeDetail(cartKey)
             await triggerQueryIndex(cartKey, cartVal, input, index)
         # if cartVal['type'] == 'prompt':
@@ -306,7 +304,7 @@ async def addCartridgeAsync(userID, sessionID, cartVal):
     )
     eZprint('new index cartridge added to [nova]')
     cartdigeLookup.update({cartKey: newCart.id}) 
-    availableCartridges[sessionID].update(newCart)
+    availableCartridges[sessionID].update({cartKey:cartVal})
     # await prisma.disconnect()
     return newCart.blob
 
