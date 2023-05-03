@@ -36,7 +36,7 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
     #reconstruct file
     binary_data = base64.b64decode(file_content)
     nova.eZprint('reconstructing file')
-    payload = { 'key':tempKey,'fields': {'status': 'indexing'}}
+    # payload = { 'key':tempKey,'fields': {'status': 'indexing'}}
     # socketio.emit('updateCartridgeFields', payload)
 
     # Save the binary data to a temporary file
@@ -62,20 +62,20 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
     payload = { 'key':tempKey,'fields': {'status': 'query: name'}}
     # socketio.emit('updateCartridgeFields', payload)
     name = queryIndex('give this document a title', index_json)
-    name = str(name).strip()
+    name = str(name).strip('\"')
     payload = { 'key':tempKey,'fields': {'label': name}}
     # socketio.emit('updateCartridgeFields', payload)
     description = queryIndex('give this document a description', index_json) 
-    description = str(description).strip()
+    description = str(description).strip('\"')
     # payload = { 'key':tempKey,'fields': {'blocks': {description}}, 'action':'append'}
     # socketio.emit('updateCartridgeFields', payload)
-
+    
     cartval = {
         'label': name,
         'type': 'index',
         'enabled': True,
         'description': 'a document indexed to be queriable by NOVA',
-        'blocks': description,
+        'blocks': [description],
         # 'file':{file_content},
         'index': index_json,
     }

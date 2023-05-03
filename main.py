@@ -32,31 +32,34 @@ async def ws():
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
-        if(parsed_data['type'] == 'requestCartridges'):
-            await initialiseCartridges(parsed_data['data'])
-        # print(parsed_data['type']) # Will print 'requestCartridges'
-        # print(parsed_data['data']) # Will print the data sent by the client
-        if(parsed_data['type'] == 'sendMessage'):
-            cartridges = await asyncio.ensure_future( initialiseCartridges(parsed_data['data'])  )
-            eZprint('handleInput called')
-            await handleChatInput(parsed_data['data'])
-        if(parsed_data['type']== 'updateCartridgeField'):
-            # print('updateCartridgeField route hit')
-            # print(parsed_data['data']['fields'])
-            await updateCartridgeField(parsed_data['data'])
-        if(parsed_data['type']== 'newPrompt'):
-            await addCartridgePrompt(parsed_data['data'])
-        if(parsed_data['type']== 'requestDocIndex'):
-             data = parsed_data['data']
-             if 'gDocID' in data:
-                eZprint('indexing gDoc')
-                indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'])
-                if indexRecord:
-                    payload = {
-                        'tempKey': data['tempKey'],
-                        'newCartridge': indexRecord,
-                    }
-                await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+        asyncio.create_task(process_message(parsed_data))
+
+async def process_message(parsed_data):
+    print(parsed_data['type'])
+    if(parsed_data['type'] == 'requestCartridges'):
+        await initialiseCartridges(parsed_data['data'])
+    # print(parsed_data['type']) # Will print 'requestCartridges'
+    # print(parsed_data['data']) # Will print the data sent by the client
+    if(parsed_data['type'] == 'sendMessage'):
+        eZprint('handleInput called')
+        await handleChatInput(parsed_data['data'])
+    if(parsed_data['type']== 'updateCartridgeField'):
+        # print('updateCartridgeField route hit')
+        # print(parsed_data['data']['fields'])
+        await updateCartridgeField(parsed_data['data'])
+    if(parsed_data['type']== 'newPrompt'):
+        await addCartridgePrompt(parsed_data['data'])
+    if(parsed_data['type']== 'requestDocIndex'):
+        data = parsed_data['data']
+        if 'gDocID' in data:
+            eZprint('indexing gDoc')
+            indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'])
+            if indexRecord:
+                payload = {
+                    'tempKey': data['tempKey'],
+                    'newCartridge': indexRecord,
+                }
+            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 @app.route('/indexdoc', methods=['POST'])
 async def http():
