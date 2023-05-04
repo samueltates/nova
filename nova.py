@@ -296,7 +296,9 @@ async def addCartridgeAsync(userID, sessionID, cartVal):
                 'blocks':cartVal['blocks'],
                 'type': cartVal ['type'],   
                 'enabled': True,
-                'index':cartVal['index']
+                'index':cartVal['index'],
+                'indexType': cartVal['indexType'],
+
             }})
         }
     )

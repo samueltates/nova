@@ -12,6 +12,7 @@ logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 from llama_index import (
     GPTSimpleVectorIndex, 
+    GPTListIndex,
     StringIterableReader,
     download_loader,
     SimpleDirectoryReader,
@@ -88,35 +89,51 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
     return newCart
 
 
-def queryIndex(queryString, storedIndex ):
+def queryIndex(queryString, storedIndex, indexType ):
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     json.dump(storedIndex, tmpfile)
     tmpfile.seek(0)
+    index = None
+    if(indexType == 'Vector'):
+        index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
+        # index.set_text("Body of text uploaded to be summarised or have question answered")
+        llm_predictor_gpt4 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
 
-    index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
-    # index.set_text("Body of text uploaded to be summarised or have question answered")
-    llm_predictor_gpt4 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
+        step_decompose_transform = StepDecomposeQueryTransform(
+        llm_predictor_gpt4, verbose=True
 
-    step_decompose_transform = StepDecomposeQueryTransform(
-    llm_predictor_gpt4, verbose=True
+        )
+        response_gpt4 = index.query(
+            queryString
+        )
+        nova.eZprint(response_gpt4)
+        return response_gpt4
+    if(indexType == 'List'):
+        index = GPTListIndex.from_documents(tmpfile.name)
+        query_engine = index.as_query_engine(
+            response_mode="tree_summarize"
+        )
+        response = query_engine.query(queryString)
+        nova.eZprint(response)
+        return response
 
-    )
-    response_gpt4 = index.query(
-        queryString
-    )
-    nova.eZprint(response_gpt4)
-    return response_gpt4
 
 
-async def indexGoogleDoc(userID, sessionID, docIDs,tempKey):
+
+async def indexGoogleDoc(userID, sessionID, docIDs,tempKey, indexType):
 
     payload = { 'key':tempKey,'fields': {'status': 'indexing'}}
     # socketio.emit('updateCartridgeFields', payload)
-
+    index = None
     loader =    GoogleDocsReader() 
     documents = loader.load_data(document_ids=[docIDs])
-    
-    index = GPTSimpleVectorIndex.from_documents(documents)
+    print(documents)
+    if(indexType == 'Vector'):
+        index = GPTSimpleVectorIndex.from_documents(documents)
+        nova.eZprint('vector index created')
+    if(indexType == 'List'):
+        index = GPTListIndex.from_documents(documents)
+        nova.eZprint('list index created')
 
     # return
 
@@ -128,7 +145,7 @@ async def indexGoogleDoc(userID, sessionID, docIDs,tempKey):
     # socketio.emit('updateCartridgeFields', payload)
 
     index_json = json.load(open(tmpfile.name))
-    name = queryIndex('give this document a title', index_json)
+    name = queryIndex('give this document a title', index_json, indexType)
     name = str(name).strip()
     payload = { 'key':tempKey,'fields': {'label': name}}
     # socketio.emit('updateCartridgeFields', payload) 
@@ -147,6 +164,7 @@ async def indexGoogleDoc(userID, sessionID, docIDs,tempKey):
         'enabled': True,
         # 'file':{file_content},
         'index': index_json,
+        'indexType': indexType,
     }
 
     tmpfile.close()

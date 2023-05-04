@@ -53,7 +53,8 @@ async def process_message(parsed_data):
         data = parsed_data['data']
         if 'gDocID' in data:
             eZprint('indexing gDoc')
-            indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'])
+            print(data)
+            indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
                 payload = {
                     'tempKey': data['tempKey'],
