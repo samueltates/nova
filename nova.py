@@ -8,6 +8,7 @@ import sys
 import gptindex
 import secrets
 
+
 from human_id import generate_id
 from prisma import Json
 
@@ -158,7 +159,7 @@ async def constructChatPrompt(promptObject, sessionID):
 
     #fake response
 
-    response = sendChat(promptObject)
+    response = await sendChat(promptObject)
     eZprint('response received')
     print(response)
     content = str(response["choices"][0]["message"]["content"])
@@ -192,13 +193,10 @@ async def checkCartridges(input):
         #     promptObject.append({"role": "system", "content": "\n Prompt - " + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n" })
            
 
-def sendChat(promptObj):
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=promptObj,
-    )
+async def sendChat(promptObj):
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-4",messages=promptObj))
     return response
-
 
 def sendPrompt(promptString):
     response = openai.Completion.create(
@@ -747,6 +745,6 @@ async def getSummary(textToSummarise):
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    response = sendChat(promptObject)
+    response = await sendChat(promptObject)
 
     return response["choices"][0]["message"]["content"]
