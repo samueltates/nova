@@ -1,8 +1,9 @@
 import os
 import json
+import base64
 
 # import json
-from nova import initialiseCartridges, availableCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, loadCartridges, runCartridges, handleChatInput, updateCartridgeField, runningPrompts, logs, functionsRunning, eZprint
+from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint
 from gptindex import indexDocument, indexGoogleDoc
 import logging
 import asyncio
@@ -61,6 +62,63 @@ async def process_message(parsed_data):
                     'newCartridge': indexRecord,
                 }
             await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    # parse index query
+    if(parsed_data['type']== 'queryIndex'):
+
+        data = parsed_data['data']
+        await handleIndexQuery(data['userID'], data['cartKey'], data['sessionID'], data['query'])
+    elif parsed_data["type"] == "indexdoc_start":
+        await handle_indexdoc_start(parsed_data["data"])
+    elif parsed_data["type"] == "indexdoc_chunk":
+        await handle_indexdoc_chunk(parsed_data["data"])
+    elif parsed_data["type"] == "indexdoc_end":
+        await handle_indexdoc_end(parsed_data["data"])
+
+    # if(parsed_data['type']== 'indexFile'):
+    #     data = parsed_data['data']
+    #     indexRecord = await indexDocument(data["userID"], data["file_content"], data["file_name"], data["file_type"], data["sessionID"], data["tempKey"],data["indexType"])
+    
+    # Initialize a dictionary to store incoming file chunks
+file_chunks = {}
+
+async def handle_indexdoc_start(data):
+  tempKey = data["tempKey"]
+  file_chunks[tempKey] = {
+    "metadata": data,
+    "chunks_received": 0,
+    "content": [],
+  }
+
+async def handle_indexdoc_chunk(data):
+  tempKey = data["tempKey"]
+  file_chunks[tempKey]["chunks_received"] += 1
+  # Decode the base64-encoded chunkContent
+  decoded_chunk_content = base64.b64decode(data["chunkContent"])
+  file_chunks[tempKey]["content"].append(decoded_chunk_content)
+
+
+  # You could also process and store the chunk immediately in this step
+  # instead of collecting all chunks in `file_chunks` and processing them later
+
+async def handle_indexdoc_end(data):
+    tempKey = data["tempKey"]
+    file_metadata = file_chunks[tempKey]["metadata"]
+    file_content = b''.join(file_chunks[tempKey]["content"])
+    # Process the uploaded file
+    # You might need to convert the content from a bytearray to the initial format (e.g., base64)
+    print(file_metadata)
+    indexRecord = await indexDocument(file_metadata["userID"], file_metadata["sessionID"], file_content, file_metadata["file_name"], file_metadata["file_type"], file_metadata["tempKey"],file_metadata["indexType"])
+    if indexRecord:
+        payload = {
+            'tempKey': data['tempKey'],
+            'newCartridge': indexRecord,
+        }
+    await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    # Remove the stored file chunks upon completion
+    del file_chunks[tempKey]
+
+# For example, the process_uploaded_file() function could be like this:
+
 
 @app.route('/indexdoc', methods=['POST'])
 async def http():
@@ -73,7 +131,8 @@ async def http():
     file_type = data["file_type"]
     sessionID = data["sessionID"]
     tempKey = data["tempKey"]
-    indexRecord = await indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey)
+    indexType = data["indexType"]
+    indexRecord = await indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey, indexType)
 
     for indexKey, indexVal in indexRecord.items():
         indexCartridge = {
@@ -95,7 +154,8 @@ async def http():
         'tempKey': tempKey,
         'newCartridge': indexCartridge,
     }
-    await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    return json.dumps(payload)
+    # await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 if __name__ == '__main__':
 

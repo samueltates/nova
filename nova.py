@@ -178,20 +178,26 @@ async def constructChatPrompt(promptObject, sessionID):
     
 async def checkCartridges(input):
     eZprint('checking cartridges')
-    for cartKey in availableCartridges[input['sessionID']]:
-        cartVal = availableCartridges[input['sessionID']][cartKey]
-        if 'softDelete' in cartVal:
-            if cartVal['softDelete'] == True:
-                eZprint('soft delete detected')
-                cartVal['enabled'] = False
-        if cartVal['type'] == 'index' and cartVal['enabled'] == True :
-            eZprint('index query detected')
-            index = await getCartridgeDetail(cartKey)
-            await triggerQueryIndex(cartKey, cartVal, input, index)
+    # for cartKey in availableCartridges[input['sessionID']]:
+    #     cartVal = availableCartridges[input['sessionID']][cartKey]
+    #     if 'softDelete' in cartVal:
+    #         if cartVal['softDelete'] == True:
+    #             eZprint('soft delete detected')
+    #             cartVal['enabled'] = False
+    #     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
+    #         eZprint('index query detected')
+    #         index = await getCartridgeDetail(cartKey)
+    #         await triggerQueryIndex(cartKey, cartVal, input, index)
         # if cartVal['type'] == 'prompt':
         #     eZprint('found prompt, adding to string')
         #     promptObject.append({"role": "system", "content": "\n Prompt - " + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n" })
            
+async def handleIndexQuery(userID, cartKey, sessionID, query):
+    eZprint('handling index query')
+    cartVal = availableCartridges[sessionID][cartKey]
+    if cartVal['type'] == 'index' and cartVal['enabled'] == True :
+        index = await getCartridgeDetail(cartKey)
+        await triggerQueryIndex(userID, cartKey, cartVal, query, index)
 
 async def sendChat(promptObj):
     loop = asyncio.get_event_loop()
@@ -238,7 +244,6 @@ async def addCartridgePrompt(input):
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
     # socketio.emit('updateTempCart', payload)
     
-
 async def updateCartridgeField(input):
     # await prisma.disconnect()
     # await prisma.connect()
@@ -345,49 +350,51 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
     #             triggerQueryIndex(input, index)
 
 
-async def triggerQueryIndex(cartKey, cartVal, input, index):
+async def triggerQueryIndex(userID, cartKey, cartVal, query, index):
     eZprint('triggering index query')
+    oldVal = cartVal
     # print(input['message'])
     cartVal['state'] = 'loading'
     cartVal['status'] = 'indexFound'
     payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
-                            # 'blocks':cartVal['blocks'],
                             'state': cartVal['state']
                                 }}
     # socketio.emit('updateCartridgeFields', payload)
-    insert = gptindex.queryIndex(input['message'], index)
+    insert = gptindex.queryIndex(query, index, cartVal['indexType'])
     eZprint('index query complete')
     # eZprint(insert)
     if(insert != None):
-        cartVal['state'] = 'loading'
+        cartVal['state'] = ''
         cartVal['status'] = ''
+        cartVal['blocks'].append({'query':query, 'response':str(insert)})
         # cartVal['blocks'].append(str(insert))
         payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
-                            # 'blocks':cartVal['blocks'],
+                            'blocks':cartVal['blocks'],
                             'state': cartVal['state']
                                 }}
-        # socketio.emit('updateCartridgeFields', payload)
 
-        await logMessage(input['sessionID'], 'index-query', 'index-query' , str(insert))
-        logs.setdefault(input['sessionID'], []).append(
-            {"userName": 'index-query',
-            "message": str(insert),
-            "role": "system"
-            })
-        
-        ID = secrets.token_bytes(4).hex()
+        id = cartdigeLookup[cartKey]
+        print(id)
+        matchedCart = await prisma.cartridge.find_first(
+            where={
+                    'id': id
+                    
+                    }
+        )
+        print(matchedCart)
+        print(cartVal)
+        if matchedCart:
+            updatedCart = await prisma.cartridge.update(
+                where={ 'id': id },
+                data={
+                    'UserID': userID,
+                    'blob' : Json({cartKey:cartVal})
+                }
+            )
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
-        log = {
-            "ID":ID,
-            "userName": 'index-query',
-            "message": str(insert),
-            "role": "system"
-            }
-        await  websocket.send(json.dumps({'event':'sendResponse', 'payload':log}))
-
-        # socketio.emit('sendResponse', log)
         
 async def getCartridgeDetail(cartKey):
     eZprint('getting cartridge detail')
@@ -467,6 +474,18 @@ async def runMemory(input, cartKey, cartVal):
         where={'UserID': input['userID']}
     )
 
+    sessions = dict
+
+    if len(remoteLogs) != 0:
+        for log in remoteLogs:
+            sessions.update(log.json())
+            print(log)
+
+
+
+    await  websocket.send(json.dumps({'event':'sendSessions', 'sessions':sessions}))
+
+
     newLogSummaries = []
     logSummaryBatches = []
     overallSummary = ""
@@ -497,7 +516,7 @@ async def runMemory(input, cartKey, cartVal):
                             message.name + ":" + message.body + "\n"
                     eZprint('summarising message')
                     messageSummary = await getSummary(messageBody)
-                    cartVal['blocks'].append(str(messageSummary))
+                    cartVal['blocks'].append({'summary':str(messageSummary)})
                     cartVal['status'] = 'new summary added'
                     payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
                                                          'blocks':cartVal['blocks'] }}
@@ -555,7 +574,7 @@ async def runMemory(input, cartKey, cartVal):
         # eZprint('END OF SUMMARY BATCHING')
         cartVal['status'] = 'unbatched summaries found'
         for batch in logSummaryBatches:
-            cartVal['blocks'].append(str(batch['summaries']))
+            cartVal['blocks'].append({'summary':str(batch['summaries'])})
 
         cartVal['status'] = 'unbatched summaries found'
         payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
@@ -617,7 +636,7 @@ async def runMemory(input, cartKey, cartVal):
                 # eZprint('batch summary is: ' + batchSummary)
                 # eZprint('running batched summary is: ' + runningBatchedSummaries)
                 cartVal['status'] = 'batch summarised'
-                cartVal['blocks'].append(str(batchSummary))
+                cartVal['blocks'].append({'summary':str(batchSummary)})
 
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
@@ -657,7 +676,7 @@ async def runMemory(input, cartKey, cartVal):
                     batchSummary = await getSummary(summaryRequest)
                     multiBatchSummary += batchSummary
                     cartVal['status'] = 'multi batch summarised'
-                    cartVal['blocks'].append(str(batchSummary))
+                    cartVal['blocks'].append({'summary':str(batchSummary)})
                     payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
                                                             'blocks':cartVal['blocks'] }}
                     # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
@@ -686,13 +705,13 @@ async def runMemory(input, cartKey, cartVal):
                 overallSummary += "\nRecent: Between " + batchRangeStart + \
                     " & " + batchRangeEnd + runningBatchedSummaries + " \n"
 
-            if (latestLogs != ""):
-                overallSummary += "\nMost recently: " + latestLogs + " \n"
+            # if (latestLogs != ""):
+            #     overallSummary += "\nMost recently: " + latestLogs + " \n"
 
             eZprint("overall summary is: " + overallSummary)
             cartVal['status'] = ''
             cartVal['state'] = ''
-            cartVal['blocks'] = [overallSummary]
+            cartVal['blocks'].append({'overview':overallSummary})
             payload = { 'key': cartKey,'fields': {
                                         'status': cartVal['status'],
                                         'blocks':cartVal['blocks'],
@@ -706,7 +725,7 @@ async def runMemory(input, cartKey, cartVal):
         eZprint("No logs found for this user, so starting fresh")
         cartVal['status'] = ''
         cartVal['state'] = ''
-        cartVal['blocks'] = []
+        cartVal['blocks'] = [{'overview':'No logs found for this user, so starting fresh'}]
         payload = { 'key': cartKey,'fields': {
                                     'status': cartVal['status'],
                                     'blocks':cartVal['blocks'],

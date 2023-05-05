@@ -58,9 +58,9 @@ async def main() -> None:
     #     json.dump(scrape, scrapeJson)
 
 
-    cartridges = await prisma.cartridge.find_many()
-    for cartridge in cartridges:
-        print(cartridge)
+    # cartridges = await prisma.cartridge.find_many()
+    # for cartridge in cartridges:
+    #     print(cartridge)
     # # #     # print(cartridge.id)
     # #     # print(cartridge.blob)
     # #     # val = list(cartridge.blob.values())[0]
@@ -150,10 +150,10 @@ async def main() -> None:
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     ## FINDS LOG #########
-    # logs = await prisma.log.find_many()
-    # for log in logs:
-    #     print(log)
-    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    logs = await prisma.log.find_many()
+    for log in logs:
+        print(log)
+        print('\n\n\n _________________________________________________________ \n\n\n')
 
     # updatedLog = await prisma.log.find_many(
     #     where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }
