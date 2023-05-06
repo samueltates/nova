@@ -474,11 +474,16 @@ async def runMemory(input, cartKey, cartVal):
         where={'UserID': input['userID']}
     )
 
-    sessions = dict
+    sessions = []
 
     if len(remoteLogs) != 0:
         for log in remoteLogs:
-            sessions.update(log.json())
+            logToSend = {'id' : log.id, 
+                         'date' : log.date, 
+                         'summary' : log.summary, 
+                         'body' : log.body, 
+                         'batched' : log.batched}
+            sessions.append(logToSend)
             print(log)
 
 
