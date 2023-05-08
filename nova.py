@@ -114,6 +114,9 @@ async def runCartridges(input):
 
 async def handleChatInput(input):
     eZprint('handling message')
+    
+    await  websocket.send(json.dumps({'event':'agentState', 'cartridges':availableCartridges[input['sessionID']]}))
+
     promptObject=[]
     # eZprint(input)
     # asyncio.run(updateCartridges(input))
@@ -484,7 +487,7 @@ async def runMemory(input, cartKey, cartVal):
                          'body' : log.body, 
                          'batched' : log.batched}
             sessions.append(logToSend)
-            print(log)
+            # print(log)
 
 
 

@@ -73,6 +73,9 @@ async def process_message(parsed_data):
         await handle_indexdoc_chunk(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_end":
         await handle_indexdoc_end(parsed_data["data"])
+    if(parsed_data["type"] == '__ping__'):
+        print('pong')
+        await websocket.send(json.dumps({'event':'__pong__'}))
 
     # if(parsed_data['type']== 'indexFile'):
     #     data = parsed_data['data']
