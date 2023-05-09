@@ -115,7 +115,7 @@ async def runCartridges(input):
 async def handleChatInput(input):
     eZprint('handling message')
     
-    await  websocket.send(json.dumps({'event':'agentState', 'cartridges':availableCartridges[input['sessionID']]}))
+    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
 
     promptObject=[]
     # eZprint(input)
@@ -178,6 +178,8 @@ async def constructChatPrompt(promptObject, sessionID):
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':log})))
     # socketio.emit('sendResponse', log)
     logs.setdefault(sessionID, []).append(log)
+    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
+    
     
 async def checkCartridges(input):
     eZprint('checking cartridges')
