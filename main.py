@@ -36,7 +36,7 @@ async def ws():
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
-    print(parsed_data['type'])
+    # print(parsed_data['type'])
     if(parsed_data['type'] == 'requestCartridges'):
         await initialiseCartridges(parsed_data['data'])
     # print(parsed_data['type']) # Will print 'requestCartridges'
@@ -54,7 +54,7 @@ async def process_message(parsed_data):
         data = parsed_data['data']
         if 'gDocID' in data:
             eZprint('indexing gDoc')
-            print(data)
+            # print(data)
             indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
                 payload = {
@@ -74,7 +74,7 @@ async def process_message(parsed_data):
     elif parsed_data["type"] == "indexdoc_end":
         await handle_indexdoc_end(parsed_data["data"])
     if(parsed_data["type"] == '__ping__'):
-        print('pong')
+        # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
 
     # if(parsed_data['type']== 'indexFile'):

@@ -16,7 +16,10 @@ async def main() -> None:
 
     # ####### SCRAPES ALL DATABASE FROM SOURCE TO JSON#########
     # scrape = {'messages':[],'logs':[],'batches':[]}
-    # messages = await prisma.message.find_many()
+    messages = await prisma.message.find_many(
+        where = {'SessionID' : '8fe6ef2a53c1378cf97884743765e66e22ebb3e2'},
+    )
+    print (messages)
     # for message in messages:
     #     messageObject ={
     #         "id": message.id,
@@ -133,7 +136,7 @@ async def main() -> None:
     # )
 
     ##### FINDS LOG SETS BATCHED TO FALSE #########
-#     logs = await prisma.log.find_many(             where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+#     logs = await prisma.log.find_many(             
 # )
 #     print(logs)
 
@@ -150,10 +153,10 @@ async def main() -> None:
     #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     ## FINDS LOG #########
-    logs = await prisma.log.find_many()
-    for log in logs:
-        print(log)
-        print('\n\n\n _________________________________________________________ \n\n\n')
+    # logs = await prisma.log.find_many()
+    # for log in logs:
+    #     print(log)
+    #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     # updatedLog = await prisma.log.find_many(
     #     where={'SessionID': 'bff6ee401dfee717d3ce351243947bd30663b7b6', }

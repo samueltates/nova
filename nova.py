@@ -7,6 +7,7 @@ import os
 import sys
 import gptindex
 import secrets
+import random
 
 
 from human_id import generate_id
@@ -129,7 +130,7 @@ async def handleChatInput(input):
             })
     asyncio.create_task(constructChatPrompt(promptObject, input['sessionID'])),
     eZprint('constructChat prompt called')
-    asyncio.create_task(checkCartridges(input))
+    # asyncio.create_task(checkCartridges(input))
 
 
 
@@ -148,7 +149,7 @@ async def constructChatPrompt(promptObject, sessionID):
             # eZprint('found document, adding to string')
                 promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
 
-    print(promptObject)
+    promptSize = estimateTokenSize(str(promptObject))
     
     for chat in logs[sessionID]:
         # eZprint('found chat, adding to string')
@@ -160,12 +161,20 @@ async def constructChatPrompt(promptObject, sessionID):
             
     eZprint('prompt constructed')
 
-    #fake response
+    chatSize =  estimateTokenSize(str(promptObject)) - promptSize
+    
+    # if(promptSize + chatSize > 6000):
+    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
 
-    response = await sendChat(promptObject)
-    eZprint('response received')
-    print(response)
-    content = str(response["choices"][0]["message"]["content"])
+    #fake response
+    if app.config['DEBUG']:
+        content = fakeResponse()
+        await asyncio.sleep(1)
+    else :
+        response = await sendChat(promptObject)
+        eZprint('response received')
+        print(response)
+        content = str(response["choices"][0]["message"]["content"])
     asyncio.create_task(logMessage(sessionID, agentName, agentName,
                 content))
     ID = secrets.token_bytes(4).hex()
@@ -180,22 +189,49 @@ async def constructChatPrompt(promptObject, sessionID):
     logs.setdefault(sessionID, []).append(log)
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
     
-    
-async def checkCartridges(input):
-    eZprint('checking cartridges')
-    # for cartKey in availableCartridges[input['sessionID']]:
-    #     cartVal = availableCartridges[input['sessionID']][cartKey]
-    #     if 'softDelete' in cartVal:
-    #         if cartVal['softDelete'] == True:
-    #             eZprint('soft delete detected')
-    #             cartVal['enabled'] = False
-    #     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
-    #         eZprint('index query detected')
-    #         index = await getCartridgeDetail(cartKey)
-    #         await triggerQueryIndex(cartKey, cartVal, input, index)
-        # if cartVal['type'] == 'prompt':
-        #     eZprint('found prompt, adding to string')
-        #     promptObject.append({"role": "system", "content": "\n Prompt - " + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n" })
+def estimateTokenSize(text):
+    tokenCount =  text.count(' ') + 1
+    return tokenCount
+
+# def handleTokenFull():
+
+def fakeResponse():
+    return random.choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",
+    "All the world's a stage, And all the men and women merely players.",
+    "The course of true love never did run smooth.",
+    "We know what we are, but know not what we may be.",
+    "A man can die but once.",
+    "Nothing will come of nothing.",
+    "Love all, trust a few, do wrong to none.",
+    "Cowards die many times before their deaths; the valiant never taste of death but once.",
+    "Better three hours too soon than a minute too late.",
+    "The fault, dear Brutus, is not in our stars, but in ourselves, that we are underlings.",
+    "All's well that ends well.",
+    "Good night, good night! Parting is such sweet sorrow, That I shall say good night till it be morrow.",
+    "Uneasy lies the head that wears a crown.",
+    "Our doubts are traitors and make us lose the good we oft might win by fearing to attempt.",
+    "What's in a name? A rose by any other name would smell as sweet.",
+    "The eyes are the window to your soul.",
+    "We are such stuff as dreams are made on, and our little life is rounded with a sleep.",
+    "If music be the food of love, play on.",
+    "There is nothing either good or bad, but thinking makes it so.",
+    "Brevity is the soul of wit."])
+
+# async def checkCartridges(input):
+#     eZprint('checking cartridges')
+#     # for cartKey in availableCartridges[input['sessionID']]:
+#     #     cartVal = availableCartridges[input['sessionID']][cartKey]
+#     #     if 'softDelete' in cartVal:
+#     #         if cartVal['softDelete'] == True:
+#     #             eZprint('soft delete detected')
+#     #             cartVal['enabled'] = False
+#     #     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
+#     #         eZprint('index query detected')
+#     #         index = await getCartridgeDetail(cartKey)
+#     #         await triggerQueryIndex(cartKey, cartVal, input, index)
+#         # if cartVal['type'] == 'prompt':
+#         #     eZprint('found prompt, adding to string')
+#         #     promptObject.append({"role": "system", "content": "\n Prompt - " + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n" })
            
 async def handleIndexQuery(userID, cartKey, sessionID, query):
     eZprint('handling index query')
@@ -433,7 +469,8 @@ async def getCartridgeDetail(cartKey):
 
 
 async def logMessage(sessionID, userID, userName, message):
-    # return
+    if app.config['DEBUG']:
+        return
     log = await prisma.log.find_first(
         where={'SessionID': sessionID}
     )
@@ -469,6 +506,7 @@ def eZprint(string):
     print('\n _____________ \n')
     print(string)
     print('\n _____________ \n')
+
 
 
 async def runMemory(input, cartKey, cartVal):
