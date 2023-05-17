@@ -590,7 +590,7 @@ async def summariseChatBlocks(userID, sessionID, messageIDs, summaryID):
                     'muted': True,
                     'minimised': True,
                     'summaryID': summaryID
-                }
+                 }
             )
             message['summaryState'] = 'SUMMARISED'
             message['muted'] = True
