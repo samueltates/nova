@@ -18,6 +18,7 @@ model batch {
 }
 
 model log {
+  key       String  @default("")
   id        Int     @id @default(autoincrement())
   SessionID String  @default("")
   UserID    String  @default("")
@@ -29,27 +30,57 @@ model log {
 
 model message {
   id        Int    @id @default(autoincrement())
+  key       String  @default("")
   SessionID String
   UserID    String
   name      String
   timestamp String
   body      String? @db.Text @default("")
   batched   Boolean @default(false)
+  summarised Boolean @default(false)
+  minimised Boolean @default(false)
+  muted    Boolean @default(false)
+  blob      Json? @default("{}")
 
 }
 
-// model user {
-//   id     Int    @id @default(autoincrement())
-//   name   String
-//   UserID String
-//   // password String
-//   // email    String @unique
-// }
+model summary {
+  id        Int    @id @default(autoincrement())
+  key       String @default("")
+  SessionID String
+  UserID    String
+  timestamp String
+  title     String? @db.Text @default("")
+  body      String? @db.Text @default("")
+  blob      Json? @default("{}")
+
+}
+
+model user {
+  id     Int    @id @default(autoincrement())
+  name   String
+  UserID String
+  blob      Json? @default("{}")
+
+  // password String
+  // email    String @unique
+}
+
+model session {
+  id        Int    @id @default(autoincrement())
+  SessionID String
+  key       String @default("")
+  UserID    String
+  blob      Json? @default("{}")
+
+  }
 
 model cartridge {
   id        Int    @id @default(autoincrement())
+  key       String @default("")
   UserID    String
   blob      Json? @default("{}")
   archived  Boolean @default(false)
+  softDeleted Boolean @default(false)
   indexOrder Int @default(0)  
   }

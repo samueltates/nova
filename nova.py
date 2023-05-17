@@ -121,12 +121,15 @@ async def handleChatInput(input):
     promptObject=[]
     # eZprint(input)
     # asyncio.run(updateCartridges(input))
-    asyncio.create_task(logMessage(input['sessionID'], input['userID'], input['userName'], input['message']))
+    asyncio.create_task(logMessage(input['sessionID'], input['userID'], input['userName'], input['body']))
+    time = str(datetime.now())
     logs.setdefault(input['sessionID'], []).append(
         {"ID": input['ID'],
         "userName": input['userName'],
-        "message": input['message'],
-        "role": "user"
+        "body": input['body'],
+        "role": "user",
+        "timestamp": time,
+
             })
     asyncio.create_task(constructChatPrompt(promptObject, input['sessionID'])),
     eZprint('constructChat prompt called')
@@ -155,9 +158,9 @@ async def constructChatPrompt(promptObject, sessionID):
         # eZprint('found chat, adding to string')
         # eZprint(chat)
         if chat['role'] == 'system':
-            promptObject.append({"role": "assistant", "content": chat['message']})
+            promptObject.append({"role": "assistant", "content": chat['body']})
         if chat['role'] == 'user':  
-            promptObject.append({"role": "user", "content": chat['message']})
+            promptObject.append({"role": "user", "content": chat['body']})
             
     eZprint('prompt constructed')
 
@@ -178,11 +181,13 @@ async def constructChatPrompt(promptObject, sessionID):
     asyncio.create_task(logMessage(sessionID, agentName, agentName,
                 content))
     ID = secrets.token_bytes(4).hex()
+    time = str(datetime.now())
     log = {
         "ID":ID,
         "userName": agentName,
-        "message": content,
-        "role": "system"
+        "body": content,
+        "role": "system",
+        "timestamp": time,
          }
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':log})))
     # socketio.emit('sendResponse', log)
@@ -446,7 +451,6 @@ async def getCartridgeDetail(cartKey):
     matchedCart = await prisma.cartridge.find_first(
         where={
                 'id': id
-                
                 }
     )
     dbRecord = json.loads(matchedCart.json())
@@ -468,7 +472,7 @@ async def getCartridgeDetail(cartKey):
 
 
 
-async def logMessage(sessionID, userID, userName, message):
+async def logMessage(sessionID, userID, userName, body):
     if app.config['DEBUG']:
         return
     log = await prisma.log.find_first(
@@ -494,7 +498,7 @@ async def logMessage(sessionID, userID, userName, message):
             "name": userName,
             "UserID": userID,
             "timestamp": datetime.now(),
-            "body": message,
+            "body": body,
         }
     )
 
@@ -506,6 +510,103 @@ def eZprint(string):
     print('\n _____________ \n')
     print(string)
     print('\n _____________ \n')
+
+    # data['userID'], data['sessionID'], data['content'], data['tempKey']
+async def summariseChatBlocks(userID, sessionID, messageIDs, summaryID):
+    messagesToSummarise = []
+    for messageID in messageIDs:
+        for message in logs[sessionID]:
+            if messageID == message['ID']:
+                messagesToSummarise.append(message)
+    payload = []   
+    summary= ""
+    if app.config['DEBUG']:
+        summary = """
+        {
+        "title": "a very randy discussion",
+        "timeRange": {"start": "[Start time]", "end": "[End time]"},
+        "body": "Longer description",
+        "keywords": ["Keyword1", "Keyword2", "Keyword3"],
+        "notes": {
+            "[Note Title1]": "[Note Body1]",
+            "[Note Title2]": "[Note Body2]"
+        }
+        }
+        """
+        await asyncio.sleep(2)
+    else:
+        prompt = """
+        Generate a concise summary of this conversation in JSON format, including a title, time range, in-depth paragraph, top 3 keywords, and relevant notes. The summary should be organized as follows:
+
+        {
+        "title": "[Short description]",
+        "timeRange": {"start": "[Start time]", "end": "[End time]"},
+        "body": "[Longer description]",
+        "keywords": ["Keyword1", "Keyword2", "Keyword3"],
+        "notes": {
+            "[Note Title1]": "[Note Body1]",
+            "[Note Title2]": "[Note Body2]"
+        }
+        }
+
+        Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
+        """
+        summary = await GetSummaryWithPrompt(prompt, str(messagesToSummarise))
+        #wait for 2 seconds
+    summarDict = json.loads(summary)
+    fields = {}
+    for key, value in summarDict.items():
+      fields[key] = value
+    
+    fields['state'] = ''
+
+    payload = {'ID':summaryID, 'fields':fields}
+    await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+    summarDict.update({'sources':messageIDs})
+    summary = await prisma.summary.create(
+        data={
+            "key": summaryID,
+            "SessionID": sessionID,
+            "UserID": userID,
+            "timestamp": datetime.now(),
+            "blob": Json({summaryID:summarDict})
+
+        }
+    )
+    print(summary)
+   #inject summary object into logs before messages it is summarising 
+    injectIndex = logs[sessionID].index(messagesToSummarise[0])
+    logs[sessionID].insert(injectIndex, {'ID':summaryID, 'name': 'summary', 'body':summaryID, 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
+
+    for message in messagesToSummarise:
+        remoteMessage = await prisma.message.find_first(
+            where={'id': message['id']}
+        )
+        if remoteMessage:
+            updatedMessage = await prisma.message.update(
+                where={ 'id': message['id'] },
+                data={
+                    'summaryState': 'SUMMARISED',
+                    'muted': True,
+                    'minimised': True,
+                    'summaryID': summaryID
+                }
+            )
+            message['summaryState'] = 'SUMMARISED'
+            message['muted'] = True
+            message['minimised'] = True
+            
+            print(message)
+            payload = {'ID':message['ID'], 'fields' :{ 'summaryState': 'SUMMARISED'}}
+            await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+
+    
+
+
+
+    
+
+                
 
 
 
@@ -786,33 +887,23 @@ async def runMemory(input, cartKey, cartVal):
 
 
 
-def welcomeGuest(sessionID, userID, userName):
-
-    promptString = ""
-    eZprint("sending prompt")
-    # eZprint(runningPrompts)
-    for promptObj in runningPrompts[sessionID]:
-        eZprint('found prompt, adding to string')
-        # print(promptObj)
-        promptString += " "+promptObj['cartridge']['prompt']+"\n"
-
-    response = sendPrompt(promptString)
-
-    # eZprint(response)
-    asyncio.run(logMessage(sessionID, userID, userName,
-                response["choices"][0]["text"]))
-
-    logs.setdefault(sessionID, []).append(
-        {"userName": agentName,
-         "message": response["choices"][0]["text"]})
 
 
 async def getSummary(textToSummarise):
     promptObject = []
 
     initialPrompt = "Create a concise and coherent summary of this text, focusing on the key information, main topics, and outcomes. Ensure that the summary is easy to understand and remember, providing enough context for CHAT GPT to accurately reference the conversation.\nTEXT TO SUMMARISE:\n"
+    # promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
-    promptObject.append({'role' : 'system', 'content' : initialPrompt})
+    promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    response = await sendChat(promptObject)
+
+    return response["choices"][0]["message"]["content"]
+
+
+async def GetSummaryWithPrompt(prompt, textToSummarise):
+    promptObject = []
+    promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
     response = await sendChat(promptObject)
 

@@ -3,7 +3,7 @@ import json
 import base64
 
 # import json
-from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint
+from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks
 from gptindex import indexDocument, indexGoogleDoc
 import logging
 import asyncio
@@ -67,12 +67,17 @@ async def process_message(parsed_data):
 
         data = parsed_data['data']
         await handleIndexQuery(data['userID'], data['cartKey'], data['sessionID'], data['query'])
+    if(parsed_data['type']== 'summarizeContent'):
+        data = parsed_data['data']
+        print(data)
+        await summariseChatBlocks(data['userID'], data['sessionID'], data['messageIDs'], data['summaryID'])
     elif parsed_data["type"] == "indexdoc_start":
         await handle_indexdoc_start(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_chunk":
         await handle_indexdoc_chunk(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_end":
         await handle_indexdoc_end(parsed_data["data"])
+    
     if(parsed_data["type"] == '__ping__'):
         # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))

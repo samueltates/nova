@@ -5,21 +5,25 @@ from prisma import Json
 from human_id import generate_id
 import logging
 logging.basicConfig()
+prisma = Prisma()
+
+async def findSummaries():
+    summaries = await prisma.summary.find_many()
+    print(summaries)
 
 async def main() -> None:
-    prisma = Prisma()
     await prisma.connect()
-
+    await findSummaries()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)
 
     # ####### SCRAPES ALL DATABASE FROM SOURCE TO JSON#########
     # scrape = {'messages':[],'logs':[],'batches':[]}
-    messages = await prisma.message.find_many(
-        where = {'SessionID' : '8fe6ef2a53c1378cf97884743765e66e22ebb3e2'},
-    )
-    print (messages)
+    # messages = await prisma.message.find_many(
+    #     where = {'SessionID' : '8fe6ef2a53c1378cf97884743765e66e22ebb3e2'},
+    # )
+    # print (messages)
     # for message in messages:
     #     messageObject ={
     #         "id": message.id,
@@ -136,21 +140,43 @@ async def main() -> None:
     # )
 
     ##### FINDS LOG SETS BATCHED TO FALSE #########
-#     logs = await prisma.log.find_many(             
-# )
-#     print(logs)
 
+    ## and sets to true if they're too long
+#     logs = await prisma.log.find_many(           
+#         where = {'batched' : False,}  
+# )
+
+#     unsumarisedLogMessages= []
+#     logsToBatch = []
 #     for log in logs:
-#         updatedLog = await prisma.log.update(
-#             where={'id': log.id},
-#             data={'batched': True,
-#                   'summary': 'fix me'
-#                   }
-#             # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
-#             # data={'batched': True,}
+#         messages = await prisma.message.find_many(
+#         where = {'SessionID' : log.SessionID,}
 #         )
+#         unsumarisedLogMessages.append(messages)
+#         print(len(str(messages)))
+#         logID = log.id
+#         print( 'logID ' + str(logID))
+#         if len(str(messages)) > 20000:
+#             print('logID ' + str(logID))
+#             logsToBatch.append(log)
+
+
+#     print(logsToBatch)
+
+    # print(unsumarisedLogMessages)
+
+
+    # for log in logsToBatch:
+    #     updatedLog = await prisma.log.update(
+    #         where={'id': log.id},
+    #         data={'batched': True,
+    #               'summary': 'fix me'
+    #               }
+    #         # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+    #         # data={'batched': True,}
+    #     )
     #     print(log)
-    #     print('\n\n\n _________________________________________________________ \n\n\n')
+    # #     print('\n\n\n _________________________________________________________ \n\n\n')
 
     ## FINDS LOG #########
     # logs = await prisma.log.find_many()
