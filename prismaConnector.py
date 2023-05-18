@@ -11,9 +11,14 @@ async def findSummaries():
     summaries = await prisma.summary.find_many()
     print(summaries)
 
+
+async def findMessages():
+    messages = await prisma.message.find_many()
+    print(messages)
 async def main() -> None:
     await prisma.connect()
-    await findSummaries()
+    # await findSummaries()
+    await findMessages()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)

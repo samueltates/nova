@@ -3,7 +3,7 @@ import json
 import base64
 
 # import json
-from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks
+from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument, indexGoogleDoc
 import logging
 import asyncio
@@ -48,6 +48,10 @@ async def process_message(parsed_data):
         # print('updateCartridgeField route hit')
         # print(parsed_data['data']['fields'])
         await updateCartridgeField(parsed_data['data'])
+    if(parsed_data['type']== 'updateContentField'):
+        # print('updateCartridgeField route hit')
+        # print(parsed_data['data']['fields'])
+        await updateContentField(parsed_data['data'])
     if(parsed_data['type']== 'newPrompt'):
         await addCartridgePrompt(parsed_data['data'])
     if(parsed_data['type']== 'requestDocIndex'):
