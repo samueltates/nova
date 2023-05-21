@@ -46,7 +46,7 @@ async def process_message(parsed_data):
         await handleChatInput(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
         # print('updateCartridgeField route hit')
-        # print(parsed_data['data']['fields'])
+        print(parsed_data['data']['fields'])
         await updateCartridgeField(parsed_data['data'])
     if(parsed_data['type']== 'updateContentField'):
         # print('updateCartridgeField route hit')

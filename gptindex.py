@@ -97,6 +97,7 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
 
 
 def queryIndex(queryString, storedIndex, indexType ):
+    
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     json.dump(storedIndex, tmpfile)
     tmpfile.seek(0)

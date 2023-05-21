@@ -323,7 +323,7 @@ async def updateCartridgeField(input):
             }
         )
         # eZprint(updatedCart)
-    payload = { 'key':targetCartKey,'fields': input['fields']}
+    payload = { 'key':targetCartKey,'fields': {'state': ''}}
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     await getPromptEstimate(input['sessionID'])
 
@@ -442,6 +442,20 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
 
 
 async def triggerQueryIndex(userID, cartKey, cartVal, query, index):
+    if(app.config['DEBUG'] == True):
+        print('debug mode')
+        cartVal['state'] = ''
+        cartVal['status'] = ''
+        cartVal['blocks'].append({'query':query, 'response':'fakeresponse'})
+        payload = { 'key':cartKey,'fields': {
+            'status': cartVal['status'],
+            'blocks':cartVal['blocks'],
+            'state': cartVal['state']
+        }}
+        print(payload)
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+        return
+        
     eZprint('triggering index query')
     oldVal = cartVal
     # print(input['message'])
