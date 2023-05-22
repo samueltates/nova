@@ -50,7 +50,7 @@ async def prismaDisconnect():
 async def initialiseCartridges(data):
     eZprint('intialising cartridges')
     await loadCartridges(data)
-    # await runCartridges(data)
+    await runCartridges(data)
 
 async def loadCartridges(data):
     eZprint('load cartridges called')
@@ -64,13 +64,12 @@ async def loadCartridges(data):
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
-                if 'softDelete' not in cartVal and cartVal['type'] != 'summary':
+                if 'softDelete' not in cartVal:
                     availableCartridges.setdefault(
                         data['sessionID'], dict()).update({cartKey: cartVal})
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
                         cartVal.update({'state': 'loading'})
-        
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[data['sessionID']]}))
     eZprint('load cartridges complete')
 
@@ -250,7 +249,7 @@ async def handleIndexQuery(userID, cartKey, sessionID, query):
 
 async def sendChat(promptObj):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-4",messages=promptObj))
+    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-3.5-turbo",messages=promptObj))
     return response
 
 def sendPrompt(promptString):
@@ -274,7 +273,7 @@ async def addCartridgePrompt(input):
     # await prisma.disconnect()
     # await prisma.connect()
     eZprint('add cartridge prompt triggered')
-    eZprint(input)
+    # eZprint(input)
     cartKey = generate_id()
     cartVal = input['newCart'][input['tempKey']]
     cartVal.update({'state': ''})
@@ -354,7 +353,7 @@ async def updateContentField(input):
         if log['ID'] == input['ID']:
             for key, val in input['fields'].items():
                 log[key] = val
-                print(log)
+                # print(log)
     await getChatEstimate(input['sessionID'])
 
 async def getChatEstimate(sessionID):

@@ -105,17 +105,17 @@ def queryIndex(queryString, storedIndex, indexType ):
     if(indexType == 'Vector'):
         index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
         # index.set_text("Body of text uploaded to be summarised or have question answered")
-        llm_predictor_gpt4 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
+        llm_predictor_gpt = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo"))
 
         step_decompose_transform = StepDecomposeQueryTransform(
-        llm_predictor_gpt4, verbose=True
+        llm_predictor_gpt, verbose=True
 
         )
-        response_gpt4 = index.query(
+        response_gpt = index.query(
             queryString
         )
-        nova.eZprint(response_gpt4)
-        return response_gpt4
+        nova.eZprint(response_gpt)
+        return response_gpt
     if(indexType == 'List'):
         index = GPTListIndex.load_from_disk(tmpfile.name)
         response = index.query(queryString, response_mode="tree_summarize")
