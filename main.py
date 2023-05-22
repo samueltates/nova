@@ -58,8 +58,9 @@ async def process_message(parsed_data):
         data = parsed_data['data']
         if 'gDocID' in data:
             eZprint('indexing gDoc')
-            # print(data)
-            indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
+            print(data)
+            indexRecord = await indexDocument(data)
+            # indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
                 payload = {
                     'tempKey': data['tempKey'],
@@ -108,7 +109,6 @@ async def handle_indexdoc_chunk(data):
   decoded_chunk_content = base64.b64decode(data["chunkContent"])
   file_chunks[tempKey]["content"].append(decoded_chunk_content)
 
-
   # You could also process and store the chunk immediately in this step
   # instead of collecting all chunks in `file_chunks` and processing them later
 
@@ -119,7 +119,18 @@ async def handle_indexdoc_end(data):
     # Process the uploaded file
     # You might need to convert the content from a bytearray to the initial format (e.g., base64)
     print(file_metadata)
-    indexRecord = await indexDocument(file_metadata["userID"], file_metadata["sessionID"], file_content, file_metadata["file_name"], file_metadata["file_type"], file_metadata["tempKey"],file_metadata["indexType"])
+    data = {
+        'userID': file_metadata['userID'],
+        'file_content': file_content,
+        'file_name': file_metadata['file_name'],
+        'file_type': file_metadata['file_type'],
+        'sessionID': file_metadata['sessionID'],
+        'tempKey': file_metadata['tempKey'],
+        'indexType': file_metadata['indexType'],
+        'document_type': file_metadata['document_type'],
+    }
+
+    indexRecord = await indexDocument(data)
     if indexRecord:
         payload = {
             'tempKey': data['tempKey'],

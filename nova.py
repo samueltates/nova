@@ -60,6 +60,7 @@ async def loadCartridges(data):
         "UserID": data['userID'],
         }
     )
+    eZprint('cartridge length is ' + str(len(cartridges)))
     if len(cartridges) != 0:
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
@@ -245,7 +246,7 @@ async def handleIndexQuery(userID, cartKey, sessionID, query):
     cartVal = availableCartridges[sessionID][cartKey]
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index = await getCartridgeDetail(cartKey)
-        await triggerQueryIndex(userID, cartKey, cartVal, query, index)
+        await triggerQueryIndex(userID, cartKey, cartVal, query, index, sessionID)
 
 async def sendChat(promptObj):
     loop = asyncio.get_event_loop()
@@ -440,7 +441,7 @@ async def  addNewUserCartridgeAsync(userID, cartKey, cartVal):
     #             triggerQueryIndex(input, index)
 
 
-async def triggerQueryIndex(userID, cartKey, cartVal, query, index):
+async def triggerQueryIndex(userID, cartKey, cartVal, query, indexJson, sessionID):
     if(app.config['DEBUG'] == True):
         print('debug mode')
         cartVal['state'] = ''
@@ -465,7 +466,9 @@ async def triggerQueryIndex(userID, cartKey, cartVal, query, index):
                             'state': cartVal['state']
                                 }}
     # socketio.emit('updateCartridgeFields', payload)
-    insert = gptindex.queryIndex(query, index, cartVal['indexType'])
+    
+    index = await gptindex.reconstructIndex(indexJson, sessionID)
+    insert = await gptindex.queryIndex(query, index, cartVal['indexType'])
     eZprint('index query complete')
     # eZprint(insert)
     if(insert != None):

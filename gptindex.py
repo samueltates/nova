@@ -10,7 +10,6 @@ from appHandler import app, websocket
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-
 from llama_index import (
     # GPTSimpleVectorIndex, 
     GPTListIndex,
@@ -20,7 +19,7 @@ from llama_index import (
     LLMPredictor,
     PromptHelper,
     StorageContext, load_index_from_storage
-
+    
 )
 
 from langchain.chat_models import ChatOpenAI
@@ -36,21 +35,41 @@ from llama_index.indices.query.query_transform.base import StepDecomposeQueryTra
 GoogleDocsReader = download_loader('GoogleDocsReader')
 UnstructuredReader = download_loader("UnstructuredReader")
 
-async def indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey, indexType):
-    nova.eZprint('reconstructing file')
-    payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    print(file_type)
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
-    temp_file.write(file_content)
+async def indexDocument(payload):
+    nova.eZprint('indexDocument called')
+    print(payload)
+    indexType = payload['indexType']
+    sessionID = payload['sessionID']
+    tempKey = payload['tempKey']
+    userID = payload['userID']
+    documents = None
 
-    # Read and process the reconstructed file
-    temp_file.close()
+    if payload['document_type'] == 'googleDoc':
+        gDocID = payload['gDocID']
+        loader = GoogleDocsReader() 
+        documents = loader.load_data(document_ids=[gDocID])
+        print(documents)
+        
+    elif payload['document_type'] == 'file':
+        file_content = payload['file_content']
+        file_name = payload['file_name']
+        file_type = payload['file_type']
+        nova.eZprint('reconstructing file')
+        payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
+        await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+        print(file_type)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
+        temp_file.write(file_content)
 
-    unstructured_reader = UnstructuredReader()
-    documents = unstructured_reader.load_data(temp_file.name)
+        # Read and process the reconstructed file
+        temp_file.close()
+        
+        unstructured_reader = UnstructuredReader()
+        documents = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
-    os.unlink(temp_file.name)
+        os.unlink(temp_file.name)
+
+        
     index = None
     if(indexType == 'Vector'):
         # index = GPTSimpleVectorIndex.from_documents(documents)
@@ -59,23 +78,34 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
         index = GPTListIndex.from_documents(documents)
         nova.eZprint('list index created')
 
-    tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    index.storage_context.persist()
-    storage_context = StorageContext.from_defaults(persist_dir="./storage")
+    # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
+    tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
+    index.storage_context.persist(tmpDir)
+    print(tmpDir)
+    indexJson = dict()
+    for file in os.listdir(tmpDir):
+        if file.endswith(".json"):
+            content = json.load(open(os.path.join(tmpDir, file)))
+            print(content)
+            indexJson.update({file:content})
+    # return
 
+
+    storage_context = StorageContext.from_defaults(persist_dir=tmpDir)
+    
     # save_to_disk(tmpfile.name)
     # tmpfile.seek(0)
     payload = { 'key':tempKey,'fields': {'status': 'index complete, getting title'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     index = load_index_from_storage(storage_context)
-    name = queryIndex('give this document a title', index, indexType)
+    name = await queryIndex('give this document a title', index, indexType)
     name = str(name).strip()
     blocks = []
     block = {'query': 'Document title', 'response': name}
     blocks.append(block)
     payload = { 'key':tempKey,'fields': {'blocks': blocks,'status': 'index complete, getting title'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    documentDescription = queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index, indexType) 
+    documentDescription = await queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index, indexType) 
     documentDescription = str(documentDescription).strip()
     block = {'query': 'Document summary', 'response': documentDescription}
     blocks.append(block)
@@ -89,19 +119,41 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
         'blocks': blocks,
         'enabled': True,
         # 'file':{file_content},
-        # 'index': index_json,
+        'index': indexJson,
         'indexType': indexType,
     }
 
-    tmpfile.close()
     newCart = await nova.addCartridgeTrigger(userID, sessionID, cartval)
     nova.eZprint('printing new cartridge')
 
     # print(newCart)
     return newCart
 
+async def reconstructIndex(indexJson, sessionID):
+    tmpDir = tempfile.mkdtemp()
+    # print(index)
+    # nova.eZprint("reconstructIndex: tmpDir={}".format(tmpDir))
+    
+    for key, val in indexJson.items():
+        print(os.path.join(tmpDir, key))
+        # indexPart = GPTListIndex.build_index_from_nodes(val)
+        # print(indexPart)
+        try:
+            with open(os.path.join(tmpDir, key), "w") as f:
+                json.dump(val, f)
+        except Exception as e:
+            print(f"Error writing file: {str(e)}")
 
-def queryIndex(queryString, index, indexType ):
+    storage_context = StorageContext.from_defaults(persist_dir=tmpDir, )
+    nova.eZprint("reconstructIndex: storage_context={}".format(storage_context))
+    index = load_index_from_storage(storage_context)
+    return index
+
+    
+
+
+
+async def queryIndex(queryString, index, indexType ):
     
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     # json.dump(index, tmpfile)
@@ -124,9 +176,9 @@ def queryIndex(queryString, index, indexType ):
     if(indexType == 'List'):
         # index = GPTListIndex.load_from_disk(tmpfile.name)
         query_engine = index.as_query_engine()
-        response = index.query_engine.query(queryString)
+        response = query_engine.query(queryString)
         nova.eZprint(response)
-        return response
+        return response 
 
 
 
