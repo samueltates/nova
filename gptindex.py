@@ -12,13 +12,15 @@ logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 from llama_index import (
-    GPTSimpleVectorIndex, 
+    # GPTSimpleVectorIndex, 
     GPTListIndex,
     StringIterableReader,
     download_loader,
     SimpleDirectoryReader,
     LLMPredictor,
-    PromptHelper
+    PromptHelper,
+    StorageContext, load_index_from_storage
+
 )
 
 from langchain.chat_models import ChatOpenAI
@@ -51,26 +53,29 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
     os.unlink(temp_file.name)
     index = None
     if(indexType == 'Vector'):
-        index = GPTSimpleVectorIndex.from_documents(documents)
+        # index = GPTSimpleVectorIndex.from_documents(documents)
         nova.eZprint('vector index created')
     if(indexType == 'List'):
         index = GPTListIndex.from_documents(documents)
         nova.eZprint('list index created')
 
     tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    index.save_to_disk(tmpfile.name)
-    tmpfile.seek(0)
+    index.storage_context.persist()
+    storage_context = StorageContext.from_defaults(persist_dir="./storage")
+
+    # save_to_disk(tmpfile.name)
+    # tmpfile.seek(0)
     payload = { 'key':tempKey,'fields': {'status': 'index complete, getting title'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    index_json = json.load(open(tmpfile.name))
-    name = queryIndex('give this document a title', index_json, indexType)
+    index = load_index_from_storage(storage_context)
+    name = queryIndex('give this document a title', index, indexType)
     name = str(name).strip()
     blocks = []
     block = {'query': 'Document title', 'response': name}
     blocks.append(block)
     payload = { 'key':tempKey,'fields': {'blocks': blocks,'status': 'index complete, getting title'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    documentDescription = queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index_json, indexType) 
+    documentDescription = queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index, indexType) 
     documentDescription = str(documentDescription).strip()
     block = {'query': 'Document summary', 'response': documentDescription}
     blocks.append(block)
@@ -84,7 +89,7 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
         'blocks': blocks,
         'enabled': True,
         # 'file':{file_content},
-        'index': index_json,
+        # 'index': index_json,
         'indexType': indexType,
     }
 
@@ -96,14 +101,14 @@ async def indexDocument(userID, sessionID, file_content, file_name, file_type, t
     return newCart
 
 
-def queryIndex(queryString, storedIndex, indexType ):
+def queryIndex(queryString, index, indexType ):
     
-    tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    json.dump(storedIndex, tmpfile)
-    tmpfile.seek(0)
-    index = None
+    # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
+    # json.dump(index, tmpfile)
+    # tmpfile.seek(0)
+    # index = None
     if(indexType == 'Vector'):
-        index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
+        # index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
         # index.set_text("Body of text uploaded to be summarised or have question answered")
         llm_predictor_gpt = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo"))
 
@@ -117,8 +122,9 @@ def queryIndex(queryString, storedIndex, indexType ):
         nova.eZprint(response_gpt)
         return response_gpt
     if(indexType == 'List'):
-        index = GPTListIndex.load_from_disk(tmpfile.name)
-        response = index.query(queryString, response_mode="tree_summarize")
+        # index = GPTListIndex.load_from_disk(tmpfile.name)
+        query_engine = index.as_query_engine()
+        response = index.query_engine.query(queryString)
         nova.eZprint(response)
         return response
 
@@ -133,7 +139,7 @@ async def indexGoogleDoc(userID, sessionID, docIDs,tempKey, indexType):
     documents = loader.load_data(document_ids=[docIDs])
     print(documents)
     if(indexType == 'Vector'):
-        index = GPTSimpleVectorIndex.from_documents(documents)
+        # index = GPTSimpleVectorIndex.from_documents(documents)
         nova.eZprint('vector index created')
     if(indexType == 'List'):
         index = GPTListIndex.from_documents(documents)
