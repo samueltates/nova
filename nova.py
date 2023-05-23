@@ -29,7 +29,6 @@ prisma = Prisma()
 import logging
 # logging.basicConfig()
 
-
 runningPrompts = dict()
 availableCartridges = dict()
 allLogs = dict()

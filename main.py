@@ -13,6 +13,7 @@ from hypercorn.asyncio import serve
 
 from appHandler import app, websocket
 from quart import request
+from googleAuth import googleAuthHandler
 
 @app.route("/hello")
 async def hello():
@@ -21,6 +22,7 @@ async def hello():
 @app.before_serving
 async def startup():
     await prismaConnect()
+    # await googleAuthHandler()
 
 @app.after_serving
 async def shutdown():
