@@ -22,5 +22,7 @@ hypercorn = "*"
 pdfminer-six = "*"
 numpy = "*"
 tabulate = "*"
+nltk = "*"
+unstructured = "*"
 
 [dev-packages]
