@@ -1,6 +1,3 @@
-[phases.setup]
-nixPkgs = ["...","poppler"]
-
 [phases.install]
 cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate']
 [phases.build]
