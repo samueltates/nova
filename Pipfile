@@ -21,11 +21,5 @@ markupsafe = "*"
 hypercorn = "*"
 pdfminer-six = "*"
 numpy = "*"
-unstructured = {extras = ["local-inference"], version = "*"}
-poppler-utils = "*"
-detectron2 = {ref = "e2ce8dc", git = "https://github.com/facebookresearch/detectron2.git"}
-libmagic = "*"
-pep517 = "*"
-python-poppler = "*"
 
 [dev-packages]
