@@ -24,5 +24,6 @@ numpy = "*"
 tabulate = "*"
 nltk = "*"
 unstructured = "*"
+pdf2image = "*"
 
 [dev-packages]

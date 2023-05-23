@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "eb947d43fb076513e4f7698ca4391c6e61e001cf3eadc33c8f7c8fb52d755c8e"
+            "sha256": "0d35ced8040b81b951c18e19fc3e557a1ba2dcfecf9ee25175a0bf45c5a62d27"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -1181,6 +1181,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==0.8.3"
+        },
+        "pdf2image": {
+            "hashes": [
+                "sha256:74208810c2cef4d9e347769b8e62a52303982ddb4f2dfd744c7ab4b940ae287e",
+                "sha256:b6154164af3677211c22cbb38b2bd778b43aca02758e962fe1e231f6d3b0e380"
+            ],
+            "index": "pypi",
+            "version": "==1.16.3"
         },
         "pdfminer-six": {
             "hashes": [
