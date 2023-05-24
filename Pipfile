@@ -3,6 +3,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[requires]
+python_version = "3.9"
+
 [packages]
 openai = "==0.27.2"
 prisma = "==0.8.1"
@@ -29,5 +32,6 @@ install = "*"
 google-api-python-client = "*"
 google-auth-httplib2 = "*"
 google-auth-oauthlib = "*"
+google-auth = "*"
 
 [dev-packages]

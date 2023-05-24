@@ -12,7 +12,7 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve
 
 from appHandler import app, websocket
-from quart import request
+from quart import request, url_for
 from googleAuth import googleAuthHandler
 
 @app.route("/hello")
@@ -143,7 +143,6 @@ async def handle_indexdoc_end(data):
     del file_chunks[tempKey]
 
 # For example, the process_uploaded_file() function could be like this:
-
 
 @app.route('/indexdoc', methods=['POST'])
 async def http():
