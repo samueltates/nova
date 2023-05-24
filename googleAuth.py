@@ -1,15 +1,22 @@
 """Google docs reader."""
 
 import os
-from appHandler import app
+from appHandler import app, websocket
 from typing import Any, List
 from quart import redirect, url_for,session, request
-
+import asyncio
 from llama_index.readers.base import BaseReader
 from llama_index.readers.schema.base import Document
+import json
+
+userAuths = dict()
 
 SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
 
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+import google_auth_oauthlib.flow
+import googleapiclient.discovery as discovery
 
 # Copyright 2019 Google LLC
 #
@@ -30,9 +37,11 @@ SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
 def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
   # verified in the authorization server response.
-    state = session['state']    
+    print('oauth2callback')
+    
+    state = userAuths['state']    
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'client_secret.json', scopes=SCOPES, state=state)
+        'credentials.json', scopes=SCOPES, state=state)
     flow.redirect_uri = url_for('oauth2callback', _external=True)
 
     # Use the authorization server's response to fetch the OAuth 2.0 tokens.
@@ -44,11 +53,18 @@ def oauth2callback():
     #              credentials in a persistent database instead.
     credentials = flow.credentials
                 # Save the credentials for the next run
-    with open(session['userID']+"-token.json", "w") as token:
+    with open(userAuths['userID']+"-token.json", "w") as token:
         token.write(credentials.to_json())
+    userAuths['authorised'] = True,
+    return redirect(url_for('authComplete'))
+    
 
-    return redirect(url_for('test_api_request'))
+@app.route('/authComplete')
+async def authComplete():
+    print('authComplete')
+    return "Authentication complete, please return to browser!"
 
+    # await websocket.send(json.dumps({'event':'authComplete'}))
 
 class GoogleDocsReader(BaseReader):
     """Google Docs reader.
@@ -57,7 +73,7 @@ class GoogleDocsReader(BaseReader):
 
     """
 
-    def load_data(self, document_ids: List[str], userID) -> List[Document]:
+    async def load_data(self, document_ids: List[str], userID) -> List[Document]:
         """Load data from the input directory.
 
         Args:
@@ -68,11 +84,11 @@ class GoogleDocsReader(BaseReader):
 
         results = []
         for document_id in document_ids:
-            doc = self._load_doc(document_id)
+            doc = await self._load_doc(document_id, userID)
             results.append(Document(doc, extra_info={"document_id": document_id}))
         return results
 
-    def _load_doc(self, document_id: str, userID) -> str:
+    async def _load_doc(self, document_id: str, userID) -> str:
         """Load a document from Google Docs.
 
         Args:
@@ -81,15 +97,14 @@ class GoogleDocsReader(BaseReader):
         Returns:
             The document text.
         """
-        import googleapiclient.discovery as discovery
 
-        credentials = self._get_credentials(self, userID)
+        credentials = await self._get_credentials(userID)
         docs_service = discovery.build("docs", "v1", credentials=credentials)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_content = doc.get("body").get("content")
         return self._read_structural_elements(doc_content)
 
-    def _get_credentials(self, userID) -> Any:
+    async def _get_credentials(self, userID) -> Any:
         """Get valid user credentials from storage.
 
         The file token.json stores the user's access and refresh tokens, and is
@@ -99,21 +114,22 @@ class GoogleDocsReader(BaseReader):
         Returns:
             Credentials, the obtained credential.
         """
-        from google.auth.transport.requests import Request
-        from google.oauth2.credentials import Credentials
-        import google_auth_oauthlib.flow
-
+   
         creds = None
+        userAuths['authorised'] = False
         if os.path.exists( userID +"-token.json"):
             creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
+                print('refreshing')
                 creds.refresh(Request())
+                userAuths['authorised'] = True
             else:
+                print('getting new')
                 flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-                'client_secret.json',
-                scopes=['https://www.googleapis.com/auth/drive.metadata.readonly'])    
+                'credentials.json',
+                scopes=['https://www.googleapis.com/auth/documents.readonly'])    
                 flow.redirect_uri = url_for('oauth2callback', _external=True)
                 authorization_url, state = flow.authorization_url(
                     # Enable offline access so that you can refresh an access token without
@@ -121,15 +137,27 @@ class GoogleDocsReader(BaseReader):
                     access_type='offline',
                     # Enable incremental authorization. Recommended as a best practice.
                     include_granted_scopes='true')
-                session['state'] = state  
-                session['userID'] = userID
-                return redirect(authorization_url)
-
-            # Save the credentials for the next run
-            with open(userID+"-token.json", "w") as token:
-                token.write(creds.to_json())
-
+                print(authorization_url)
+                print(state)
+                print(creds)
+                userAuths.update({
+                    'state':state,
+                    'authorised':False,
+                    'userID':userID
+                } )
+                # session['state'] = state  
+                # session['userID'] = userID
+                # session['authorised'] = False
+                
+                app.redirect(authorization_url)
+                await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
+        while not userAuths['authorised']:
+            await asyncio.sleep(1)
+        print('authorised')
+        if os.path.exists( userID +"-token.json"):
+            creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
         return creds
+    
 
     def _read_paragraph_element(self, element: Any) -> Any:
         """Return the text in the given ParagraphElement.
@@ -169,10 +197,3 @@ class GoogleDocsReader(BaseReader):
                 toc = value.get("tableOfContents")
                 text += self._read_structural_elements(toc.get("content"))
         return text
-
-
-if __name__ == "__main__":
-    reader = GoogleDocsReader()
-    print(
-        reader.load_data(document_ids=["11ctUj_tEf5S8vs_dk8_BNi-Zk8wW5YFhXkKqtmU_4B8"])
-    )

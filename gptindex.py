@@ -7,6 +7,7 @@ import base64
 import os
 from appHandler import app, websocket
 
+from googleAuth import GoogleDocsReader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -32,7 +33,6 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-GoogleDocsReader = download_loader('GoogleDocsReader')
 UnstructuredReader = download_loader("UnstructuredReader")
 
 async def indexDocument(payload):
@@ -47,7 +47,7 @@ async def indexDocument(payload):
     if payload['document_type'] == 'googleDoc':
         gDocID = payload['gDocID']
         loader = GoogleDocsReader() 
-        documents = loader.load_data(document_ids=[gDocID])
+        documents = await loader.load_data(document_ids=[gDocID], userID=userID)
         print(documents)
         
     elif payload['document_type'] == 'file':
@@ -180,61 +180,3 @@ async def queryIndex(queryString, index, indexType ):
         nova.eZprint(response)
         return response 
 
-
-
-
-async def indexGoogleDoc(userID, sessionID, docIDs,tempKey, indexType):
-
-
-    index = None
-    loader = GoogleDocsReader() 
-    documents = loader.load_data(document_ids=[docIDs])
-    print(documents)
-    if(indexType == 'Vector'):
-        # index = GPTSimpleVectorIndex.from_documents(documents)
-        nova.eZprint('vector index created')
-    if(indexType == 'List'):
-        index = GPTListIndex.from_documents(documents)
-        nova.eZprint('list index created')
-
-    # return
-
-    tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    index.save_to_disk(tmpfile.name)
-    tmpfile.seek(0)
-
-    index_json = json.load(open(tmpfile.name))
-    name = queryIndex('give this document a title', index_json, indexType)
-    name = str(name).strip()
-    blocks = []
-    block = {'query': 'give this document a title', 'response': name}
-    blocks.append(block)
-    payload = { 'key':tempKey,'fields': {'blocks': blocks}}
-    # socketio.emit('updateCartridgeFields', payload) 
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    payload = { 'key':tempKey,'fields': {'status': 'query-description'}}
-    # socketio.emit('updateCartridgeFields', payload)
-    documentDescription = queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index_json, indexType) 
-    documentDescription = str(documentDescription).strip()
-    block = {'query': 'Create a one sentence summary of this document, with no extraneous punctuation.', 'response': documentDescription}
-    blocks.append(block)
-    payload = { 'key':tempKey,'fields': {'blocks': blocks}}
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
-    cartval = {
-        'label': name,
-        'type': 'index',
-        'description': 'a document indexed to be queriable by NOVA',
-        'blocks': blocks,
-        'enabled': True,
-        # 'file':{file_content},
-        'index': index_json,
-        'indexType': indexType,
-    }
-
-    tmpfile.close()
-    newCart = await nova.addCartridgeTrigger(userID, sessionID, cartval)
-    nova.eZprint('printing new cartridge')
-    # print(newCart)
-    #TO DO - add to running cartridges
-    return newCart

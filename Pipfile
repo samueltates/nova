@@ -8,7 +8,6 @@ python_version = "3.9"
 
 [packages]
 openai = "==0.27.2"
-prisma = "==0.8.1"
 click = "==8.0.3"
 itsdangerous = "==1.1.0"
 virtualenv = "*"
@@ -31,7 +30,8 @@ pdf2image = "*"
 install = "*"
 google-api-python-client = "*"
 google-auth-httplib2 = "*"
-google-auth-oauthlib = "*"
 google-auth = "*"
+prisma = "*"
+google-auth-oauthlib = "*"
 
 [dev-packages]

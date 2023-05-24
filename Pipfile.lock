@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5ce3e4978724621682047d3b2edb57bce05ba908e15f9f677326e031c4a00db2"
+            "sha256": "ddb85ff474c5ea59b0e824ad7a2394a6091ed56f7b0e2ec1f40a147755a51fe2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -161,7 +161,7 @@
                 "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
                 "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_version < '3.11'",
             "version": "==4.0.2"
         },
         "attrs": {
@@ -752,6 +752,14 @@
             ],
             "markers": "python_version >= '3.5'",
             "version": "==3.4"
+        },
+        "importlib-metadata": {
+            "hashes": [
+                "sha256:43dd286a2cd8995d5eaef7fee2066340423b818ed3fd70adf0bad5f1fac53fed",
+                "sha256:92501cdf9cc66ebd3e612f1b4f0c0765dfa42f0fa38ffb319b6bd84dd675d705"
+            ],
+            "markers": "python_version < '3.10'",
+            "version": "==6.6.0"
         },
         "install": {
             "hashes": [
@@ -1385,11 +1393,11 @@
         },
         "prisma": {
             "hashes": [
-                "sha256:62a87032f19cddb0cacdb33c56f4606ece7e09f1c372de994d1ebcc682e978e9",
-                "sha256:c4933064e211888e943bb0dbef45b6067144f0a23d735f7ceba5a204cff0330b"
+                "sha256:4d0ebf63ecd21bc4fda633867403429d24f89e6af5889944b2f9ca4203f50835",
+                "sha256:b3a639941f4bf33dbd414fee3e02cf30218968d05b108f8a4d5b7c331dcbc19c"
             ],
             "index": "pypi",
-            "version": "==0.8.1"
+            "version": "==0.8.2"
         },
         "prompt-toolkit": {
             "hashes": [
@@ -1936,7 +1944,7 @@
                 "sha256:5cb5f4a79139d699607b3ef622a1dedafa84e115ab0024e0d9c044a9479ca7cb",
                 "sha256:fb33085c39dd998ac16d1431ebc293a8b3eedd00fd4a32de0ff79002c19511b4"
             ],
-            "markers": "python_version >= '3.7'",
+            "markers": "python_version < '3.10'",
             "version": "==4.5.0"
         },
         "typing-inspect": {
@@ -2158,6 +2166,14 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==1.9.2"
+        },
+        "zipp": {
+            "hashes": [
+                "sha256:112929ad649da941c23de50f356a2b5570c954b65150642bccdd66bf194d224b",
+                "sha256:48904fc76a60e542af151aded95726c1a5c34ed43ab4134b597665c86d7ad556"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==3.15.0"
         }
     },
     "develop": {},

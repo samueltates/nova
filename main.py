@@ -4,7 +4,7 @@ import base64
 
 # import json
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
-from gptindex import indexDocument, indexGoogleDoc
+from gptindex import indexDocument
 import logging
 import asyncio
 
@@ -13,7 +13,7 @@ from hypercorn.asyncio import serve
 
 from appHandler import app, websocket
 from quart import request, url_for
-from googleAuth import googleAuthHandler
+
 
 @app.route("/hello")
 async def hello():
@@ -187,6 +187,7 @@ if __name__ == '__main__':
     port=int(os.getenv("PORT", default=5000))
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     asyncio.run(serve(app, config))
 
