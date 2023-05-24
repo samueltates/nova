@@ -83,4 +83,19 @@ model cartridge {
   archived  Boolean @default(false)
   softDeleted Boolean @default(false)
   indexOrder Int @default(0)  
+  indexes String @default("")
+  
   }
+
+  model index{
+    id        Int    @id @default(autoincrement())
+    key       String @default("")
+    UserID    String
+    docstore      Json? @default("{}")
+    index_store     Json? @default("{}")
+    vector_store   Json? @default("{}")
+    blob     Json? @default("{}")
+    archived  Boolean @default(false)
+    softDeleted Boolean @default(false)
+    }
+  
