@@ -20,7 +20,7 @@ sys.path.append((str(path_root)))
 # from prisma import Prisma
 os.system('prisma generate')
 from datetime import datetime
-openai.api_key = os.getenv('OPENAIKEY', default=None)
+openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 # from socketHandler import socketio
 from appHandler import app, websocket
 
