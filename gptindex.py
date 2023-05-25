@@ -6,6 +6,7 @@ import nova
 import base64
 import os
 from appHandler import app, websocket
+import asyncio
 
 from googleAuth import GoogleDocsReader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -172,8 +173,9 @@ async def queryIndex(queryString, index, indexType ):
         return response_gpt
     if(indexType == 'List'):
         # index = GPTListIndex.load_from_disk(tmpfile.name)
+        loop = asyncio.get_event_loop()
         query_engine = index.as_query_engine()
-        response = query_engine.query(queryString)
+        response = await loop.run_in_executor(None, lambda: query_engine.query(queryString))
         nova.eZprint(response)
         return response 
 
