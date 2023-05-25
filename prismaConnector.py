@@ -19,6 +19,7 @@ async def findMessages():
 async def findUsers():
     users = await prisma.user.find_many()
     print(users)
+    users = await prisma.user.delete_many()
     
 async def main() -> None:
     await prisma.connect()

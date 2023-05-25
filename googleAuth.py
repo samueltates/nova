@@ -170,9 +170,18 @@ class GoogleDocsReader(BaseReader):
                 await asyncio.sleep(1)
             print('authorised')
             authResponse = await nova.getAuth(userID)
-            print(authResponse)
-            if 'credentials' in authResponse:
-                creds = Credentials(authResponse['blob']['credentials'])
+            if(authResponse is not None):
+                print('authResponse')
+                credentials = {
+                    "token": authResponse['token'],
+                    "refresh_token": authResponse['refresh_token'],
+                    "token_uri": authResponse['token_uri'],
+                    "client_id": authResponse['client_id'],
+                    "client_secret": authResponse['client_secret'],
+                }
+                creds = Credentials(**credentials)
+                print(creds.refresh_token)
+                print(creds.client_id)
             # if os.path.exists( userID +"-token.json"):
             #     creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
         return creds
