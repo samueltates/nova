@@ -249,7 +249,7 @@ async def handleIndexQuery(userID, cartKey, sessionID, query):
 
 async def sendChat(promptObj):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-3.5-turbo",messages=promptObj))
+    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-4",messages=promptObj))
     return response
 
 def sendPrompt(promptString):
