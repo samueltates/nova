@@ -268,12 +268,13 @@ def sendPrompt(promptString):
     # eZprint(response)
     return response
 
-async def addAuth(userID, userName, credentials):
+async def addAuth(userID, credentials):
+    print(credentials.to_json())
     credentials = await prisma.user.create(
         data= {
             'UserID': userID,
             'name': 'sam',
-            'blob': Json({'credentials': credentials})
+            'blob': Json({'credentials': credentials.to_json()})
         }
     )
     return credentials

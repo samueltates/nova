@@ -12,6 +12,7 @@ import nova
 userAuths = dict()
 
 SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
+CLIENT_SECRETS_FILE = "client_secret.json"
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -34,7 +35,7 @@ import googleapiclient.discovery as discovery
 
 
 @app.route('/oauth2callback')
-def oauth2callback():
+async def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
   # verified in the authorization server response.
     print('oauth2callback')
@@ -54,7 +55,7 @@ def oauth2callback():
     #              credentials in a persistent database instead.
     credentials = flow.credentials
                 # Save the credentials for the next run
-    nova.addAuth(userAuths['userID'], credentials)
+    await nova.addAuth(userAuths['userID'], credentials)
     # with open(userAuths['userID']+"-token.json", "w") as token:
     #     token.write(credentials.to_json())
     #     userAuths['creds']= credentials
@@ -121,11 +122,11 @@ class GoogleDocsReader(BaseReader):
         creds = None
         userAuths['authorised'] = False
         authResponse = await nova.getAuth(userID)
+        print(authResponse)
         if(authResponse is not None):
-            authToken = json.loads(authResponse)
-            print(authToken)
-            if 'credentials' in authToken:
-                creds = Credentials(authToken['blob']['credentials'])
+            print('authResponse')
+            print('credentials' : authResponse['blob']['credentials'])
+            creds = Credentials(authResponse['blob']['credentials'])
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -160,15 +161,15 @@ class GoogleDocsReader(BaseReader):
                 
                 app.redirect(authorization_url)
                 await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
-        while not userAuths['authorised']:
-            await asyncio.sleep(1)
-        print('authorised')
-        authToken = json.loads(nova.getAuth(userID))
-        print(authToken)
-        if 'credentials' in authToken:
-            creds = Credentials(authToken['blob']['credentials'])
-        # if os.path.exists( userID +"-token.json"):
-        #     creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
+            while not userAuths['authorised']:
+                await asyncio.sleep(1)
+            print('authorised')
+            authResponse = await nova.getAuth(userID)
+            print(authResponse)
+            if 'credentials' in authResponse:
+                creds = Credentials(authResponse['blob']['credentials'])
+            # if os.path.exists( userID +"-token.json"):
+            #     creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
         return creds
     
 
