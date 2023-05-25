@@ -8,7 +8,7 @@ import asyncio
 from llama_index.readers.base import BaseReader
 from llama_index.readers.schema.base import Document
 import json
-from nova import addAuth, getAuth, eZprint
+import nova 
 userAuths = dict()
 
 SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
@@ -54,7 +54,7 @@ def oauth2callback():
     #              credentials in a persistent database instead.
     credentials = flow.credentials
                 # Save the credentials for the next run
-    addAuth(userAuths['userID'], credentials)
+    nova.addAuth(userAuths['userID'], credentials)
     # with open(userAuths['userID']+"-token.json", "w") as token:
     #     token.write(credentials.to_json())
     #     userAuths['creds']= credentials
@@ -120,7 +120,7 @@ class GoogleDocsReader(BaseReader):
    
         creds = None
         userAuths['authorised'] = False
-        authToken = json.loads(getAuth(userID))
+        authToken = json.loads(nova.getAuth(userID))
         print(authToken)
         if 'credentials' in authToken:
             creds = Credentials(authToken['blob']['credentials'])
@@ -161,7 +161,7 @@ class GoogleDocsReader(BaseReader):
         while not userAuths['authorised']:
             await asyncio.sleep(1)
         print('authorised')
-        authToken = json.loads(getAuth(userID))
+        authToken = json.loads(nova.getAuth(userID))
         print(authToken)
         if 'credentials' in authToken:
             creds = Credentials(authToken['blob']['credentials'])
