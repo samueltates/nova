@@ -279,12 +279,15 @@ async def addAuth(userID, userName, credentials):
     return credentials
 
 async def getAuth(userID):
-    credentials = await prisma.user.find_unique(
+    credentials = await prisma.user.find_first(
         where={
             'UserID': userID
         }
     )
-    return credentials
+    if(credentials): 
+        return credentials
+    else:
+        return None
 
 
 async def addCartridgePrompt(input):

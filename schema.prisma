@@ -59,8 +59,8 @@ model summary {
 model user {
   id     Int    @id @default(autoincrement())
   name   String
-  UserID String
-  blob      Json? @default("{}")
+  UserID String 
+  blob    Json? @default("{}")
 
   // password String
   // email    String @unique

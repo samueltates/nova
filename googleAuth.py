@@ -121,10 +121,11 @@ class GoogleDocsReader(BaseReader):
         creds = None
         userAuths['authorised'] = False
         authResponse = await nova.getAuth(userID)
-        authToken = json.loads(authResponse)
-        print(authToken)
-        if 'credentials' in authToken:
-            creds = Credentials(authToken['blob']['credentials'])
+        if(authResponse is not None):
+            authToken = json.loads(authResponse)
+            print(authToken)
+            if 'credentials' in authToken:
+                creds = Credentials(authToken['blob']['credentials'])
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
