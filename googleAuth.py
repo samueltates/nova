@@ -8,7 +8,7 @@ import asyncio
 from llama_index.readers.base import BaseReader
 from llama_index.readers.schema.base import Document
 import json
-
+from nova import addAuth, getAuth, eZprint
 userAuths = dict()
 
 SCOPES = ["https://www.googleapis.com/auth/documents.readonly"]
@@ -42,7 +42,7 @@ def oauth2callback():
     state = userAuths['state']    
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         'credentials.json', scopes=SCOPES, state=state)
-    flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme='https')
+    flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
 
     # Use the authorization server's response to fetch the OAuth 2.0 tokens.
     authorization_response = request.url
@@ -54,10 +54,12 @@ def oauth2callback():
     #              credentials in a persistent database instead.
     credentials = flow.credentials
                 # Save the credentials for the next run
-    with open(userAuths['userID']+"-token.json", "w") as token:
-        token.write(credentials.to_json())
+    addAuth(userAuths['userID'], credentials)
+    # with open(userAuths['userID']+"-token.json", "w") as token:
+    #     token.write(credentials.to_json())
+    #     userAuths['creds']= credentials
     userAuths['authorised'] = True,
-    return redirect(url_for('authComplete', _external=True,  _scheme='https'))
+    return redirect(url_for('authComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
     
 
 @app.route('/authComplete')
@@ -118,8 +120,10 @@ class GoogleDocsReader(BaseReader):
    
         creds = None
         userAuths['authorised'] = False
-        if os.path.exists( userID +"-token.json"):
-            creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
+        authToken = json.loads(getAuth(userID))
+        print(authToken)
+        if 'credentials' in authToken:
+            creds = Credentials(authToken['blob']['credentials'])
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -131,7 +135,7 @@ class GoogleDocsReader(BaseReader):
                 flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
                 'credentials.json',
                 scopes=['https://www.googleapis.com/auth/documents.readonly'])    
-                flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme='https')
+                flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
                 authorization_url, state = flow.authorization_url(
                     # Enable offline access so that you can refresh an access token without
                     # re-prompting the user for permission. Recommended for web server apps.
@@ -157,8 +161,12 @@ class GoogleDocsReader(BaseReader):
         while not userAuths['authorised']:
             await asyncio.sleep(1)
         print('authorised')
-        if os.path.exists( userID +"-token.json"):
-            creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
+        authToken = json.loads(getAuth(userID))
+        print(authToken)
+        if 'credentials' in authToken:
+            creds = Credentials(authToken['blob']['credentials'])
+        # if os.path.exists( userID +"-token.json"):
+        #     creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
         return creds
     
 

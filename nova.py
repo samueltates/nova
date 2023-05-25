@@ -268,6 +268,24 @@ def sendPrompt(promptString):
     # eZprint(response)
     return response
 
+async def addAuth(userID, userName, credentials):
+    credentials = await prisma.user.create(
+        data= {
+            'UserID': userID,
+            'name': 'sam',
+            'blob': Json({'credentials': credentials})
+        }
+    )
+    return credentials
+
+async def getAuth(userID):
+    credentials = await prisma.user.find_unique(
+        where={
+            'UserID': userID
+        }
+    )
+    return credentials
+
 
 async def addCartridgePrompt(input):
     # await prisma.disconnect()
