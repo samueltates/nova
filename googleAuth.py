@@ -120,7 +120,8 @@ class GoogleDocsReader(BaseReader):
    
         creds = None
         userAuths['authorised'] = False
-        authToken = json.loads(nova.getAuth(userID))
+        authResponse = await nova.getAuth(userID)
+        authToken = json.loads(authResponse)
         print(authToken)
         if 'credentials' in authToken:
             creds = Credentials(authToken['blob']['credentials'])
