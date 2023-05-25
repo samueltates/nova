@@ -280,17 +280,38 @@ async def addAuth(userID, credentials):
     return credentials
 
 async def getAuth(userID):
-    credentials = await prisma.user.find_first(
+    user = await prisma.user.find_first(
         where={
             'UserID': userID
         }
     )
-    if(credentials): 
-        return credentials
+    print(user)
+    if(user): 
+        parsedUser = json.loads(user.json())
+        print(parsedUser)
+        parsedCred = dict()
+        parsedCred = json.loads(parsedUser['blob']['credentials'])
+        return parsedCred
     else:
         return None
 
-
+async def updateAuth(userID, credentials):
+    user = await prisma.user.find_first(
+        where={
+            'UserID': userID
+        }
+    )
+    print(user)
+    if(user):
+        foundUser = await prisma.user.update(
+            where={
+                'id': user.id
+            },
+            data= {
+                'blob': Json({'credentials': credentials.to_json()})
+            }
+        )
+        return user
 async def addCartridgePrompt(input):
     # await prisma.disconnect()
     # await prisma.connect()

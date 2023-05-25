@@ -103,9 +103,13 @@ class GoogleDocsReader(BaseReader):
         """
 
         credentials = await self._get_credentials(userID)
+        print(credentials)
         docs_service = discovery.build("docs", "v1", credentials=credentials)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_content = doc.get("body").get("content")
+
+        await nova.updateAuth(userID, credentials)
+
         return self._read_structural_elements(doc_content)
 
     async def _get_credentials(self, userID) -> Any:
@@ -125,42 +129,43 @@ class GoogleDocsReader(BaseReader):
         print(authResponse)
         if(authResponse is not None):
             print('authResponse')
-            print('credentials' : authResponse['blob']['credentials'])
-            creds = Credentials(authResponse['blob']['credentials'])
+            credentials = {
+                "token": authResponse['token'],
+                "refresh_token": authResponse['refresh_token'],
+                "token_uri": authResponse['token_uri'],
+                "client_id": authResponse['client_id'],
+                "client_secret": authResponse['client_secret'],
+            }
+            creds = Credentials(**credentials)
+            print(creds.refresh_token)
+            print(creds.client_id)
         # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                print('refreshing')
-                creds.refresh(Request())
-                userAuths['authorised'] = True
-            else:
-                print('getting new')
-                flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-                'credentials.json',
-                scopes=['https://www.googleapis.com/auth/documents.readonly'])    
-                flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
-                authorization_url, state = flow.authorization_url(
-                    # Enable offline access so that you can refresh an access token without
-                    # re-prompting the user for permission. Recommended for web server apps.
-                    access_type='offline',
-                    # Enable incremental authorization. Recommended as a best practice.
-                    include_granted_scopes='true'
-                    
-                    )
-                print(authorization_url)
-                print(state)
-                print(creds)
-                userAuths.update({
-                    'state':state,
-                    'authorised':False,
-                    'userID':userID
-                } )
-                # session['state'] = state  
-                # session['userID'] = userID
-                # session['authorised'] = False
-                
-                app.redirect(authorization_url)
-                await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
+        if not creds:
+        
+            print('getting new')
+            flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+            'credentials.json',
+            scopes=['https://www.googleapis.com/auth/documents.readonly'])    
+            flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+            authorization_url, state = flow.authorization_url(
+                # Enable offline access so that you can refresh an access token without
+                # re-prompting the user for permission. Recommended for web server apps.
+                access_type='offline',
+                # Enable incremental authorization. Recommended as a best practice.
+                include_granted_scopes='true'
+                )
+            
+            print(authorization_url)
+            print(state)
+            print(creds)
+            userAuths.update({
+                'state':state,
+                'authorised':False,
+                'userID':userID
+            })
+
+            app.redirect(authorization_url)
+            await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
             while not userAuths['authorised']:
                 await asyncio.sleep(1)
             print('authorised')
