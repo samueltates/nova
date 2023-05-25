@@ -187,7 +187,7 @@ if __name__ == '__main__':
     port=int(os.getenv("PORT", default=5000))
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
-    # os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     asyncio.run(serve(app, config))
 
