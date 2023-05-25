@@ -42,7 +42,7 @@ def oauth2callback():
     state = userAuths['state']    
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         'credentials.json', scopes=SCOPES, state=state)
-    flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme='https') 
+    flow.redirect_uri = url_for('oauth2callback', _external=True) 
 
     # Use the authorization server's response to fetch the OAuth 2.0 tokens.
     authorization_response = request.url
