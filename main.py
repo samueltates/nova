@@ -61,7 +61,7 @@ async def process_message(parsed_data):
         if 'gDocID' in data:
             eZprint('indexing gDoc')
             print(data)
-            indexRecord = await indexDocument(data)
+            indexRecord = await asyncio.create_task(indexDocument(data))
             # indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
                 payload = {
@@ -71,9 +71,8 @@ async def process_message(parsed_data):
             await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
     # parse index query
     if(parsed_data['type']== 'queryIndex'):
-
         data = parsed_data['data']
-        await handleIndexQuery(data['userID'], data['cartKey'], data['sessionID'], data['query'])
+        await asyncio.create_task(handleIndexQuery(data['userID'], data['cartKey'], data['sessionID'], data['query']))
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         print(data)

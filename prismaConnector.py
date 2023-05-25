@@ -19,13 +19,21 @@ async def findMessages():
 async def findUsers():
     users = await prisma.user.find_many()
     print(users)
-    users = await prisma.user.delete_many()
+ 
+async def findCartridges():
+    cartridges = await prisma.cartridge.find_many(
+    )
+    lastCart = cartridges[-1]
+    # for cartridge in cartridges:
+
+    print(lastCart)
     
 async def main() -> None:
     await prisma.connect()
     # await findSummaries()
     # await findMessages()
-    await findUsers()
+    await findCartridges()
+    # await findUsers()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)

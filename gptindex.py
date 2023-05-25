@@ -150,9 +150,6 @@ async def reconstructIndex(indexJson, sessionID):
     return index
 
     
-
-
-
 async def queryIndex(queryString, index, indexType ):
     
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
