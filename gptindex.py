@@ -8,7 +8,7 @@ import os
 from appHandler import app, websocket
 import asyncio
 
-from googleAuth import GoogleDocsReader
+import GoogleDocsReader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 

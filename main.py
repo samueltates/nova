@@ -4,18 +4,25 @@ from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from appHandler import app, websocket
-
 import asyncio
 import json
 import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
 from googleAuth import login
+from redis import Redis
 
+
+app.session = session
 Session(app)
+
+@app.route("/")
+async def index():
+    return "welcome to the inne (dex)!"
 
 @app.route("/hello")
 async def hello():
+
     return "Hello, World!"
 
 @app.before_serving
@@ -28,14 +35,37 @@ async def shutdown():
     await prismaDisconnect()
     print("Disconnected from Prisma")
 
-@app.route('/start-session', methods=['GET'])
-async def start_session():
+@app.route("/startsession")
+async def startsession():
+    print('start-session route hit')
     if 'session_id' not in session:
-        session['session_id'] = os.urandom(24).hex()
-
+        app.session['session_id'] = os.urandom(24).hex()
     # While creating the guest session, you can also set boundaries, limitations, or other flags.
     response_data = {'session_id': session['session_id']}
     return jsonify(response_data)
+
+@app.route('/SSO', methods=['GET'])
+async def SSO():
+    loginURL = await login()
+    print(loginURL)
+    return jsonify({'message' : 'please authenticate here', 'url': loginURL})
+
+@app.route('/awaitSSO', methods=['GET']) 
+async def awaitSSO():
+    print('awaitSSO route hit')
+    print(app.session.get('userID'))
+    while(app.session.get('userID') == None):
+        # print('awaiting sSSO')
+        # print(app.session.get('userID'))
+
+        # print(app.session)
+        await asyncio.sleep(1)
+    print('SSO complete')
+    return jsonify({'event':'ssoComplete', 'payload': {
+        'userID': app.session.userID,
+        'userName': app.session.userName,
+        'authorised': app.session.authorised
+          }})
 
 @app.websocket('/ws')
 async def ws():
@@ -46,10 +76,6 @@ async def ws():
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
-    # print(parsed_data['type'])
-    if(parsed_data['type'] == 'login'):
-        login()
-
     if(parsed_data['type'] == 'requestCartridges'):
         await initialiseCartridges(parsed_data['data'])
     # print(parsed_data['type']) # Will print 'requestCartridges'
@@ -98,6 +124,22 @@ async def process_message(parsed_data):
     if(parsed_data["type"] == '__ping__'):
         # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
+    if(parsed_data["type"] == 'ssoComplete'):
+        print('ssoComplete')
+        print(parsed_data['payload'])
+        app.session['userID'] = parsed_data['payload']['userID']
+        app.session['userName'] = parsed_data['payload']['userName']
+        app.session['authorised'] = parsed_data['payload']['authorised']
+        print(app.session.get('userID'))
+        print(app.session.get('userName'))
+        print(app.session.get('authorised'))
+        await websocket.send(json.dumps({'event':'ssoComplete', 'payload': {
+            'userID': app.session.userID,
+            'userName': app.session.userName,
+            'authorised': app.session.authorised
+            }}))
+        
+
 
     # if(parsed_data['type']== 'indexFile'):
     #     data = parsed_data['data']
@@ -198,7 +240,6 @@ if __name__ == '__main__':
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
-
     asyncio.run(serve(app, config))
 
     # app.run(debug=True, port=os.getenv("PORT", default=5000))

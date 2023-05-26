@@ -1,8 +1,7 @@
 import os
 from appHandler import app, websocket
-from quart import redirect, url_for, session, request
+from quart import redirect, url_for, request, render_template
 import asyncio
-
 import json
 import nova 
 
@@ -18,39 +17,51 @@ import google_auth_oauthlib.flow
 import googleapiclient.discovery as discovery
 from googleapiclient import errors
 
-from authlib.integrations.base_client.async_app import AsyncOAuthError
-from authlib.integrations.quart_client import OAuth
 
-# Setup OAuth and register Google provider
+# google auth docs : https://developers.google.com/identity/protocols/oauth2/web-server
+# oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
-oauth = OAuth(app)
-oauth.register(
-    name='google',
-    client_id=os.environ.get('CLIENT_ID')',
-    client_secret=os.environ.get('CLIENT_SECRET')
-    access_token_url='https://accounts.google.com/o/oauth2/token',
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
-    userinfo_endpoint='https://www.googleapis.com/oauth2/v3/userinfo',
-    client_kwargs={'scope': 'openid email'},
-)
 
-async def login():
-    redirect_uri = url_for('authoriseLogin', _external=True)
-    return await oauth.google.authorize_redirect(redirect_uri)
+async def login(sessionID):
+    print('login')
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'])    
+    flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+    authorization_url, state = flow.authorization_url(
+        # Enable offline access so that you can refresh an access token without
+        # re-prompting the user for permission. Recommended for web server apps.
+        access_type='offline',
+        # Enable incremental authorization. Recommended as a best practice.
+        include_granted_scopes='true'
+    )
+    app.session['state'] = state
+    redir = redirect(authorization_url)
+    print(redir)
+    return authorization_url
 
 @app.route('/authoriseLogin')
-async def authorize():
-    token = await oauth.google.authorize_access_token()
-    userinfo = await oauth.google.userinfo(token=token)
-    await nova.addAuth(userinfo, token)
-    # Here, userinfo contains the user's profile information such as email, name, etc.
-    # At this point, you can look up or create the user in your database,
-    # store the access and refresh tokens, and create a server-side session.
-
-    # ... (store tokens, create session, etc.)
-
-    # Redirect the user to a protected page or dashboard
-    return redirect(url_for('dashboard'))
+async def authoriseLogin():
+    print('authoriseLogin')
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'], state = app.session.get('state'))    
+    flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
+    print(request)
+    authorization_response = request.url
+    flow.fetch_token(authorization_response=authorization_response)
+    credentials = flow.credentials
+    userInfo = flow.authorized_session()
+    print(userInfo)
+    print(credentials)
+    service = discovery.build('oauth2', 'v2', credentials=credentials)
+    userInfo = service.userinfo().get().execute()
+    print(userInfo)
+    user = await nova.GoogleSignOn(userInfo, credentials)
+    app.session['userID'] = userInfo['id']
+    app.session['credentials'] = credentials.to_json()
+    app.session['authorised'] = True
+    app.session['userName'] = userInfo['name']
+    print(app.session)
+    return redirect(url_for('authComplete'))
 
 @app.route('/oauth2callback')
 async def oauth2callback():
@@ -84,9 +95,13 @@ async def oauth2callback():
 @app.route('/authComplete')
 async def authComplete():
     print('authComplete')
+    print(app.session.get('userID')),
+    print(app.session.get('userName')),
+    print(app.session.get('authorised'))
+    
+    return await render_template('auth_complete.html', user_id=app.session.get('userID'), user_name=app.session.get('userName'), authorised=app.session.get('authorised'))
     return "Authentication complete, please return to browser!"
 
-    # await websocket.send(json.dumps({'event':'authComplete'}))
 
 async def SignIn(sessionID):
     print('SignIn')

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Complete</title>
+    <script>
+        let user_id = "{{ user_id }}";
+        let user_name = "{{ user_name }}";
+        let authorised = JSON.parse("{{ authorised }}");
+        // Use your WebSocket URL here
+        let socket = new WebSocket("ws://127.0.0.1:5500/ws");
+
+        socket.addEventListener("open", (event) => {
+            socket.send(JSON.stringify({
+                type: "ssoComplete",
+                payload: {
+                    userID: user_id,
+                    userName: user_name,
+                    authorised: authorised
+                }
+            }));
+        });
+
+        // Optional: Close WebSocket connection after sending the message
+        socket.addEventListener("message", (event) => {
+            socket.close();
+        });
+    </script>
+</head>
+<body>
+    Authentication complete, please return to browser!
+</body>
+</html>
