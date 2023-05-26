@@ -1,19 +1,18 @@
 import os
-import json
-import base64
-
-# import json
-from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
-from gptindex import indexDocument
-import logging
-import asyncio
-
+from quart import request, jsonify, url_for, session
+from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
-
 from appHandler import app, websocket
-from quart import request, url_for
 
+import asyncio
+import json
+import base64
+from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
+from gptindex import indexDocument
+from googleAuth import login
+
+Session(app)
 
 @app.route("/hello")
 async def hello():
@@ -29,6 +28,15 @@ async def shutdown():
     await prismaDisconnect()
     print("Disconnected from Prisma")
 
+@app.route('/start-session', methods=['GET'])
+async def start_session():
+    if 'session_id' not in session:
+        session['session_id'] = os.urandom(24).hex()
+
+    # While creating the guest session, you can also set boundaries, limitations, or other flags.
+    response_data = {'session_id': session['session_id']}
+    return jsonify(response_data)
+
 @app.websocket('/ws')
 async def ws():
     eZprint('socket route hit')
@@ -39,6 +47,9 @@ async def ws():
 
 async def process_message(parsed_data):
     # print(parsed_data['type'])
+    if(parsed_data['type'] == 'login'):
+        login()
+
     if(parsed_data['type'] == 'requestCartridges'):
         await initialiseCartridges(parsed_data['data'])
     # print(parsed_data['type']) # Will print 'requestCartridges'

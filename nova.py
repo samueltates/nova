@@ -268,6 +268,35 @@ def sendPrompt(promptString):
     # eZprint(response)
     return response
 
+
+async def GoogleSignOn(userinfo, token):
+    userRecord = await prisma.user.find_first(
+        where={
+            'UserID': userinfo['sub']
+        }
+    )
+    if(userRecord):
+        foundUser = await prisma.user.update(
+            where={
+                'id': userRecord.id
+            },
+            data= {
+                'blob': Json({'credentials': token.to_json()})
+            }
+        )
+        return foundUser
+    else:
+        newUser = await prisma.user.create(
+            data= {
+                'UserID': userinfo['sub'],
+                'name': userinfo['name'],
+                'blob': Json({'credentials': token.to_json()})
+            }
+        )
+        return newUser
+
+
+
 async def addAuth(userID, credentials):
     print(credentials.to_json())
     credentials = await prisma.user.create(
@@ -312,6 +341,8 @@ async def updateAuth(userID, credentials):
             }
         )
         return user
+    
+    
 async def addCartridgePrompt(input):
     # await prisma.disconnect()
     # await prisma.connect()

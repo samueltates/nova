@@ -33,5 +33,9 @@ google-auth-httplib2 = "*"
 google-auth = "*"
 prisma = "*"
 google-auth-oauthlib = "*"
+authlib = "*"
+quart-session = "*"
+async-oauthlib = "*"
+quart-auth = "*"
 
 [dev-packages]
