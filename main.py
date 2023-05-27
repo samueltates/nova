@@ -9,12 +9,14 @@ import json
 import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
-from googleAuth import login
-from redis import Redis
+from googleAuth import login,silent_check_login
+from quart_redis import RedisHandler, get_redis
 
 
 app.session = session
+redis_handler = RedisHandler(app)
 Session(app)
+# redis = get_redis()
 
 @app.route("/")
 async def index():
@@ -28,6 +30,8 @@ async def hello():
 @app.before_serving
 async def startup():
     await prismaConnect()
+    app.redis = get_redis()
+
     # await googleAuthHandler()
 
 @app.after_serving
@@ -38,34 +42,56 @@ async def shutdown():
 @app.route("/startsession")
 async def startsession():
     print('start-session route hit')
-    if 'session_id' not in session:
-        app.session['session_id'] = os.urandom(24).hex()
-    # While creating the guest session, you can also set boundaries, limitations, or other flags.
-    response_data = {'session_id': session['session_id']}
+    sessionID = await app.redis.get('sessionID')
+    if sessionID == None:
+        sessionID = await app.redis.set('sessionID', os.urandom(24).hex()) 
+    sessionID = sessionID.decode('utf-8')
+    payload = {
+        'sessionID': sessionID
+    }
+    # print('sessionID: ' + sessionID)
+    # isAuthenticated = await silent_check_login()
+    # userName = None
+    # if isAuthenticated:
+    #     userName = await app.redis.get('userName')
+    #     if userName:
+    #         payload['isAuthenticated'] = isAuthenticated
+    #         userName = userName.decode('utf-8')
+    #         payload['userName'] = userName
+    response_data = {payload}
     return jsonify(response_data)
 
 @app.route('/SSO', methods=['GET'])
 async def SSO():
     loginURL = await login()
+    print('login retrieved')
     print(loginURL)
     return jsonify({'message' : 'please authenticate here', 'url': loginURL})
 
 @app.route('/awaitSSO', methods=['GET']) 
 async def awaitSSO():
     print('awaitSSO route hit')
-    print(app.session.get('userID'))
-    while(app.session.get('userID') == None):
-        # print('awaiting sSSO')
-        # print(app.session.get('userID'))
-
-        # print(app.session)
+    print(await app.redis.get('userID'))
+    while(await app.redis.get('userID') == None):
         await asyncio.sleep(1)
     print('SSO complete')
-    return jsonify({'event':'ssoComplete', 'payload': {
-        'userID': app.session.userID,
-        'userName': app.session.userName,
-        'authorised': app.session.authorised
-          }})
+    userID = await app.redis.get('userID')
+    userName = await app.redis.get('userName')
+    authorised = await app.redis.get('authorised')
+    sessionID = await app.redis.get('sessionID')
+    userID = userID.decode('utf-8')
+    userName = userName.decode('utf-8')
+    authorised = authorised.decode('utf-8')
+    sessionID = sessionID.decode('utf-8')
+
+    payload = {
+        'userID': userID,
+        'userName': userName,
+        'authorised': authorised,
+        'sessionID': sessionID
+    }
+
+    return jsonify({'event':'ssoComplete', 'payload':payload})
 
 @app.websocket('/ws')
 async def ws():
@@ -78,6 +104,22 @@ async def ws():
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
         await initialiseCartridges(parsed_data['data'])
+    if(parsed_data['type'] == 'requestCartridgesAuthed'):
+        userID = await app.redis.get('userID')
+        userName = await app.redis.get('userName')
+        sessionID = await app.redis.get('sessionID')
+        userID = userID.decode('utf-8')
+        userName = userName.decode('utf-8')
+        sessionID = sessionID.decode('utf-8')
+        userInfo = {
+            'userID': userID,
+            'userName': userName,
+            'sessionID' : sessionID
+        }
+        print('requestCartridgesAuthed route hit')
+        print(userInfo)
+
+        await initialiseCartridges(userInfo)
     # print(parsed_data['type']) # Will print 'requestCartridges'
     # print(parsed_data['data']) # Will print the data sent by the client
     if(parsed_data['type'] == 'sendMessage'):
@@ -101,11 +143,11 @@ async def process_message(parsed_data):
             indexRecord = await asyncio.create_task(indexDocument(data))
             # indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
-                payload = {
+                request = {
                     'tempKey': data['tempKey'],
                     'newCartridge': indexRecord,
                 }
-            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
     # parse index query
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
@@ -125,18 +167,17 @@ async def process_message(parsed_data):
         # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
     if(parsed_data["type"] == 'ssoComplete'):
-        print('ssoComplete')
+        print('ssoComplete called by html template.')
         print(parsed_data['payload'])
-        app.session['userID'] = parsed_data['payload']['userID']
-        app.session['userName'] = parsed_data['payload']['userName']
-        app.session['authorised'] = parsed_data['payload']['authorised']
-        print(app.session.get('userID'))
-        print(app.session.get('userName'))
-        print(app.session.get('authorised'))
+        await app.redis.set('userID', parsed_data['payload']['userID'])
+        await app.redis.set('userName', parsed_data['payload']['userName'])
+        await app.redis.set('authorised', parsed_data['payload']['authorised'])
+
+        
         await websocket.send(json.dumps({'event':'ssoComplete', 'payload': {
-            'userID': app.session.userID,
-            'userName': app.session.userName,
-            'authorised': app.session.authorised
+            'userID': parsed_data['payload']['userID'],
+            'userName': parsed_data['payload']['userName'],
+            'authorised': parsed_data['payload']['authorised']
             }}))
         
 

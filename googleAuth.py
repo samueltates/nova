@@ -21,8 +21,19 @@ from googleapiclient import errors
 # google auth docs : https://developers.google.com/identity/protocols/oauth2/web-server
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
+async def silent_check_login():
+    user_id = await app.redis.get('userID')
+    credentials = await app.redis.get('credentials')
+    # Check if the credentials exist and are valid
+    if user_id and credentials:
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    
+        # Check if the credentials are not expired
+        if not creds_obj.expired:
+            return True
+    return False
 
-async def login(sessionID):
+async def login():
     print('login')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'])    
@@ -34,34 +45,67 @@ async def login(sessionID):
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
     )
-    app.session['state'] = state
+    await app.redis.set('state', state)
+    print(await app.redis.get('state'))
     redir = redirect(authorization_url)
     print(redir)
+    print('login complete')
     return authorization_url
 
 @app.route('/authoriseLogin')
 async def authoriseLogin():
     print('authoriseLogin')
+    print(await app.redis.get('state'))
+    stored_state = await app.redis.get('state')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'], state = app.session.get('state'))    
+    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'], state = stored_state.decode("utf-8")
+    )    
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
     print(request)
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
+    print('flow token fetched')
+    # print(flow.credentials)
     credentials = flow.credentials
+    print('credentials fetched')
     userInfo = flow.authorized_session()
+    print('userInfo fetched')
+
     print(userInfo)
     print(credentials)
     service = discovery.build('oauth2', 'v2', credentials=credentials)
     userInfo = service.userinfo().get().execute()
     print(userInfo)
+
     user = await nova.GoogleSignOn(userInfo, credentials)
-    app.session['userID'] = userInfo['id']
-    app.session['credentials'] = credentials.to_json()
-    app.session['authorised'] = True
-    app.session['userName'] = userInfo['name']
-    print(app.session)
+
+    await app.redis.set('userID', userInfo['id'])
+    await app.redis.set('credentials', credentials.to_json())
+    await app.redis.set('authorised',  1)
+    await app.redis.set('userName', userInfo['name'])
+    
+    print(app.redis)
+    
     return redirect(url_for('authComplete'))
+
+
+
+@app.route('/authComplete')
+async def authComplete():
+    print('authComplete')
+    user_id = await app.redis.get('userID')
+    user_name = await app.redis.get('userName')
+    authorised = await app.redis.get('authorised')
+    user_id = user_id.decode("utf-8")
+    user_name = user_name.decode("utf-8")
+    authorised = authorised.decode("utf-8")
+
+    # print(await app.redis.get('userName').decode("utf-8")),
+    # print(await app.redis.get('authorised').decode("utf-8"))
+    
+    return await render_template('auth_complete.html', user_id=user_id, user_name=user_name, authorised=authorised)
+    return "Authentication complete, please return to browser!"
+
 
 @app.route('/oauth2callback')
 async def oauth2callback():
@@ -91,17 +135,6 @@ async def oauth2callback():
     userAuths['authorised'] = True,
     return redirect(url_for('authComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
     
-
-@app.route('/authComplete')
-async def authComplete():
-    print('authComplete')
-    print(app.session.get('userID')),
-    print(app.session.get('userName')),
-    print(app.session.get('authorised'))
-    
-    return await render_template('auth_complete.html', user_id=app.session.get('userID'), user_name=app.session.get('userName'), authorised=app.session.get('authorised'))
-    return "Authentication complete, please return to browser!"
-
 
 async def SignIn(sessionID):
     print('SignIn')

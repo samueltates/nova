@@ -27,13 +27,46 @@ async def findCartridges():
     # for cartridge in cartridges:
 
     print(lastCart)
+
+
+async def findAndMarkLogsOver2k():
+       # and sets to true if they're too long
+    logs = await prisma.log.find_many(           
+        where = {'batched' : False,}  
+)
+
+    unsumarisedLogMessages= []
+    logsToBatch = []
+    for log in logs:
+        messages = await prisma.message.find_many(
+        where = {'SessionID' : log.SessionID,}
+        )
+        unsumarisedLogMessages.append(messages)
+        print(len(str(messages)))
+        logID = log.id
+        # print( 'logID ' + str(logID))
+        if len(str(messages)) > 20000:
+            print('logID ' + str(logID))
+            logsToBatch.append(log)
+        
+        for log in logsToBatch:
+            updatedLog = await prisma.log.update(
+                where={'id': log.id},
+                data={'batched': True,
+                    'summary': 'fix me'
+                    }
+                # where={'SessionID': '7dcd4d0f753916c0ba0a8d91c53c97af1ab2f1f1'},
+                # data={'batched': True,}
+            )
+            print(log)
     
 async def main() -> None:
     await prisma.connect()
     # await findSummaries()
     # await findMessages()
-    await findCartridges()
-    # await findUsers()
+    # await findCartridges()
+    # await findAndMarkLogsOver2k()
+    await findUsers()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)

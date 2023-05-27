@@ -38,5 +38,6 @@ quart-session = "*"
 async-oauthlib = "*"
 quart-auth = "*"
 redis = "*"
+quart-redis = "*"
 
 [dev-packages]

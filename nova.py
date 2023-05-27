@@ -54,14 +54,6 @@ async def initialiseCartridges(data):
 async def loadCartridges(data):
     eZprint('load cartridges called')
     # eZprint('prisma connected')
-    if 'authorised' in data and data['authorised'] == True:
-        print('request from authorised user')
-        cartridges = await prisma.cartridge.find_many(
-            where = {  
-            "UserID": app.session.get('userID'),
-            }
-        )        
-
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": data['userID'],
@@ -92,33 +84,33 @@ async def runCartridges(input):
                 cartVal = availableCartridges[input['sessionID']][cartridge]
                 await runMemory(input, cartridge, cartVal)
 
-    else    :
-        eZprint('no cartridges found, loading default')
-        cartKey = generate_id()
-        cartVal = {
-                        'label': 'overview',
-                        'type': 'prompt',
-                        'prompt': 'This is a new conversation started with Nova - a conversational AI assistant. These are the things Nova will try to communicate : The Nova interface consists of a chat window and a set of cartridges that define different functions, currently prompt injection, persistent conversation and document summary. The prompts are used to guide the conversation and can be used to add new topics to the conversation. Nova is a project designed to explore self determination for an AI assistant, and paired curation of AI abilities. Novas objectives are to help you be creative, organised. However you can change this by adding and muting prompts like this one. For example you can add a producer prompt that tells nova to ask about timelines and follow up, or a designer prompt that prompts nova to be more creative and blue sky. We are hoping to create the ability to have nova set, read and change their own prompts, as well as create follow up actions. Nova also has the ability to summarise their ongoing conversations and maintain summaries in the conversation, as well as upload large texts which can be indexed and queried. Most recently the system has been updated to distinguish between users so each set of cartridges and conversation summaries is unique to the user.',
-                        'enabled': True,
-                        }
-        addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
-        availableCartridges.setdefault(
-            input['sessionID'], dict()).update({cartKey: cartVal})
+    # else    :
+    #     eZprint('no cartridges found, loading default')
+    #     cartKey = generate_id()
+    #     cartVal = {
+    #                     'label': 'overview',
+    #                     'type': 'prompt',
+    #                     'prompt': 'This is a new conversation started with Nova - a conversational AI assistant. These are the things Nova will try to communicate : The Nova interface consists of a chat window and a set of cartridges that define different functions, currently prompt injection, persistent conversation and document summary. The prompts are used to guide the conversation and can be used to add new topics to the conversation. Nova is a project designed to explore self determination for an AI assistant, and paired curation of AI abilities. Novas objectives are to help you be creative, organised. However you can change this by adding and muting prompts like this one. For example you can add a producer prompt that tells nova to ask about timelines and follow up, or a designer prompt that prompts nova to be more creative and blue sky. We are hoping to create the ability to have nova set, read and change their own prompts, as well as create follow up actions. Nova also has the ability to summarise their ongoing conversations and maintain summaries in the conversation, as well as upload large texts which can be indexed and queried. Most recently the system has been updated to distinguish between users so each set of cartridges and conversation summaries is unique to the user.',
+    #                     'enabled': True,
+    #                     }
+    #     addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
+    #     availableCartridges.setdefault(
+    #         input['sessionID'], dict()).update({cartKey: cartVal})
         
-        cartKey = "summary"
-        cartVal = {
-                            'label': 'summary',
-                            'type': 'summary',
-                            'description':' a summary function that will summarise the conversation and store it in the database',
-                            'enabled': True,
-                            }
-        addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
-        availableCartridges.setdefault(
-            input['sessionID'], dict()).update({cartKey: cartVal})
-        await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[input['sessionID']]}))
+    #     cartKey = "summary"
+    #     cartVal = {
+    #                         'label': 'summary',
+    #                         'type': 'summary',
+    #                         'description':' a summary function that will summarise the conversation and store it in the database',
+    #                         'enabled': True,
+    #                         }
+    #     addNewUserCartridgeTrigger(input['userID'],cartKey, cartVal)
+    #     availableCartridges.setdefault(
+    #         input['sessionID'], dict()).update({cartKey: cartVal})
+    #     await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[input['sessionID']]}))
 
-        # asyncio.run(runMemory(input))
-        await runCartridges(input)
+    #     # asyncio.run(runMemory(input))
+    #     await runCartridges(input)
 
 
 async def handleChatInput(input):
