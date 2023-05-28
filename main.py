@@ -12,7 +12,6 @@ from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
 from quart_redis import RedisHandler, get_redis
 
-
 app.session = session
 redis_handler = RedisHandler(app)
 Session(app)
@@ -132,11 +131,15 @@ async def process_message(parsed_data):
         else:
             sessionID = await app.redis.get('sessionID')
             sessionID = sessionID.decode('utf-8')
+            userID = await app.redis.set('userID', 'Guest')
+            userName = await app.redis.set('userName', 'Guest')
+
             userInfo = {
                 'userID': 'Guest',
                 'userName': 'Guest',
                 'sessionID' : sessionID
             }
+
         await initialiseCartridges(userInfo)
 
     if(parsed_data['type'] == 'requestCartridgesAuthed'):
@@ -190,7 +193,7 @@ async def process_message(parsed_data):
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         print(data)
-        await summariseChatBlocks(data['userID'], data['sessionID'], data['messageIDs'], data['summaryID'])
+        await summariseChatBlocks(data['messageIDs'], data['summaryID'])
     elif parsed_data["type"] == "indexdoc_start":
         await handle_indexdoc_start(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_chunk":

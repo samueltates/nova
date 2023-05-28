@@ -65,8 +65,8 @@ async def main() -> None:
     # await findSummaries()
     # await findMessages()
     # await findCartridges()
-    # await findAndMarkLogsOver2k()
-    await findUsers()
+    await findAndMarkLogsOver2k()
+    # await findUsers()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)
