@@ -128,12 +128,15 @@ async def initialiseCartridges(data):
     eZprint('intialising cartridges')
     await app.redis.delete('availableCartridges')
     await app.redis.delete('chatLog')
+    await app.redis.delete('UUID')
+    UUID = generate_id()
+    await app.redis.set('UUID', UUID)
     await loadCartridges(data)
     await runCartridges(data)
+    # await constructChatPrompt()
 
 async def loadCartridges(sessionRequest):
     eZprint('load cartridges called')
-    # eZprint('prisma connected')
     availableCartridges = {}
     cartridges = await prisma.cartridge.find_many(
         where = {  
@@ -161,11 +164,9 @@ async def loadCartridges(sessionRequest):
     eZprint('load cartridges complete')
 
 async def runCartridges(sessionRequest):
-    # socketio.emit('sendCartridgeStatus', 'Running Cartridge Functions')
     eZprint('running cartridges')
     cartridges_data =  await app.redis.hgetall(f'availableCartridges')
     all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
-    # print (all_cartridges)
     if len(all_cartridges) != 0:
         for cartKey, cartVal in all_cartridges.items():
             print (cartVal)
@@ -174,31 +175,34 @@ async def runCartridges(sessionRequest):
                 await runMemory(sessionRequest, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
-        cartKey = generate_id()
-        cartVal = {
-                        'label': 'overview',
+        for prompt in onboarding_prompts:
+            cartKey = generate_id()
+            cartVal = {
+                        'label': prompt['label'],
                         'type': 'prompt',
-                        'prompt': 'This is a new conversation started with Nova - a conversational AI assistant. These are the things Nova will try to communicate : The Nova interface consists of a chat window and a set of cartridges that define different functions, currently prompt injection, persistent conversation and document summary. The prompts are used to guide the conversation and can be used to add new topics to the conversation. Nova is a project designed to explore self determination for an AI assistant, and paired curation of AI abilities. Novas objectives are to help you be creative, organised. However you can change this by adding and muting prompts like this one. For example you can add a producer prompt that tells nova to ask about timelines and follow up, or a designer prompt that prompts nova to be more creative and blue sky. We are hoping to create the ability to have nova set, read and change their own prompts, as well as create follow up actions. Nova also has the ability to summarise their ongoing conversations and maintain summaries in the conversation, as well as upload large texts which can be indexed and queried. Most recently the system has been updated to distinguish between users so each set of cartridges and conversation summaries is unique to the user.',
+                        'prompt': prompt['prompt'],
+                        'position': prompt['position'],
                         'enabled': True,
-                        }
-        addNewUserCartridgeTrigger(cartKey, cartVal)
-        await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+            }
+            await addNewUserCartridgeTrigger(cartKey, cartVal)
         cartKey = "summary"
         cartVal = {
                             'label': 'summary',
                             'type': 'summary',
                             'description':' a summary function that will summarise the conversation and store it in the database',
                             'enabled': True,
+                            'position':0,
                             }
-        addNewUserCartridgeTrigger(cartKey, cartVal)
-        await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+        await addNewUserCartridgeTrigger(cartKey, cartVal)
         cartridges = await getAvailableCartridges()
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':cartridges}))
-        await runCartridges(input)
+        # await runCartridges(sessionRequest)
 
 async def addNewUserCartridgeTrigger(cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
+    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+
     sessionData = await getSessionData()
     newCart = await prisma.cartridge.create(
         data={
@@ -292,14 +296,18 @@ async def constructChatPrompt():
     chatLog = await getChatLog()
     sorted_logs = sorted(chatLog.values(), key=lambda x: x['order'])
     for log in sorted_logs:
+        print(log['order'])
         if 'muted' not in log or log['muted'] == False:
             if log['role'] == 'system':
                 promptObject.append({"role": "assistant", "content": log['body']})
             if log['role'] == 'user':  
                 promptObject.append({"role": "user", "content":log['body']})
 
+    if len(sorted_logs) == 0:
+        promptObject.append({"role": "system", "content": "Based on these prompts, please initiate the conversation with a short engaginge greeting."})
+
     eZprint('chat string constructed')
-    print(promptObject)
+    print(str(promptObject))
     chatSize =  estimateTokenSize(str(promptObject)) - promptSize 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
@@ -351,16 +359,18 @@ async def sendChat(promptObj):
     return response
 
 async def logMessage(messageObject):
+    UUID = await app.redis.get(f'UUID')
+    UUID = UUID.decode('utf-8')
     if app.config['DEBUG']:
         return
     log = await prisma.log.find_first(
-        where={'SessionID': messageObject['sessionID']}
+        where={'SessionID': UUID}
     )
     # TODO - need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
     if log == None:
         log = await prisma.log.create(
             data={
-                "SessionID": messageObject['sessionID'],
+                "SessionID": UUID,
                 "UserID": messageObject['userID'],
                 "date": datetime.now().strftime("%Y%m%d%H%M%S"),
                 "summary": "",
@@ -374,7 +384,7 @@ async def logMessage(messageObject):
     message = await prisma.message.create(
         data={
             "UserID": messageObject['userID'],
-            "SessionID": messageObject['sessionID'],
+            "SessionID": UUID,
             "name": messageObject['userName'],
             "timestamp": datetime.now(),
             "body": messageObject['body'],
@@ -385,7 +395,7 @@ async def getPromptEstimate():
     availableCartridges = await getAvailableCartridges()
     promptObject = []
     if(len(availableCartridges) != 0):
-        eZprint('found cartridges')
+        # eZprint('found cartridges')
         sorted_cartridges = sorted(availableCartridges.values(), key=lambda x: x.get('position', float('inf')))
         for index, promptVal in enumerate(sorted_cartridges):
             if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
@@ -400,7 +410,7 @@ async def getPromptEstimate():
                     promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
     promptSize = estimateTokenSize(str(promptObject))
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize}})))
-
+    
 async def getChatEstimate():
     promptObject = []
     chatLog = await getChatLog()
@@ -708,9 +718,11 @@ async def inject_summary(summary, position_to_insert):
 async def runMemory(input, cartKey, cartVal):
 
     eZprint('running memory')
+    UUID = await app.redis.get(f'UUID')
+    UUID = UUID.decode('utf-8')
     sessionData = await getSessionData()
     remoteLogs = await prisma.log.find_many(
-        where={'UserID': sessionData['userID']}
+        where={'UserID': UUID}
     )
     sessions = []
     if len(remoteLogs) != 0:
@@ -1023,4 +1035,51 @@ def fakeResponse():
     "If music be the food of love, play on.",
     "There is nothing either good or bad, but thinking makes it so.",
     "Brevity is the soul of wit."])
+
+
+
+onboarding_prompts = [
+    {
+    "label": "Continuity Welcome Prompt",
+    "type": "prompt",
+    "prompt": "Warmly welcome new users, specifically mentioning that they came from the guest view, emphasizing continuity between guest experience and membership. Share excitement about their decision to join.",
+    "position": 1,
+    "enabled": True
+    },
+    {
+    "label": "Story and Experience Prompt",
+    "type": "prompt",
+    "prompt": "Briefly introduce the story of building an incredible LLM interface together, focusing on creating a powerful and engaging experience for users along the journey.",
+    "position": 2,
+    "enabled": True
+    },
+    {
+    "label": "Memory, Programmability and Autonomy Prompt",
+    "type": "prompt",
+    "prompt": "Describe the core goals and roadmap for Nova, highlighting key features such as memory, programmability, and autonomy. Emphasize the summary memory system, different modes, and self-directed growth potential.",
+    "position": 3,
+    "enabled": True
+    },
+    {
+    "label": "Prompt Creation and Exploration Prompt",
+    "type": "prompt",
+    "prompt": "Encourage users to create their own prompts, switch between modes, and play with Nova's features to gain a better understanding of the capabilities. Communicate that this exploration will help them appreciate persistent memory and the information network.",
+    "position": 4,
+    "enabled": True
+    },
+    {
+    "label": "Connection to Creative Technologist Prompt",
+    "type": "prompt",
+    "prompt":"Share the benefits of creating an index and recommend connecting with Sam for an onboarding session to maximize their user experience. Excite users about the opportunity to be an early adopter.",
+    "position": 5,
+    "enabled": True
+    },
+    {
+    "label": "Community Invitation Prompt",
+    "type": "prompt",
+    "prompt": "Strengthen the sense of companionship by inviting users to be part of Nova's ongoing development journey. Share how their active involvement can help shape the evolution of Nova's capabilities and user experience.",
+    "position": 6,
+    "enabled": True
+    }
+]
 

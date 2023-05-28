@@ -26,7 +26,7 @@ async def findCartridges():
     lastCart = cartridges[-1]
     # for cartridge in cartridges:
 
-    print(lastCart)
+    print(cartridges)
 
 
 async def findAndMarkLogsOver2k():
@@ -59,13 +59,20 @@ async def findAndMarkLogsOver2k():
                 # data={'batched': True,}
             )
             print(log)
+
+async def findLogs():
+       # and sets to true if they're too long
+    logs = await prisma.log.find_many()
+    print(logs)
+
     
 async def main() -> None:
     await prisma.connect()
+    # await findLogs()
     # await findSummaries()
     # await findMessages()
-    # await findCartridges()
-    await findAndMarkLogsOver2k()
+    await findCartridges()
+    # await findAndMarkLogsOver2k()
     # await findUsers()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
