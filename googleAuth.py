@@ -4,6 +4,8 @@ from quart import redirect, url_for, request, render_template
 import asyncio
 import json
 import nova 
+import requests
+
 
 userAuths = dict()
 
@@ -25,11 +27,32 @@ async def silent_check_login():
     user_id = await app.redis.get('userID')
     credentials = await app.redis.get('credentials')
     # Check if the credentials exist and are valid
+    print(credentials)
     if user_id and credentials:
+        print('user_id and credentials found')
+        user_id = user_id.decode('utf-8')
+        credentials = credentials.decode('utf-8')
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-    
-        # Check if the credentials are not expired
-        if not creds_obj.expired:
+
+        # If the credentials have an expiry and the token is expired
+        if creds_obj.expiry and creds_obj.expired:
+            print('credentials expired')
+            # Check if the credentials have a refresh token
+            if creds_obj.refresh_token:
+                # Refresh the access token
+                try:
+                    creds_obj.refresh(Request())
+                    # Store the updated credentials
+                    print('credentials refreshed')
+                    await app.redis.set('credentials', creds_obj.to_json())
+                except :
+                    print(f"Failed to refresh the access token: ")
+                    return False
+            else:
+                print("No refresh token found for existing user")
+                return False
+        elif not creds_obj.expired:
+            print('credentials not expired')
             return True
     return False
 
@@ -46,33 +69,32 @@ async def login():
         include_granted_scopes='true'
     )
     await app.redis.set('state', state)
-    print(await app.redis.get('state'))
     redir = redirect(authorization_url)
     print(redir)
-    print('login complete')
+
+    print('got authorization')
+    print(authorization_url)
     return authorization_url
 
 @app.route('/authoriseLogin')
 async def authoriseLogin():
-    print('authoriseLogin')
-    print(await app.redis.get('state'))
+    print('authoriseLogin called')
+    print(request)
     stored_state = await app.redis.get('state')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'], state = stored_state.decode("utf-8")
     )    
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
-    print(request)
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
     print('flow token fetched')
     # print(flow.credentials)
     credentials = flow.credentials
+    print(credentials)
     print('credentials fetched')
     userInfo = flow.authorized_session()
     print('userInfo fetched')
-
     print(userInfo)
-    print(credentials)
     service = discovery.build('oauth2', 'v2', credentials=credentials)
     userInfo = service.userinfo().get().execute()
     print(userInfo)
@@ -102,9 +124,36 @@ async def authComplete():
 
     # print(await app.redis.get('userName').decode("utf-8")),
     # print(await app.redis.get('authorised').decode("utf-8"))
-    
+    return redirect(os.environ.get('NOVAHOME'))
+
     return await render_template('auth_complete.html', user_id=user_id, user_name=user_name, authorised=authorised)
-    return "Authentication complete, please return to browser!"
+
+async def logout():
+    credentials = await app.redis.get('credentials')
+    credentials = credentials.decode('utf-8')
+    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    if creds_obj:
+        access_token = creds_obj.token
+        if revoke_token(access_token):
+            await app.redis.delete('credentials')
+            await app.redis.delete('userID')
+            await app.redis.delete('userName')
+            await app.redis.delete('authorised')
+            return True
+    return False
+
+
+def revoke_token(token):
+    
+    revoke_url = "https://oauth2.googleapis.com/revoke"
+
+    # Revoke the token
+    response = requests.post(revoke_url, params={"token": token})
+    if response.status_code == 200:
+        return True
+    else:
+        print(f"Failed to revoke token: {response.text}")
+        return False
 
 
 @app.route('/oauth2callback')

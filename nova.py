@@ -30,7 +30,7 @@ import logging
 # logging.basicConfig()
 
 runningPrompts = dict()
-availableCartridges = dict()
+# availableCartridges = dict()
 allLogs = dict()
 responses = dict()
 logs = dict()
@@ -51,12 +51,13 @@ async def initialiseCartridges(data):
     await loadCartridges(data)
     await runCartridges(data)
 
-async def loadCartridges(data):
+async def loadCartridges(sessionRequest):
     eZprint('load cartridges called')
     # eZprint('prisma connected')
+    availableCartridges = {}
     cartridges = await prisma.cartridge.find_many(
         where = {  
-        "UserID": data['userID'],
+        "UserID": sessionRequest['userID'],
         }
     )
     eZprint('cartridge length is ' + str(len(cartridges)))
@@ -65,24 +66,32 @@ async def loadCartridges(data):
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal:
-                    availableCartridges.setdefault(
-                        data['sessionID'], dict()).update({cartKey: cartVal})
+                    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+                    # availableCartridges.setdefault(
+                    #     sessionRequest['sessionID'], dict()).update({cartKey: cartVal})
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
                         cartVal.update({'state': 'loading'})
-        await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[data['sessionID']]}))
+                    # eZprint('printing cart objs')
+        # print(await app.redis.hgetall(f'availableCartridges'))
+    cartridges_data =  await app.redis.hgetall(f'availableCartridges')
+    # all_cartridges = {key: json.loads(val) for key, val in cartridges_data.items()}
+    all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
+
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': all_cartridges}))
     eZprint('load cartridges complete')
 
-async def runCartridges(input):
+async def runCartridges(sessionRequest):
     # socketio.emit('sendCartridgeStatus', 'Running Cartridge Functions')
     eZprint('running cartridges')
-    if(input['sessionID'] in availableCartridges): 
-        for cartridge in availableCartridges[input['sessionID']]:
-            # print(availableCartridges[input['sessionID']][cartridge])
-            if availableCartridges[input['sessionID']][cartridge]['type'] == 'summary':
-                # eZprint('running cartridge: ' + cartridge)
-                cartVal = availableCartridges[input['sessionID']][cartridge]
-                await runMemory(input, cartridge, cartVal)
+    cartridges_data =  await app.redis.hgetall(f'availableCartridges')
+    all_cartridges = {key: json.loads(val) for key, val in cartridges_data.items()}
+    if len(all_cartridges) != 0:
+        for cartKey, cartVal in all_cartridges.items:
+            print (cartVal)
+            if cartVal['type'] == 'summary':
+                eZprint('running cartridge: ' + cartVal)
+                await runMemory(sessionRequest, cartKey, cartVal)
 
     # else    :
     #     eZprint('no cartridges found, loading default')

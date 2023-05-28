@@ -9,7 +9,7 @@ import json
 import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
-from googleAuth import login,silent_check_login
+from googleAuth import login, silent_check_login, logout
 from quart_redis import RedisHandler, get_redis
 
 
@@ -37,6 +37,7 @@ async def startup():
 @app.after_serving
 async def shutdown():
     await prismaDisconnect()
+    
     print("Disconnected from Prisma")
 
 @app.route("/startsession")
@@ -44,27 +45,32 @@ async def startsession():
     print('start-session route hit')
     sessionID = await app.redis.get('sessionID')
     if sessionID == None:
-        sessionID = await app.redis.set('sessionID', os.urandom(24).hex()) 
-    sessionID = sessionID.decode('utf-8')
+        sessionID = os.urandom(24).hex()
+        await app.redis.set('sessionID', sessionID) 
+    else:
+        sessionID = sessionID.decode('utf-8')
     payload = {
         'sessionID': sessionID
     }
-    # print('sessionID: ' + sessionID)
-    # isAuthenticated = await silent_check_login()
-    # userName = None
-    # if isAuthenticated:
-    #     userName = await app.redis.get('userName')
-    #     if userName:
-    #         payload['isAuthenticated'] = isAuthenticated
-    #         userName = userName.decode('utf-8')
-    #         payload['userName'] = userName
-    response_data = {payload}
-    return jsonify(response_data)
+    print('sessionID: ' + sessionID)
+    authorised = await silent_check_login()
+    userName = None
+    if authorised:
+        await app.redis.set('authorised', 1)
+        userName = await app.redis.get('userName')
+        if userName:
+            payload['authorised'] = authorised
+            userName = userName.decode('utf-8')
+            payload['userName'] = userName
+    else:
+        loginURL= await login()
+        payload['loginURL']= loginURL
+    return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
 async def SSO():
     loginURL = await login()
-    print('login retrieved')
+    print('SSO route hit')
     print(loginURL)
     return jsonify({'message' : 'please authenticate here', 'url': loginURL})
 
@@ -93,6 +99,13 @@ async def awaitSSO():
 
     return jsonify({'event':'ssoComplete', 'payload':payload})
 
+@app.route('/requestLogout', methods=['GET'])
+async def requestLogout():
+    print('requestLogout route hit')
+    logoutStatus = await logout()    
+    return jsonify({'logout': logoutStatus})
+
+
 @app.websocket('/ws')
 async def ws():
     eZprint('socket route hit')
@@ -103,7 +116,29 @@ async def ws():
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
-        await initialiseCartridges(parsed_data['data'])
+        authorised = await app.redis.get('authorised')
+        if authorised:
+            userID = await app.redis.get('userID')
+            userName = await app.redis.get('userName')
+            sessionID = await app.redis.get('sessionID')
+            userID = userID.decode('utf-8')
+            userName = userName.decode('utf-8')
+            sessionID = sessionID.decode('utf-8')
+            userInfo = {
+                'userID': userID,
+                'userName': userName,
+                'sessionID' : sessionID
+            }
+        else:
+            sessionID = await app.redis.get('sessionID')
+            sessionID = sessionID.decode('utf-8')
+            userInfo = {
+                'userID': 'Guest',
+                'userName': 'Guest',
+                'sessionID' : sessionID
+            }
+        await initialiseCartridges(userInfo)
+
     if(parsed_data['type'] == 'requestCartridgesAuthed'):
         userID = await app.redis.get('userID')
         userName = await app.redis.get('userName')
