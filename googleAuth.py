@@ -7,11 +7,6 @@ import nova
 import requests
 
 
-userAuths = dict()
-
-ACCOUNTSCOPE = ["https://www.googleapis.com/auth/userinfo.profile"]
-DRIVESCOPE = ["https://www.googleapis.com/auth/documents.readonly"]
-
 CLIENT_SECRETS_FILE = "credentials.json"
 
 from google.auth.transport.requests import Request
@@ -61,10 +56,6 @@ async def silent_check_login():
 async def login():
     print('login')
     credentials = await app.redis.get('credentials')
-    await app.redis.delete('scope')
-    
-    # await app.redis.delete('scopes')
-    # await app.redis.delete('userID')
     PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile'
     SCOPES = []
     if credentials:
@@ -78,14 +69,13 @@ async def login():
             for scope in SCOPES:
                 print(scope)
                 await app.redis.rpush('scopes', scope)
-
     else:
         print('credentials not found')
         SCOPES = [PROFILE_SCOPE]
+        await app.redis.delete('scopes')
         for scope in SCOPES:
             print(scope)
             await app.redis.rpush('scopes', scope)
-
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=SCOPES)    
     flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
@@ -115,8 +105,7 @@ async def authoriseLogin():
         localScopes.append(scope)
     print(localScopes)
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json', scopes=localScopes, state = state
-    )    
+    'credentials.json', scopes=localScopes, state=state) 
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
@@ -182,7 +171,6 @@ async def logout():
 def revoke_token(token):
     
     revoke_url = "https://oauth2.googleapis.com/revoke"
-
     # Revoke the token
     response = requests.post(revoke_url, params={"token": token})
     if response.status_code == 200:
@@ -226,6 +214,7 @@ async def docAuthComplete():
 
 
 async def GetDocCredentials():
+    print('GetDocCredentials')
     user_id = await app.redis.get('userID')
     credentials = await app.redis.get('credentials')
     # Check if the credentials exist and are valid
@@ -275,10 +264,7 @@ async def GetDocCredentials():
     
 
 async def NewDocAuthRequest():
-
-
     scopes=["https://www.googleapis.com/auth/documents.readonly"]   
-
     await app.redis.delete('scopes')
     for scope in scopes:
         print(scope)
@@ -294,7 +280,6 @@ async def NewDocAuthRequest():
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
     )
-
     await app.redis.set('state', state)
     redir = redirect(authorization_url)
     print(redir)

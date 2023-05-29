@@ -61,17 +61,16 @@ async def startsession():
             payload['authorised'] = authorised
             userName = userName.decode('utf-8')
             payload['userName'] = userName
-    else:
-        loginURL= await login()
-        payload['loginURL']= loginURL
+    # else:
+    #     loginURL= await login()
+    #     payload['loginURL']= loginURL
     return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
 async def SSO():
-    loginURL = await login()
     print('SSO route hit')
-    print(loginURL)
-    return jsonify({'message' : 'please authenticate here', 'url': loginURL})
+    loginURL = await login()
+    return jsonify({'loginURL': loginURL})
 
 @app.route('/awaitSSO', methods=['GET']) 
 async def awaitSSO():
