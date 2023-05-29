@@ -11,6 +11,7 @@ userAuths = dict()
 
 ACCOUNTSCOPE = ["https://www.googleapis.com/auth/userinfo.profile"]
 DRIVESCOPE = ["https://www.googleapis.com/auth/documents.readonly"]
+
 CLIENT_SECRETS_FILE = "credentials.json"
 
 from google.auth.transport.requests import Request
@@ -33,7 +34,7 @@ async def silent_check_login():
         user_id = user_id.decode('utf-8')
         credentials = credentials.decode('utf-8')
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-
+            
         # If the credentials have an expiry and the token is expired
         if creds_obj.expiry and creds_obj.expired:
             print('credentials expired')
@@ -51,15 +52,41 @@ async def silent_check_login():
             else:
                 print("No refresh token found for existing user")
                 return False
-        elif not creds_obj.expired:
-            print('credentials not expired')
+        elif not creds_obj.expired and creds_obj.has_scopes(['https://www.googleapis.com/auth/userinfo.profile']):
+            print('credentials not expired and has right scope')
             return True
+
     return False
 
 async def login():
     print('login')
+    credentials = await app.redis.get('credentials')
+    # await app.redis.delete('scopes')
+    # await app.redis.delete('userID')
+    PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile'
+    SCOPES = []
+    if credentials:
+        print('credentials found')
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        if not creds_obj.has_scopes(['https://www.googleapis.com/auth/userinfo.profile']) :
+            print('credentials do not have right scope')
+            SCOPES = creds_obj.scopes + [PROFILE_SCOPE]  # Add the Google Docs scope to the existing scopes.
+            print(SCOPES)
+            await app.redis.delete('scopes')
+            for scope in SCOPES:
+                print(scope)
+                await app.redis.rpush('scopes', scope)
+
+    else:
+        print('credentials not found')
+        SCOPES = [PROFILE_SCOPE]
+        for scope in SCOPES:
+            print(scope)
+            await app.redis.rpush('scopes', scope)
+    
+
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'])    
+    'credentials.json', scopes=SCOPES)    
     flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
     authorization_url, state = flow.authorization_url(
         # Enable offline access so that you can refresh an access token without
@@ -71,18 +98,23 @@ async def login():
     await app.redis.set('state', state)
     redir = redirect(authorization_url)
     print(redir)
-
     print('got authorization')
     print(authorization_url)
     return authorization_url
 
 @app.route('/authoriseLogin')
 async def authoriseLogin():
-    print('authoriseLogin called')
-    print(request)
-    stored_state = await app.redis.get('state')
+    print('authoriseLogin')
+    state = await app.redis.get('state')
+    state = state.decode("utf-8")
+    scopes = await app.redis.lrange("scopes", 0, -1)
+    scopes = [s.decode("utf-8") for s in scopes]
+    localScopes = []
+    for scope in scopes:
+        localScopes.append(scope)
+    print(localScopes)
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json', scopes=['https://www.googleapis.com/auth/userinfo.profile'], state = stored_state.decode("utf-8")
+    'credentials.json', scopes=localScopes, state = state
     )    
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
     authorization_response = request.url
@@ -132,6 +164,7 @@ async def logout():
     credentials = await app.redis.get('credentials')
     credentials = credentials.decode('utf-8')
     creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    
     if creds_obj:
         access_token = creds_obj.token
         if revoke_token(access_token):
@@ -139,6 +172,8 @@ async def logout():
             await app.redis.delete('userID')
             await app.redis.delete('userName')
             await app.redis.delete('authorised')
+            await app.redis.delete('scopes')
+
             return True
     return False
 
@@ -158,118 +193,126 @@ def revoke_token(token):
 
 @app.route('/oauth2callback')
 async def oauth2callback():
-  # Specify the state when creating the flow in the callback so that it can
-  # verified in the authorization server response.
     print('oauth2callback')
-    
-    state = userAuths['state']    
+    state = await app.redis.get('state')
+    state = state.decode("utf-8")
+    scopes = await app.redis.lrange("scopes", 0, -1)
+    # Convert scopes from bytes to string
+    scopes = [s.decode("utf-8") for s in scopes]
+    localScopes = []
+    for scope in scopes:
+        localScopes.append(scope)
+    # scopes = scopes.decode("utf-8")
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'credentials.json', scopes=DRIVESCOPE, state=state)
+        'credentials.json', scopes=localScopes, state=state)
     flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
-
-    # Use the authorization server's response to fetch the OAuth 2.0 tokens.
     authorization_response = request.url
     print(request)
     flow.fetch_token(authorization_response=authorization_response)
-
-    # Store credentials in the session.
-    # ACTION ITEM: In a production app, you likely want to save these
-    #              credentials in a persistent database instead.
     credentials = flow.credentials
-                # Save the credentials for the next run
-    await nova.addAuth(userAuths['userID'], credentials)
-    # with open(userAuths['userID']+"-token.json", "w") as token:
-    #     token.write(credentials.to_json())
-    #     userAuths['creds']= credentials
-    userAuths['authorised'] = True,
-    return redirect(url_for('authComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
+    await app.redis.set('credentials', credentials.to_json())
+    return redirect(url_for('docAuthComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
     
 
-async def SignIn(sessionID):
-    print('SignIn')
-    # userAuths['state'] = sessionID
-    # userAuths['authorised'] = False
-    credentials = await GetCredentials(sessionID, ['https://www.googleapis.com/auth/userinfo.profile'], 'oauth2callbackProfile', )
-    service = discovery.build('oauth2', 'v2', credentials=credentials)
-    try:
-        user_info = service.userinfo().get().execute()
-        # Save user_info to your database, or use in your application logic
-    except errors.HttpError as error:
-        print(f"An error occurred: {error}")
+@app.route('/docAuthComplete')
+async def docAuthComplete():
+    print('docAuthComplete')
+    await app.redis.set ('docsAuthorised', 1)
+
+    return "Authentication complete, please return to browser!"
+
+    # await websocket.send(json.dumps({'event':'authComplete'}))
 
 
-async def GetCredentials(sessionID, SCOPES, redirect):
-    """Get valid user credentials from storage.
-
-    The file token.json stores the user's access and refresh tokens, and is
-    created automatically when the authorization flow completes for the first
-    time.
-
-    Returns:
-        Credentials, the obtained credential.
-    """
-
-    # creds = None
-    # userAuths[sessionID]['authorised'] = False
-    # # authResponse = await nova.getAuth(sessionID)
-    # # print(authResponse)
-    # # if(authResponse is not None):
-    # #     print('authResponse')
-    # #     credentials = {
-    # #         "token": authResponse['token'],
-    # #         "refresh_token": authResponse['refresh_token'],
-    # #         "token_uri": authResponse['token_uri'],
-    # #         "client_id": authResponse['client_id'],
-    # #         "client_secret": authResponse['client_secret'],
-    # #     }
-    # #     creds = Credentials(**credentials)
-    # #     print(creds.refresh_token)
-    # #     print(creds.client_id)
-    # # # If there are no (valid) credentials available, let the user log in.
-    # if not creds:
+async def GetDocCredentials():
+    user_id = await app.redis.get('userID')
+    credentials = await app.redis.get('credentials')
+    # Check if the credentials exist and are valid
+    print(credentials)
+    DOC_SCOPE = 'https://www.googleapis.com/auth/documents.readonly'
+    creds_obj = None
+    if user_id and credentials:
+        print('user_id and credentials found')
+        user_id = user_id.decode('utf-8')
+        credentials = credentials.decode('utf-8')
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        print(creds_obj)
+        if not creds_obj.has_scopes([DOC_SCOPE]) :
+            print('credentials do not have the right scope')
+            SCOPES = creds_obj.scopes + [DOC_SCOPE]  # Add the Google Docs scope to the existing scopes.
+            print(SCOPES)
+            await app.redis.delete('scopes')
+            for scope in SCOPES:
+                print(scope)
+                await app.redis.rpush('scopes', scope)
+            # await app.redis.set('SCOPES', SCOPES)
+            # Create a new authorization URL with the additional scope
+            flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=SCOPES) 
+            flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+            auth_url, state = flow.authorization_url(prompt='consent')
+            print(f"Please grant consent for Google Docs. Go to the following link: {auth_url}")
+            await app.redis.set('state', state )
+            await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':auth_url}}))
+            await app.redis.set('docsAuthorised', 0)
+            print('waiting for authorisation')
+            authorised = await app.redis.get('docsAuthorised')
+            authorised = int(authorised.decode('utf-8'))
+            while authorised == 0:
+                print('waiting for authorisation')
+                authorised = await app.redis.get('docsAuthorised')
+                authorised = int(authorised.decode('utf-8'))
+                print(authorised)
+                await asyncio.sleep(1)
+            credentials = await app.redis.get('credentials')
+            credentials = credentials.decode('utf-8')
+            creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    else :
+        print('user_id and credentials not found')
+        creds_obj = await NewDocAuthRequest()
     
-    print('getting new')
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json',
-    scopes=SCOPES)    
-    flow.redirect_uri = url_for(redirect, _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+    return creds_obj
+    
+
+async def NewDocAuthRequest():
+
+
+    scopes=["https://www.googleapis.com/auth/documents.readonly"]   
+
+    await app.redis.delete('scopes')
+    for scope in scopes:
+        print(scope)
+        await app.redis.rpush('scopes', scope)
+    # await app.redis.set('SCOPES', SCOPES)
+    # Create a new authorization URL with the additional scope
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=scopes) 
+    flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
     authorization_url, state = flow.authorization_url(
         # Enable offline access so that you can refresh an access token without
         # re-prompting the user for permission. Recommended for web server apps.
         access_type='offline',
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
-        )
-    
+    )
+
+    await app.redis.set('state', state)
+    redir = redirect(authorization_url)
+    print(redir)
+    print('got authorization')
     print(authorization_url)
-    print(state)
-    print(creds)
-    userAuths.update({
-        'state':state,
-        'authorised':False,
-        'userID':sessionID
-    })
-
-    redirect(authorization_url)
-
+    await app.redis.set('state', state )
     await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
-    while not userAuths['authorised']:
+    await app.redis.set('docsAuthorised', 0)
+    print('waiting for authorisation')
+    authorised = await app.redis.get('docsAuthorised')
+    authorised = int(authorised.decode('utf-8'))
+    while authorised == 0:
+        print('waiting for authorisation')
+        authorised = await app.redis.get('docsAuthorised')
+        authorised = int(authorised.decode('utf-8'))
+        print(authorised)
         await asyncio.sleep(1)
-    print('authorised')
-    authResponse = await nova.getAuth(userID)
-    if(authResponse is not None):
-        print('authResponse')
-        credentials = {
-            "token": authResponse['token'],
-            "refresh_token": authResponse['refresh_token'],
-            "token_uri": authResponse['token_uri'],
-            "client_id": authResponse['client_id'],
-            "client_secret": authResponse['client_secret'],
-        }
-        creds = Credentials(**credentials)
-        print(creds.refresh_token)
-        print(creds.client_id)
-        # if os.path.exists( userID +"-token.json"):
-        #     creds = Credentials.from_authorized_user_file(userID + "-token.json", SCOPES)
-    return creds
+    credentials = await app.redis.get('credentials')
+    credentials = credentials.decode('utf-8')
+    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    return creds_obj
 

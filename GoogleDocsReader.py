@@ -3,7 +3,7 @@ from llama_index.readers.schema.base import Document
 import googleapiclient.discovery as discovery
 
 from typing import Any, List
-from googleAuth import GetCredentials
+from googleAuth import GetDocCredentials
 import nova 
 
 
@@ -15,7 +15,7 @@ class GoogleDocsReader(BaseReader):
     """
 
 
-    async def load_data(self, document_ids: List[str], userID) -> List[Document]:
+    async def load_data(self, document_ids: List[str]) -> List[Document]:
         """Load data from the input directory.
 
         Args:
@@ -26,11 +26,20 @@ class GoogleDocsReader(BaseReader):
 
         results = []
         for document_id in document_ids:
-            doc = await self._load_doc(document_id, userID)
-            results.append(Document(doc, extra_info={"document_id": document_id}))
+            docResult = await self._load_doc(document_id)
+            doc = docResult['content']
+            docTitle = docResult['title']
+            results.append(Document(doc, extra_info={"document_id": document_id, "document_title": docTitle}))
         return results
 
-    async def _load_doc(self, document_id: str, sessionID) -> str:
+    async def _get_title(self, document_id:str):
+        credentials = await GetDocCredentials()
+        docs_service = discovery.build("docs", "v1", credentials=credentials)
+        doc = docs_service.documents().get(documentId=document_id).execute()
+        doc_title = doc.get("title")
+        return doc_title
+    
+    async def _load_doc(self, document_id: str) -> str:
         """Load a document from Google Docs.
 
         Args:
@@ -40,15 +49,19 @@ class GoogleDocsReader(BaseReader):
             The document text.
         """
 
-        credentials = await GetCredentials(sessionID, ['https://www.googleapis.com/auth/documents.readonly'],'oauth2callback',  )
+        credentials = await GetDocCredentials()
         print(credentials)
         docs_service = discovery.build("docs", "v1", credentials=credentials)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_content = doc.get("body").get("content")
+        doc_title = doc.get("title")
+        # await nova.updateAuth(credentials)
+        doc_info = {
+            "title": doc_title,
+            "content": self._read_structural_elements(doc_content)
+        }
 
-        await nova.updateAuth(sessionID, credentials)
-
-        return self._read_structural_elements(doc_content)
+        return doc_info
 
 
     def _read_paragraph_element(self, element: Any) -> Any:

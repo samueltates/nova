@@ -1,7 +1,10 @@
+[phases.setup]
+nixPkgs = ["...", "redis"]
+
 [phases.install]
-cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate']
+cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m', ]
 [phases.build]
 
 [start]
-cmd = 'pipenv run python main.py'
+cmds = ['pipenv run python main.py']
 

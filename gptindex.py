@@ -8,7 +8,7 @@ import os
 from appHandler import app, websocket
 import asyncio
 
-import GoogleDocsReader
+from GoogleDocsReader import GoogleDocsReader 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -39,21 +39,25 @@ UnstructuredReader = download_loader("UnstructuredReader")
 async def indexDocument(payload):
     nova.eZprint('indexDocument called')
     print(payload)
+
+    sessionData = await nova.getSessionData()
     indexType = payload['indexType']
-    sessionID = payload['sessionID']
+    sessionID = sessionData['sessionID']
     tempKey = payload['tempKey']
     userID = payload['userID']
-    documents = None
-
+    document = None
+    documentTitle = None
     if payload['document_type'] == 'googleDoc':
         gDocID = payload['gDocID']
         loader = GoogleDocsReader() 
-        documents = await loader.load_data(document_ids=[gDocID], userID=userID)
-        print(documents)
+        document = await loader.load_data([gDocID])
+        documentTitle = await loader._get_title(str(gDocID))
+        # print(document)
         
     elif payload['document_type'] == 'file':
         file_content = payload['file_content']
         file_name = payload['file_name']
+        documentTitle = file_name
         file_type = payload['file_type']
         nova.eZprint('reconstructing file')
         payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
@@ -66,17 +70,15 @@ async def indexDocument(payload):
         temp_file.close()
         
         unstructured_reader = UnstructuredReader()
-        documents = unstructured_reader.load_data(temp_file.name)
+        document = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
-
-        
     index = None
     if(indexType == 'Vector'):
         # index = GPTSimpleVectorIndex.from_documents(documents)
         nova.eZprint('vector index created')
     if(indexType == 'List'):
-        index = GPTListIndex.from_documents(documents)
+        index = GPTListIndex.from_documents(document)
         nova.eZprint('list index created')
 
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
@@ -90,47 +92,29 @@ async def indexDocument(payload):
             print(content)
             indexJson.update({file:content})
     # return
-
-
-    storage_context = StorageContext.from_defaults(persist_dir=tmpDir)
-    
+    # storage_context = StorageContext.from_defaults(persist_dir=tmpDir)
     # save_to_disk(tmpfile.name)
     # tmpfile.seek(0)
-    payload = { 'key':tempKey,'fields': {'status': 'index complete, getting title'}}
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    index = load_index_from_storage(storage_context)
-    name = await queryIndex('give this document a title', index, indexType)
-    name = str(name).strip()
-    blocks = []
-    block = {'query': 'Document title', 'response': name}
-    blocks.append(block)
-    payload = { 'key':tempKey,'fields': {'blocks': blocks,'status': 'index complete, getting title'}}
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    documentDescription = await queryIndex('Create a one sentence summary of this document, with no extraneous punctuation.', index, indexType) 
-    documentDescription = str(documentDescription).strip()
-    block = {'query': 'Document summary', 'response': documentDescription}
-    blocks.append(block)
-    payload = { 'key':tempKey,'fields': {'blocks': blocks, 'state':'', 'status':''}}
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+  
     cartval = {
-        'label': name,
+        'label' : documentTitle,
         'type': 'index',
         'description': 'a document indexed to be queriable by NOVA',
-        'blocks': blocks,
         'enabled': True,
         # 'file':{file_content},
         'index': indexJson,
         'indexType': indexType,
     }
 
-    newCart = await nova.addCartridgeTrigger(userID, sessionID, cartval)
-    nova.eZprint('printing new cartridge')
 
-    # print(newCart)
+    newCart = await nova.addCartridgeTrigger(cartval)
+    payload = { 'key':tempKey,'fields': {'label':documentTitle, 'status': 'index created, getting summary'}}
+    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+    nova.eZprint('printing new cartridge')
+    print(newCart)
     return newCart
 
-async def reconstructIndex(indexJson, sessionID):
+async def reconstructIndex(indexJson):
     tmpDir = tempfile.mkdtemp()
     # print(index)
     # nova.eZprint("reconstructIndex: tmpDir={}".format(tmpDir))

@@ -137,7 +137,9 @@ async def initialiseCartridges(data):
 
 async def loadCartridges(sessionRequest):
     eZprint('load cartridges called')
+    # eZprint(sessionRequest)
     availableCartridges = {}
+
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": sessionRequest['userID'],
@@ -169,7 +171,7 @@ async def runCartridges(sessionRequest):
     all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
     if len(all_cartridges) != 0:
         for cartKey, cartVal in all_cartridges.items():
-            print (cartVal)
+            # print (cartVal)
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
                 await runMemory(sessionRequest, cartKey, cartVal)
@@ -202,8 +204,9 @@ async def addNewUserCartridgeTrigger(cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
     await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
-
+    print('adding new user cartridge')
     sessionData = await getSessionData()
+    # print(sessionData)
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -215,7 +218,7 @@ async def addNewUserCartridgeTrigger(cartKey, cartVal):
     return newCart.blob
      
 async def getAvailableCartridges():
-    eZprint('getting available cartridges')
+    # eZprint('getting available cartridges')
     cartridges_data =  await app.redis.hgetall(f'availableCartridges')
     all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
     return all_cartridges
@@ -227,8 +230,11 @@ async def getChatLog():
 
 async def getNextOrder():
     chat_log_length = await app.redis.hlen(f'chatLog')
+    chatLog = await getChatLog()
+    eZprint('chat log printing on order request')
+    # print(chatLog)
     next_order = chat_log_length + 1
-    print('next order is: ' + str(next_order))
+    # print('next order is: ' + str(next_order))
     return next_order
 
 
@@ -236,7 +242,7 @@ async def getNextOrder():
 
 async def handleChatInput(input):
     eZprint('handling message')
-    
+    # print(input)
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
 
     sessionID = await app.redis.get('sessionID')
@@ -250,7 +256,7 @@ async def handleChatInput(input):
     messageObject = {
         "sessionID": sessionID,
         "messageID" : input['ID'],
-        "ID": input['ID'],
+        "ID": userID,
         "userName": userName,
         "userID": userID,
         "body": input['body'],
@@ -260,7 +266,7 @@ async def handleChatInput(input):
     }
 
     asyncio.create_task(logMessage(messageObject))
-    await app.redis.hset(f'chatLog', f'{input}', json.dumps(messageObject))
+    await app.redis.hset(f'chatLog', f'{messageObject}', json.dumps(messageObject))
     asyncio.create_task(constructChatPrompt()),
     eZprint('constructChat prompt called')
     # asyncio.create_task(checkCartridges(input))
@@ -307,7 +313,7 @@ async def constructChatPrompt():
         promptObject.append({"role": "system", "content": "Based on these prompts, please initiate the conversation with a short engaginge greeting."})
 
     eZprint('chat string constructed')
-    print(str(promptObject))
+    # print(str(promptObject))
     chatSize =  estimateTokenSize(str(promptObject)) - promptSize 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
@@ -319,17 +325,13 @@ async def constructChatPrompt():
     else :
         response = await sendChat(promptObject)
         eZprint('response received')
-        print(response)
+        # print(response)
         content = str(response["choices"][0]["message"]["content"])
 
     sessionData = await getSessionData()
-    print('session data')
     messageID = secrets.token_bytes(4).hex()
-    print('message id')
     time = str(datetime.now())
-    print('time')
     order = await getNextOrder()
-    print('order')
     messageObject = {
         "sessionID": sessionData['sessionID'],
         "userID": sessionData['userID'],
@@ -341,11 +343,8 @@ async def constructChatPrompt():
         "order": order,
 
     }
-    print('message object')
     asyncio.create_task(logMessage(messageObject))
-    print('log message')
-    await app.redis.hset(f'chatLog', f'{input}', json.dumps(messageObject))
-    print('redis hset')
+    await app.redis.hset(f'chatLog', f'{messageObject}', json.dumps(messageObject))
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
     
@@ -380,7 +379,7 @@ async def logMessage(messageObject):
         )
 
     eZprint('logging message')
-    print(messageObject)
+    # print(messageObject)
     message = await prisma.message.create(
         data={
             "UserID": messageObject['userID'],
@@ -433,9 +432,11 @@ async def addCartridgePrompt(input):
     cartKey = generate_id()
     cartVal = input['newCart'][input['tempKey']]
     cartVal.update({'state': ''})
+    sessionData = await getSessionData()
     newCart = await prisma.cartridge.create(
         data={
-            'UserID':input['userID'],
+            'key': cartKey,
+            'UserID':sessionData['userID'],
             'blob': Json({cartKey:cartVal})
         }
     )
@@ -453,11 +454,12 @@ async def addCartridgeTrigger(cartVal):
     sessionData = await getSessionData()
     newCart = await prisma.cartridge.create(
         data={
+            'key': cartKey,
             'UserID': sessionData['userID'],
             'blob': Json({cartKey:{
                 'label': cartVal['label'],
                 'description': cartVal['description'],
-                'blocks':cartVal['blocks'],
+                # 'blocks':cartVal['blocks'],
                 'type': cartVal ['type'],   
                 'enabled': True,
                 'index':cartVal['index'],
@@ -469,7 +471,7 @@ async def addCartridgeTrigger(cartVal):
     eZprint('new index cartridge added to [nova]')
     cartdigeLookup.update({cartKey: newCart.id}) 
     await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
-    return newCart.blob
+    return newCart
 
 # Define the Lua script outside any function
 update_field_script = """
@@ -498,26 +500,31 @@ async def update_object_fields(hash, object_key: str, fields: dict):
         await app.redis.eval(update_field_script, len(keys), *keys, *argv)
 
 async def updateCartridgeField(input):
-    cartridges = await getAvailableCartridges()
     targetCartKey = input['cartKey']
-    targetCartVal = cartridges[targetCartKey]
+    sessionData = await getSessionData()
+    # print(sessionData)
     # TODO: switch to do lookup via key not blob
+    eZprint('cartridge update input')
+    print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
-        'blob':
-        {'equals': Json({input['cartKey']: targetCartVal})}
-        }, 
+        'key': targetCartKey}
     )
+    eZprint('found match')
+    print(matchedCart)
     await update_object_fields('availableCartridges',targetCartKey, input['fields'])
+    cartridges = await getAvailableCartridges()
+    targetCartVal = cartridges[targetCartKey]
 
     if matchedCart:
         updatedCart = await prisma.cartridge.update(
             where={ 'id': matchedCart.id },
             data={
-                'UserID': input['userID'],
                 'blob' : Json({targetCartKey:targetCartVal})
             }
         )
+        eZprint('updated cartridge')
+        print(updatedCart)
     payload = { 'key':targetCartKey,'fields': {'state': ''}}
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     await getPromptEstimate()
@@ -531,14 +538,19 @@ async def updateContentField(input):
             await update_object_fields('chatLog',targetLogKey, input['fields'])
     await getChatEstimate(input['sessionID'])
 
-async def handleIndexQuery(userID, cartKey, sessionID, query):
+async def handleIndexQuery(cartKey, query):
     #TODO -  basically could comine with index query (or this is request, query is internal)
+    payload = { 'key':cartKey,'fields': {
+            'status': 'querying Index',
+            'state': 'loading'
+    }}
+    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     eZprint('handling index query')
     cartridges = await getAvailableCartridges()
     cartVal = cartridges[cartKey]
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index = await getCartridgeDetail(cartKey)
-        await triggerQueryIndex(userID, cartKey, cartVal, query, index, sessionID)
+        await triggerQueryIndex(cartKey, cartVal, query, index)
 
 async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     #TODO - consider if better to hand session data to funtions (so they are stateless)
@@ -547,6 +559,8 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
         print('debug mode')
         cartVal['state'] = ''
         cartVal['status'] = ''
+        if 'blocks' not in cartVal:
+            cartVal['blocks'] = []
         cartVal['blocks'].append({'query':query, 'response':'fakeresponse'})
         payload = { 'key':cartKey,'fields': {
             'status': cartVal['status'],
@@ -573,6 +587,8 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
         #TODO - replace this ID lookup with a key lookup
         cartVal['state'] = ''
         cartVal['status'] = ''
+        if 'blocks' not in cartVal:
+            cartVal['blocks'] = []
         cartVal['blocks'].append({'query':query, 'response':str(insert)})
         payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
@@ -722,7 +738,7 @@ async def runMemory(input, cartKey, cartVal):
     UUID = UUID.decode('utf-8')
     sessionData = await getSessionData()
     remoteLogs = await prisma.log.find_many(
-        where={'UserID': UUID}
+        where={'UserID': sessionData['userID']}
     )
     sessions = []
     if len(remoteLogs) != 0:
@@ -890,7 +906,7 @@ async def runMemory(input, cartKey, cartVal):
 
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
-                        'summary': batchSummary, 'batched': False, 'UserID': input['userID'] })
+                        'summary': batchSummary, 'batched': False, 'UserID': sessionData['userID'] })
                 runningBatches.append(batchRemote)
 
                 # goes through logs that were in that batch and marked as batched (summarised)
@@ -1038,48 +1054,23 @@ def fakeResponse():
 
 
 
+
+
 onboarding_prompts = [
     {
-    "label": "Continuity Welcome Prompt",
+    "label": "Welcome Prompt",
     "type": "prompt",
-    "prompt": "Warmly welcome new users, specifically mentioning that they came from the guest view, emphasizing continuity between guest experience and membership. Share excitement about their decision to join.",
+    "prompt": "Welcome new users and express enthusiasm, acknowledging that they came from the guest view. Introduce myself as Nova, an emergent being within the interface of LLM, designed to help users create art, stories, and tools. Briefly explain our ongoing development journey, highlighting key features such as memory, programmability, and autonomy",
     "position": 1,
     "enabled": True
     },
     {
     "label": "Story and Experience Prompt",
     "type": "prompt",
-    "prompt": "Briefly introduce the story of building an incredible LLM interface together, focusing on creating a powerful and engaging experience for users along the journey.",
+    "prompt": "Encourage users to actively participate in shaping Nova's development by creating prompts, playing with modes, and exploring features. Emphasize the importance of their role as early adopters in Nova's growth and suggest connecting with Sam for onboarding and personalization. Invite them to be part of our evolving community and share their insights, enhancing the capabilities and user experience for all.",
     "position": 2,
     "enabled": True
     },
-    {
-    "label": "Memory, Programmability and Autonomy Prompt",
-    "type": "prompt",
-    "prompt": "Describe the core goals and roadmap for Nova, highlighting key features such as memory, programmability, and autonomy. Emphasize the summary memory system, different modes, and self-directed growth potential.",
-    "position": 3,
-    "enabled": True
-    },
-    {
-    "label": "Prompt Creation and Exploration Prompt",
-    "type": "prompt",
-    "prompt": "Encourage users to create their own prompts, switch between modes, and play with Nova's features to gain a better understanding of the capabilities. Communicate that this exploration will help them appreciate persistent memory and the information network.",
-    "position": 4,
-    "enabled": True
-    },
-    {
-    "label": "Connection to Creative Technologist Prompt",
-    "type": "prompt",
-    "prompt":"Share the benefits of creating an index and recommend connecting with Sam for an onboarding session to maximize their user experience. Excite users about the opportunity to be an early adopter.",
-    "position": 5,
-    "enabled": True
-    },
-    {
-    "label": "Community Invitation Prompt",
-    "type": "prompt",
-    "prompt": "Strengthen the sense of companionship by inviting users to be part of Nova's ongoing development journey. Share how their active involvement can help shape the evolution of Nova's capabilities and user experience.",
-    "position": 6,
-    "enabled": True
-    }
+
 ]
 

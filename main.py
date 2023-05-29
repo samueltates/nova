@@ -183,13 +183,15 @@ async def process_message(parsed_data):
             if indexRecord:
                 request = {
                     'tempKey': data['tempKey'],
-                    'newCartridge': indexRecord,
+                    'newCartridge': indexRecord.blob,
                 }
-            await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
+            await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
+            await asyncio.create_task(handleIndexQuery(indexRecord.key, 'Give this document a short summary.'))
+
     # parse index query
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
-        await asyncio.create_task(handleIndexQuery(data['userID'], data['cartKey'], data['sessionID'], data['query']))
+        await asyncio.create_task(handleIndexQuery( data['cartKey'], data['query']))
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         print(data)
@@ -267,9 +269,11 @@ async def handle_indexdoc_end(data):
     if indexRecord:
         payload = {
             'tempKey': data['tempKey'],
-            'newCartridge': indexRecord,
+            'newCartridge': indexRecord.blob,
         }
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    await asyncio.create_task(handleIndexQuery(indexRecord.key, 'Give this document a short summary.'))
+
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]
 

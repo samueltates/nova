@@ -22,10 +22,13 @@ async def findUsers():
  
 async def findCartridges():
     cartridges = await prisma.cartridge.find_many(
+        where = {'UserID' : '110327569930296986874',}
     )
-    lastCart = cartridges[-1]
+    # lastCart = cartridges[-1]
     # for cartridge in cartridges:
-
+    # await prisma.cartridge.delete_many(
+    #     where = {'UserID' : '110327569930296986874',}
+    # )
     print(cartridges)
 
 
