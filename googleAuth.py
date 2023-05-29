@@ -61,6 +61,8 @@ async def silent_check_login():
 async def login():
     print('login')
     credentials = await app.redis.get('credentials')
+    await app.redis.delete('scope')
+    
     # await app.redis.delete('scopes')
     # await app.redis.delete('userID')
     PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile'
@@ -83,7 +85,6 @@ async def login():
         for scope in SCOPES:
             print(scope)
             await app.redis.rpush('scopes', scope)
-    
 
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=SCOPES)    
