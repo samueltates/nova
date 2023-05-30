@@ -55,7 +55,7 @@ async def startsession():
     app.session.modified = True
     return jsonify(payload)
 
-@app.route('/SSO', methods=['GET'])
+@app.route('/SSO', methods=['POST'])
 async def SSO():
     eZprint('SSO route hit')
     print(app.session)
