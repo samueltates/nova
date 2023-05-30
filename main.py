@@ -27,6 +27,7 @@ async def hello():
 
 @app.before_serving
 async def startup():
+    session.permanent = True
     await prismaConnect()
 
     # await googleAuthHandler()
