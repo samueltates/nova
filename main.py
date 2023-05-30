@@ -10,11 +10,9 @@ import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
-ws_session_data = {}
 
 app.session = session
 Session(app)
-# redis = get_redis()
 
 @app.route("/")
 async def index():
@@ -40,6 +38,7 @@ async def shutdown():
 async def startsession():
     eZprint('start-session route hit')
     payload = await request.get_json()
+    app.session['convoID'] = payload['convoID']
     print(app.session)
     authorised = await silent_check_login()
     # if not authorised:

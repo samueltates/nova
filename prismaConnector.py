@@ -13,7 +13,10 @@ async def findSummaries():
 
 
 async def findMessages():
-    messages = await prisma.message.find_many()
+    messages = await prisma.message.find_many(
+        where = {'UserID' : '110327569930296986874',}
+
+    )
     print(messages)
 
 async def findUsers():
@@ -24,6 +27,8 @@ async def findCartridges():
     cartridges = await prisma.cartridge.find_many(
         where = {'UserID' : '110327569930296986874',}
     )
+
+    
     # lastCart = cartridges[-1]
     # for cartridge in cartridges:
     # await prisma.cartridge.delete_many(
@@ -147,9 +152,9 @@ async def main() -> None:
 
     # await findLogs()
     # await findSummaries()
-    # await findMessages()
+    await findMessages()
     # await findCartridges()
-    await findAndMarkLogsOver2k()
+    # await findAndMarkLogsOver2k()
     # await findUsers()
     # await portUser()
 
