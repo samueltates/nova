@@ -28,9 +28,13 @@ async def silent_check_login():
         print('user_id and credentials found')
         user_id = user_id.decode('utf-8')
         credentials = credentials.decode('utf-8')
-        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-            
+        try:
+            creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        except:
+            print('credentials not found')
+            return False
         # If the credentials have an expiry and the token is expired
+        
         if creds_obj.expiry and creds_obj.expired:
             print('credentials expired')
             # Check if the credentials have a refresh token
@@ -60,7 +64,32 @@ async def login():
     SCOPES = []
     if credentials:
         print('credentials found')
-        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        try:
+            creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        except:
+            print('credentials not found')
+            SCOPES = [PROFILE_SCOPE]
+            await app.redis.delete('scopes')
+            for scope in SCOPES:
+                print(scope)
+                await app.redis.rpush('scopes', scope)
+            flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+            'credentials.json', scopes=SCOPES)    
+            flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+            authorization_url, state = flow.authorization_url(
+                # Enable offline access so that you can refresh an access token without
+                # re-prompting the user for permission. Recommended for web server apps.
+                access_type='offline',
+                prompt="consent",  # Add this line
+                # Enable incremental authorization. Recommended as a best practice.
+                include_granted_scopes='true'
+            )
+            await app.redis.set('state', state)
+            redir = redirect(authorization_url)
+            print(redir)
+            print('got authorization')
+            print(authorization_url)
+            return authorization_url
         if not creds_obj.has_scopes(['https://www.googleapis.com/auth/userinfo.profile']) :
             print('credentials do not have right scope')
             SCOPES = creds_obj.scopes + [PROFILE_SCOPE]  # Add the Google Docs scope to the existing scopes.
