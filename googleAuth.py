@@ -121,9 +121,11 @@ async def login():
 
 @app.route('/authoriseLogin')
 async def authoriseLogin():
-    print('authoriseLogin')
+    nova.eZprint('authoriseLogin')
+    print(app.session)
     state = app.session.get('state')
     scopes = app.session.get('scopes')
+
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=scopes, state=state) 
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
@@ -150,8 +152,9 @@ async def authoriseLogin():
 
 @app.route('/authComplete')
 async def authComplete():
-    print('authComplete')
+    nova.eZprint('authComplete')
     print(app.session)
+    # return await render_template('auth_complete.html', user_id=app.session.get('userID'), user_name=app.session.get('userName'), authorised=app.session.get('authorised'), ws = os.environ.get('WEBSOCKET') or 'wss://nova-staging.up.railway.app/ws')
     return redirect(os.environ.get('NOVAHOME'))
 
 async def logout():
@@ -205,7 +208,10 @@ async def oauth2callback():
 async def docAuthComplete():
     print('docAuthComplete')
     app.session['docsAuthorised'] = 1
-    return "Authentication complete, please return to browser!"
+    
+    # return "Authentication complete, please return to browser!"
+
+    # return "Authentication complete, please return to browser!"
 
 async def GetDocCredentials():
     print('GetDocCredentials')

@@ -8,10 +8,10 @@
     <script>
         let user_id = "{{ user_id }}";
         let user_name = "{{ user_name }}";
-        let authorised = JSON.parse("{{ authorised }}");
+        let ws = "{{ws}}"
         // Use your WebSocket URL here
-        let socket = new WebSocket("ws://127.0.0.1:5500/ws");
-
+        let socket = new WebSocket(ws);
+        console.log('sending socket')
         socket.addEventListener("open", (event) => {
             socket.send(JSON.stringify({
                 type: "ssoComplete",

@@ -11,6 +11,8 @@ from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartr
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
 
+sessionStatus = {}
+
 app.session = session
 Session(app)
 
@@ -39,20 +41,17 @@ async def startsession():
     eZprint('start-session route hit')
     payload = await request.get_json()
     app.session['convoID'] = payload['convoID']
+    sessionStatus[payload['convoID']] = False
     print(app.session)
     authorised = await silent_check_login()
     eZprint('authorised: ' + str(authorised))
-    # if not authorised:
-    #     app.session['userID'] =  'Guest'
-    #     app.session['userName'] =  'Guest'
-    #     app.session['authorised'] =  0
     payload = {
         'authorised': app.session.get('authorised'),
         'userID': app.session.get('userID'),
         'userName': app.session.get('userName')
-
     }
     print(app.session)
+    app.session.modified = True
     return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
@@ -60,6 +59,8 @@ async def SSO():
     eZprint('SSO route hit')
     print(app.session)
     loginURL = await login()
+    app.session.modified = True
+
     return jsonify({'loginURL': loginURL})
 
 @app.route('/requestLogout', methods=['GET'])
@@ -67,6 +68,7 @@ async def requestLogout():
     eZprint('requestLogout route hit')
     print(app.session)
     logoutStatus = await logout()    
+    app.session.modified = True
     return jsonify({'logout': logoutStatus})
 
 # @app.route('/requestCartridges', methods=['POST'])
@@ -81,11 +83,14 @@ async def requestLogout():
 
 @app.websocket('/ws')
 async def ws():
-    eZprint('socket route hit')
+    eZprint('ws route hit')
     print(app.session)
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
+        print(parsed_data)
+        app.session.modified = True
+
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
@@ -136,12 +141,11 @@ async def process_message(parsed_data):
         # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
     if(parsed_data["type"] == 'ssoComplete'):
-        print('ssoComplete called by html template.')
+        eZprint('ssoComplete called by html template.')
         print(parsed_data['payload'])
         await app.redis.set('userID', parsed_data['payload']['userID'])
         await app.redis.set('userName', parsed_data['payload']['userName'])
         await app.redis.set('authorised', parsed_data['payload']['authorised'])
-
         
         await websocket.send(json.dumps({'event':'ssoComplete', 'payload': {
             'userID': parsed_data['payload']['userID'],
