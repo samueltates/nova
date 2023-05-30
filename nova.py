@@ -108,20 +108,6 @@ async def updateAuth(userID, credentials):
         return user
 
 
-async def getSessionData():
-    sessionID = await app.redis.get('sessionID')
-    sessionID = sessionID.decode('utf-8')
-    userID = await app.redis.get('userID')
-    userID = userID.decode('utf-8')
-    userName = await app.redis.get('userName')
-    userName = userName.decode('utf-8')
-    sessionData = {
-        'sessionID': sessionID,
-        'userID': userID,
-        'userName': userName,
-    }
-    return sessionData
-
     
 ##CARTRIDGE MANAGEMENT
 async def initialiseCartridges(convoID):
@@ -130,35 +116,39 @@ async def initialiseCartridges(convoID):
     await runCartridges(convoID)
     # await constructChatPrompt()
 
-async def loadCartridges(sessionRequest):
+async def loadCartridges(convoID):
     eZprint('load cartridges called')
-    # eZprint(sessionRequest)
-
     userID = app.session.get('userID')
-
+    if userID == None: 
+        userID = 'guest'
+    print(userID)
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": userID,
         }
     )
+    availableCartKey = f'availableCartridges{convoID}'
     eZprint('cartridge length is ' + str(len(cartridges)))
     if len(cartridges) != 0:
+        app.session[availableCartKey] = {}
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
-            app.session['availableCartridges${convoID}']
+            availableCartridges = app.session.get(availableCartKey, {})
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal:
-                    app.session['availableCartridges${convoID}']={ cartKey: cartVal}
+                    # print('adding cartridge ' + str(cartKey) + ' to available cartridges')
+                    app.session[availableCartKey][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
-                        cartVal.update({'state': 'loading'})
-    availableCartridges =  app.session.get('availableCartridges${convoID}')
+                        # cartVal.update({'state': 'loading'})
+    # print('available cartridges are ' + str(app.session[availableCartKey]))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID):
     eZprint('running cartridges')
-    availableCartridges =  app.session.get('availableCartridges${convoID}')
+    availableCartKey = f'availableCartridges{convoID}'
+    availableCartridges =  app.session.get(availableCartKey)
     if len(availableCartridges) != 0:
         for cartKey, cartVal in availableCartridges.items():
             # print (cartVal)
@@ -185,22 +175,24 @@ async def runCartridges(convoID):
                             'enabled': True,
                             'position':0,
                             }
-        await addNewUserCartridgeTrigger(cartKey, cartVal)
+        await addNewUserCartridgeTrigger(convoID, cartKey, cartVal)
         cartridges = await getAvailableCartridges()
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':cartridges}))
         # await runCartridges(sessionRequest)
 
-async def addNewUserCartridgeTrigger(cartKey, cartVal):
+async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
-    await app.redis.get(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+    availableCartKey = f'availableCartridges{convoID}'
+    app.session.set(availableCartKey)[cartKey] = cartVal
     print('adding new user cartridge')
-    sessionData = await getSessionData()
-    # print(sessionData)
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
-            'UserID': sessionData['userID'],
+            'UserID': userID,
             'blob': Json({cartKey:cartVal})
         }
     )
@@ -218,10 +210,14 @@ async def getChatLog():
     chatLog = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in chatLog.items()}
     return chatLog
 
-async def getNextOrder():
-    chat_log_length = await app.redis.hlen(f'chatLog')
-    chatLog = await getChatLog()
-    eZprint('chat log printing on order request')
+async def getNextOrder(convoID):
+    chatLogKey = f'chatLog{convoID}'
+    if chatLogKey not in app.session:
+        chat_log_length = 0
+    else:
+        chatlog = app.session.get(chatLogKey)
+        chat_log_length = len(chatlog)
+        # eZprint('chat log printing on order request')
     # print(chatLog)
     next_order = chat_log_length + 1
     # print('next order is: ' + str(next_order))
@@ -234,17 +230,13 @@ async def handleChatInput(input):
     eZprint('handling message')
     # print(input)
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
-
-    sessionID = await app.redis.get('sessionID')
-    sessionID = sessionID.decode('utf-8')
-    userID = await app.redis.get('userID')
-    userID = userID.decode('utf-8')
-    userName = await app.redis.get('userName')
-    userName = userName.decode('utf-8')
-    order = await getNextOrder()
-
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
+    order = await getNextOrder(input['convoID'])
+    convoID = str(input['convoID'])
     messageObject = {
-        "sessionID": sessionID,
+        "sessionID": convoID,
         "messageID" : input['ID'],
         "ID": userID,
         "userName": userName,
@@ -254,25 +246,33 @@ async def handleChatInput(input):
         "timestamp": str(datetime.now()),
         "order": order,
     }
-
+    chatLogKey = f'chatLog{convoID}'
+    if chatLogKey not in app.session:
+        app.session[chatLogKey] = []
     asyncio.create_task(logMessage(messageObject))
-    await app.redis.hset(f'chatLog', f'{messageObject}', json.dumps(messageObject))
-    asyncio.create_task(constructChatPrompt()),
+    app.session[chatLogKey].append(messageObject)
+    asyncio.create_task(constructChatPrompt(input['convoID'])),
     eZprint('constructChat prompt called')
     # asyncio.create_task(checkCartridges(input))
 
-async def constructChatPrompt():
+async def constructChatPrompt(convoID):
     eZprint('constructing chat prompt')
     promptString = 'The following are prompts to guide NOVA, as well as shared notes, document and conversation references. \n\n'
-    cartridges = await getAvailableCartridges()
     #TODO - abstract to prompt build / chat build + estimate, to be called on inputs / updates (combine with estimate)
     promptObject=[]
-    if len(cartridges) != 0:
-        sorted_cartridges = sorted(cartridges.values(), key=lambda x: x.get('position', float('inf')))
+    availableCartKey = f'availableCartridges{convoID}'
+    availableCartridges = app.session.get(availableCartKey)
+
+    # print('available cartridges: ' + str(availableCartridges))
+    print(app.session.get(availableCartKey))
+    if len(availableCartridges) != 0:
+        sorted_cartridges = sorted(availableCartridges.values(), key=lambda x: x.get('position', float('inf')))
         for index, cartVal in enumerate(sorted_cartridges):
             if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
                 promptString +=  cartVal['label'] + ":\n" + cartVal['prompt'] + "\n"
             if (cartVal['enabled'] == True and cartVal['type'] =='summary'):
+                eZprint('found summary cartridge')
+                print(cartVal)
                 if 'blocks' in cartVal:
                     promptString += "Summary from past conversations:\n" 
                     for block in cartVal['blocks']:
@@ -287,21 +287,25 @@ async def constructChatPrompt():
                     promptString += "Answers generated by index-query. If you need further information include a request for more information in your reply."
 
     eZprint('prompt string constructed')
-    promptSize = estimateTokenSize(str(promptObject))
+    print(f'{promptString}')
+
     promptObject.append({"role": "system", "content": promptString})
-    chatLog = await getChatLog()
-    sorted_logs = sorted(chatLog.values(), key=lambda x: x['order'])
-    for log in sorted_logs:
-        print(log['order'])
-        if 'muted' not in log or log['muted'] == False:
-            if log['role'] == 'system':
-                promptObject.append({"role": "assistant", "content": log['body']})
-            if log['role'] == 'user':  
-                promptObject.append({"role": "user", "content":log['body']})
 
-    if len(sorted_logs) == 0:
-        promptObject.append({"role": "system", "content": "Based on these prompts, please initiate the conversation with a short engaginge greeting."})
+    promptSize = estimateTokenSize(str(promptObject))
+    chatLogKey = f'chatLog{convoID}'
+    if chatLogKey in app.session:
+        chatLogs = app.session.get(chatLogKey)
+        if len(chatLogs) == 0:
+            promptObject.append({"role": "system", "content": "Based on these prompts, please initiate the conversation with a short engaginge greeting."})
+        for log in chatLogs:
+            # print(log['order'])
+            if 'muted' not in log or log['muted'] == False:
+                if log['role'] == 'system':
+                    promptObject.append({"role": "assistant", "content": log['body']})
+                if log['role'] == 'user':  
+                    promptObject.append({"role": "user", "content":log['body']})
 
+   
     eZprint('chat string constructed')
     # print(str(promptObject))
     chatSize =  estimateTokenSize(str(promptObject)) - promptSize 
@@ -313,23 +317,27 @@ async def constructChatPrompt():
         content = fakeResponse()
         await asyncio.sleep(1)
     else :
-        model = await app.redis.get('model')
-        if model == None: 
-            model = 'gpt-4'
-        else:
-            model = model.decode('utf-8')
-        response = await sendChat(promptObject, model)
+        # model = await app.redis.get('model')
+        # if model == None: 
+        #     model = 'gpt-4'
+        # else:
+        #     model = model.decode('utf-8')
+        eZprint('sending chat')
+        print(f"{promptObject}")
+        response = await sendChat(promptObject, 'gpt-4')
         eZprint('response received')
         # print(response)
         content = str(response["choices"][0]["message"]["content"])
 
-    sessionData = await getSessionData()
     messageID = secrets.token_bytes(4).hex()
     time = str(datetime.now())
-    order = await getNextOrder()
+    order = await getNextOrder(convoID)
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
     messageObject = {
-        "sessionID": sessionData['sessionID'],
-        "userID": sessionData['userID'],
+        "sessionID": convoID,
+        "userID": userID,
         "ID": messageID,
         "userName": agentName,
         "body": content,
@@ -339,7 +347,10 @@ async def constructChatPrompt():
 
     }
     asyncio.create_task(logMessage(messageObject))
-    await app.redis.hset(f'chatLog', f'{messageObject}', json.dumps(messageObject))
+    chatLogKey = f'chatLog{convoID}'
+    if chatLogKey not in app.session:
+        app.session[chatLogKey] = []
+    app.session[chatLogKey].append(messageObject)
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
     
@@ -353,18 +364,18 @@ async def sendChat(promptObj, model):
     return response
 
 async def logMessage(messageObject):
-    UUID = await app.redis.get(f'UUID')
-    UUID = UUID.decode('utf-8')
+    print('logging message')
+    # print(messageObject)
     if app.config['DEBUG']:
         return
     log = await prisma.log.find_first(
-        where={'SessionID': UUID}
+        where={'SessionID': messageObject['sessionID']}
     )
     # TODO - need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
     if log == None:
         log = await prisma.log.create(
             data={
-                "SessionID": UUID,
+                "SessionID": messageObject['sessionID'],
                 "UserID": messageObject['userID'],
                 "date": datetime.now().strftime("%Y%m%d%H%M%S"),
                 "summary": "",
@@ -373,29 +384,31 @@ async def logMessage(messageObject):
             }
         )
 
-    eZprint('logging message')
+    # eZprint('logging message')
     # print(messageObject)
     message = await prisma.message.create(
         data={
             "UserID": messageObject['userID'],
-            "SessionID": UUID,
+            "SessionID": messageObject['sessionID'],
             "name": messageObject['userName'],
             "timestamp": datetime.now(),
             "body": messageObject['body'],
         }
     )
 
-async def getPromptEstimate():
-    availableCartridges = await getAvailableCartridges()
+async def getPromptEstimate(convoID):
     promptObject = []
-    if(len(availableCartridges) != 0):
-        # eZprint('found cartridges')
+    availableCartKey = f'availableCartridges{convoID}'
+    availableCartridges = app.session.get(availableCartKey)
+    if len(availableCartridges) != 0:        # eZprint('found cartridges')
         sorted_cartridges = sorted(availableCartridges.values(), key=lambda x: x.get('position', float('inf')))
         for index, promptVal in enumerate(sorted_cartridges):
             if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
                 # eZprint('found prompt, adding to string')
                 promptObject.append({"role": "system", "content": "\n Prompt instruction for NOVA to follow - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
             if (promptVal['enabled'] == True and promptVal['type'] =='summary'):
+                # print('found summary')
+                # print(promptVal)
                 if 'blocks' in promptVal:
                     promptObject.append({"role": "system", "content": "\n Summary from past conversations - " + promptVal['label'] + ":\n" + str(promptVal['blocks']) + "\n" })
             if (promptVal['enabled'] == True and promptVal['type'] =='index'):
@@ -405,17 +418,17 @@ async def getPromptEstimate():
     promptSize = estimateTokenSize(str(promptObject))
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize}})))
     
-async def getChatEstimate():
+async def getChatEstimate(convoID):
     promptObject = []
-    chatLog = await getChatLog()
-    sorted_logs = sorted(chatLog.values(), key=lambda x: x['order'])
-    for val in sorted_logs:
-        log = json.loads(val)
-        if 'muted' not in log or log['muted'] == False:
-            if log['role'] == 'system':
-                promptObject.append({"role": "assistant", "content": log['body']})
-            if log['role'] == 'user':  
-                promptObject.append({"role": "user", "content": log['body']})
+    chatLogKey = f'chatLog{convoID}'
+    if chatLogKey in app.session:
+        chatLogs = app.session.get(chatLogKey)
+        for log in chatLogs:
+            if 'muted' not in log or log['muted'] == False:
+                if log['role'] == 'system':
+                    promptObject.append({"role": "assistant", "content": log['body']})
+                if log['role'] == 'user':  
+                    promptObject.append({"role": "user", "content": log['body']})
     promptSize = estimateTokenSize(str(promptObject))
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'chatSize': promptSize}})))
 
@@ -425,32 +438,38 @@ async def getChatEstimate():
 async def addCartridgePrompt(input):
     eZprint('add cartridge prompt triggered')
     cartKey = generate_id()
+    convoID = input['convoID']
     cartVal = input['newCart'][input['tempKey']]
     cartVal.update({'state': ''})
-    sessionData = await getSessionData()
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
-            'UserID':sessionData['userID'],
+            'UserID':userID,
             'blob': Json({cartKey:cartVal})
         }
     )
-    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+    availableCartKey = f'availableCartridges{convoID}'
+    app.session[availableCartKey][cartKey] = cartVal
     payload = {
             'tempKey': input['tempKey'],
             'newCartridge': {cartKey:cartVal},
         }
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
-async def addCartridgeTrigger(cartVal):
+async def addCartridgeTrigger(cartVal, convoID):
     #TODO - very circular ' add index cartridge' triggered, goes to index, then back, then returns 
     #TODO - RENAME ADD CARTRIDGE INDEX
     cartKey = generate_id()
-    sessionData = await getSessionData()
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
-            'UserID': sessionData['userID'],
+            'UserID': userID,
             'blob': Json({cartKey:{
                 'label': cartVal['label'],
                 'description': cartVal['description'],
@@ -465,7 +484,8 @@ async def addCartridgeTrigger(cartVal):
     )
     eZprint('new index cartridge added to [nova]')
     cartdigeLookup.update({cartKey: newCart.id}) 
-    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+    availableCartKey = f'availableCartridges{convoID}'
+    app.session[availableCartKey][cartKey] = cartVal
     return newCart
 
 # Define the Lua script outside any function
@@ -496,8 +516,12 @@ async def update_object_fields(hash, object_key: str, fields: dict):
 
 async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
-    sessionData = await getSessionData()
-    cartridges = await getAvailableCartridges()
+    convoID = input['convoID']
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
+    cartridgesKey = f'availableCartridges{convoID}'
+    cartridges = app.session.get(cartridgesKey)
     targetCartVal = cartridges[targetCartKey]
 
     # print(sessionData)
@@ -506,14 +530,26 @@ async def updateCartridgeField(input):
     print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
+        'key' : targetCartKey,}
+        
+    )
+    print(matchedCart)
+    if matchedCart == None:
+        matchedCart = await prisma.cartridge.find_first(
+        where={
         'blob':
         {'equals': Json({input['cartKey']: targetCartVal})}
         }, 
-    )
-    eZprint('found match')
-    print(matchedCart)
-    await update_object_fields('availableCartridges',targetCartKey, input['fields'])
-
+        )
+        if matchedCart:
+            updatedCart = await prisma.cartridge.update(
+            where={ 'id': matchedCart.id },
+            data={
+                key : targetCartKey
+            })
+    for key, val in input['fields'].items():
+        app.session[cartridgesKey][targetCartKey][key] = val
+    
     if matchedCart:
         updatedCart = await prisma.cartridge.update(
             where={ 'id': matchedCart.id },
@@ -525,18 +561,20 @@ async def updateCartridgeField(input):
         print(updatedCart)
     payload = { 'key':targetCartKey,'fields': {'state': ''}}
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    await getPromptEstimate()
+    await getPromptEstimate(convoID)
 
 async def updateContentField(input):
-    targetLogKey = input['logKey']
-    chatLog = await app.redis.hgetall(f'chatLog')
+    convoID = input['convoID']
+    chatLogKey = f'chatLog{convoID}'
+    chatLog = app.session.get(chatLogKey)
+    print('update chatlog field')
     for log in chatLog:
-        log = json.loads(log.decode('utf-8'))
         if log['ID'] == input['ID']:
-            await update_object_fields('chatLog',targetLogKey, input['fields'])
+            for key, val in input['fields'].items():
+                log[key] = val
     await getChatEstimate(input['sessionID'])
 
-async def handleIndexQuery(cartKey, query):
+async def handleIndexQuery(convoID, cartKey, query):
     #TODO -  basically could comine with index query (or this is request, query is internal)
     payload = { 'key': cartKey,'fields': {
             'status': 'querying Index',
@@ -544,15 +582,16 @@ async def handleIndexQuery(cartKey, query):
     }}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     eZprint('handling index query')
-    cartridges = await getAvailableCartridges()
+    cartridgesKey = f'availableCartridges{convoID}'
+    cartridges = app.session.get(cartridgesKey)
     cartVal = cartridges[cartKey]
+
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index = await getCartridgeDetail(cartKey)
-        await triggerQueryIndex(cartKey, cartVal, query, index)
+        await triggerQueryIndex(convoID, cartKey, cartVal, query, index)
 
 async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     #TODO - consider if better to hand session data to funtions (so they are stateless)
-    sessionData = await getSessionData()
     # if(app.config['DEBUG'] == True):
     #     print('debug mode')
     #     cartVal['state'] = ''
@@ -597,27 +636,32 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
                                 }}
         id = cartdigeLookup[cartKey]
 
-        updateFields = {
-            'status': cartVal['status'],
-            'blocks':cartVal['blocks'],
-            'state': cartVal['state']
+        # updateFields = {
+        #     'status': cartVal['status'],
+        #     'blocks':cartVal['blocks'],
+        #     'state': cartVal['state']
 
-        }
-        await update_object_fields('availableCartridges',updateFields)
+        # }
+        # await update_object_fields('availableCartridges',updateFields)
 
         matchedCart = await prisma.cartridge.find_first(
             where={
                     'id': id                                    
                       }
         )
+        userID = app.session.get('userID')
+        if userID == None: 
+            userID = 'guest'
         if matchedCart:
             updatedCart = await prisma.cartridge.update(
                 where={ 'id': id },
                 data={
-                    'UserID': sessionData['userID'],
+                    'UserID': userID,
                     'blob' : Json({cartKey:cartVal})
                 }
             )
+
+
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
         
@@ -636,13 +680,12 @@ async def getCartridgeDetail(cartKey):
     return index
 
 
-async def summariseChatBlocks(messageIDs, summaryID):
+async def summariseChatBlocks(convoID, messageIDs, summaryID):
     messagesToSummarise = []
-    sessionData = await getSessionData()
-    chatLog = await app.redis.hgetall(f'chatLog')
+    chatLogKey = f'chatLog{convoID}'
+    chatLog = app.session.get(chatLogKey)
     for messageID in messageIDs:
-        for key, log in chatLog.items():
-            log = json.loads(log)
+        for log in chatLog:
             if messageID == log['ID']:
                 messagesToSummarise.append(log)
     payload = []   
@@ -688,19 +731,23 @@ async def summariseChatBlocks(messageIDs, summaryID):
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     summarDict.update({'sources':messageIDs})
+    userID = app.session.get('userID')
+    if userID == None: 
+        userID = 'guest'
     summary = await prisma.summary.create(
         data={
             "key": summaryID,
-            "SessionID": sessionData['sessionID'],
-            "UserID": sessionData['userID'],
+            "SessionID": convoID,
+            "UserID": userID,
             "timestamp": datetime.now(),
             "blob": Json({summaryID:summarDict})
         }
     )
     print(summary)
    #inject summary object into logs before messages it is summarising 
-    injectPosition = messagesToSummarise[0]['order'] - 1
-    inject_summary(summary, injectPosition)
+    injectPosition = chatLog.index( messagesToSummarise[0]) 
+    chatLog.insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'body':summaryID, 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
+
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
             where={'id': log['id']}
@@ -722,29 +769,17 @@ async def summariseChatBlocks(messageIDs, summaryID):
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
 
     
-async def inject_summary(summary, position_to_insert):
-    chat_logs_data = await app.redis.hgetall(f'chatLog')
-    chat_logs = {
-        key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in chat_logs_data.items()
-    }
-    for key, log in chat_logs.items():
-        if log['order'] >= position_to_insert:
-            log['order'] += 1
-            # Update the chat log in Redis
-            await update_object_fields(key, {'order': log['order']})       
-    summary['order'] = position_to_insert
-    await app.redis.hset(f'chatLog', f'{summary["ID"]}', json.dumps(summary))
-
-
-
 
 async def runMemory(convoID, cartKey, cartVal):
 
     eZprint('running memory')
 
-    sessionData = await getSessionData()
+    userID = app.session.get('userID')
+    if userID == None:
+        userID = 'guest'
+    
     remoteLogs = await prisma.log.find_many(
-        where={'UserID': sessionData['userID']}
+        where={'UserID': userID}
     )
     sessions = []
     if len(remoteLogs) != 0:
@@ -768,9 +803,8 @@ async def runMemory(convoID, cartKey, cartVal):
     # print(remoteLogs)
 
     if(len(remoteLogs) > 0):
-        allLogs.setdefault(
-            convoID, remoteLogs)
-        for log in allLogs[input['sessionID']]:
+
+        for log in remoteLogs:
             if (log.summary == "" or log.summary == ''):
                 payload = { 'key':cartKey,'fields': {'status': 'unsumarised chats found'}}
                 sessionID = log.SessionID
@@ -802,7 +836,7 @@ async def runMemory(convoID, cartKey, cartVal):
             
         # theory here but realised missing latest summary I think, so checking the remote DB getting all logs again and then running summary based on if summarised (batched)
         updatedLogs = await prisma.log.find_many(
-            where={'UserID': sessionData['userID']}
+            where={'UserID': userID}
         )
         for log in updatedLogs:
           
@@ -873,7 +907,7 @@ async def runMemory(convoID, cartKey, cartVal):
         multiBatchSummary = ""
 
         remoteBatches = await prisma.batch.find_many(
-                where={'UserID': sessionData['userID']}
+                where={'UserID': userID}
         )
 
         # eZprint('starting summary batch sumamarisations')
@@ -912,7 +946,7 @@ async def runMemory(convoID, cartKey, cartVal):
 
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
-                        'summary': batchSummary, 'batched': False, 'UserID': sessionData['userID'] })
+                        'summary': batchSummary, 'batched': False, 'UserID': userID })
                 runningBatches.append(batchRemote)
 
                 # goes through logs that were in that batch and marked as batched (summarised)
@@ -989,10 +1023,12 @@ async def runMemory(convoID, cartKey, cartVal):
                                         'blocks':cartVal['blocks'],
                                         'state': cartVal['state']
                                          }}
+            
+            availableCartKey = f'availableCartridges{convoID}'
+            app.session[availableCartKey][cartKey] = cartVal
+            print(app.session[availableCartKey][cartKey])
+            print(app.session[availableCartKey][cartKey]['blocks'])
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
-            # socketio.emit('updateCartridgeFields', payload)
-            # await prisma.disconnect()
     else :
         eZprint("No logs found for this user, so starting fresh")
         cartVal['status'] = ''
@@ -1004,11 +1040,10 @@ async def runMemory(convoID, cartKey, cartVal):
                                     'state': cartVal['state']
                                     }}
         # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+        availableCartKey = f'availableCartridges{convoID}'
+        app.session[availableCartKey][cartKey] = cartVal
         # socketio.emit('updateCartridgeFields', payload)
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
-
 
 async def getSummary(textToSummarise):
     promptObject = []
@@ -1017,11 +1052,9 @@ async def getSummary(textToSummarise):
     # promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    model = await app.redis.get('model')
-    if model == None: 
-        model = 'gpt-4'
-    else :
-        model = model.decode('utf-8')
+    model = app.session.get('model')
+    if model == None:
+        model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, model)
 
     return response["choices"][0]["message"]["content"]
@@ -1031,11 +1064,9 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    model = await app.redis.get('model')
-    if model == None: 
-        model = 'gpt-4'
-    else:
-        model = model.decode('utf-8')
+    model = app.session.get('model')
+    if model == None:
+        model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, model)
 
     return response["choices"][0]["message"]["content"]

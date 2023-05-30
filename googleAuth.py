@@ -3,9 +3,8 @@ from appHandler import app, websocket
 from quart import redirect, url_for, request, render_template
 import asyncio
 import json
-import nova 
+import nova
 import requests
-
 
 CLIENT_SECRETS_FILE = "credentials.json"
 
@@ -20,20 +19,14 @@ from googleapiclient import errors
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
 async def silent_check_login():
+    print('silent check')
     user_id = app.session.get('userID')
     credentials = app.session.get('credentials')
-    # Check if the credentials exist and are valid
-    print(credentials)
+    # print(app.session)
     if user_id and credentials:
         print('user_id and credentials found')
-
-        try:
-            creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-        except:
-            print('credentials not found')
-            return False
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
         # If the credentials have an expiry and the token is expired
-        
         if creds_obj.expiry and creds_obj.expired:
             print('credentials expired')
             # Check if the credentials have a refresh token
@@ -57,8 +50,8 @@ async def silent_check_login():
     return False
 
 async def login():
-    print('login')
-    credentials = await app.redis.get('credentials')
+    print('SSOLOGIN route hit')
+    credentials = app.session.get('credentials')
     PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile'
     SCOPES = []
     if credentials:
@@ -68,10 +61,12 @@ async def login():
         except:
             print('credentials not found')
             SCOPES = [PROFILE_SCOPE]
-            await app.redis.delete('scopes')
+            if app.session.get('scopes'):
+                app.session.pop('scopes')
+            app.session['scopes'] = []
             for scope in SCOPES:
                 print(scope)
-                await app.redis.rpush('scopes', scope)
+                app.session['scopes'].append(scope)
             flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
             'credentials.json', scopes=SCOPES)    
             flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
@@ -83,7 +78,7 @@ async def login():
                 # Enable incremental authorization. Recommended as a best practice.
                 include_granted_scopes='true'
             )
-            await app.redis.set('state', state)
+            app.session['state'] =  state
             redir = redirect(authorization_url)
             print(redir)
             print('got authorization')
@@ -93,17 +88,19 @@ async def login():
             print('credentials do not have right scope')
             SCOPES = creds_obj.scopes + [PROFILE_SCOPE]  # Add the Google Docs scope to the existing scopes.
             print(SCOPES)
-            await app.redis.delete('scopes')
+            if app.session.get('scopes'):
+                app.session.pop('scopes')
+            app.session['scopes'] = []
             for scope in SCOPES:
-                print(scope)
-                await app.redis.rpush('scopes', scope)
+                app.session['scopes'].append(scope)
     else:
         print('credentials not found')
         SCOPES = [PROFILE_SCOPE]
-        await app.redis.delete('scopes')
+        if app.session.get('scopes'):
+            app.session.pop('scopes')
+        app.session['scopes'] = []
         for scope in SCOPES:
-            print(scope)
-            await app.redis.rpush('scopes', scope)
+            app.session['scopes'].append(scope)
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=SCOPES)    
     flow.redirect_uri = url_for('authoriseLogin', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
@@ -115,26 +112,20 @@ async def login():
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
     )
-    await app.redis.set('state', state)
+    app.session['state'] =  state
     redir = redirect(authorization_url)
     print(redir)
     print('got authorization')
-    print(authorization_url)
+
     return authorization_url
 
 @app.route('/authoriseLogin')
 async def authoriseLogin():
     print('authoriseLogin')
-    state = await app.redis.get('state')
-    state = state.decode("utf-8")
-    scopes = await app.redis.lrange("scopes", 0, -1)
-    scopes = [s.decode("utf-8") for s in scopes]
-    localScopes = []
-    for scope in scopes:
-        localScopes.append(scope)
-    print(localScopes)
+    state = app.session.get('state')
+    scopes = app.session.get('scopes')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-    'credentials.json', scopes=localScopes, state=state) 
+    'credentials.json', scopes=scopes, state=state) 
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
@@ -150,46 +141,34 @@ async def authoriseLogin():
     userInfo = service.userinfo().get().execute()
     print(userInfo)
     user = await nova.GoogleSignOn(userInfo, credentials)
-    await app.redis.set('userID', userInfo['id'])
-    await app.redis.set('credentials', credentials.to_json())
-    await app.redis.set('authorised',  1)
-    await app.redis.set('userName', userInfo['name'])
-    
-    print(app.redis)
+    app.session['userID'] =  userInfo['id']
+    app.session['userName'] =  userInfo['name']
+    app.session['authorised'] =  1
+    app.session['credentials'] = credentials.to_json()
     
     return redirect(url_for('authComplete'))
-
 
 
 @app.route('/authComplete')
 async def authComplete():
     print('authComplete')
-    user_id = await app.redis.get('userID')
-    user_name = await app.redis.get('userName')
-    authorised = await app.redis.get('authorised')
-    user_id = user_id.decode("utf-8")
-    user_name = user_name.decode("utf-8")
-    authorised = authorised.decode("utf-8")
-
-    # print(await app.redis.get('userName').decode("utf-8")),
-    # print(await app.redis.get('authorised').decode("utf-8"))
+    print(app.session)
     return redirect(os.environ.get('NOVAHOME'))
 
-    return await render_template('auth_complete.html', user_id=user_id, user_name=user_name, authorised=authorised)
-
 async def logout():
-    credentials = await app.redis.get('credentials')
-    credentials = credentials.decode('utf-8')
+    credentials = app.session['credentials']
     creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-    
     if creds_obj:
         access_token = creds_obj.token
         if revoke_token(access_token):
-            await app.redis.delete('credentials')
-            await app.redis.delete('userID')
-            await app.redis.delete('userName')
-            await app.redis.delete('authorised')
-            await app.redis.delete('scopes')
+            if app.session.get('credentials'):
+                app.session.pop('credentials')
+            if app.session.get('userID'):
+                app.session.pop('userID')
+            if app.session.get('userName'):
+                app.session.pop('userName')
+            if app.session.get('authorised'):
+                app.session.pop('authorised')
 
             return True
     return False
@@ -210,78 +189,62 @@ def revoke_token(token):
 @app.route('/oauth2callback')
 async def oauth2callback():
     print('oauth2callback')
-    state = await app.redis.get('state')
-    state = state.decode("utf-8")
-    scopes = await app.redis.lrange("scopes", 0, -1)
-    # Convert scopes from bytes to string
-    scopes = [s.decode("utf-8") for s in scopes]
-    localScopes = []
-    for scope in scopes:
-        localScopes.append(scope)
-    # scopes = scopes.decode("utf-8")
+    state = app.session['state']
+    scopes = app.session['scopes']
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'credentials.json', scopes=localScopes, state=state)
+        'credentials.json', scopes=scopes, state=state)
     flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
     authorization_response = request.url
     print(request)
     flow.fetch_token(authorization_response=authorization_response)
     credentials = flow.credentials
-    await app.redis.set('credentials', credentials.to_json())
+    app.session['credentials'] = credentials.to_json()
     return redirect(url_for('docAuthComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
     
 
 @app.route('/docAuthComplete')
 async def docAuthComplete():
     print('docAuthComplete')
-    await app.redis.set ('docsAuthorised', 1)
-
+    app.session['docsAuthorised'] = 1
     return "Authentication complete, please return to browser!"
-
-    # await websocket.send(json.dumps({'event':'authComplete'}))
-
 
 async def GetDocCredentials():
     print('GetDocCredentials')
-    user_id = await app.redis.get('userID')
-    credentials = await app.redis.get('credentials')
+    user_id = app.session.get('userID')
+    credentials = app.session.get('credentials')
     # Check if the credentials exist and are valid
     print(credentials)
     DOC_SCOPE = 'https://www.googleapis.com/auth/documents.readonly'
     creds_obj = None
     if user_id and credentials:
         print('user_id and credentials found')
-        user_id = user_id.decode('utf-8')
-        credentials = credentials.decode('utf-8')
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-        print(creds_obj)
         if not creds_obj.has_scopes([DOC_SCOPE]) :
             print('credentials do not have the right scope')
             SCOPES = creds_obj.scopes + [DOC_SCOPE]  # Add the Google Docs scope to the existing scopes.
             print(SCOPES)
-            await app.redis.delete('scopes')
+            if app.session.get('scopes'):
+                app.session.pop('scopes')
+            app.session['scopes'] = []
             for scope in SCOPES:
                 print(scope)
-                await app.redis.rpush('scopes', scope)
+                app.session['scopes'].append(scope)
             # await app.redis.set('SCOPES', SCOPES)
             # Create a new authorization URL with the additional scope
             flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=SCOPES) 
             flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
             auth_url, state = flow.authorization_url(prompt='consent')
             print(f"Please grant consent for Google Docs. Go to the following link: {auth_url}")
-            await app.redis.set('state', state )
+            app.session['state'], state
             await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':auth_url}}))
-            await app.redis.set('docsAuthorised', 0)
+            app.session['docsAuthorised'] = 0
             print('waiting for authorisation')
-            authorised = await app.redis.get('docsAuthorised')
-            authorised = int(authorised.decode('utf-8'))
+            authorised = app.session.get('docsAuthorised')
             while authorised == 0:
                 print('waiting for authorisation')
-                authorised = await app.redis.get('docsAuthorised')
-                authorised = int(authorised.decode('utf-8'))
-                print(authorised)
+                authorised = app.session.get('docsAuthorised')
                 await asyncio.sleep(1)
-            credentials = await app.redis.get('credentials')
-            credentials = credentials.decode('utf-8')
+            credentials = app.session.get('credentials')
             creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
     else :
         print('user_id and credentials not found')
@@ -292,10 +255,12 @@ async def GetDocCredentials():
 
 async def NewDocAuthRequest():
     scopes=["https://www.googleapis.com/auth/documents.readonly"]   
-    await app.redis.delete('scopes')
+    if app.session.get('scopes'):
+        app.session.pop('scopes')
+    app.session['scopes'] = []
     for scope in scopes:
         print(scope)
-        await app.redis.rpush('scopes', scope)
+        app.session.append('scopes', scope)
     # await app.redis.set('SCOPES', SCOPES)
     # Create a new authorization URL with the additional scope
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=scopes) 
@@ -307,25 +272,23 @@ async def NewDocAuthRequest():
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
     )
-    await app.redis.set('state', state)
+    app.session['state'] = state
     redir = redirect(authorization_url)
     print(redir)
     print('got authorization')
     print(authorization_url)
-    await app.redis.set('state', state )
+    app.session['state'] = state 
     await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
-    await app.redis.set('docsAuthorised', 0)
+    app.session['docsAuthorised'] =  0
     print('waiting for authorisation')
-    authorised = await app.redis.get('docsAuthorised')
-    authorised = int(authorised.decode('utf-8'))
+    authorised = app.session.get('docsAuthorised')
     while authorised == 0:
         print('waiting for authorisation')
-        authorised = await app.redis.get('docsAuthorised')
+        authorised = app.session.get('docsAuthorised')
         authorised = int(authorised.decode('utf-8'))
         print(authorised)
         await asyncio.sleep(1)
-    credentials = await app.redis.get('credentials')
-    credentials = credentials.decode('utf-8')
+    credentials = app.session.get('credentials')
     creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
     return creds_obj
 

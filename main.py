@@ -10,6 +10,7 @@ import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
+ws_session_data = {}
 
 app.session = session
 Session(app)
@@ -33,66 +34,55 @@ async def startup():
 @app.after_serving
 async def shutdown():
     await prismaDisconnect()
-    
-    print("Disconnected from Prisma")
+    eZprint("Disconnected from Prisma")
 
 @app.route("/startsession", methods=['POST'])
 async def startsession():
-    print('start-session route hit')
+    eZprint('start-session route hit')
     payload = await request.get_json()
-    convoID = payload['convoID']
+    print(app.session)
     authorised = await silent_check_login()
-    payload = {}
-    if authorised:
-        app.session['authorised'] =  1
-        userName = app.session.get('userName')
-        if userName:
-            payload['authorised'] = authorised
-            payload['userName'] = userName
+    # if not authorised:
+    #     app.session['userID'] =  'Guest'
+    #     app.session['userName'] =  'Guest'
+    #     app.session['authorised'] =  0
+    
+    payload = {
+        'authorised': app.session.get('authorised'),
+        'userID': app.session.get('userID'),
+        'userName': app.session.get('userName')
 
+    }
+    print(app.session)
     return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
 async def SSO():
-    print('SSO route hit')
+    eZprint('SSO route hit')
+    print(app.session)
     loginURL = await login()
     return jsonify({'loginURL': loginURL})
 
-@app.route('/awaitSSO', methods=['GET']) 
-async def awaitSSO():
-    print('awaitSSO route hit')
-    print(await app.redis.get('userID'))
-    while(await app.redis.get('userID') == None):
-        await asyncio.sleep(1)
-    print('SSO complete')
-    userID = await app.redis.get('userID')
-    userName = await app.redis.get('userName')
-    authorised = await app.redis.get('authorised')
-    sessionID = await app.redis.get('sessionID')
-    userID = userID.decode('utf-8')
-    userName = userName.decode('utf-8')
-    authorised = authorised.decode('utf-8')
-    sessionID = sessionID.decode('utf-8')
-
-    payload = {
-        'userID': userID,
-        'userName': userName,
-        'authorised': authorised,
-        'sessionID': sessionID
-    }
-
-    return jsonify({'event':'ssoComplete', 'payload':payload})
-
 @app.route('/requestLogout', methods=['GET'])
 async def requestLogout():
-    print('requestLogout route hit')
+    eZprint('requestLogout route hit')
     logoutStatus = await logout()    
     return jsonify({'logout': logoutStatus})
 
+# @app.route('/requestCartridges', methods=['POST'])
+# async def requestCartridges():
+#     eZprint('requestCartridges route hit')
+#     print(app.session)
+#     payload = await request.get_json()
+#     convoID = payload['convoID'] 
+#     print(payload)
+#     await initialiseCartridges(convoID)
+#     return jsonify({'status': 'success'})
 
 @app.websocket('/ws')
 async def ws():
     eZprint('socket route hit')
+    print(app.session)
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
@@ -100,25 +90,18 @@ async def ws():
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
-        authorised = app.session.get('authorised')
-        print(  'requestCartridges route hit')
+        eZprint(  'requestCartridges route hit')
+        print(app.session)
+        print(parsed_data['data'])
         convoID = parsed_data['data']['convoID'] 
-        if not authorised:
-            userID = app.session['userID'] = 'Guest'
-            userName = app.session['userName'] = 'Guest'
-
         await initialiseCartridges(convoID)
-
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
-        # print('updateCartridgeField route hit')
         print(parsed_data['data']['fields'])
         await updateCartridgeField(parsed_data['data'])
     if(parsed_data['type']== 'updateContentField'):
-        # print('updateCartridgeField route hit')
-        # print(parsed_data['data']['fields'])
         await updateContentField(parsed_data['data'])
     if(parsed_data['type']== 'newPrompt'):
         await addCartridgePrompt(parsed_data['data'])
@@ -128,7 +111,6 @@ async def process_message(parsed_data):
             eZprint('indexing gDoc')
             print(data)
             indexRecord = await asyncio.create_task(indexDocument(data))
-            # indexRecord = await indexGoogleDoc(data['userID'], data['sessionID'], data['gDocID'], data['tempKey'], data['indexType'])
             if indexRecord:
                 request = {
                     'tempKey': data['tempKey'],
@@ -136,15 +118,13 @@ async def process_message(parsed_data):
                 }
             await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
             await asyncio.create_task(handleIndexQuery(indexRecord.key, 'Give this document a short summary.'))
-
-    # parse index query
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
-        await asyncio.create_task(handleIndexQuery( data['cartKey'], data['query']))
+        await asyncio.create_task(handleIndexQuery(data['convoID'], data['cartKey'], data['query']))
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         print(data)
-        await summariseChatBlocks(data['messageIDs'], data['summaryID'])
+        await summariseChatBlocks(data['convoID'], data['messageIDs'], data['summaryID'])
     elif parsed_data["type"] == "indexdoc_start":
         await handle_indexdoc_start(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_chunk":

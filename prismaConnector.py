@@ -31,6 +31,12 @@ async def findCartridges():
     # )
     print(cartridges)
 
+async def editCartridge():
+    cartridge = await prisma.cartridge.find_first(
+        where = {'key' : 'give-various-car-others'}
+
+    )
+
 async def portUser():
 
     ###CLEARING ALL RECORDS OF THAT USER
@@ -143,9 +149,10 @@ async def main() -> None:
     # await findSummaries()
     # await findMessages()
     # await findCartridges()
-    # await findAndMarkLogsOver2k()
+    await findAndMarkLogsOver2k()
     # await findUsers()
-    await portUser()
+    # await portUser()
+
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)
