@@ -41,11 +41,11 @@ async def startsession():
     app.session['convoID'] = payload['convoID']
     print(app.session)
     authorised = await silent_check_login()
+    eZprint('authorised: ' + str(authorised))
     # if not authorised:
     #     app.session['userID'] =  'Guest'
     #     app.session['userName'] =  'Guest'
     #     app.session['authorised'] =  0
-    
     payload = {
         'authorised': app.session.get('authorised'),
         'userID': app.session.get('userID'),
@@ -90,7 +90,7 @@ async def ws():
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
-        eZprint(  'requestCartridges route hit')
+        eZprint('requestCartridges route hit')
         print(app.session)
         print(parsed_data['data'])
         convoID = parsed_data['data']['convoID'] 

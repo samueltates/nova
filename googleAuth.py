@@ -19,7 +19,7 @@ from googleapiclient import errors
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
 async def silent_check_login():
-    print('silent check')
+    nova.eZprint('silent check')
     user_id = app.session.get('userID')
     credentials = app.session.get('credentials')
     # print(app.session)
