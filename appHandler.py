@@ -8,7 +8,7 @@ app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.session = None
 app.config['SESSION_TYPE'] = 'redis'
-app.config["REDIS_URI"] = "redis://localhost"
+app.config["REDIS_URI"] = os.environ.get('REDIS_URI')
 app.config["REDIS_PORT"] = 6379
 # app.config.update(SESSION_COOKIE_SAMESITE="None", SESSION_COOKIE_SECURE=True)
 # app.config['SESSION_COOKIE_SECURE'] = True  # Set to True if using HTTPS!
