@@ -218,14 +218,14 @@ async def process_message(parsed_data):
             'userName': parsed_data['payload']['userName'],
             'authorised': parsed_data['payload']['authorised']
             }}))
-        
+    if(parsed_data["type"] == 'setModel'):
+        print('setModel called by html template.')
+        print(parsed_data['payload'])
+        await app.redis.set('model', parsed_data['payload']['model'])
+        await websocket.send(json.dumps({'event':'setModel', 'payload': {
+            'model': parsed_data['payload']['model']
+            }}))
 
-
-    # if(parsed_data['type']== 'indexFile'):
-    #     data = parsed_data['data']
-    #     indexRecord = await indexDocument(data["userID"], data["file_content"], data["file_name"], data["file_type"], data["sessionID"], data["tempKey"],data["indexType"])
-    
-    # Initialize a dictionary to store incoming file chunks
 file_chunks = {}
 
 async def handle_indexdoc_start(data):

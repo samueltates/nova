@@ -102,6 +102,7 @@ async def indexDocument(payload):
         'description': 'a document indexed to be queriable by NOVA',
         'enabled': True,
         # 'file':{file_content},
+        'blocks': [],
         'index': indexJson,
         'indexType': indexType,
     }

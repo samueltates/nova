@@ -323,7 +323,12 @@ async def constructChatPrompt():
         content = fakeResponse()
         await asyncio.sleep(1)
     else :
-        response = await sendChat(promptObject)
+        model = await app.redis.get('model')
+        if model == None: 
+            model = 'gpt-4'
+        else:
+            model = model.decode('utf-8')
+        response = await sendChat(promptObject, model)
         eZprint('response received')
         # print(response)
         content = str(response["choices"][0]["message"]["content"])
@@ -352,9 +357,9 @@ def estimateTokenSize(text):
     tokenCount =  text.count(' ') + 1
     return tokenCount
 
-async def sendChat(promptObj):
+async def sendChat(promptObj, model):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model="gpt-3.5-turbo",messages=promptObj))
+    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
     return response
 
 async def logMessage(messageObject):
@@ -502,19 +507,22 @@ async def update_object_fields(hash, object_key: str, fields: dict):
 async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
     sessionData = await getSessionData()
+    cartridges = await getAvailableCartridges()
+    targetCartVal = cartridges[targetCartKey]
+
     # print(sessionData)
     # TODO: switch to do lookup via key not blob
     eZprint('cartridge update input')
     print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
-        'key': targetCartKey}
+        'blob':
+        {'equals': Json({input['cartKey']: targetCartVal})}
+        }, 
     )
     eZprint('found match')
     print(matchedCart)
     await update_object_fields('availableCartridges',targetCartKey, input['fields'])
-    cartridges = await getAvailableCartridges()
-    targetCartVal = cartridges[targetCartKey]
 
     if matchedCart:
         updatedCart = await prisma.cartridge.update(
@@ -540,7 +548,7 @@ async def updateContentField(input):
 
 async def handleIndexQuery(cartKey, query):
     #TODO -  basically could comine with index query (or this is request, query is internal)
-    payload = { 'key':cartKey,'fields': {
+    payload = { 'key': cartKey,'fields': {
             'status': 'querying Index',
             'state': 'loading'
     }}
@@ -555,26 +563,27 @@ async def handleIndexQuery(cartKey, query):
 async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     #TODO - consider if better to hand session data to funtions (so they are stateless)
     sessionData = await getSessionData()
-    if(app.config['DEBUG'] == True):
-        print('debug mode')
-        cartVal['state'] = ''
-        cartVal['status'] = ''
-        if 'blocks' not in cartVal:
-            cartVal['blocks'] = []
-        cartVal['blocks'].append({'query':query, 'response':'fakeresponse'})
-        payload = { 'key':cartKey,'fields': {
-            'status': cartVal['status'],
-            'blocks':cartVal['blocks'],
-            'state': cartVal['state']
-        }}
-        print(payload)
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-        return
+    # if(app.config['DEBUG'] == True):
+    #     print('debug mode')
+    #     cartVal['state'] = ''
+    #     cartVal['status'] = ''
+    #     if 'blocks' not in cartVal:
+    #         cartVal['blocks'] = []
+    #     cartVal['blocks'].append({'query':query, 'response':'fakeresponse'})
+    #     payload = { 'key':cartKey,'fields': {
+    #         'status': cartVal['status'],
+    #         'blocks':cartVal['blocks'],
+    #         'state': cartVal['state']
+    #     }}
+    #     print(payload)
+    #     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+    #     return
     eZprint('triggering index query')
     oldVal = cartVal
     # print(input['message'])
+    print(cartVal)
     cartVal['state'] = 'loading'
-    cartVal['status'] = 'indexFound'
+    cartVal['status'] = 'index Found'
     payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
                             'state': cartVal['state']
@@ -584,25 +593,33 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     eZprint('index query complete')
     # eZprint(insert)
     if(insert != None):
+        print('inserting')
         #TODO - replace this ID lookup with a key lookup
         cartVal['state'] = ''
         cartVal['status'] = ''
-        if 'blocks' not in cartVal:
-            cartVal['blocks'] = []
+        # if 'blocks' not in cartVal:
+        #     cartVal['blocks'] = []
         cartVal['blocks'].append({'query':query, 'response':str(insert)})
         payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
                             'blocks':cartVal['blocks'],
                             'state': cartVal['state']
                                 }}
-
         id = cartdigeLookup[cartKey]
+
+        updateFields = {
+            'status': cartVal['status'],
+            'blocks':cartVal['blocks'],
+            'state': cartVal['state']
+
+        }
+        await update_object_fields('availableCartridges',updateFields)
+
         matchedCart = await prisma.cartridge.find_first(
             where={
-                    'id': id                 
-                    }
+                    'id': id                                    
+                      }
         )
-
         if matchedCart:
             updatedCart = await prisma.cartridge.update(
                 where={ 'id': id },
@@ -1011,7 +1028,12 @@ async def getSummary(textToSummarise):
     # promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'system', 'content' : initialPrompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    response = await sendChat(promptObject)
+    model = await app.redis.get('model')
+    if model == None: 
+        model = 'gpt-4'
+    else :
+        model = model.decode('utf-8')
+    response = await sendChat(promptObject, model)
 
     return response["choices"][0]["message"]["content"]
 
@@ -1020,7 +1042,12 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    response = await sendChat(promptObject)
+    model = await app.redis.get('model')
+    if model == None: 
+        model = 'gpt-4'
+    else:
+        model = model.decode('utf-8')
+    response = await sendChat(promptObject, model)
 
     return response["choices"][0]["message"]["content"]
 

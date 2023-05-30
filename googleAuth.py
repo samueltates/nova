@@ -83,6 +83,7 @@ async def login():
         # Enable offline access so that you can refresh an access token without
         # re-prompting the user for permission. Recommended for web server apps.
         access_type='offline',
+        prompt="consent",  # Add this line
         # Enable incremental authorization. Recommended as a best practice.
         include_granted_scopes='true'
     )
@@ -120,9 +121,7 @@ async def authoriseLogin():
     service = discovery.build('oauth2', 'v2', credentials=credentials)
     userInfo = service.userinfo().get().execute()
     print(userInfo)
-
     user = await nova.GoogleSignOn(userInfo, credentials)
-
     await app.redis.set('userID', userInfo['id'])
     await app.redis.set('credentials', credentials.to_json())
     await app.redis.set('authorised',  1)

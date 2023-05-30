@@ -31,6 +31,70 @@ async def findCartridges():
     # )
     print(cartridges)
 
+async def portUser():
+
+    ###CLEARING ALL RECORDS OF THAT USER
+    deleteLogs = await prisma.user.delete_many(
+        where={'UserID': '110327569930296986874'},   
+    )
+    deleteCartridges = await prisma.cartridge.delete_many(
+        where={'UserID': '110327569930296986874'},
+    )
+    deleteMessages = await prisma.message.delete_many(
+        where={'UserID': '110327569930296986874'},
+    )
+
+    deleteBatches = await prisma.batch.delete_many(
+        where={'UserID': '110327569930296986874'},
+    )
+
+    deleteSummary = await prisma.summary.delete_many(
+        where={'UserID': '110327569930296986874'},
+    )
+
+    deleteSession = await prisma.session.delete_many(
+        where={'UserID': '110327569930296986874'},
+    )
+
+
+
+
+    updateLogs = await prisma.log.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+
+    updateMessages = await prisma.message.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+
+    updateBatches = await prisma.batch.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+    
+    updateSummary = await prisma.summary.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+
+    updateSession = await prisma.session.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+
+    updateCartridges = await prisma.cartridge.update_many(
+        where={'UserID': '108238407115881872743'},
+        data={'UserID': '110327569930296986874'}
+    )
+
+
+    # delete = await prisma.cartridge.delete_many(
+
+#     users
+
+
 
 async def findAndMarkLogsOver2k():
        # and sets to true if they're too long
@@ -65,18 +129,23 @@ async def findAndMarkLogsOver2k():
 
 async def findLogs():
        # and sets to true if they're too long
-    logs = await prisma.log.find_many()
+    logs = await prisma.log.find_many(
+        where = {'UserID' : '108238407115881872743',}
+
+    )
     print(logs)
 
     
 async def main() -> None:
     await prisma.connect()
+
     # await findLogs()
     # await findSummaries()
     # await findMessages()
-    await findCartridges()
+    # await findCartridges()
     # await findAndMarkLogsOver2k()
     # await findUsers()
+    await portUser()
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
     # print(messages)
