@@ -10,10 +10,8 @@ import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
-from quart_redis import RedisHandler, get_redis
 
 app.session = session
-redis_handler = RedisHandler(app)
 Session(app)
 # redis = get_redis()
 
@@ -29,7 +27,6 @@ async def hello():
 @app.before_serving
 async def startup():
     await prismaConnect()
-    app.redis = get_redis()
 
     # await googleAuthHandler()
 
@@ -39,31 +36,20 @@ async def shutdown():
     
     print("Disconnected from Prisma")
 
-@app.route("/startsession")
+@app.route("/startsession", methods=['POST'])
 async def startsession():
     print('start-session route hit')
-    sessionID = await app.redis.get('sessionID')
-    if sessionID == None:
-        sessionID = os.urandom(24).hex()
-        await app.redis.set('sessionID', sessionID) 
-    else:
-        sessionID = sessionID.decode('utf-8')
-    payload = {
-        'sessionID': sessionID
-    }
-    print('sessionID: ' + sessionID)
+    payload = await request.get_json()
+    convoID = payload['convoID']
     authorised = await silent_check_login()
-    userName = None
+    payload = {}
     if authorised:
-        await app.redis.set('authorised', 1)
-        userName = await app.redis.get('userName')
+        app.session['authorised'] =  1
+        userName = app.session.get('userName')
         if userName:
             payload['authorised'] = authorised
-            userName = userName.decode('utf-8')
             payload['userName'] = userName
-    # else:
-    #     loginURL= await login()
-    #     payload['loginURL']= loginURL
+
     return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
@@ -114,51 +100,15 @@ async def ws():
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
-        authorised = await app.redis.get('authorised')
-        if authorised:
-            userID = await app.redis.get('userID')
-            userName = await app.redis.get('userName')
-            sessionID = await app.redis.get('sessionID')
-            userID = userID.decode('utf-8')
-            userName = userName.decode('utf-8')
-            sessionID = sessionID.decode('utf-8')
-            userInfo = {
-                'userID': userID,
-                'userName': userName,
-                'sessionID' : sessionID
-            }
-        else:
-            sessionID = await app.redis.get('sessionID')
-            sessionID = sessionID.decode('utf-8')
-            userID = await app.redis.set('userID', 'Guest')
-            userName = await app.redis.set('userName', 'Guest')
+        authorised = app.session.get('authorised')
+        print(  'requestCartridges route hit')
+        convoID = parsed_data['data']['convoID'] 
+        if not authorised:
+            userID = app.session['userID'] = 'Guest'
+            userName = app.session['userName'] = 'Guest'
 
-            userInfo = {
-                'userID': 'Guest',
-                'userName': 'Guest',
-                'sessionID' : sessionID
-            }
+        await initialiseCartridges(convoID)
 
-        await initialiseCartridges(userInfo)
-
-    if(parsed_data['type'] == 'requestCartridgesAuthed'):
-        userID = await app.redis.get('userID')
-        userName = await app.redis.get('userName')
-        sessionID = await app.redis.get('sessionID')
-        userID = userID.decode('utf-8')
-        userName = userName.decode('utf-8')
-        sessionID = sessionID.decode('utf-8')
-        userInfo = {
-            'userID': userID,
-            'userName': userName,
-            'sessionID' : sessionID
-        }
-        print('requestCartridgesAuthed route hit')
-        print(userInfo)
-
-        await initialiseCartridges(userInfo)
-    # print(parsed_data['type']) # Will print 'requestCartridges'
-    # print(parsed_data['data']) # Will print the data sent by the client
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])

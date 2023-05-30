@@ -20,14 +20,13 @@ from googleapiclient import errors
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
 async def silent_check_login():
-    user_id = await app.redis.get('userID')
-    credentials = await app.redis.get('credentials')
+    user_id = app.session.get('userID')
+    credentials = app.session.get('credentials')
     # Check if the credentials exist and are valid
     print(credentials)
     if user_id and credentials:
         print('user_id and credentials found')
-        user_id = user_id.decode('utf-8')
-        credentials = credentials.decode('utf-8')
+
         try:
             creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
         except:
@@ -44,7 +43,7 @@ async def silent_check_login():
                     creds_obj.refresh(Request())
                     # Store the updated credentials
                     print('credentials refreshed')
-                    await app.redis.set('credentials', creds_obj.to_json())
+                    app.session['credentials'] =  creds_obj.to_json()
                 except :
                     print(f"Failed to refresh the access token: ")
                     return False

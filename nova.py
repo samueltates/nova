@@ -124,57 +124,47 @@ async def getSessionData():
 
     
 ##CARTRIDGE MANAGEMENT
-async def initialiseCartridges(data):
+async def initialiseCartridges(convoID):
     eZprint('intialising cartridges')
-    await app.redis.delete('availableCartridges')
-    await app.redis.delete('chatLog')
-    await app.redis.delete('UUID')
-    UUID = generate_id()
-    await app.redis.set('UUID', UUID)
-    await loadCartridges(data)
-    await runCartridges(data)
+    await loadCartridges(convoID)
+    await runCartridges(convoID)
     # await constructChatPrompt()
 
 async def loadCartridges(sessionRequest):
     eZprint('load cartridges called')
     # eZprint(sessionRequest)
-    availableCartridges = {}
+
+    userID = app.session.get('userID')
 
     cartridges = await prisma.cartridge.find_many(
         where = {  
-        "UserID": sessionRequest['userID'],
+        "UserID": userID,
         }
     )
     eZprint('cartridge length is ' + str(len(cartridges)))
     if len(cartridges) != 0:
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
+            app.session['availableCartridges${convoID}']
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal:
-                    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
-                    # availableCartridges.setdefault(
-                    #     sessionRequest['sessionID'], dict()).update({cartKey: cartVal})
+                    app.session['availableCartridges${convoID}']={ cartKey: cartVal}
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
                         cartVal.update({'state': 'loading'})
-                    # eZprint('printing cart objs')
-        # print(await app.redis.hgetall(f'availableCartridges'))
-    cartridges_data =  await app.redis.hgetall(f'availableCartridges')
-    # all_cartridges = {key: json.loads(val) for key, val in cartridges_data.items()}
-    all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
-    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': all_cartridges}))
+    availableCartridges =  app.session.get('availableCartridges${convoID}')
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
     eZprint('load cartridges complete')
 
-async def runCartridges(sessionRequest):
+async def runCartridges(convoID):
     eZprint('running cartridges')
-    cartridges_data =  await app.redis.hgetall(f'availableCartridges')
-    all_cartridges = {key.decode('utf-8'): json.loads(val.decode('utf-8')) for key, val in cartridges_data.items()}
-    if len(all_cartridges) != 0:
-        for cartKey, cartVal in all_cartridges.items():
+    availableCartridges =  app.session.get('availableCartridges${convoID}')
+    if len(availableCartridges) != 0:
+        for cartKey, cartVal in availableCartridges.items():
             # print (cartVal)
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-                await runMemory(sessionRequest, cartKey, cartVal)
+                await runMemory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -203,7 +193,7 @@ async def runCartridges(sessionRequest):
 async def addNewUserCartridgeTrigger(cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
-    await app.redis.hset(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
+    await app.redis.get(f'availableCartridges', f'{cartKey}', json.dumps(cartVal))
     print('adding new user cartridge')
     sessionData = await getSessionData()
     # print(sessionData)
@@ -748,11 +738,10 @@ async def inject_summary(summary, position_to_insert):
 
 
 
-async def runMemory(input, cartKey, cartVal):
+async def runMemory(convoID, cartKey, cartVal):
 
     eZprint('running memory')
-    UUID = await app.redis.get(f'UUID')
-    UUID = UUID.decode('utf-8')
+
     sessionData = await getSessionData()
     remoteLogs = await prisma.log.find_many(
         where={'UserID': sessionData['userID']}
@@ -780,7 +769,7 @@ async def runMemory(input, cartKey, cartVal):
 
     if(len(remoteLogs) > 0):
         allLogs.setdefault(
-            input['sessionID'], remoteLogs)
+            convoID, remoteLogs)
         for log in allLogs[input['sessionID']]:
             if (log.summary == "" or log.summary == ''):
                 payload = { 'key':cartKey,'fields': {'status': 'unsumarised chats found'}}
