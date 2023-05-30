@@ -66,6 +66,7 @@ async def SSO():
 @app.route('/requestLogout', methods=['GET'])
 async def requestLogout():
     eZprint('requestLogout route hit')
+    print(app.session)
     logoutStatus = await logout()    
     return jsonify({'logout': logoutStatus})
 

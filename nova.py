@@ -140,7 +140,7 @@ async def loadCartridges(convoID):
                     app.session[availableCartKey][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
-                        # cartVal.update({'state': 'loading'})
+                        cartVal.update({'state': 'loading'})
     # print('available cartridges are ' + str(app.session[availableCartKey]))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
     eZprint('load cartridges complete')
@@ -530,23 +530,11 @@ async def updateCartridgeField(input):
     print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
-        'key' : targetCartKey,}
-        
-    )
-    print(matchedCart)
-    if matchedCart == None:
-        matchedCart = await prisma.cartridge.find_first(
-        where={
         'blob':
         {'equals': Json({input['cartKey']: targetCartVal})}
-        }, 
-        )
-        if matchedCart:
-            updatedCart = await prisma.cartridge.update(
-            where={ 'id': matchedCart.id },
-            data={
-                key : targetCartKey
-            })
+        },         
+    )
+    print(matchedCart)
     for key, val in input['fields'].items():
         app.session[cartridgesKey][targetCartKey][key] = val
     

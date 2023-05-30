@@ -145,7 +145,6 @@ async def authoriseLogin():
     app.session['userName'] =  userInfo['name']
     app.session['authorised'] =  1
     app.session['credentials'] = credentials.to_json()
-    
     return redirect(url_for('authComplete'))
 
 
@@ -156,7 +155,8 @@ async def authComplete():
     return redirect(os.environ.get('NOVAHOME'))
 
 async def logout():
-    credentials = app.session['credentials']
+    credentials = app.session.get('credentials')
+    print(credentials)
     creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
     if creds_obj:
         access_token = creds_obj.token
@@ -169,7 +169,6 @@ async def logout():
                 app.session.pop('userName')
             if app.session.get('authorised'):
                 app.session.pop('authorised')
-
             return True
     return False
 
