@@ -50,7 +50,7 @@ async def silent_check_login():
     return False
 
 async def login():
-    print('SSOLOGIN route hit')
+    nova.eZprint('SSOLOGIN route hit')
     credentials = app.session.get('credentials')
     PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile'
     SCOPES = []

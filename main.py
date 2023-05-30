@@ -27,7 +27,7 @@ async def hello():
 
 @app.before_serving
 async def startup():
-    session.permanent = True
+    # session.permanent = True
     await prismaConnect()
 
     # await googleAuthHandler()
@@ -82,17 +82,17 @@ async def requestLogout():
 #     await initialiseCartridges(convoID)
 #     return jsonify({'status': 'success'})
 
-@app.websocket('/ws')
-async def ws():
-    eZprint('ws route hit')
-    print(app.session)
-    while True:
-        data = await websocket.receive()
-        parsed_data = json.loads(data)
-        print(parsed_data)
-        app.session.modified = True
+# @app.websocket('/ws')
+# async def ws():
+#     eZprint('ws route hit')
+#     print(app.session)
+#     while True:
+#         data = await websocket.receive()
+#         parsed_data = json.loads(data)
+#         print(parsed_data)
+#         app.session.modified = True
 
-        asyncio.create_task(process_message(parsed_data))
+#         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
@@ -146,8 +146,7 @@ async def process_message(parsed_data):
         print(parsed_data['payload'])
         await app.redis.set('userID', parsed_data['payload']['userID'])
         await app.redis.set('userName', parsed_data['payload']['userName'])
-        await app.redis.set('authorised', parsed_data['payload']['authorised'])
-        
+        await app.redis.set('authorised', parsed_data['payload']['authorised'])   
         await websocket.send(json.dumps({'event':'ssoComplete', 'payload': {
             'userID': parsed_data['payload']['userID'],
             'userName': parsed_data['payload']['userName'],
