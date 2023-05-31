@@ -34,7 +34,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-# UnstructuredReader = download_loader("UnstructuredReader")
+UnstructuredReader = download_loader("UnstructuredReader")
 
 async def indexDocument(payload):
     nova.eZprint('indexDocument called')
@@ -69,8 +69,8 @@ async def indexDocument(payload):
         # Read and process the reconstructed file
         temp_file.close()
         
-        # unstructured_reader = UnstructuredReader()
-        # document = unstructured_reader.load_data(temp_file.name)
+        unstructured_reader = UnstructuredReader()
+        document = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
     index = None
@@ -102,7 +102,6 @@ async def indexDocument(payload):
         'description': 'a document indexed to be queriable by NOVA',
         'enabled': True,
         # 'file':{file_content},
-        'blocks': [],
         'index': indexJson,
         'indexType': indexType,
     }
@@ -145,7 +144,7 @@ async def queryIndex(queryString, index, indexType ):
     if(indexType == 'Vector'):
         # index = GPTSimpleVectorIndex.load_from_disk(tmpfile.name)
         # index.set_text("Body of text uploaded to be summarised or have question answered")
-        llm_predictor_gpt = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo"))
+        llm_predictor_gpt = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="gpt-4"))
 
         step_decompose_transform = StepDecomposeQueryTransform(
         llm_predictor_gpt, verbose=True

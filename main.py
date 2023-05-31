@@ -1,6 +1,7 @@
 import os
 from quart import request, jsonify, url_for, session
 from quart_session import Session
+import secrets
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from appHandler import app, websocket
@@ -41,6 +42,8 @@ async def shutdown():
 async def startsession():
     eZprint('start-session route hit')
     payload = await request.get_json()
+    convoID = secrets.token_bytes(4).hex()
+    app.session['convoID'] = convoID
     # app.session['convoID'] = payload['convoID']
     # sessionStatus[payload['convoID']] = False
     print(app.session)
