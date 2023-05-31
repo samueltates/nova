@@ -42,7 +42,7 @@ def make_session_permanent():
     session.permanent = True
 
 
-@app.route("/startsession", methods=['GET'])
+@app.route("/startsession", methods=['POST'])
 async def startsession():
     eZprint('start-session route hit')
     print(request.body._data)
