@@ -34,11 +34,11 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-# UnstructuredReader = download_loader("UnstructuredReader")
+UnstructuredReader = download_loader("UnstructuredReader")
 
 async def indexDocument(payload):
     nova.eZprint('indexDocument called')
-    print(payload)
+    # print(payload)
 
     userID = app.session.get('userID')
     indexType = payload['indexType']
@@ -68,8 +68,8 @@ async def indexDocument(payload):
         # Read and process the reconstructed file
         temp_file.close()
         
-        # unstructured_reader = UnstructuredReader()
-        # document = unstructured_reader.load_data(temp_file.name)
+        unstructured_reader = UnstructuredReader()
+        document = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
     index = None
@@ -100,13 +100,13 @@ async def indexDocument(payload):
         'type': 'index',
         'description': 'a document indexed to be queriable by NOVA',
         'enabled': True,
+        'blocks': [],
         # 'file':{file_content},
         'index': indexJson,
         'indexType': indexType,
     }
 
-
-    newCart = await nova.addCartridgeTrigger(cartval)
+    newCart = await nova.addCartridgeTrigger(cartval, convoID)
     payload = { 'key':tempKey,'fields': {'label':documentTitle, 'status': 'index created, getting summary'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     nova.eZprint('printing new cartridge')

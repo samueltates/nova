@@ -154,7 +154,7 @@ async def runCartridges(convoID):
             # print (cartVal)
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-                await runMemory(convoID, cartKey, cartVal)
+                # await runMemory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -265,7 +265,7 @@ async def constructChatPrompt(convoID):
 
     # print('available cartridges: ' + str(availableCartridges))
     print(app.session.get(availableCartKey))
-    if len(availableCartridges) != 0:
+    if(availableCartridges != None):
         sorted_cartridges = sorted(availableCartridges.values(), key=lambda x: x.get('position', float('inf')))
         for index, cartVal in enumerate(sorted_cartridges):
             if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
@@ -317,14 +317,11 @@ async def constructChatPrompt(convoID):
         content = fakeResponse()
         await asyncio.sleep(1)
     else :
-        # model = await app.redis.get('model')
-        # if model == None: 
-        #     model = 'gpt-4'
-        # else:
-        #     model = model.decode('utf-8')
-        eZprint('sending chat')
+        model = app.session.get('model')
+        if model == None:
+            model = 'gpt-3.5-turbo'
         print(f"{promptObject}")
-        response = await sendChat(promptObject, 'gpt-4')
+        response = await sendChat(promptObject, model)
         eZprint('response received')
         # print(response)
         content = str(response["choices"][0]["message"]["content"])
@@ -452,6 +449,8 @@ async def addCartridgePrompt(input):
         }
     )
     availableCartKey = f'availableCartridges{convoID}'
+    if(availableCartKey not in app.session):
+        app.session[availableCartKey] = {}
     app.session[availableCartKey][cartKey] = cartVal
     payload = {
             'tempKey': input['tempKey'],
@@ -485,6 +484,8 @@ async def addCartridgeTrigger(cartVal, convoID):
     eZprint('new index cartridge added to [nova]')
     cartdigeLookup.update({cartKey: newCart.id}) 
     availableCartKey = f'availableCartridges{convoID}'
+    if(availableCartKey not in app.session):
+        app.session[availableCartKey] = {}
     app.session[availableCartKey][cartKey] = cartVal
     return newCart
 
@@ -527,7 +528,7 @@ async def updateCartridgeField(input):
     # print(sessionData)
     # TODO: switch to do lookup via key not blob
     eZprint('cartridge update input')
-    print(input)
+    # print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
         'blob':
@@ -576,7 +577,7 @@ async def handleIndexQuery(convoID, cartKey, query):
 
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index = await getCartridgeDetail(cartKey)
-        await triggerQueryIndex(convoID, cartKey, cartVal, query, index)
+        await triggerQueryIndex(cartKey, cartVal, query, index)
 
 async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     #TODO - consider if better to hand session data to funtions (so they are stateless)
@@ -598,7 +599,7 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
     eZprint('triggering index query')
     oldVal = cartVal
     # print(input['message'])
-    print(cartVal)
+    # print(cartVal)
     cartVal['state'] = 'loading'
     cartVal['status'] = 'index Found'
     payload = { 'key':cartKey,'fields': {
@@ -614,8 +615,8 @@ async def triggerQueryIndex(cartKey, cartVal, query, indexJson):
         #TODO - replace this ID lookup with a key lookup
         cartVal['state'] = ''
         cartVal['status'] = ''
-        # if 'blocks' not in cartVal:
-        #     cartVal['blocks'] = []
+        if 'blocks' not in cartVal:
+            cartVal['blocks'] = []
         cartVal['blocks'].append({'query':query, 'response':str(insert)})
         payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
@@ -1061,9 +1062,9 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
 
 
 def eZprint(string):
-    print('\n _____________ \n')
-    print(string)
-    print('\n _____________ \n')
+    print('\n_____________')
+    print(string )
+    print('_____________\n')
 
 def fakeResponse():
     return random.choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",

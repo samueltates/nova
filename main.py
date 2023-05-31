@@ -10,7 +10,7 @@ import json
 import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
-from googleAuth import login, silent_check_login, logout
+from googleAuth import login, silent_check_login, logout, check_credentials,requestPermissions
 
 app.session = session
 Session(app)
@@ -45,39 +45,56 @@ def make_session_permanent():
 @app.route("/startsession", methods=['POST'])
 async def startsession():
     eZprint('start-session route hit')
-    print(request.body._data)
     payload = await request.get_json()
+    if app.session.get('sessionID') is None:
+        sessionID = secrets.token_bytes(4).hex()
+        app.session['sessionID'] = sessionID
     convoID = secrets.token_bytes(4).hex()
-    print(payload)
     app.session['convoID'] = convoID
-    print(app.session)
-    authorised = await silent_check_login()
-    eZprint('authorised: ' + str(authorised))
+    authorised = await check_credentials()
     payload = {
-        'authorised': app.session.get('authorised'),
+        'profileAuthed' : app.session.get('profileAuthed'),
+        'docsAuthed' : app.session.get('docsAuthed'),
         'userID': app.session.get('userID'),
-        'userName': app.session.get('userName')
+        'userName': app.session.get('userName'),
+        'convoID': convoID,
     }
-    print(app.session)
+    print(payload)
+    # print(app.session)
     app.session.modified = True
     return jsonify(payload)
 
 @app.route('/SSO', methods=['GET'])
 async def SSO():
     eZprint('SSO route hit')
-    print(app.session)
-    loginURL = await login()
+    # print(app.session)
+    scopes = ['https://www.googleapis.com/auth/userinfo.profile']
+    loginURL = await requestPermissions( scopes )
     app.session.modified = True
-
     return jsonify({'loginURL': loginURL})
+
+@app.route('/authRequest', methods=['GET'])
+async def authRequest():
+    eZprint('googleAuth')
+    authUrl = await requestPermissions( ['https://www.googleapis.com/auth/documents.readonly'] )
+    app.session.modified = True
+    return jsonify({'loginURL': authUrl})
 
 @app.route('/requestLogout', methods=['GET'])
 async def requestLogout():
     eZprint('requestLogout route hit')
-    print(app.session)
+    # print(app.session)
     logoutStatus = await logout()    
     app.session.modified = True
     return jsonify({'logout': logoutStatus})
+
+
+@app.route('/getDebug', methods=['GET'])
+async def getDebug():
+    print('state is ' + str(app.session.get('state')))
+    return jsonify({'debugText': app.session.get('state')})
+
+
 
 # @app.route('/requestCartridges', methods=['POST'])
 # async def requestCartridges():
@@ -92,7 +109,7 @@ async def requestLogout():
 @app.websocket('/ws')
 async def ws():
     eZprint('ws route hit')
-    print(app.session)
+    # print(app.session)
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
@@ -102,12 +119,16 @@ async def ws():
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
+    if(parsed_data['type'] == 'getDebug'):
+        print('state is ' + str(app.session.get('state')))
+        await websocket.send_json({'debugText': app.session.get('state')})
     if(parsed_data['type'] == 'requestCartridges'):
         eZprint('requestCartridges route hit')
-        print(app.session)
+        # print(app.session)
         print(parsed_data['data'])
         convoID = parsed_data['data']['convoID'] 
         await initialiseCartridges(convoID)
+    
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])
@@ -120,9 +141,10 @@ async def process_message(parsed_data):
         await addCartridgePrompt(parsed_data['data'])
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
+        convoID = data['convoID']
         if 'gDocID' in data:
             eZprint('indexing gDoc')
-            print(data)
+            # print(data)
             indexRecord = await asyncio.create_task(indexDocument(data))
             if indexRecord:
                 request = {
@@ -130,7 +152,7 @@ async def process_message(parsed_data):
                     'newCartridge': indexRecord.blob,
                 }
             await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
-            await asyncio.create_task(handleIndexQuery(indexRecord.key, 'Give this document a short summary.'))
+            await asyncio.create_task(handleIndexQuery(convoID, indexRecord.key, 'Give this document a short summary.'))
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
         await asyncio.create_task(handleIndexQuery(data['convoID'], data['cartKey'], data['query']))
@@ -195,6 +217,7 @@ async def handle_indexdoc_end(data):
     # You might need to convert the content from a bytearray to the initial format (e.g., base64)
     print(file_metadata)
     data = {
+        'convoID': file_metadata['convoID'],
         'userID': file_metadata['userID'],
         'file_content': file_content,
         'file_name': file_metadata['file_name'],
@@ -212,7 +235,7 @@ async def handle_indexdoc_end(data):
             'newCartridge': indexRecord.blob,
         }
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
-    await asyncio.create_task(handleIndexQuery(indexRecord.key, 'Give this document a short summary.'))
+    await asyncio.create_task(handleIndexQuery(data['convoID'], indexRecord.key, 'Give this document a short summary.'))
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]

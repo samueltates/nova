@@ -3,7 +3,7 @@ from llama_index.readers.schema.base import Document
 import googleapiclient.discovery as discovery
 
 from typing import Any, List
-from googleAuth import GetDocCredentials
+from googleAuth import getDocService
 import nova 
 
 
@@ -33,8 +33,7 @@ class GoogleDocsReader(BaseReader):
         return results
 
     async def _get_title(self, document_id:str):
-        credentials = await GetDocCredentials()
-        docs_service = discovery.build("docs", "v1", credentials=credentials)
+        docs_service = await getDocService()
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_title = doc.get("title")
         return doc_title
@@ -49,9 +48,8 @@ class GoogleDocsReader(BaseReader):
             The document text.
         """
 
-        credentials = await GetDocCredentials()
-        print(credentials)
-        docs_service = discovery.build("docs", "v1", credentials=credentials)
+        
+        docs_service = await getDocService()
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_content = doc.get("body").get("content")
         doc_title = doc.get("title")

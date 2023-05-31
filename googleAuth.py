@@ -18,6 +18,168 @@ from googleapiclient import errors
 # google auth docs : https://developers.google.com/identity/protocols/oauth2/web-server
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
+async def check_credentials():
+    credentials = app.session.get('credentials')
+    if credentials:
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        # If the credentials have an expiry and the token is expired
+        if creds_obj.expiry and creds_obj.expired:
+            print('credentials expired')
+            # Check if the credentials have a refresh token
+            if creds_obj.refresh_token:
+                # Refresh the access token
+                try:
+                    creds_obj.refresh(Request())
+                    # Store the updated credentials
+                    print('credentials refreshed')
+                    app.session['credentials'] =  creds_obj.to_json()
+                except :
+                    print(f"Failed to refresh the access token: ")
+                    return False
+            else:
+                print("No refresh token found for existing user")
+                return False
+        elif not creds_obj.expired:
+            app.session['scopes'] = creds_obj.scopes
+            print('scopes returned are: ' + str(app.session.get('scopes')))
+            # for scope in creds_obj.granted_scopes:
+                # if scope == 'https://www.googleapis.com/auth/userinfo.profile':
+                #     app.session['profileAuthed'] = True
+                #     print('profileAuthed set to true')
+                # elif scope == 'https://www.googleapis.com/auth/documents.readonly':
+                #     app.session['docsAuthed'] = True
+                #     print('docsAuthed set to true')
+            return True
+    return False
+
+async def requestPermissions(scopes):
+    nova.eZprint('requestPermission route hit')
+    app.session['requesting'] = True
+    credentials = app.session.get('credentials')
+    if credentials:
+        nova.eZprint('credentials found')
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        if creds_obj.has_scopes(scopes):
+            nova.eZprint('scopes already granted')
+            return False
+        else:
+            nova.eZprint('scopes missing')
+            scopes = creds_obj.scopes + scopes
+            print('scopes returned are: ' + str(app.session.get('scopes')))
+
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+    'credentials.json', scopes=scopes)
+    app.session['scopes'] = scopes    
+    flow.redirect_uri = url_for('authoriseRequest', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        prompt="consent",  # Add this line
+        # include_granted_scopes='true'
+    )
+    app.session['state'] =  state
+    redir = redirect(authorization_url)
+    print('got redirect URL')
+    return authorization_url
+
+@app.route('/authoriseRequest')
+async def authoriseRequest():
+    nova.eZprint('authoriseRequest route hit')
+    state = app.session.get('state')
+    scopes = app.session.get('scopes')
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+    'credentials.json', scopes=scopes, state=state) 
+    flow.redirect_uri = url_for('authoriseRequest', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
+    authorization_response = request.url
+    flow.fetch_token(authorization_response=authorization_response)
+    credentials = flow.credentials
+    app.session['credentials'] = credentials.to_json()
+    for scope in credentials.granted_scopes:
+        if scope == 'https://www.googleapis.com/auth/userinfo.profile':
+            app.session['profileAuthed'] = True
+            await getUserInfo()
+            print('profileAuthed set to true')
+        elif scope == 'https://www.googleapis.com/auth/documents.readonly':
+            app.session['docsAuthed'] = True
+            print('docsAuthed set to true')
+    
+    return redirect(url_for('requestComplete'))
+
+@app.route('/requestComplete')
+async def requestComplete():
+    nova.eZprint('requestComplete route hit')
+    app.session['requesting'] = False
+    return redirect(os.environ.get('NOVAHOME'))
+
+async def getUserInfo():
+    nova.eZprint('getUserInfo route hit')
+    credentials = app.session.get('credentials')
+    if not credentials or not app.session.get('profileAuthed'):
+        print('no credentials or profileAuthed')
+        requestPermissions(['https://www.googleapis.com/auth/userinfo.profile'])
+        return False
+    credentials = Credentials.from_authorized_user_info(json.loads(credentials))
+    service = discovery.build('oauth2', 'v2', credentials=credentials)
+    userInfo = service.userinfo().get().execute()
+    await nova.GoogleSignOn(userInfo, credentials)
+    app.session['userID'] =  userInfo['id']
+    app.session['userName'] =  userInfo['name']
+    return True
+
+async def getDocService():
+    nova.eZprint('getDocService route hit')
+    credentials = app.session.get('credentials')
+    if not credentials or not app.session.get('docsAuthed'):
+        print('no credentials or docsAuthed')
+        auth_url = await requestPermissions(['https://www.googleapis.com/auth/documents.readonly'])
+        await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':auth_url}}))
+        app.session['requesting'] = True
+        while app.session.get('requesting'):
+            await asyncio.sleep(1)
+        if not app.session.get('docsAuthed'):
+            await websocket.send(json.dumps({'event':'auth','payload':{'message':'something went wrong', 'url':''}}))
+            return False
+        credentials = app.session.get('credentials')
+    credentials = Credentials.from_authorized_user_info(json.loads(credentials))
+    service = discovery.build('docs', 'v1', credentials=credentials)
+    return service
+
+async def logout():
+    credentials = app.session.get('credentials')
+    print(credentials)
+    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    if creds_obj:
+        access_token = creds_obj.token
+        if revoke_token(access_token):
+            if app.session.get('credentials'):
+                app.session.pop('credentials')
+            if app.session.get('userID'):
+                app.session.pop('userID')
+            if app.session.get('userName'):
+                app.session.pop('userName')
+            if app.session.get('authorised'):
+                app.session.pop('authorised')
+            if app.session.get('docsAuthorised'):
+                app.session.pop('docsAuthed')
+            if app.session.get('state'):
+                app.session.pop('state')
+            if app.session.get('profileAuthed'):
+                app.session.pop('profileAuthed')
+            if app.session.get('scopes'):
+                app.session.pop('scopes')
+            return True
+    return False
+
+def revoke_token(token):
+    revoke_url = "https://oauth2.googleapis.com/revoke"
+    # Revoke the token
+    response = requests.post(revoke_url, params={"token": token})
+    if response.status_code == 200:
+        return True
+    else:
+        print(f"Failed to revoke token: {response.text}")
+        return False
+    
+
 async def silent_check_login():
     nova.eZprint('silent check')
     user_id = app.session.get('userID')
@@ -49,6 +211,7 @@ async def silent_check_login():
 
     return False
 
+
 async def login():
     nova.eZprint('SSOLOGIN route hit')
     credentials = app.session.get('credentials')
@@ -74,14 +237,14 @@ async def login():
                 # Enable offline access so that you can refresh an access token without
                 # re-prompting the user for permission. Recommended for web server apps.
                 access_type='offline',
-                prompt="consent",  # Add this line
+                # prompt="consent",  # Add this line
                 # Enable incremental authorization. Recommended as a best practice.
                 include_granted_scopes='true'
             )
             app.session['state'] =  state
             redir = redirect(authorization_url)
             print(redir)
-            print('got authorization')
+            print('got authorization url')
             print(authorization_url)
             return authorization_url
         if not creds_obj.has_scopes(['https://www.googleapis.com/auth/userinfo.profile']) :
@@ -115,7 +278,7 @@ async def login():
     app.session['state'] =  state
     redir = redirect(authorization_url)
     print(redir)
-    print('got authorization')
+    print('got authorization url')
 
     return authorization_url
 
@@ -158,16 +321,20 @@ async def authComplete():
     return redirect(os.environ.get('NOVAHOME'))
 
 async def GetDocCredentials():
-    print('GetDocCredentials')
+    nova.eZprint('GetDocCredentials')
     user_id = app.session.get('userID')
     credentials = app.session.get('credentials')
+    print(app.session.get('sessionID'))
     print(credentials)
-    print(app.session)
+    # print(app.session)
     DOC_SCOPE = 'https://www.googleapis.com/auth/documents.readonly'
     creds_obj = None
     if user_id and credentials:
         print('user_id and credentials found')
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+        print('state')
+        print(app.session.get('state'))
+        app.session.pop('state')
         if not creds_obj.has_scopes([DOC_SCOPE]) :
             print('credentials do not have the right scope')
             SCOPES = creds_obj.scopes + [DOC_SCOPE]  # Add the Google Docs scope to the existing scopes.
@@ -180,24 +347,28 @@ async def GetDocCredentials():
                 app.session['scopes'].append(scope)
             # await app.redis.set('SCOPES', SCOPES)
             # Create a new authorization URL with the additional scope
+            print(app.session.get('state'))
             flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=SCOPES) 
             flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
             auth_url, state = flow.authorization_url(
                 # Enable offline access so that you can refresh an access token without
                 # re-prompting the user for permission. Recommended for web server apps.
                 access_type='offline',
-                prompt="consent",  # Add this line
+                # prompt="consent",  # Add this line
                 # Enable incremental authorization. Recommended as a best practice.
                 include_granted_scopes='true'
             )
+            redirect(auth_url)
             print(f"Please grant consent for Google Docs. Go to the following link: {auth_url}")
             app.session['state'] = state
+            nova.eZprint('checking state')
+            print(app.session.get('state')) 
             await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':auth_url}}))
             app.session['docsAuthorised'] = 0
-            print('waiting for authorisation')
+            print('waiting for authorisation credential no scope')
             authorised = app.session.get('docsAuthorised')
             while authorised == 0:
-                print('waiting for authorisation')
+                # print('waiting for authorisation')
                 authorised = app.session.get('docsAuthorised')
                 await asyncio.sleep(1)
             credentials = app.session.get('credentials')
@@ -231,14 +402,14 @@ async def NewDocAuthRequest():
     app.session['state'] = state
     redir = redirect(authorization_url)
     # print(redir)
-    print('got authorization')
+    print('got authorization url ')
     print(authorization_url)
     await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
     app.session['docsAuthorised'] =  0
     print('waiting for authorisation')
     authorised = app.session.get('docsAuthorised')
     while authorised == 0:
-        print('waiting for authorisation')
+        # print('waiting for authorisation')
         authorised = app.session.get('docsAuthorised')
         # print(authorised)
         await asyncio.sleep(1)
@@ -248,10 +419,11 @@ async def NewDocAuthRequest():
 
 @app.route('/oauth2callback')
 async def oauth2callback():
-    print('oauth2callback')
-    print(app.session)
+    nova.eZprint('oauth2callback')
     state = app.session.get('state')
     scopes = app.session.get('scopes')
+    print(app.session.get('sessionID'))
+    print(state)
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         'credentials.json', scopes=scopes, state=state)
     flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
@@ -267,32 +439,3 @@ async def oauth2callback():
 async def docAuthComplete():
     print('docAuthComplete')
     app.session['docsAuthorised'] = 1
-
-async def logout():
-    credentials = app.session.get('credentials')
-    print(credentials)
-    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-    if creds_obj:
-        access_token = creds_obj.token
-        if revoke_token(access_token):
-            if app.session.get('credentials'):
-                app.session.pop('credentials')
-            if app.session.get('userID'):
-                app.session.pop('userID')
-            if app.session.get('userName'):
-                app.session.pop('userName')
-            if app.session.get('authorised'):
-                app.session.pop('authorised')
-            return True
-    return False
-
-def revoke_token(token):
-    revoke_url = "https://oauth2.googleapis.com/revoke"
-    # Revoke the token
-    response = requests.post(revoke_url, params={"token": token})
-    if response.status_code == 200:
-        return True
-    else:
-        print(f"Failed to revoke token: {response.text}")
-        return False
-    
