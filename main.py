@@ -37,12 +37,12 @@ async def shutdown():
     await prismaDisconnect()
     eZprint("Disconnected from Prisma")
 
-@app.route("/startsession", methods=['POST'])
+@app.route("/startsession", methods=['GET'])
 async def startsession():
     eZprint('start-session route hit')
     payload = await request.get_json()
-    app.session['convoID'] = payload['convoID']
-    sessionStatus[payload['convoID']] = False
+    # app.session['convoID'] = payload['convoID']
+    # sessionStatus[payload['convoID']] = False
     print(app.session)
     authorised = await silent_check_login()
     eZprint('authorised: ' + str(authorised))
@@ -55,7 +55,7 @@ async def startsession():
     app.session.modified = True
     return jsonify(payload)
 
-@app.route('/SSO', methods=['POST'])
+@app.route('/SSO', methods=['GET'])
 async def SSO():
     eZprint('SSO route hit')
     print(app.session)
