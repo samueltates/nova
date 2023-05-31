@@ -12,6 +12,8 @@ from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartr
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
 
+app.session = session
+Session(app)
 
 @app.route("/")
 async def index():
@@ -25,8 +27,7 @@ async def hello():
 @app.before_serving
 async def startup():
     # session.permanent = True
-    app.session = session
-    Session(app)
+
     await prismaConnect()
 
     # await googleAuthHandler()
@@ -36,11 +37,18 @@ async def shutdown():
     await prismaDisconnect()
     eZprint("Disconnected from Prisma")
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
+
 @app.route("/startsession", methods=['GET'])
 async def startsession():
     eZprint('start-session route hit')
+    print(request.body._data)
     payload = await request.get_json()
     convoID = secrets.token_bytes(4).hex()
+    print(payload)
     app.session['convoID'] = convoID
     print(app.session)
     authorised = await silent_check_login()
@@ -256,6 +264,7 @@ if __name__ == '__main__':
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
     asyncio.run(serve(app, config))
+    
 
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
     # app.run(host="127.0.0.1", port=5500) 
