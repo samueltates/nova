@@ -34,7 +34,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-UnstructuredReader = download_loader("UnstructuredReader")
+# UnstructuredReader = download_loader("UnstructuredReader")
 
 async def indexDocument(payload):
     nova.eZprint('indexDocument called')
@@ -69,8 +69,8 @@ async def indexDocument(payload):
         # Read and process the reconstructed file
         temp_file.close()
         
-        unstructured_reader = UnstructuredReader()
-        document = unstructured_reader.load_data(temp_file.name)
+        # unstructured_reader = UnstructuredReader()
+        # document = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
     index = None
