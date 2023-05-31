@@ -12,7 +12,6 @@ app.config['SESSION_TYPE'] = 'redis'
 app.config['CORS_ALLOW_HEADERS'] = "Content-Type, Authorization"
 app.config['CORS_SUPPORTS_CREDENTIALS'] = True
 app.config['CORS_METHODS'] = "GET, POST, PUT, DELETE, OPTIONS"
-app.config['CORS_ALLOW_CREDENTIALS'] = True
 app.config["SESSION_COOKIE_SAMESITE"] = None
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE')  # Set to True if using HTTPS!
 app.config["WEBSOCKET_MAX_SIZE"] = 1024 * 1024 * 100  # Maximum size set to 1MB (adjust as needed)
