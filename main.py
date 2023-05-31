@@ -12,10 +12,6 @@ from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartr
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout
 
-sessionStatus = {}
-
-app.session = session
-Session(app)
 
 @app.route("/")
 async def index():
@@ -29,6 +25,8 @@ async def hello():
 @app.before_serving
 async def startup():
     # session.permanent = True
+    app.session = session
+    Session(app)
     await prismaConnect()
 
     # await googleAuthHandler()
@@ -44,8 +42,6 @@ async def startsession():
     payload = await request.get_json()
     convoID = secrets.token_bytes(4).hex()
     app.session['convoID'] = convoID
-    # app.session['convoID'] = payload['convoID']
-    # sessionStatus[payload['convoID']] = False
     print(app.session)
     authorised = await silent_check_login()
     eZprint('authorised: ' + str(authorised))
