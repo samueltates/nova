@@ -89,17 +89,17 @@ async def requestLogout():
 #     await initialiseCartridges(convoID)
 #     return jsonify({'status': 'success'})
 
-# @app.websocket('/ws')
-# async def ws():
-#     eZprint('ws route hit')
-#     print(app.session)
-#     while True:
-#         data = await websocket.receive()
-#         parsed_data = json.loads(data)
-#         print(parsed_data)
-#         app.session.modified = True
+@app.websocket('/ws')
+async def ws():
+    eZprint('ws route hit')
+    print(app.session)
+    while True:
+        data = await websocket.receive()
+        parsed_data = json.loads(data)
+        print(parsed_data)
+        app.session.modified = True
 
-#         asyncio.create_task(process_message(parsed_data))
+        asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):

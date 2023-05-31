@@ -40,11 +40,10 @@ async def indexDocument(payload):
     nova.eZprint('indexDocument called')
     print(payload)
 
-    sessionData = await nova.getSessionData()
+    userID = app.session.get('userID')
     indexType = payload['indexType']
-    sessionID = sessionData['sessionID']
     tempKey = payload['tempKey']
-    userID = payload['userID']
+    convoID = payload['convoID']
     document = None
     documentTitle = None
     if payload['document_type'] == 'googleDoc':
@@ -82,7 +81,7 @@ async def indexDocument(payload):
         nova.eZprint('list index created')
 
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
+    tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
     index.storage_context.persist(tmpDir)
     print(tmpDir)
     indexJson = dict()

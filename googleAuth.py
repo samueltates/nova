@@ -157,68 +157,12 @@ async def authComplete():
     # return await render_template('auth_complete.html', user_id=app.session.get('userID'), user_name=app.session.get('userName'), authorised=app.session.get('authorised'), ws = os.environ.get('WEBSOCKET') or 'wss://nova-staging.up.railway.app/ws')
     return redirect(os.environ.get('NOVAHOME'))
 
-async def logout():
-    credentials = app.session.get('credentials')
-    print(credentials)
-    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
-    if creds_obj:
-        access_token = creds_obj.token
-        if revoke_token(access_token):
-            if app.session.get('credentials'):
-                app.session.pop('credentials')
-            if app.session.get('userID'):
-                app.session.pop('userID')
-            if app.session.get('userName'):
-                app.session.pop('userName')
-            if app.session.get('authorised'):
-                app.session.pop('authorised')
-            return True
-    return False
-
-
-def revoke_token(token):
-    
-    revoke_url = "https://oauth2.googleapis.com/revoke"
-    # Revoke the token
-    response = requests.post(revoke_url, params={"token": token})
-    if response.status_code == 200:
-        return True
-    else:
-        print(f"Failed to revoke token: {response.text}")
-        return False
-
-
-@app.route('/oauth2callback')
-async def oauth2callback():
-    print('oauth2callback')
-    state = app.session['state']
-    scopes = app.session['scopes']
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'credentials.json', scopes=scopes, state=state)
-    flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
-    authorization_response = request.url
-    print(request)
-    flow.fetch_token(authorization_response=authorization_response)
-    credentials = flow.credentials
-    app.session['credentials'] = credentials.to_json()
-    return redirect(url_for('docAuthComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
-    
-
-@app.route('/docAuthComplete')
-async def docAuthComplete():
-    print('docAuthComplete')
-    app.session['docsAuthorised'] = 1
-    
-    # return "Authentication complete, please return to browser!"
-
-    # return "Authentication complete, please return to browser!"
-
 async def GetDocCredentials():
     print('GetDocCredentials')
     user_id = app.session.get('userID')
     credentials = app.session.get('credentials')
-    # Check if the credentials exist and are valid
     print(credentials)
+    print(app.session)
     DOC_SCOPE = 'https://www.googleapis.com/auth/documents.readonly'
     creds_obj = None
     if user_id and credentials:
@@ -238,9 +182,16 @@ async def GetDocCredentials():
             # Create a new authorization URL with the additional scope
             flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=SCOPES) 
             flow.redirect_uri = url_for('oauth2callback', _external=True,  _scheme=os.environ.get('SCHEME') or 'https')
-            auth_url, state = flow.authorization_url(prompt='consent')
+            auth_url, state = flow.authorization_url(
+                # Enable offline access so that you can refresh an access token without
+                # re-prompting the user for permission. Recommended for web server apps.
+                access_type='offline',
+                prompt="consent",  # Add this line
+                # Enable incremental authorization. Recommended as a best practice.
+                include_granted_scopes='true'
+            )
             print(f"Please grant consent for Google Docs. Go to the following link: {auth_url}")
-            app.session['state'], state
+            app.session['state'] = state
             await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':auth_url}}))
             app.session['docsAuthorised'] = 0
             print('waiting for authorisation')
@@ -254,18 +205,18 @@ async def GetDocCredentials():
     else :
         print('user_id and credentials not found')
         creds_obj = await NewDocAuthRequest()
-    
     return creds_obj
-    
 
 async def NewDocAuthRequest():
+    nova.eZprint('NewDocAuthRequest')
+    print(app.session)
     scopes=["https://www.googleapis.com/auth/documents.readonly"]   
     if app.session.get('scopes'):
         app.session.pop('scopes')
     app.session['scopes'] = []
     for scope in scopes:
         print(scope)
-        app.session.append('scopes', scope)
+        app.session['scopes'] = scope
     # await app.redis.set('SCOPES', SCOPES)
     # Create a new authorization URL with the additional scope
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file('credentials.json', scopes=scopes) 
@@ -279,10 +230,9 @@ async def NewDocAuthRequest():
     )
     app.session['state'] = state
     redir = redirect(authorization_url)
-    print(redir)
+    # print(redir)
     print('got authorization')
     print(authorization_url)
-    app.session['state'] = state 
     await websocket.send(json.dumps({'event':'auth','payload':{'message':'please visit this URL to authorise google docs access', 'url':authorization_url}}))
     app.session['docsAuthorised'] =  0
     print('waiting for authorisation')
@@ -290,10 +240,59 @@ async def NewDocAuthRequest():
     while authorised == 0:
         print('waiting for authorisation')
         authorised = app.session.get('docsAuthorised')
-        authorised = int(authorised.decode('utf-8'))
-        print(authorised)
+        # print(authorised)
         await asyncio.sleep(1)
     credentials = app.session.get('credentials')
     creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
     return creds_obj
 
+@app.route('/oauth2callback')
+async def oauth2callback():
+    print('oauth2callback')
+    print(app.session)
+    state = app.session.get('state')
+    scopes = app.session.get('scopes')
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+        'credentials.json', scopes=scopes, state=state)
+    flow.redirect_uri = url_for('oauth2callback', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
+    authorization_response = request.url
+    print(request)
+    flow.fetch_token(authorization_response=authorization_response)
+    credentials = flow.credentials
+    app.session['credentials'] = credentials.to_json()
+    return redirect(url_for('docAuthComplete', _external=True,  _scheme=os.environ.get('SCHEME') or 'https'))
+    
+
+@app.route('/docAuthComplete')
+async def docAuthComplete():
+    print('docAuthComplete')
+    app.session['docsAuthorised'] = 1
+
+async def logout():
+    credentials = app.session.get('credentials')
+    print(credentials)
+    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    if creds_obj:
+        access_token = creds_obj.token
+        if revoke_token(access_token):
+            if app.session.get('credentials'):
+                app.session.pop('credentials')
+            if app.session.get('userID'):
+                app.session.pop('userID')
+            if app.session.get('userName'):
+                app.session.pop('userName')
+            if app.session.get('authorised'):
+                app.session.pop('authorised')
+            return True
+    return False
+
+def revoke_token(token):
+    revoke_url = "https://oauth2.googleapis.com/revoke"
+    # Revoke the token
+    response = requests.post(revoke_url, params={"token": token})
+    if response.status_code == 200:
+        return True
+    else:
+        print(f"Failed to revoke token: {response.text}")
+        return False
+    
