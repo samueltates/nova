@@ -117,12 +117,11 @@ async def initialiseCartridges(sessionData):
     
     eZprint('intialising cartridges')
     await loadCartridges(convoID,userID)
-    await runCartridges(convoID)
+    await runCartridges(convoID, userID)
     # await constructChatPrompt()
 
 async def loadCartridges(convoID, userID):
     eZprint('load cartridges called')
-    userID = app.session.get('userID')
     if userID == None: 
         userID = 'guest'
     print(userID)
@@ -146,7 +145,7 @@ async def loadCartridges(convoID, userID):
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
-async def runCartridges(convoID):
+async def runCartridges(convoID, userID):
     if len(availableCartridges) != 0:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
@@ -172,17 +171,17 @@ async def runCartridges(convoID):
                             'enabled': True,
                             'position':0,
                             }
-        await addNewUserCartridgeTrigger(convoID, cartKey, cartVal)
+        await addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal)
         
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[convoID]}))
         # await runCartridges(sessionRequest)
 
-async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
+async def addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
     availableCartridges[convoID] = cartVal
     print('adding new user cartridge')
-    userID = app.session.get('userID')
+
     if userID == None: 
         userID = 'guest'
     newCart = await prisma.cartridge.create(
@@ -197,11 +196,11 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
      
 
 async def getNextOrder(convoID):
-    chatLogKey = f'chatLog{convoID}'
-    if chatLogKey not in app.session:
+
+    if convoID not in chatlog:
         chat_log_length = 0
     else:
-        chatlog = app.session.get(chatLogKey)
+        chatlog = convoID[convoID]
         chat_log_length = len(chatlog)
         # eZprint('chat log printing on order request')
     # print(chatLog)
@@ -663,7 +662,6 @@ async def summariseChatBlocks(input):
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     summarDict.update({'sources':messageIDs})
-    userID = app.session.get('userID')
     if userID == None: 
         userID = 'guest'
     summary = await prisma.summary.create(
@@ -708,11 +706,10 @@ async def summariseChatBlocks(input):
     
 
 
-async def runMemory(convoID, cartKey, cartVal):
+async def runMemory(userID, convoID, cartKey, cartVal):
 
     eZprint('running memory')
 
-    userID = app.session.get('userID')
     if userID == None:
         userID = 'guest'
     
@@ -962,10 +959,7 @@ async def runMemory(convoID, cartKey, cartVal):
                                         'state': cartVal['state']
                                          }}
             
-            availableCartKey = f'availableCartridges{convoID}'
-            app.session[availableCartKey][cartKey] = cartVal
-            print(app.session[availableCartKey][cartKey])
-            print(app.session[availableCartKey][cartKey]['blocks'])
+            availableCartridges[convoID][cartKey] = cartVal
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     else :
         eZprint("No logs found for this user, so starting fresh")
@@ -979,7 +973,7 @@ async def runMemory(convoID, cartKey, cartVal):
                                     }}
         # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
         availableCartKey = f'availableCartridges{convoID}'
-        app.session[availableCartKey][cartKey] = cartVal
+        [availableCartridges][convoID][cartKey] = cartVal
         # socketio.emit('updateCartridgeFields', payload)
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 

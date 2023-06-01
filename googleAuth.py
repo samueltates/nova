@@ -13,12 +13,13 @@ from google.oauth2.credentials import Credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery as discovery
 from googleapiclient import errors
+sessions = {}
 
 
 # google auth docs : https://developers.google.com/identity/protocols/oauth2/web-server
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
-async def check_credentials():
+async def check_credentials(sessionID):
     credentials = app.session.get('credentials')
     if credentials:
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
