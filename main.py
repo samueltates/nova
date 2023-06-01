@@ -132,13 +132,13 @@ async def ws():
 
     while True:
         eZprint('ws route hit')
-        print(app.session.get('sessionID'))
-        print(app.session.get('convoID'))
         data = await websocket.receive()
         parsed_data = json.loads(data)
-        print(parsed_data)
         app.session.modified = True
-
+        if app.session.get('sessionID') is None:
+            sessionID = secrets.token_bytes(4).hex()
+            app.session['sessionID'] = sessionID
+        print(app.session.get('sessionID'))
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
