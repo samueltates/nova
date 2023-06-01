@@ -48,8 +48,13 @@ async def indexDocument(payload):
     if payload['document_type'] == 'googleDoc':
         gDocID = payload['gDocID']
         loader = GoogleDocsReader() 
-        document = await loader.load_data([gDocID])
-        documentTitle = await loader._get_title(str(gDocID))
+        try:
+            document = await loader.load_data([gDocID])
+            documentTitle = await loader._get_title(str(gDocID))
+        except:
+            payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
+            await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+
         # print(document)
         
     elif payload['document_type'] == 'file':

@@ -54,8 +54,10 @@ async def check_credentials():
 
 async def requestPermissions(scopes):
     nova.eZprint('requestPermission route hit')
-    app.session['requesting'] = True
     credentials = app.session.get('credentials')
+    print(app.session.get('requesting'))
+    requesting = app.session.get('requesting')
+    print(requesting)
     if credentials:
         nova.eZprint('credentials found')
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
@@ -101,13 +103,11 @@ async def authoriseRequest():
         elif scope == 'https://www.googleapis.com/auth/documents.readonly':
             app.session['docsAuthed'] = True
             print('docsAuthed set to true')
-    
     return redirect(url_for('requestComplete'))
 
 @app.route('/requestComplete')
 async def requestComplete():
     nova.eZprint('requestComplete route hit')
-    app.session['requesting'] = False
     return redirect(os.environ.get('NOVAHOME'))
 
 async def getUserInfo():
@@ -138,6 +138,7 @@ async def getDocService():
         if not app.session.get('docsAuthed'):
             await websocket.send(json.dumps({'event':'auth','payload':{'message':'something went wrong', 'url':''}}))
             return False
+        await websocket.send(json.dumps({'event':'setDocAuthed'}))
         credentials = app.session.get('credentials')
     credentials = Credentials.from_authorized_user_info(json.loads(credentials))
     service = discovery.build('docs', 'v1', credentials=credentials)
@@ -179,7 +180,6 @@ def revoke_token(token):
         print(f"Failed to revoke token: {response.text}")
         return False
     
-
 async def silent_check_login():
     nova.eZprint('silent check')
     user_id = app.session.get('userID')
@@ -288,7 +288,6 @@ async def authoriseLogin():
     print(app.session)
     state = app.session.get('state')
     scopes = app.session.get('scopes')
-
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=scopes, state=state) 
     flow.redirect_uri = url_for('authoriseLogin', _external=True, _scheme=os.environ.get('SCHEME') or 'https')

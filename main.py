@@ -80,6 +80,26 @@ async def authRequest():
     app.session.modified = True
     return jsonify({'loginURL': authUrl})
 
+@app.route('/awaitCredentialRequest', methods=['GET'])
+async def awaitCredentialRequest():
+    app.session.modified = True
+    print('awaitCredentialRequest called')
+    print(app.session.get('requesting'))
+    requesting = app.session.get('requesting')
+    if requesting:
+        print('awaiting credential request status ' + str(requesting))
+        await asyncio.sleep(1)
+        credentialState = {
+            'requesting': requesting,
+        }
+    else:
+        credentialState = {
+        'requesting': requesting,
+        'docsAuthed': app.session.get('docsAuthed'),
+        'profileAuthed': app.session.get('profileAuthed'),
+    }
+    return jsonify(credentialState)
+
 @app.route('/requestLogout', methods=['GET'])
 async def requestLogout():
     eZprint('requestLogout route hit')
@@ -128,7 +148,6 @@ async def process_message(parsed_data):
         print(parsed_data['data'])
         convoID = parsed_data['data']['convoID'] 
         await initialiseCartridges(convoID)
-    
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])
@@ -166,28 +185,21 @@ async def process_message(parsed_data):
         await handle_indexdoc_chunk(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_end":
         await handle_indexdoc_end(parsed_data["data"])
-    
     if(parsed_data["type"] == '__ping__'):
         # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
-    if(parsed_data["type"] == 'ssoComplete'):
-        eZprint('ssoComplete called by html template.')
+    # if(parsed_data["type"] == 'setModel'):
+    #     print('setModel called by html template.')
+    #     print(parsed_data['payload'])
+    #     await app.redis.set('model', parsed_data['payload']['model'])
+    #     await websocket.send(json.dumps({'event':'setModel', 'payload': {
+    #         'model': parsed_data['payload']['model']
+    #         }}))
+    if(parsed_data["type"] == 'authCompletePing'):
+        print('authCompletePing called by html template.')
         print(parsed_data['payload'])
-        await app.redis.set('userID', parsed_data['payload']['userID'])
-        await app.redis.set('userName', parsed_data['payload']['userName'])
-        await app.redis.set('authorised', parsed_data['payload']['authorised'])   
-        await websocket.send(json.dumps({'event':'ssoComplete', 'payload': {
-            'userID': parsed_data['payload']['userID'],
-            'userName': parsed_data['payload']['userName'],
-            'authorised': parsed_data['payload']['authorised']
-            }}))
-    if(parsed_data["type"] == 'setModel'):
-        print('setModel called by html template.')
-        print(parsed_data['payload'])
-        await app.redis.set('model', parsed_data['payload']['model'])
-        await websocket.send(json.dumps({'event':'setModel', 'payload': {
-            'model': parsed_data['payload']['model']
-            }}))
+        app.session['requesting'] = False
+     
 
 file_chunks = {}
 

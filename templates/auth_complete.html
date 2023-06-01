@@ -8,17 +8,18 @@
     <script>
         let user_id = "{{ user_id }}";
         let user_name = "{{ user_name }}";
+        // let requestComplete = {{ requestComplete }}";
         let ws = "{{ws}}"
         // Use your WebSocket URL here
         let socket = new WebSocket(ws);
         console.log('sending socket')
         socket.addEventListener("open", (event) => {
             socket.send(JSON.stringify({
-                type: "ssoComplete",
+                type: "authRequestCompletePing",
                 payload: {
                     userID: user_id,
                     userName: user_name,
-                    authorised: authorised
+                    // requestComplete: requestComplete
                 }
             }));
         });

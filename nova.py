@@ -136,10 +136,10 @@ async def loadCartridges(convoID):
             availableCartridges = app.session.get(availableCartKey, {})
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal:
-                    # print('adding cartridge ' + str(cartKey) + ' to available cartridges')
                     app.session[availableCartKey][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
+                        print('adding cartridge ' + str(cartKey) + ' to available cartridges')
                         cartVal.update({'state': 'loading'})
     # print('available cartridges are ' + str(app.session[availableCartKey]))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
@@ -154,7 +154,7 @@ async def runCartridges(convoID):
             # print (cartVal)
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-                # await runMemory(convoID, cartKey, cartVal)
+                await runMemory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -397,20 +397,16 @@ async def getPromptEstimate(convoID):
     promptObject = []
     availableCartKey = f'availableCartridges{convoID}'
     availableCartridges = app.session.get(availableCartKey)
-    if len(availableCartridges) != 0:        # eZprint('found cartridges')
+    if availableCartridges != None:
         sorted_cartridges = sorted(availableCartridges.values(), key=lambda x: x.get('position', float('inf')))
         for index, promptVal in enumerate(sorted_cartridges):
             if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
-                # eZprint('found prompt, adding to string')
                 promptObject.append({"role": "system", "content": "\n Prompt instruction for NOVA to follow - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
             if (promptVal['enabled'] == True and promptVal['type'] =='summary'):
-                # print('found summary')
-                # print(promptVal)
                 if 'blocks' in promptVal:
                     promptObject.append({"role": "system", "content": "\n Summary from past conversations - " + promptVal['label'] + ":\n" + str(promptVal['blocks']) + "\n" })
             if (promptVal['enabled'] == True and promptVal['type'] =='index'):
                 if 'blocks' in promptVal:
-                # eZprint('found document, adding to string')
                     promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
     promptSize = estimateTokenSize(str(promptObject))
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize}})))
@@ -757,7 +753,13 @@ async def summariseChatBlocks(convoID, messageIDs, summaryID):
             payload = {'ID':log['ID'], 'fields' :{ 'summaryState': 'SUMMARISED'}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
 
+
+
+
+
+# async def SummariseConvo(convoID, messageIDs):
     
+
 
 async def runMemory(convoID, cartKey, cartVal):
 
