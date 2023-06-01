@@ -150,7 +150,7 @@ async def runCartridges(convoID, userID):
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-                await runMemory(convoID, cartKey, cartVal)
+                await runMemory(userID, convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
