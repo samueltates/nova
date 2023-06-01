@@ -13,12 +13,13 @@ from google.oauth2.credentials import Credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery as discovery
 from googleapiclient import errors
+from sessionHandler import novaSession
 
 
 # google auth docs : https://developers.google.com/identity/protocols/oauth2/web-server
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
-async def check_credentials():
+async def check_credentials(sessionID):
     credentials = app.session.get('credentials')
     if credentials:
         creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
@@ -33,6 +34,7 @@ async def check_credentials():
                     # Store the updated credentials
                     print('credentials refreshed')
                     app.session['credentials'] =  creds_obj.to_json()
+                    novaSession[sessionID]['credentials'] = creds_obj.to_json()
                 except :
                     print(f"Failed to refresh the access token: ")
                     return False
@@ -41,6 +43,7 @@ async def check_credentials():
                 return False
         elif not creds_obj.expired:
             app.session['scopes'] = creds_obj.scopes
+            novaSession[sessionID]['scopes'] = creds_obj.scopes
             print('scopes returned are: ' + str(app.session.get('scopes')))
             # for scope in creds_obj.granted_scopes:
                 # if scope == 'https://www.googleapis.com/auth/userinfo.profile':
@@ -52,11 +55,11 @@ async def check_credentials():
             return True
     return False
 
-async def requestPermissions(scopes):
+async def requestPermissions(scopes, sessionID):
     nova.eZprint('requestPermission route hit')
     credentials = app.session.get('credentials')
-    print(app.session.get('requesting'))
     requesting = app.session.get('requesting')
+    novaSession[sessionID]['requesting'] = True
     print(requesting)
     if credentials:
         nova.eZprint('credentials found')
@@ -79,6 +82,10 @@ async def requestPermissions(scopes):
         # include_granted_scopes='true'
     )
     app.session['state'] =  state
+    ##making a cross reference here so can find way back to session from google auth
+    # novaSession[state] = {}
+    # novaSession[state]['sessionID'] = sessionID
+    # novaSession[sessionID]['state'] = state
     redir = redirect(authorization_url)
     print('got redirect URL')
     return authorization_url
@@ -88,6 +95,7 @@ async def authoriseRequest():
     nova.eZprint('authoriseRequest route hit')
     state = app.session.get('state')
     scopes = app.session.get('scopes')
+    sessionID = app.session.get('sessionID')
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=scopes, state=state) 
     flow.redirect_uri = url_for('authoriseRequest', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
@@ -103,6 +111,7 @@ async def authoriseRequest():
         elif scope == 'https://www.googleapis.com/auth/documents.readonly':
             app.session['docsAuthed'] = True
             print('docsAuthed set to true')
+    novaSession[sessionID]['requesting'] = False
     return redirect(url_for('requestComplete'))
 
 @app.route('/requestComplete')
