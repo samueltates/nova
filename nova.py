@@ -185,11 +185,11 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
 
 async def getNextOrder(convoID):
 
+
     if convoID not in chatlog:
         chat_log_length = 0
     else:
-        chatlog = convoID[convoID]
-        chat_log_length = len(chatlog)
+        chat_log_length = len(chatlog[convoID])
         # eZprint('chat log printing on order request')
     # print(chatLog)
     next_order = chat_log_length + 1
