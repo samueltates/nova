@@ -142,7 +142,8 @@ async def loadCartridges(convoID):
                         print('adding cartridge ' + str(cartKey) + ' to available cartridges')
                         cartVal.update({'state': 'loading'})
     # print('available cartridges are ' + str(app.session[availableCartKey]))
-    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
+    # await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges}))
+    return app.session.get(availableCartKey)
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID):

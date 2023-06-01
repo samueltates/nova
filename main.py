@@ -83,6 +83,7 @@ async def authRequest():
 @app.route('/awaitCredentialRequest', methods=['GET'])
 async def awaitCredentialRequest():
     app.session.modified = True
+
     print('awaitCredentialRequest called')
     print(app.session.get('requesting'))
     requesting = app.session.get('requesting')
@@ -129,7 +130,8 @@ async def getDebug():
 @app.websocket('/ws')
 async def ws():
     eZprint('ws route hit')
-    # print(app.session)
+    print(app.session.get('sessionID'))
+    print(app.session.get('convoID'))
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
