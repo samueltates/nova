@@ -127,14 +127,31 @@ async def getDebug():
 #     await initialiseCartridges(convoID)
 #     return jsonify({'status': 'success'})
 
+@app.websocket('/ws-test')
+async def ws_test():
+    print('ws-test route hit')
+    # data = await websocket.receive()
+    sessionID = secrets.token_bytes(4).hex()
+    while not app.session:
+        asyncio.sleep(1)
+    print(app.session)
+    app.session['sessionID'] = 'tony'
+
+@app.websocket('/ws-get')
+async def get():
+    print('ws-get route hit')
+    while not app.session:
+        asyncio.sleep(1)
+    print(app.session)
+
+
 @app.websocket('/ws')
 async def ws():
-
+    print('ws route hit')
     while True:
-        eZprint('ws route hit')
+        print(app.session)
         data = await websocket.receive()
         parsed_data = json.loads(data)
-        app.session.modified = True
         if app.session.get('sessionID') is None:
             sessionID = secrets.token_bytes(4).hex()
             app.session['sessionID'] = sessionID
