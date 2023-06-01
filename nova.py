@@ -24,7 +24,7 @@ path_root = Path(__file__).parents[1]
 sys.path.append((str(path_root)))
 prisma = Prisma()
 os.system('prisma generate')
-
+from sessionHandler import novaSession, novaConvo
 #OPEN AI STUFF
 import openai
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
@@ -111,20 +111,16 @@ async def updateAuth(userID, credentials):
 
     
 ##CARTRIDGE MANAGEMENT
-async def initialiseCartridges(sessionData):
-    convoID = sessionData['convoID']
-    userID = sessionData['userID']
+async def initialiseCartridges(convoID):
     
     eZprint('intialising cartridges')
-    await loadCartridges(convoID,userID)
-    await runCartridges(convoID, userID)
+    await loadCartridges(convoID)
+    await runCartridges(convoID)
     # await constructChatPrompt()
 
-async def loadCartridges(convoID, userID):
+async def loadCartridges(convoID):
     eZprint('load cartridges called')
-    if userID == None: 
-        userID = 'guest'
-    print(userID)
+    userID = novaConvo[convoID]['userID']
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": userID,
@@ -145,45 +141,37 @@ async def loadCartridges(convoID, userID):
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
-async def runCartridges(convoID, userID):
+async def runCartridges(convoID):
+    userID = novaConvo[convoID]['userID']
     if len(availableCartridges) != 0:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-                await runMemory(userID, convoID, cartKey, cartVal)
+
+                await runMemory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
             cartKey = generate_id()
             cartVal = {
                         'label': prompt['label'],
-                        'type': 'prompt',
+                        'type': prompt['type'],
                         'prompt': prompt['prompt'],
                         'position': prompt['position'],
                         'enabled': True,
             }
-            await addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal)
-        cartKey = "summary"
-        cartVal = {
-                            'label': 'summary',
-                            'type': 'summary',
-                            'description':' a summary function that will summarise the conversation and store it in the database',
-                            'enabled': True,
-                            'position':0,
-                            }
-        await addNewUserCartridgeTrigger( userID, convoID, cartKey, cartVal)
-        
+            await addNewUserCartridgeTrigger(convoID, cartKey, cartVal)
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[convoID]}))
-        # await runCartridges(sessionRequest)
+        await runCartridges(convoID)
 
-async def addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal):
+async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
-    availableCartridges[convoID] = cartVal
+    if convoID not in availableCartridges:
+        availableCartridges[convoID] = {}
+    availableCartridges[convoID][cartKey]= cartVal  
     print('adding new user cartridge')
-
-    if userID == None: 
-        userID = 'guest'
+    userID = novaConvo[convoID]['userID']
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -214,11 +202,9 @@ async def getNextOrder(convoID):
 async def handleChatInput(sessionData):
     eZprint('handling message')
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
-    userID = sessionData['userID'] 
     convoID = sessionData['convoID']
+    userID = novaConvo[convoID]['userID']
     body = sessionData['body']
-    if userID == None: 
-        userID = 'guest'
     order = await getNextOrder(convoID)
     messageObject = {
         "sessionID": convoID,
@@ -240,12 +226,11 @@ async def handleChatInput(sessionData):
     eZprint('constructChat prompt called')
     # asyncio.create_task(checkCartridges(input))
 
-async def constructChatPrompt(sessionData):
+async def constructChatPrompt(convoID):
     eZprint('constructing chat prompt')
     promptString = 'The following are prompts to guide NOVA, as well as shared notes, document and conversation references. \n\n'
     #TODO - abstract to prompt build / chat build + estimate, to be called on inputs / updates (combine with estimate)
     promptObject=[]
-    convoID = sessionData['convoID']
     # print('available cartridges: ' + str(availableCartridges))
     if availableCartridges[convoID] != None:
         sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
@@ -308,7 +293,8 @@ async def constructChatPrompt(sessionData):
     messageID = secrets.token_bytes(4).hex()
     time = str(datetime.now())
     order = await getNextOrder(convoID)
-    userID = sessionData['userID']
+    
+    userID = novaConvo[convoID]['userID']
     if userID == None: 
         userID = 'guest'
     messageObject = {
@@ -408,9 +394,7 @@ async def addCartridgePrompt(input):
     convoID = input['convoID']
     cartVal = input['newCart'][input['tempKey']]
     cartVal.update({'state': ''})
-    userID = input['userID']
-    if userID == None: 
-        userID = 'guest'
+    userID = novaConvo[convoID]['userID']
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -431,12 +415,9 @@ async def addCartridgeTrigger(input):
     #TODO - very circular ' add index cartridge' triggered, goes to index, then back, then returns 
     #TODO - RENAME ADD CARTRIDGE INDEX
     cartKey = generate_id()
-    userID = input['userID']
     convoID = input['convoID']
+    userID = novaConvo[convoID]['userID']
     cartVal = input['cartVal']
-
-    if userID == None: 
-        userID = 'guest'
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -463,9 +444,6 @@ async def addCartridgeTrigger(input):
 async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
-    userID = input['userID']
-    if userID == None: 
-        userID = 'guest'
     targetCartVal = availableCartridges[convoID][targetCartKey]
 
     # print(sessionData)
@@ -507,7 +485,6 @@ async def handleIndexQuery(input):
     cartKey = input['cartKey']
     convoID = input['convoID']
     query = input['query']
-    userID = input['userID']
     #TODO -  basically could comine with index query (or this is request, query is internal)
     payload = { 'key': cartKey,'fields': {
             'status': 'querying Index',
@@ -518,9 +495,10 @@ async def handleIndexQuery(input):
     cartVal = availableCartridges[convoID][cartKey]
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index = await getCartridgeDetail(cartKey)
-        await triggerQueryIndex(userID, cartKey, cartVal, query, index)
+        await triggerQueryIndex(convoID, cartKey, cartVal, query, index)
 
-async def triggerQueryIndex(userID, cartKey, cartVal, query, indexJson):
+async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson):
+    userID = novaConvo[convoID]['userID']
     #TODO - consider if better to hand session data to funtions (so they are stateless)
     # if(app.config['DEBUG'] == True):
     #     print('debug mode')
@@ -579,8 +557,7 @@ async def triggerQueryIndex(userID, cartKey, cartVal, query, indexJson):
                     'id': id                                    
                       }
         )
-        if userID == None: 
-            userID = 'guest'
+
         if matchedCart:
             updatedCart = await prisma.cartridge.update(
                 where={ 'id': id },
@@ -613,7 +590,7 @@ async def summariseChatBlocks(input):
     convoID = input['convoID']
     messageIDs = input['messageIDs']
     summaryID = input['summaryID']
-    userID = input['userID']
+    userID = novaConvo[convoID]['userID']
     messagesToSummarise = []
     for messageID in messageIDs:
         for log in chatlog[convoID]:
@@ -662,8 +639,6 @@ async def summariseChatBlocks(input):
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     summarDict.update({'sources':messageIDs})
-    if userID == None: 
-        userID = 'guest'
     summary = await prisma.summary.create(
         data={
             "key": summaryID,
@@ -706,13 +681,11 @@ async def summariseChatBlocks(input):
     
 
 
-async def runMemory(userID, convoID, cartKey, cartVal):
+async def runMemory(convoID, cartKey, cartVal):
 
     eZprint('running memory')
 
-    if userID == None:
-        userID = 'guest'
-    
+    userID = novaConvo[convoID]['userID']
     remoteLogs = await prisma.log.find_many(
         where={'UserID': userID}
     )
@@ -972,8 +945,7 @@ async def runMemory(userID, convoID, cartKey, cartVal):
                                     'state': cartVal['state']
                                     }}
         # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-        availableCartKey = f'availableCartridges{convoID}'
-        [availableCartridges][convoID][cartKey] = cartVal
+        availableCartridges[convoID][cartKey] = cartVal
         # socketio.emit('updateCartridgeFields', payload)
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
@@ -1036,6 +1008,13 @@ def fakeResponse():
 
 
 onboarding_prompts = [
+    {
+    'label': 'summary',
+    'type': 'summary',
+    'position':0,
+    "prompt" : '',
+    'enabled': True
+    },
     {
     "label": "Welcome Prompt",
     "type": "prompt",

@@ -39,5 +39,6 @@ async-oauthlib = "*"
 quart-auth = "*"
 redis = "*"
 quart-redis = "*"
+random-word = "*"
 
 [dev-packages]

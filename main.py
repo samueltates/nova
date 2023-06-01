@@ -11,11 +11,13 @@ import base64
 from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout, check_credentials,requestPermissions
+from random_word import RandomWords
+from sessionHandler import novaSession, novaConvo
 
-novaSession = {}
 
 app.session = session
 Session(app)
+r = RandomWords()
 
 @app.route("/")
 async def index():
@@ -47,15 +49,23 @@ def make_session_permanent():
 @app.route("/startsession", methods=['POST'])
 async def startsession():
     eZprint('start-session route hit')
+    print(app.session)
     payload = await request.get_json()
     if app.session.get('sessionID') is None:
-        sessionID = secrets.token_bytes(4).hex()
-        app.session['sessionID'] = sessionID
-    if novaSession[sessionID] is None:
+        eZprint('sessionID not found')
+        app.session['sessionID'] = secrets.token_bytes(8).hex()
+    sessionID = app.session.get('sessionID')    
+    if sessionID not in novaSession:
+        eZprint('sessionID not found in novaSession')
         novaSession[sessionID] = {}
     convoID = secrets.token_bytes(4).hex()
     app.session['convoID'] = convoID
     authorised = await check_credentials()
+    if app.session.get('userName') is None:
+        eZprint('userName not found')
+        app.session['userName'] = 'Guest'
+        app.session['userID'] = 'guest-'+sessionID
+
     payload = {
         'profileAuthed' : app.session.get('profileAuthed'),
         'docsAuthed' : app.session.get('docsAuthed'),
@@ -64,14 +74,19 @@ async def startsession():
         'convoID': app.session.get('convoID'),
         'sessionID': app.session.get('sessionID'),
     }
-    
+
     novaSession[sessionID]['convoID'] = convoID
     novaSession[sessionID]['userID'] = payload['userID']
     novaSession[sessionID]['userName'] = payload['userName']
     novaSession[sessionID]['sessionID'] = payload['sessionID']
     novaSession[sessionID]['profileAuthed'] = payload['profileAuthed']
     novaSession[sessionID]['docsAuthed'] = payload['docsAuthed']
+
+    novaConvo[convoID] = {}
+    novaConvo[convoID]['userName'] = payload['userName']
+    novaConvo[convoID]['userID'] = payload['userID']
     
+    eZprint('payload and session updated')
     print(payload)
     print(app.session)
     app.session.modified = True
@@ -122,7 +137,6 @@ async def requestLogout():
     app.session.modified = True
     return jsonify({'logout': logoutStatus})
 
-
 @app.websocket('/ws')
 async def ws():
     while True:
@@ -132,8 +146,9 @@ async def ws():
 
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
+        convoID = parsed_data['data']['convoID']
         eZprint('requestCartridges route hit')
-        await initialiseCartridges(parsed_data['data'])
+        await initialiseCartridges(convoID)
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])
