@@ -57,16 +57,17 @@ async def startsession():
         'docsAuthed' : app.session.get('docsAuthed'),
         'userID': app.session.get('userID'),
         'userName': app.session.get('userName'),
-        'convoID': convoID,
+        'convoID': app.session.get('convoID'),
+        'sessionID': app.session.get('sessionID'),
     }
     print(payload)
     # print(app.session)
     app.session.modified = True
     return jsonify(payload)
 
-@app.route('/SSO', methods=['GET'])
-async def SSO():
-    eZprint('SSO route hit')
+@app.route('/login', methods=['GET'])
+async def login():
+    eZprint('login route hit')
     # print(app.session)
     scopes = ['https://www.googleapis.com/auth/userinfo.profile']
     loginURL = await requestPermissions( scopes )
@@ -110,64 +111,16 @@ async def requestLogout():
     return jsonify({'logout': logoutStatus})
 
 
-@app.route('/getDebug', methods=['GET'])
-async def getDebug():
-    print('state is ' + str(app.session.get('state')))
-    return jsonify({'debugText': app.session.get('state')})
-
-
-
-# @app.route('/requestCartridges', methods=['POST'])
-# async def requestCartridges():
-#     eZprint('requestCartridges route hit')
-#     print(app.session)
-#     payload = await request.get_json()
-#     convoID = payload['convoID'] 
-#     print(payload)
-#     await initialiseCartridges(convoID)
-#     return jsonify({'status': 'success'})
-
-@app.websocket('/ws-test')
-async def ws_test():
-    print('ws-test route hit')
-    # data = await websocket.receive()
-    sessionID = secrets.token_bytes(4).hex()
-    while not app.session:
-        asyncio.sleep(1)
-    print(app.session)
-    app.session['sessionID'] = 'tony'
-
-@app.websocket('/ws-get')
-async def get():
-    print('ws-get route hit')
-    while not app.session:
-        asyncio.sleep(1)
-    print(app.session)
-
-
 @app.websocket('/ws')
 async def ws():
-    print('ws route hit')
     while True:
-        print(app.session)
         data = await websocket.receive()
         parsed_data = json.loads(data)
-        if app.session.get('sessionID') is None:
-            sessionID = secrets.token_bytes(4).hex()
-            app.session['sessionID'] = sessionID
-        print(app.session.get('sessionID'))
         asyncio.create_task(process_message(parsed_data))
-
 async def process_message(parsed_data):
-    if(parsed_data['type'] == 'getDebug'):
-        print('state is ' + str(app.session.get('state')))
-        await websocket.send_json({'debugText': app.session.get('state')})
     if(parsed_data['type'] == 'requestCartridges'):
         eZprint('requestCartridges route hit')
-        # print(app.session)
-        print(parsed_data['data'])
-        convoID = parsed_data['data']['convoID'] 
-        await initialiseCartridges(convoID)
+        await initialiseCartridges(parsed_data['data'])
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await handleChatInput(parsed_data['data'])
@@ -180,7 +133,6 @@ async def process_message(parsed_data):
         await addCartridgePrompt(parsed_data['data'])
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
-        convoID = data['convoID']
         if 'gDocID' in data:
             eZprint('indexing gDoc')
             # print(data)
@@ -191,15 +143,22 @@ async def process_message(parsed_data):
                     'newCartridge': indexRecord.blob,
                 }
             await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
-            await asyncio.create_task(handleIndexQuery(convoID, indexRecord.key, 'Give this document a short summary.'))
+            queryPackage = {
+                'query': 'Give this document a short summary.',
+                'cartKey': indexRecord.key,
+                'convoID': data['convoID'],
+                'userID': data['userID'],
+            }
+            await asyncio.create_task(handleIndexQuery(queryPackage))
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
-        await asyncio.create_task(handleIndexQuery(data['convoID'], data['cartKey'], data['query']))
+        await asyncio.create_task(handleIndexQuery(data))
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
-        print(data)
-        await summariseChatBlocks(data['convoID'], data['messageIDs'], data['summaryID'])
+        await summariseChatBlocks(parsed_data['data'])
     elif parsed_data["type"] == "indexdoc_start":
+        print('indexdoc_start')
+        print(parsed_data["data"])
         await handle_indexdoc_start(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_chunk":
         await handle_indexdoc_chunk(parsed_data["data"])

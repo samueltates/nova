@@ -39,7 +39,7 @@ async def indexDocument(payload):
     nova.eZprint('indexDocument called')
     # print(payload)
 
-    userID = app.session.get('userID')
+    userID = payload['userID']
     indexType = payload['indexType']
     tempKey = payload['tempKey']
     convoID = payload['convoID']
@@ -99,7 +99,7 @@ async def indexDocument(payload):
     # save_to_disk(tmpfile.name)
     # tmpfile.seek(0)
   
-    cartval = {
+    cartVal = {
         'label' : documentTitle,
         'type': 'index',
         'description': 'a document indexed to be queriable by NOVA',
@@ -110,11 +110,16 @@ async def indexDocument(payload):
         'indexType': indexType,
     }
 
-    newCart = await nova.addCartridgeTrigger(cartval, convoID)
+    cartUpdate = {
+        'userID' : userID,
+        'convoID' : convoID,
+        'cartVal': cartVal,
+        }
+
+    newCart = await nova.addCartridgeTrigger(cartUpdate)
     payload = { 'key':tempKey,'fields': {'label':documentTitle, 'status': 'index created, getting summary'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     nova.eZprint('printing new cartridge')
-    print(newCart)
     return newCart
 
 async def reconstructIndex(indexJson):
