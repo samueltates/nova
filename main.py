@@ -12,6 +12,8 @@ from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartr
 from gptindex import indexDocument
 from googleAuth import login, silent_check_login, logout, check_credentials,requestPermissions
 
+novaSession = {}
+
 app.session = session
 Session(app)
 
@@ -49,6 +51,8 @@ async def startsession():
     if app.session.get('sessionID') is None:
         sessionID = secrets.token_bytes(4).hex()
         app.session['sessionID'] = sessionID
+    if novaSession[sessionID] is None:
+        novaSession[sessionID] = {}
     convoID = secrets.token_bytes(4).hex()
     app.session['convoID'] = convoID
     authorised = await check_credentials()
@@ -60,15 +64,23 @@ async def startsession():
         'convoID': app.session.get('convoID'),
         'sessionID': app.session.get('sessionID'),
     }
+    
+    novaSession[sessionID]['convoID'] = convoID
+    novaSession[sessionID]['userID'] = payload['userID']
+    novaSession[sessionID]['userName'] = payload['userName']
+    novaSession[sessionID]['sessionID'] = payload['sessionID']
+    novaSession[sessionID]['profileAuthed'] = payload['profileAuthed']
+    novaSession[sessionID]['docsAuthed'] = payload['docsAuthed']
+    
     print(payload)
-    # print(app.session)
+    print(app.session)
     app.session.modified = True
     return jsonify(payload)
 
 @app.route('/login', methods=['GET'])
 async def login():
     eZprint('login route hit')
-    # print(app.session)
+    print(app.session)
     scopes = ['https://www.googleapis.com/auth/userinfo.profile']
     loginURL = await requestPermissions( scopes )
     app.session.modified = True
@@ -117,6 +129,7 @@ async def ws():
         data = await websocket.receive()
         parsed_data = json.loads(data)
         asyncio.create_task(process_message(parsed_data))
+
 async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
         eZprint('requestCartridges route hit')

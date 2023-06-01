@@ -139,10 +139,10 @@ async def loadCartridges(convoID, userID):
                     availableCartridges[convoID][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
-                        print('adding cartridge ' + str(cartKey) + ' to available cartridges')
+                        # print('adding cartridge ' + str(cartKey) + ' to available cartridges')
                         cartVal.update({'state': 'loading'})
     # print('available cartridges are ' + str(app.session[availableCartKey]))
-    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID, userID):
@@ -162,7 +162,7 @@ async def runCartridges(convoID, userID):
                         'position': prompt['position'],
                         'enabled': True,
             }
-            await addNewUserCartridgeTrigger(cartKey, cartVal)
+            await addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal)
         cartKey = "summary"
         cartVal = {
                             'label': 'summary',
@@ -171,7 +171,7 @@ async def runCartridges(convoID, userID):
                             'enabled': True,
                             'position':0,
                             }
-        await addNewUserCartridgeTrigger(userID, convoID, cartKey, cartVal)
+        await addNewUserCartridgeTrigger( userID, convoID, cartKey, cartVal)
         
         await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[convoID]}))
         # await runCartridges(sessionRequest)
