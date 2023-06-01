@@ -143,7 +143,7 @@ async def loadCartridges(convoID):
 
 async def runCartridges(convoID):
     userID = novaConvo[convoID]['userID']
-    if len(availableCartridges) != 0:
+    if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
@@ -222,7 +222,7 @@ async def handleChatInput(sessionData):
     if convoID not in chatlog:
         chatlog[convoID] = []
     chatlog[convoID].append(messageObject)
-    asyncio.create_task(constructChatPrompt(sessionData)),
+    asyncio.create_task(constructChatPrompt(convoID)),
     eZprint('constructChat prompt called')
     # asyncio.create_task(checkCartridges(input))
 
@@ -232,7 +232,7 @@ async def constructChatPrompt(convoID):
     #TODO - abstract to prompt build / chat build + estimate, to be called on inputs / updates (combine with estimate)
     promptObject=[]
     # print('available cartridges: ' + str(availableCartridges))
-    if availableCartridges[convoID] != None:
+    if convoID in availableCartridges:
         sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
         for index, cartVal in enumerate(sorted_cartridges):
             if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
