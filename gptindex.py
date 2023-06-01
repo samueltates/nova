@@ -9,6 +9,7 @@ from appHandler import app, websocket
 import asyncio
 
 from GoogleDocsReader import GoogleDocsReader 
+from UnstructuredReader import UnstructuredReader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -33,8 +34,6 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
-
-UnstructuredReader = download_loader("UnstructuredReader")
 
 async def indexDocument(payload):
     nova.eZprint('indexDocument called')
