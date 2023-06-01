@@ -60,7 +60,7 @@ async def startsession():
         novaSession[sessionID] = {}
     convoID = secrets.token_bytes(4).hex()
     app.session['convoID'] = convoID
-    authorised = await check_credentials()
+    authorised = await check_credentials(sessionID)
     if app.session.get('userName') is None:
         eZprint('userName not found')
         app.session['userName'] = 'Guest'
