@@ -129,10 +129,11 @@ async def getDebug():
 
 @app.websocket('/ws')
 async def ws():
-    eZprint('ws route hit')
-    print(app.session.get('sessionID'))
-    print(app.session.get('convoID'))
+
     while True:
+        eZprint('ws route hit')
+        print(app.session.get('sessionID'))
+        print(app.session.get('convoID'))
         data = await websocket.receive()
         parsed_data = json.loads(data)
         print(parsed_data)
