@@ -15,7 +15,7 @@ class GoogleDocsReader(BaseReader):
     """
 
 
-    async def load_data(self, document_ids: List[str]) -> List[Document]:
+    async def load_data(self, document_ids: List[str], sessionID) -> List[Document]:
         """Load data from the input directory.
 
         Args:
@@ -26,19 +26,19 @@ class GoogleDocsReader(BaseReader):
 
         results = []
         for document_id in document_ids:
-            docResult = await self._load_doc(document_id)
+            docResult = await self._load_doc(document_id, sessionID)
             doc = docResult['content']
             docTitle = docResult['title']
             results.append(Document(doc, extra_info={"document_id": document_id, "document_title": docTitle}))
         return results
 
-    async def _get_title(self, document_id:str):
-        docs_service = await getDocService()
+    async def _get_title(self, document_id:str, sessionID):
+        docs_service = await getDocService(sessionID)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_title = doc.get("title")
         return doc_title
     
-    async def _load_doc(self, document_id: str) -> str:
+    async def _load_doc(self, document_id: str, sessionID) -> str:
         """Load a document from Google Docs.
 
         Args:
@@ -49,7 +49,7 @@ class GoogleDocsReader(BaseReader):
         """
 
         
-        docs_service = await getDocService()
+        docs_service = await getDocService(sessionID)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_content = doc.get("body").get("content")
         doc_title = doc.get("title")

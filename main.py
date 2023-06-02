@@ -1,19 +1,23 @@
 import os
-from quart import request, jsonify, url_for, session
-from quart_session import Session
-import secrets
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
-from appHandler import app, websocket
 import asyncio
 import json
 import base64
-from nova import initialiseCartridges, prismaConnect, prismaDisconnect, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, eZprint, summariseChatBlocks, updateContentField
-from gptindex import indexDocument
-from googleAuth import login, silent_check_login, logout, check_credentials,requestPermissions
-from random_word import RandomWords
-from sessionHandler import novaSession, novaConvo
 
+from quart import request, jsonify, url_for, session
+from quart_session import Session
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
+
+import secrets
+from random_word import RandomWords
+
+from appHandler import app, websocket
+from sessionHandler import novaSession, novaConvo
+from nova import initialiseCartridges, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, summariseChatBlocks, updateContentField
+from gptindex import indexDocument
+from googleAuth import logout, check_credentials,requestPermissions
+from prismaHandler import prismaConnect, prismaDisconnect
+from debug import eZprint
 
 app.session = session
 Session(app)
@@ -25,115 +29,121 @@ async def index():
 
 @app.route("/hello")
 async def hello():
-
     return "Hello, World!"
 
 @app.before_serving
 async def startup():
-    # session.permanent = True
-
     await prismaConnect()
-
-    # await googleAuthHandler()
+    eZprint("Connected to Prisma")
 
 @app.after_serving
 async def shutdown():
     await prismaDisconnect()
-    eZprint("Disconnected from Prisma")
+    eZprint("Disconnected to Prisma")
 
 @app.before_request
 def make_session_permanent():
-    session.permanent = True
 
+    app.session.permanent = True
+    eZprint("Make session permanent")
 
 @app.route("/startsession", methods=['POST'])
 async def startsession():
+
     eZprint('start-session route hit')
     print(app.session)
+
     payload = await request.get_json()
+
     if app.session.get('sessionID') is None:
-        eZprint('sessionID not found')
-        app.session['sessionID'] = secrets.token_bytes(8).hex()
-    sessionID = app.session.get('sessionID')    
-    if sessionID not in novaSession:
-        eZprint('sessionID not found in novaSession')
+        
+        eZprint('sessionID not found, creating new session')
+
+        sessionID = secrets.token_bytes(8).hex()
+        app.session['sessionID'] = sessionID
         novaSession[sessionID] = {}
+        novaSession[sessionID]['profileAuthed'] = False
+        novaSession[sessionID]['docsAuthed'] = False
+        novaSession[sessionID]['userName'] = 'Guest'
+        novaSession[sessionID]['userID'] = 'guest-'+sessionID    
+
+    sessionID = app.session.get('sessionID')    
     convoID = secrets.token_bytes(4).hex()
+    # setting convo specific vars easier to pass around
+    novaConvo[convoID] = {}
+    novaConvo[convoID]['userID'] = novaSession[sessionID]['userID']
+
     app.session['convoID'] = convoID
-    authorised = await check_credentials(sessionID)
-    if app.session.get('userName') is None:
-        eZprint('userName not found')
-        app.session['userName'] = 'Guest'
-        app.session['userID'] = 'guest-'+sessionID
+
+    # means can cross reference back to main session stuff
+    novaSession[sessionID]['convoID'] = convoID
+    novaConvo[convoID]['sessionID'] = sessionID
+
+    await check_credentials(sessionID)
 
     payload = {
-        'profileAuthed' : app.session.get('profileAuthed'),
-        'docsAuthed' : app.session.get('docsAuthed'),
-        'userID': app.session.get('userID'),
-        'userName': app.session.get('userName'),
-        'convoID': app.session.get('convoID'),
-        'sessionID': app.session.get('sessionID'),
+        'sessionID': sessionID,
+        'convoID': convoID,
+        'profileAuthed' : novaSession[sessionID]['profileAuthed'],
+        'docsAuthed' : novaSession[sessionID]['docsAuthed'],
+        'userID': novaSession[sessionID]['userID'],
+        'userName': novaSession[sessionID]['userName'],
     }
 
-    novaSession[sessionID]['convoID'] = convoID
-    novaSession[sessionID]['userID'] = payload['userID']
-    novaSession[sessionID]['userName'] = payload['userName']
-    novaSession[sessionID]['sessionID'] = payload['sessionID']
-    novaSession[sessionID]['profileAuthed'] = payload['profileAuthed']
-    novaSession[sessionID]['docsAuthed'] = payload['docsAuthed']
-
-    novaConvo[convoID] = {}
-    novaConvo[convoID]['userName'] = payload['userName']
-    novaConvo[convoID]['userID'] = payload['userID']
-    
-    eZprint('payload and session updated')
+    eZprint('Payload and session updated')
     print(payload)
     print(app.session)
+
     app.session.modified = True
     return jsonify(payload)
 
 @app.route('/login', methods=['GET'])
 async def login():
+
     eZprint('login route hit')
     print(app.session)
-    scopes = ['https://www.googleapis.com/auth/userinfo.profile']
-    loginURL = await requestPermissions( scopes )
+    
+    sessionID = app.session.get('sessionID')
+    requestedScopes = ['https://www.googleapis.com/auth/userinfo.profile']
+    loginURL = await requestPermissions( requestedScopes, sessionID )
+
     app.session.modified = True
     return jsonify({'loginURL': loginURL})
 
 @app.route('/authRequest', methods=['GET'])
 async def authRequest():
     eZprint('googleAuth')
-    authUrl = await requestPermissions( ['https://www.googleapis.com/auth/documents.readonly'] )
+    sessionID = app.session.get('sessionID')    
+    authUrl = await requestPermissions( ['https://www.googleapis.com/auth/documents.readonly'], sessionID )
     app.session.modified = True
     return jsonify({'loginURL': authUrl})
 
 @app.route('/awaitCredentialRequest', methods=['GET'])
 async def awaitCredentialRequest():
     app.session.modified = True
-
-    print('awaitCredentialRequest called')
-    print(app.session.get('requesting'))
-    requesting = app.session.get('requesting')
-    if requesting:
+    sessionID = app.session.get('sessionID')    
+    requesting = novaSession[sessionID]['requesting']
+    while requesting:
         print('awaiting credential request status ' + str(requesting))
         await asyncio.sleep(1)
+        requesting = novaSession[sessionID]['requesting']
         credentialState = {
             'requesting': requesting,
         }
     else:
         credentialState = {
         'requesting': requesting,
-        'docsAuthed': app.session.get('docsAuthed'),
-        'profileAuthed': app.session.get('profileAuthed'),
+        'docsAuthed': novaSession[sessionID]['docsAuthed'],
+        'profileAuthed': novaSession[sessionID]['profileAuthed'],
     }
     return jsonify(credentialState)
 
 @app.route('/requestLogout', methods=['GET'])
 async def requestLogout():
     eZprint('requestLogout route hit')
-    # print(app.session)
-    logoutStatus = await logout()    
+    sessionID = app.session.get('sessionID')    
+
+    logoutStatus = await logout(sessionID)    
     app.session.modified = True
     return jsonify({'logout': logoutStatus})
 
@@ -254,49 +264,16 @@ async def handle_indexdoc_end(data):
             'newCartridge': indexRecord.blob,
         }
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
-    await asyncio.create_task(handleIndexQuery(data['convoID'], indexRecord.key, 'Give this document a short summary.'))
+    queryPackage = {
+        'query': 'Give this document a short summary.',
+        'cartKey': indexRecord.key,
+        'convoID': data['convoID'],
+        'userID': data['userID'],
+    }
+    await asyncio.create_task(handleIndexQuery(queryPackage))
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]
-
-# For example, the process_uploaded_file() function could be like this:
-
-@app.route('/indexdoc', methods=['POST'])
-async def http():
-    eZprint('indexdoc route hit   ')
-    data = await request.get_json()
-    # print(data)
-    userID = data["userID"]
-    file_content = data["file_content"]
-    file_name = data["file_name"]
-    file_type = data["file_type"]
-    sessionID = data["sessionID"]
-    tempKey = data["tempKey"]
-    indexType = data["indexType"]
-    indexRecord = await indexDocument(userID, sessionID, file_content, file_name, file_type, tempKey, indexType)
-
-    for indexKey, indexVal in indexRecord.items():
-        indexCartridge = {
-            indexKey: {
-                'label' : indexVal['label'],
-                'type' : indexVal['type'],
-                'enabled' : indexVal['enabled'],
-                'description' : indexVal['description'],
-            }
-        }
-
-    # response = {
-    #     "success": True,
-    #     "message":"File indexed successfully.",
-    #     "tempKey": tempKey,
-    #     # "data": indexCartridge
-    # }
-    payload = {
-        'tempKey': tempKey,
-        'newCartridge': indexCartridge,
-    }
-    return json.dumps(payload)
-    # await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 if __name__ == '__main__':
 

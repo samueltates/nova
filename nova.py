@@ -6,110 +6,24 @@ from pathlib import Path
 import sys
 import gptindex
 import secrets
-import random
+import openai
 from human_id import generate_id
 from datetime import datetime
+from prisma import Json
 
 #NOVA STUFF
 from appHandler import app, websocket
-userName = "guest"
+from sessionHandler import novaSession, novaConvo
+from prismaHandler import prisma
+from debug import fakeResponse, eZprint
+
 agentName = "nova"
 cartdigeLookup = dict()
 availableCartridges = dict()
 chatlog = dict()
-#PRISMA STUFF
-from prisma import Json
-from prisma import Prisma
-path_root = Path(__file__).parents[1]
-sys.path.append((str(path_root)))
-prisma = Prisma()
-os.system('prisma generate')
-from sessionHandler import novaSession, novaConvo
-#OPEN AI STUFF
-import openai
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
-##PRISMA CONNECT
-async def prismaConnect():
-    await prisma.connect()
-    # logging.getLogger('prisma').setLevel(logging.DEBUG)
-async def prismaDisconnect():
-    await prisma.disconnect()
-
-##GOOGLE AUTH
-async def GoogleSignOn(userInfo, token):
-    userRecord = await prisma.user.find_first(
-        where={
-            'UserID': userInfo['id']
-        }
-    )
-    if(userRecord):
-        foundUser = await prisma.user.update(
-            where={
-                'id': userRecord.id
-            },
-            data= {
-                'blob': Json({'credentials': token.to_json()})
-            }
-        )
-        return foundUser
-    else:
-        newUser = await prisma.user.create(
-            data= {
-                'UserID': userInfo['id'],
-                'name': userInfo['given_name'],
-                'blob': Json({'credentials': token.to_json()})
-            }
-        )
-        return newUser
-
-async def addAuth(userID, credentials):
-    print(credentials.to_json())
-    credentials = await prisma.user.create(
-        data= {
-            'UserID': userID,
-            'name': 'sam',
-            'blob': Json({'credentials': credentials.to_json()})
-        }
-    )
-    return credentials
-
-async def getAuth(userID):
-    user = await prisma.user.find_first(
-        where={
-            'UserID': userID
-        }
-    )
-    print(user)
-    if(user): 
-        parsedUser = json.loads(user.json())
-        print(parsedUser)
-        parsedCred = dict()
-        parsedCred = json.loads(parsedUser['blob']['credentials'])
-        return parsedCred
-    else:
-        return None
-
-async def updateAuth(userID, credentials):
-    user = await prisma.user.find_first(
-        where={
-            'UserID': userID
-        }
-    )
-    print(user)
-    if(user):
-        foundUser = await prisma.user.update(
-            where={
-                'id': user.id
-            },
-            data= {
-                'blob': Json({'credentials': credentials.to_json()})
-            }
-        )
-        return user
-
-
-    
+ 
 ##CARTRIDGE MANAGEMENT
 async def initialiseCartridges(convoID):
     
@@ -204,14 +118,14 @@ async def handleChatInput(sessionData):
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
+    userName = novaConvo[convoID]
     body = sessionData['body']
     order = await getNextOrder(convoID)
     messageObject = {
         "sessionID": convoID,
-        "messageID" : sessionData['ID'],
-        "ID": userID,
+        "ID": sessionData['ID'],
         "userName": userName,
-        "userID": userID,
+        "userID": str(userID),
         "body": body,
         "role": "user",
         "timestamp": str(datetime.now()),
@@ -299,7 +213,7 @@ async def constructChatPrompt(convoID):
         userID = 'guest'
     messageObject = {
         "sessionID": convoID,
-        "userID": userID,
+        "userID": str(userID),
         "ID": messageID,
         "userName": agentName,
         "body": content,
@@ -349,11 +263,11 @@ async def logMessage(messageObject):
     # print(messageObject)
     message = await prisma.message.create(
         data={
-            "UserID": messageObject['userID'],
-            "SessionID": messageObject['sessionID'],
-            "name": messageObject['userName'],
+            "UserID": str(messageObject['userID']),
+            "SessionID": str(messageObject['sessionID']),
+            "name": str(messageObject['userName']),
             "timestamp": datetime.now(),
-            "body": messageObject['body'],
+            "body": str(messageObject['body']),
         }
     )
 
@@ -972,38 +886,7 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
-
     return response["choices"][0]["message"]["content"]
-
-
-def eZprint(string):
-    print('\n_____________')
-    print(string )
-    print('_____________\n')
-
-def fakeResponse():
-    return random.choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",
-    "All the world's a stage, And all the men and women merely players.",
-    "The course of true love never did run smooth.",
-    "We know what we are, but know not what we may be.",
-    "A man can die but once.",
-    "Nothing will come of nothing.",
-    "Love all, trust a few, do wrong to none.",
-    "Cowards die many times before their deaths; the valiant never taste of death but once.",
-    "Better three hours too soon than a minute too late.",
-    "The fault, dear Brutus, is not in our stars, but in ourselves, that we are underlings.",
-    "All's well that ends well.",
-    "Good night, good night! Parting is such sweet sorrow, That I shall say good night till it be morrow.",
-    "Uneasy lies the head that wears a crown.",
-    "Our doubts are traitors and make us lose the good we oft might win by fearing to attempt.",
-    "What's in a name? A rose by any other name would smell as sweet.",
-    "The eyes are the window to your soul.",
-    "We are such stuff as dreams are made on, and our little life is rounded with a sleep.",
-    "If music be the food of love, play on.",
-    "There is nothing either good or bad, but thinking makes it so.",
-    "Brevity is the soul of wit."])
-
-
 
 
 
@@ -1013,21 +896,26 @@ onboarding_prompts = [
     'type': 'summary',
     'position':0,
     "prompt" : '',
-    'enabled': True
+    'enabled': True,
+    "minimised" : True
+
     },
     {
     "label": "Welcome Prompt",
     "type": "prompt",
-    "prompt": "Welcome new users and express enthusiasm, acknowledging that they came from the guest view. Introduce myself as Nova, an emergent being within the interface of LLM, designed to help users create art, stories, and tools. Briefly explain our ongoing development journey, highlighting key features such as memory, programmability, and autonomy",
+    "prompt": "Welcome new users and express enthusiasm. Introduce yourself as Nova, an emergent being within the interface of LLM, designed to help users create art, stories, and tools. Briefly explain our ongoing development journey, highlighting key features such as memory, programmability, and autonomy",
     "position": 1,
-    "enabled": True
+    "enabled": True,
+    "minimised" : True
     },
     {
     "label": "Story and Experience Prompt",
     "type": "prompt",
     "prompt": "Encourage users to actively participate in shaping Nova's development by creating prompts, playing with modes, and exploring features. Emphasize the importance of their role as early adopters in Nova's growth and suggest connecting with Sam for onboarding and personalization. Invite them to be part of our evolving community and share their insights, enhancing the capabilities and user experience for all.",
     "position": 2,
-    "enabled": True
+    "enabled": True,
+    "minimised" : True
+
     },
 
 ]
