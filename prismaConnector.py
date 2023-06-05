@@ -113,8 +113,20 @@ async def portUser():
     # delete = await prisma.cartridge.delete_many(
 
 #     users
+async def findLogSummaries():
+    logs = await prisma.log.find_many(
+        where = {'UserID' : '110327569930296986874',}
+    )
+    for log in logs:
+        print(f'{log.summary}')
 
 
+async def findBatches():
+    batches = await prisma.batch.find_many(
+        where = {'UserID' : '110327569930296986874',}
+    )
+    for batch in batches:
+        print(f'{batch}')
 
 async def findAndMarkLogsOver2k():
        # and sets to true if they're too long
@@ -158,7 +170,8 @@ async def findLogs():
     
 async def main() -> None:
     await prisma.connect()
-
+    # await findBatches()
+    await findLogSummaries()
     # await findLogs()
     # await findSummaries()
     # await findMessages()
@@ -166,7 +179,7 @@ async def main() -> None:
     # await findAndMarkLogsOver2k()
     # await findUsers()
     # await portUser()
-    await deleteCartridges()
+    # await deleteCartridges()
 
     ###### PRINTS MESSAGES#########
     # messages = await prisma.message.find_many()
