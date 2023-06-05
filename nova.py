@@ -149,9 +149,10 @@ async def constructChatPrompt(convoID):
     if convoID in availableCartridges:
         sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
         for index, cartVal in enumerate(sorted_cartridges):
+            print(cartVal['label'] + ' : enabled : ' + str(cartVal['enabled']))
             if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
                 promptString +=  cartVal['label'] + ":\n" + cartVal['prompt'] + "\n"
-            if (cartVal['enabled'] == True and cartVal['type'] =='summary'):
+            if (cartVal['type'] =='summary'):
                 eZprint('found summary cartridge')
                 print(cartVal)
                 if 'blocks' in cartVal:
@@ -170,7 +171,7 @@ async def constructChatPrompt(convoID):
     eZprint('prompt string constructed')
     print(f'{promptString}')
 
-    promptObject.append({"role": "system", "content": promptString})
+    promptObject.append({"role": "user", "content": promptString})
 
     promptSize = estimateTokenSize(str(promptObject))
     if convoID in chatlog:
