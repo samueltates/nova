@@ -17,7 +17,7 @@ async def findMessages():
         where = {'UserID' : '110327569930296986874',}
 
     )
-    print(messages)
+    print(len(str(messages)))
 
 async def findUsers():
     users = await prisma.user.find_many()
@@ -171,10 +171,10 @@ async def findLogs():
 async def main() -> None:
     await prisma.connect()
     # await findBatches()
-    await findLogSummaries()
+    # await findLogSummaries()
     # await findLogs()
     # await findSummaries()
-    # await findMessages()
+    await findMessages()
     # await findCartridges()
     # await findAndMarkLogsOver2k()
     # await findUsers()

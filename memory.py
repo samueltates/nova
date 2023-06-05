@@ -29,13 +29,18 @@ async def runMemory(userID):
     
     epochs_summarised = await summarise_epochs(userID)
     while not epochs_summarised:
+        await asyncio.sleep(1)
         epochs_summarised = await summarise_epochs(userID)
         
-
+    eZprint('epochs summarised')
+    window_counter = 0
     for window in windows[userID]:
-        print('window')        
+        window_counter += 1
+        eZprint('window no ' + str(window_counter))
         for summary in window:
+            eZprint('summary in window ' + str(summary['key']))
             print(summary)
+    eZprint(len(windows[userID]))
     
     
     # for summary in summaries[userID]:
@@ -166,6 +171,7 @@ async def summarise_epochs(userID):
         if summarDict['summarised'] == False:
             epoch_no = 'epoch_' + str(summarDict['epoch'])
             if epoch_no not in epochs:
+                eZprint('creating epoch ' + str(epoch_no))
                 epochs[epoch_no] = []
             epochs[epoch_no].append(summarDict)
     
@@ -181,6 +187,7 @@ async def summarise_epochs(userID):
     for key, val in epochs.items():
         epoch = val
         # print(epoch)
+        #checks if epoch is 70% over resolution
         if len(epoch) > ((resolution*2)-1):
             epoch_summaries += 1
             eZprint('epoch too large, starting epoch batch and summarise')
@@ -191,12 +198,13 @@ async def summarise_epochs(userID):
             x = 0
             for summary in reversed(epoch):
                 ##goes through and creates batches in reverse
-
+                eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary)
                 toSummarise += str(summaryObj['content'])
                 ids.append(summaryObj['id'])
                 x += 1
                 if x >= resolution:
+                    eZprint('adding to batch for summary')
                     batches.append({
                         'toSummarise': toSummarise,
                         'ids': ids,
@@ -206,7 +214,6 @@ async def summarise_epochs(userID):
                     toSummarise = ''
                     ids = []
                     x = 0
-
             await summarise_batches(batches,userID)
             # for id in summarised:
             #     for summary in epoch:
@@ -214,18 +221,24 @@ async def summarise_epochs(userID):
             #             epoch.remove(summary)
             return False                        
         else:
-            eZprint('epoch within resolution range so adding to latest')
+            eZprint('epoch within resolution range so adding to latest : ' + str(key))
             counter = 0
             window = []
             for summary in epoch:
-                print(window)
                 window.append(summary)
                 counter += 1
                 if counter >= resolution:
+                    eZprint('adding window to windows'  + str(key) + 'as window no ' + str(len(windows[userID])))
+                    print(window)
                     windows[userID].append(window)
                     window = []
                     counter = 0
-            return True
+            eZprint('adding window to windows ' + str(key) + 'as window no ' + str(len(windows[userID])))
+            windows[userID].append(window)
+            print(window)
+
+
+    return True
 
 
 
