@@ -1,4 +1,6 @@
 from random import choice, randrange
+from datetime import datetime
+from prismaHandler import prisma
 
 debug = {}
 credentials = '{"token": "ya29.a0AWY7CkmXEArxPmjv6q0m23LMk_Yd6nXCiMK-wENAptDOnqkhaEiDsNFkL86pkevveYkKro6JbVsepcZL9Q5eZZAmwRnW_DV4SRHfaIS78d_tuGI3dVOkWeLULc9iw2Pv-VX1PDOCIs6hc9JdZ-auLmYpmIOlaCgYKAdUSARASFQG1tDrpkm5Jnrbl6inXcKPa574J5w0163", "refresh_token": "1//0gWDDLaYLHIbgCgYIARAAGBASNwF-L9IrNdKteGm4yI9wPqjTOl6n7A_dR6By6Kp5l4u-lQGTqnlfvW6YYtFd66xM6Xg7RnbQVjI", "token_uri": "https://oauth2.googleapis.com/token", "client_id": "901964319596-tieetv1opo684l71dcdjnraemhi5u6mh.apps.googleusercontent.com", "client_secret": "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", "scopes": ["https://www.googleapis.com/auth/userinfo.profile"], "expiry": "2023-06-01T15:44:09.229445Z"}'
@@ -32,6 +34,28 @@ def fakeResponse():
     "There is nothing either good or bad, but thinking makes it so.",
     "Brevity is the soul of wit."])
 
+
+async def findMessages():
+    messages = await prisma.message.find_many(
+        where = {'UserID' : '108238407115881872743',}
+
+    )
+    
+    print(messages)
+
+    startDate = datetime.datetime(2023,4,0)
+    endDate = datetime.datetime(2023,4,30)
+    messages_in_range = []
+    for message in messages():
+        timestamp = message['timestamp']
+        print(timestamp)
+        date = datetime.fromtimestamp(timestamp, tz=None)
+        if date > startDate and date < endDate:
+            messages_in_range.append(message)
+
+    return
+
+    print(len(str(messages)))
 
 async def get_fake_messages():
     eZprint('getting fake messages')

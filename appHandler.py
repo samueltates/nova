@@ -10,7 +10,7 @@ app = cors(app, allow_origin=os.environ.get("CORS_ALLOWED_ORIGINS"), allow_crede
 
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SESSION_TYPE'] = 'redis'
+# app.config['SESSION_TYPE'] = 'redis'
 # app.config['QUART_CORS_ALLOW_HEADERS'] = "Content-Type, Authorization"
 # app.config['QUART_CORS_ALLOW_ORIGIN'] = os.environ.get("CORS_ALLOWED_ORIGINS")
 # app.config['QUART_CORS_ALLOW_CREDENTIALS'] = True

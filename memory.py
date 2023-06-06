@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime
 from query import sendChat
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
+from sessionHandler import novaSession, novaConvo
 
 summaries = {}
 windows = {}
@@ -15,12 +16,13 @@ windows = {}
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
 
+async def run_memory(convoID):
+    userID = novaConvo[convoID]['userID']
+    debug[userID] = False
 
-async def runMemory(userID):
-
-    await summarise_messages(userID)
-    eZprint('messages summarised')
-    print('number of summaries is ' + str(len(summaries[userID])))
+    # await summarise_messages(userID)
+    # eZprint('messages summarised')
+    # print('number of summaries is ' + str(len(summaries[userID])))
 
     await summarise_groups(userID)    
 
@@ -50,6 +52,7 @@ async def runMemory(userID):
 
 ##LOG SUMMARY FLOWS
 
+
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID):  
     eZprint('getting messages to summarise')
@@ -64,23 +67,51 @@ async def summarise_messages(userID):
                 'summarised': False
                 }
         )
-    
+
+        # logs = await prisma.log.find_many(
+        #     where={ 'UserID': userID })
+        # messages = []
+        # for log in logs:
+        #     print('found log getting messages')
+        #     if log.id < 100:
+        #         returned_messages = await prisma.message.find_many(
+        #                 where={ 'SessionID': log.SessionID }
+        #         )
+        #         for message in returned_messages:
+        #                 messages.append(message)
+
     normalised_messages = []
     eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
     for message in messages:
-        normalised_messages.append({
-            'id': message['messageID'],
-            'content': message['name']+': '+message['body'] + '\n',
-            'groupID' : message['convoID'],
-            'epoch' : 0,
-            
-        })
+        if message.id< 1000:
+            normalised_messages.append({
+                'id': message.id,
+                'content': message.name+': '+message.body + '\n',
+                'groupID' : message.SessionID,
+                'epoch' : 0,
+                
+            })
 
     #passes messages as chunks, batched together per length    
     batches = await create_content_batches_by_token(normalised_messages)
     # print(len(batches))
     await summarise_batches(batches, userID)
+    for batch in batches:
+        for id in batch['ids']:
+            remote_messages = await prisma.message.find_first(
+            where={'id': id}
+            )
+            if remote_messages:
+                updatedMessage = await prisma.message.update(
+                    where={ 'id': remote_messages.id },
+                    data={
+                        'summarised': False,
+                        'muted': True,
+                        'minimised': True,
+                    }
+                )
+
 
 
 
@@ -105,20 +136,21 @@ async def summarise_groups(userID, field = 'groupID'):
         candidates = await prisma.summary.find_many(
             where={
             'UserID': userID,
-            'summarised': False
             }
         ) 
         
     ##group by 'content ID' (which is parent doc) - then loop here based on that (so can be used)
     for candidate in candidates: 
+        print(candidate)
         #finds summaries assoiated with logs, preps for summary
-        summarDict = candidate['blob']
-        summaryObj = await summary_into_candidate(summarDict)
-        summaryObj['summarised'] = True
-        
-        if not summarDict[field] in summary_groups:
-            summary_groups[summarDict[field]] = []
-        summary_groups[summarDict[field]].append(summaryObj)
+        summarDict = candidate.blob
+        if 'summarised' in summarDict:
+            if summarDict['summarised'] == True:
+                pass
+            summaryObj = await summary_into_candidate(summarDict)
+            if not summarDict[field] in summary_groups:
+                summary_groups[summarDict[field]] = []
+            summary_groups[summarDict[field]].append(summaryObj)
 
 
     # print(summary_groups)
@@ -145,6 +177,25 @@ async def summarise_groups(userID, field = 'groupID'):
             })
             
     await summarise_batches(batches,userID)
+    
+    for batch in batches:
+        for id in batch['ids']:
+            for candidate in candidates:
+                if candidate['id'] == id:
+                    candidate['blob']['summarised'] = True
+            summaries = await prisma.summary.find_first(
+            where={'id': id}
+            )
+            if summaries:
+                updatedMessage = await prisma.message.update(
+                    where={ 'id': summaries.id },
+                    data={
+                        "blob": Json({candidate['key']:summarDict})
+
+                    }
+                )
+
+
         # message_summaries.append(summaryObj)
 
 
@@ -160,15 +211,16 @@ async def summarise_epochs(userID):
         candidates = await prisma.summary.find_many(
             where={
             'UserID': userID,
-            'summarised': False
             }
         ) 
 
     epochs = {}
 
     for candidate in candidates:
-        summarDict = candidate['blob']
-        if summarDict['summarised'] == False:
+        summarDict = candidate.blob
+        if 'summarised' in summarDict:
+            if summarDict['summarised'] == True:
+                pass
             epoch_no = 'epoch_' + str(summarDict['epoch'])
             if epoch_no not in epochs:
                 eZprint('creating epoch ' + str(epoch_no))
@@ -332,9 +384,12 @@ async def summarise_batches(batches, userID):
             #     print(summary['blob']['summarised'])
         else:
 
-            summary = GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
-            summarDict = json.loads(summary)
-            create_summary_record(batch['userID'], batch['ids'], epoch, summarDict, batch['groupID'])
+            summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
+            summaryID = secrets.token_bytes(4).hex()
+            await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['groupID'])
+            #sending summary state back to server
+
+
             #TODO - set summary 
 
 async def GetSummaryWithPrompt(prompt, textToSummarise):
@@ -342,16 +397,17 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    print(textToSummarise)
     # model = app.session.get('model')
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
+    print(response)
     return response["choices"][0]["message"]["content"]
 
 
-async def create_summary_record(userID, sourceIDs, epoch, summary, content_id):
+async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, content_id, convoID = ''):
     
-    summaryID = secrets.token_bytes(4).hex()
     summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
     summarDict.update({'docID': content_id})
@@ -363,7 +419,9 @@ async def create_summary_record(userID, sourceIDs, epoch, summary, content_id):
             "key": summaryID,
             "UserID": userID,
             "timestamp": datetime.now(),
+            'SessionID' : convoID,
             "blob": Json({summaryID:summarDict})
+
         }
     )
 
@@ -388,10 +446,13 @@ batch_summary_prompt = """
 async def main() -> None:
     eZprint('running main')
     ##setup for debug, using UID as key
-    userID = 'sam'
-    debug[userID] = True
+    await prisma.connect()
+    novaConvo['test'] = {}
+    novaConvo['test']['userID'] = '110327569930296986874'
+    # userID = '110327569930296986874'
+    debug['userID'] = False
 
-    await runMemory(userID)
+    await run_memory('test')
 
 if __name__ == '__main__':
     asyncio.run(main())

@@ -1,14 +1,21 @@
 import asyncio
 import json
+from datetime import datetime
 from prisma import Prisma
 from prisma import Json
 from human_id import generate_id
 import logging
 logging.basicConfig()
 prisma = Prisma()
+import pytz
+utc=pytz.UTC
+
 
 async def findSummaries():
-    summaries = await prisma.summary.find_many()
+    summaries = await prisma.summary.find_many(
+                where = {'UserID' : '110327569930296986874'}
+
+    )
     print(summaries)
 
 
@@ -17,10 +24,50 @@ async def findMessages():
         where = {'UserID' : '110327569930296986874',}
 
     )
-    print(len(str(messages)))
+    print(messages)
+
+
+async def findMessages_set_unsummarised():
+    messages = await prisma.message.find_many(
+        where = {'UserID' : '110327569930296986874',}
+
+    )
+    # print(messages)
+    
+    message_counter = 0
+    for message in messages:
+        updatedMessage = await prisma.message.update(
+            where={'id': message.id},
+            data={'summarised': False}
+        )
+        print(updatedMessage)
+        message_counter += 1
+        if message_counter > 500:
+            break
+
+    # startDate = datetime(2023,4,1)
+    # startDate = utc.localize(startDate)
+    # endDate = datetime(2023,4,30)
+    # endDate = utc.localize(endDate)
+    # messages_in_range = []
+    # for message in messages:
+    #     timestamp = message.timestamp
+    #     # print(timestamp)
+    #     format = '%Y-%m-%dT%H:%M:%S.%fz'
+
+    #     date = datetime.strptime(timestamp, format)
+
+    #     if date > startDate and date < endDate:
+    #         messages_in_range.append(message)
+
+    # print(messages_in_range)
+    # print(len(str(messages)))
 
 async def findUsers():
-    users = await prisma.user.find_many()
+    users = await prisma.user.find_many(
+        where = {'name' : 'Samuel'}
+
+    )
     print(users)
  
 async def findCartridges():
@@ -173,8 +220,8 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs()
-    # await findSummaries()
-    await findMessages()
+    await findSummaries()
+    # await findMessages_set_unsummarised()
     # await findCartridges()
     # await findAndMarkLogsOver2k()
     # await findUsers()

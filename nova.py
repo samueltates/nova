@@ -15,6 +15,7 @@ from prisma import Json
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
 from prismaHandler import prisma
+from memory import run_memory
 from debug import fakeResponse, eZprint
 
 agentName = "nova"
@@ -30,6 +31,7 @@ async def initialiseCartridges(convoID):
     eZprint('intialising cartridges')
     await loadCartridges(convoID)
     await runCartridges(convoID)
+    await run_memory(convoID)
     # await constructChatPrompt()
 
 async def loadCartridges(convoID):
