@@ -1,4 +1,5 @@
 import json
+import math
 import asyncio
 from prismaHandler import prisma
 from prisma import Json
@@ -22,26 +23,24 @@ async def run_memory(convoID):
 
     await summarise_messages(userID)
     eZprint('messages summarised')
-    print('number of summaries is ' + str(len(summaries[userID])))
 
     await summarise_groups(userID)    
 
     eZprint('groups summarised')
-    print('number of summaries is ' + str(len(summaries[userID])))
     
     epochs_summarised = await summarise_epochs(userID)
     while not epochs_summarised:
         await asyncio.sleep(1)
         epochs_summarised = await summarise_epochs(userID)
         
-    eZprint('epochs summarised')
+    # eZprint('epochs summarised')
     window_counter = 0
     for window in windows[userID]:
         window_counter += 1
         eZprint('window no ' + str(window_counter))
         for summary in window:
+            
             print(summary)
-    eZprint(len(windows[userID]))
     
     
     # for summary in summaries[userID]:
@@ -79,10 +78,12 @@ async def summarise_messages(userID):
         #         for message in returned_messages:
         #                 messages.append(message)
 
+    # print(messages)
     normalised_messages = []
     eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
     for message in messages:
+
         if message.id< 500:
             normalised_messages.append({
                 'id': message.id,
@@ -146,16 +147,15 @@ async def summarise_groups(userID, field = 'docID'):
 
         for key, val in summary.items():
             if 'epoch' in val:
-                print(val)
-                print('found one')
                 val.update({'key':key})
                 if 'summarised' in val:
-                    if val['summarised'] == True:
+                    if val['summarised'] == True or val['epoch'] != 1:
                         continue
-                    
+                print('found messages summary to summarise')
                 summaryObj = await summary_into_candidate(val,candidate.id)
                 if not val[field] in summary_groups:
                     summary_groups[val[field]] = []
+                    print ('creating new group for ' + str(val[field]) + '')
                 summary_groups[val[field]].append(summaryObj)
 
 
@@ -169,7 +169,6 @@ async def summarise_groups(userID, field = 'docID'):
         # print(val)
         for chunk in val:
             docID = chunk['docID']
-            # print(chunk)
             epoch = chunk['epoch']
             toSummarise += str(chunk['content'])
             ids.append(chunk['id'])
@@ -184,23 +183,20 @@ async def summarise_groups(userID, field = 'docID'):
             
     await summarise_batches(batches,userID)
     
+    eZprint('number of batches is ' + str(len(batches)))
     for batch in batches:
         for id in batch['ids']:
-            candidate = await prisma.summary.find_first(
+            summary = dict(candidate.blob)
+            for key, val in summary.items():
+                val['summarised'] = True
+            updated_summary = await prisma.summary.update(
                 where={ 'id': id },
+                data={
+                    "blob": Json({key:val})
+                }
             )
-            if candidate:   
-                print(candidate)
-
-                summary = dict(candidate.blob)
-                for key, val in summary.items():
-                    val['summarised'] == True
-                    updated_summary = await prisma.message.update(
-                        where={ 'id': candidate.id },
-                        data={
-                            "blob": Json({key:val})
-                        }
-                    )
+          
+                   
 
 
 
@@ -226,12 +222,11 @@ async def summarise_epochs(userID):
         summary = dict(candidate.blob)
 
         for key, val in summary.items():
-
             if 'summarised' in val:
                 if val['summarised'] == True:
-                    pass
+                    continue
                 epoch_no = 'epoch_' + str(val['epoch'])
-                val['id'] = candidate.id
+                val.update({'id': candidate.id})
                 if epoch_no not in epochs:
                     eZprint('creating epoch ' + str(epoch_no))
                     epochs[epoch_no] = []
@@ -250,7 +245,7 @@ async def summarise_epochs(userID):
         epoch = val
         # print(epoch)
         #checks if epoch is 70% over resolution
-        if len(epoch) > ((resolution*2)-1):
+        if len(epoch) >= ((resolution*2)-1):
             epoch_summaries += 1
             eZprint('epoch too large, starting epoch batch and summarise')
             ## if any epoch has too many summaries it'll go through and summarise to resolution specified, and then restart whole thing... will see if we can make more elegant, but can't think of how else apart from removing from that 
@@ -261,11 +256,18 @@ async def summarise_epochs(userID):
             for summary in reversed(epoch):
                 ##goes through and creates batches in reverse
                 eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
-                summaryObj = await summary_into_candidate(summary)
+                summaryObj = await summary_into_candidate(summary, summary['id'])
                 toSummarise += str(summaryObj['content'])
-                ids.append(summaryObj['id'])
+                ids.append(summary['id'])
                 x += 1
+                counter += 1
+
+                groups = len(epoch) / resolution  
+                frac, whole = math.modf(groups)
+                max = len(epoch) - (1-frac)
                 if x >= resolution:
+                    if counter >= max:
+                        continue
                     eZprint('adding to batch for summary')
                     batches.append({
                         'toSummarise': toSummarise,
@@ -276,11 +278,20 @@ async def summarise_epochs(userID):
                     toSummarise = ''
                     ids = []
                     x = 0
+
             await summarise_batches(batches,userID)
-            # for id in summarised:
-            #     for summary in epoch:
-            #         if id == summary['id']:
-            #             epoch.remove(summary)
+            
+            for batch in batches:
+                for id in batch['ids']:
+                    summary = dict(candidate.blob)
+                    for key, val in summary.items():
+                        val['summarised'] = True
+                    updated_summary = await prisma.summary.update(
+                        where={ 'id': id },
+                        data={
+                            "blob": Json({key:val})
+                        }
+                    )
             return False                        
         else:
             eZprint('epoch within resolution range so adding to latest : ' + str(key))
@@ -290,14 +301,10 @@ async def summarise_epochs(userID):
                 window.append(summary)
                 counter += 1
                 if counter >= resolution:
-                    eZprint('adding window to windows'  + str(key) + 'as window no ' + str(len(windows[userID])))
-                    print(window)
                     windows[userID].append(window)
                     window = []
                     counter = 0
-            eZprint('adding window to windows ' + str(key) + 'as window no ' + str(len(windows[userID])))
             windows[userID].append(window)
-            print(window)
 
 
     return True
@@ -311,6 +318,7 @@ async def create_content_batches_by_token(content):
     ## takes document, breaks into chunks of 2000 tokens, and returns a list of chunks
     ## returns with expected values, to summarise is text, id's is the source ID's
 
+    eZprint('creating content batches by token')
     tokens = 0
     batches = []
     toSummarise = ''
@@ -348,7 +356,6 @@ async def create_content_batches_by_token(content):
 
 async def summary_into_candidate(summarDict, id):
     ##turns summary objects themselves into candidates for summary
-    print(summarDict)
     summaryString = summarDict['title']+ '\n' + summarDict['body'] + '\n' + str(summarDict['timeRange'])
     if 'docID' not in summarDict:
         docID = ''
@@ -370,7 +377,6 @@ async def summary_into_candidate(summarDict, id):
 
 async def summarise_batches(batches, userID):
     eZprint('summarising batches')
-    print(len(batches))
     ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
     
     if userID not in summaries:
@@ -402,13 +408,15 @@ async def summarise_batches(batches, userID):
             # for summary in summaries[userID]:
             #     print(summary['blob']['summarised'])
         else:
-
-            summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
-            summaryID = secrets.token_bytes(4).hex()
             try:
+            # print(batch)
+                summary = await get_fake_summaries(batch)
+                # summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
+                summaryID = secrets.token_bytes(4).hex()
                 await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['docID'])
             except:
-                print('error creating summary record')
+                pass
+                # print('error creating summary record')
             #sending summary state back to server
 
 
@@ -419,23 +427,22 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    print(textToSummarise)
+    # print(textToSummarise)
     # model = app.session.get('model')
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
-    print(response)
+    # print(response)
     return response["choices"][0]["message"]["content"]
 
 
 async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, content_id, convoID = ''):
-    eZprint('creating summary record')
-    print(summary)
+    # eZprint('creating summary record')
     summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
     summarDict.update({'docID': content_id})
     summarDict.update({'epoch': epoch})
-    summarDict.update({'summarised': True})
+    summarDict.update({'summarised': False})
     
     summary = await prisma.summary.create(
         data={

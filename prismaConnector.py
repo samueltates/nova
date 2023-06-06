@@ -20,7 +20,7 @@ async def findSummaries():
                 where = {'UserID' : '110327569930296986874'}
 
     )
-
+    print(len(summaries))
     
     # print(summaries)
     latest_summaries = []
@@ -29,34 +29,35 @@ async def findSummaries():
         summary = dict(summary.blob)
         for key, val in summary.items():
             if 'epoch' in val:
-                print(val)
-                print('found one')
-                # if val['epoch'] == 1:
-                #     latest_summaries.append(summary)
-                # val['summarised'] = True
-                # updateSummary = await prisma.summary.update(
-                #     where={'id': id},
-                #     data={'blob': Json(summary)}
-                # )
+                print(str(val['epoch']) + ' ' + str(val['summarised']))
+                print(val['summarised'])
+    #             # print('found one')
+    #             # if val['epoch'] == 1:
+    #             #     latest_summaries.append(summary)
+    #             # val['summarised'] = True
+    #             # updateSummary = await prisma.summary.update(
+    #             #     where={'id': id},
+    #             #     data={'blob': Json(summary)}
+    #             # )
 
         
-                # latest_summaries.append(summary)
+    #             # latest_summaries.append(summary)
 
-        # if 'summarised' in summary.blob:
-        #     if summary.blob['summarised'] == True:
-        #         pass
-        # # print(summary)
-        # # if 'epoch' in summary.blob:
-        # for key, val in summary.blob.items():
-        #     print(val)
-        #     if val['epoch'] == 0:
-        #         print('found one')
-        #         latest_summaries.append(summary)
+    #     # if 'summarised' in summary.blob:
+    #     #     if summary.blob['summarised'] == True:
+    #     #         pass
+    #     # # print(summary)
+    #     # # if 'epoch' in summary.blob:
+    #     # for key, val in summary.blob.items():
+    #     #     print(val)
+    #     #     if val['epoch'] == 0:
+    #     #         print('found one')
+    #     #         latest_summaries.append(summary)
 
-        # # latest_summaries.append(summary)
-    # for summary in latest_summaries:
-        # print(summary)
-    # print(len(latest_summaries))
+    #     # # latest_summaries.append(summary)
+    # # for summary in latest_summaries:
+    #     # print(summary)
+    # # print(len(latest_summaries))
     
 
 
@@ -261,6 +262,7 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs()
+    # await findSummaries()
     await deleteSummaries()
     await findMessages_set_unsummarised()
     # await findCartridges()

@@ -1,6 +1,7 @@
 from random import choice, randrange
 from datetime import datetime
 from prismaHandler import prisma
+import json
 
 debug = {}
 credentials = '{"token": "ya29.a0AWY7CkmXEArxPmjv6q0m23LMk_Yd6nXCiMK-wENAptDOnqkhaEiDsNFkL86pkevveYkKro6JbVsepcZL9Q5eZZAmwRnW_DV4SRHfaIS78d_tuGI3dVOkWeLULc9iw2Pv-VX1PDOCIs6hc9JdZ-auLmYpmIOlaCgYKAdUSARASFQG1tDrpkm5Jnrbl6inXcKPa574J5w0163", "refresh_token": "1//0gWDDLaYLHIbgCgYIARAAGBASNwF-L9IrNdKteGm4yI9wPqjTOl6n7A_dR6By6Kp5l4u-lQGTqnlfvW6YYtFd66xM6Xg7RnbQVjI", "token_uri": "https://oauth2.googleapis.com/token", "client_id": "901964319596-tieetv1opo684l71dcdjnraemhi5u6mh.apps.googleusercontent.com", "client_secret": "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", "scopes": ["https://www.googleapis.com/auth/userinfo.profile"], "expiry": "2023-06-01T15:44:09.229445Z"}'
@@ -127,7 +128,7 @@ def get_random_sentences(source, sentence_length, num):
 async def get_fake_summaries(batch):
     batch = str(batch['toSummarise'])
     fake_summary = {
-        "title": get_random_words(batch,randrange(2,4) ),
+        "title": get_random_words(batch,randrange(2,4)),
         "timeRange": {"start": "...", "end": "..."},
         "body": get_random_sentences(batch, randrange(10,20), 3),
         "keywords": get_random_array(batch, randrange(2,4)),
@@ -136,6 +137,7 @@ async def get_fake_summaries(batch):
             get_random_words(batch, randrange(3,5)): get_random_sentences(batch, randrange(10,20), 2)
         }
     }
+    fake_summary = json.dumps(fake_summary)
     return fake_summary
 
 
