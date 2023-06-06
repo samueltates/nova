@@ -7,7 +7,8 @@ import secrets
 from datetime import datetime
 from query import sendChat
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
-from sessionHandler import novaSession, novaConvo
+from sessionHandler import novaConvo
+from appHandler import websocket
 
 summaries = {}
 windows = {}
@@ -17,9 +18,29 @@ windows = {}
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
 
-async def run_memory(convoID):
+async def run_memory(convoID, cartKey, cartVal):
     userID = novaConvo[convoID]['userID']
     debug[userID] = False
+    eZprint('got epochs before new summaries')
+    window_counter = 0
+    await summarise_epochs(userID)
+    cartVal['blocks'] = []
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+
+    for window in windows[userID]:
+        window_counter += 1
+        eZprint('window no ' + str(window_counter))
+        for summary in window:      
+            print(summary)
+            cartVal['blocks'].append({'title':summary['title'], 'body':summary['body'], 'keywords':summary['keywords']})
+    payload = { 'key': cartKey,'fields': {
+                                'status': cartVal['status'],
+                                'blocks':cartVal['blocks'],
+                                'state': cartVal['state']
+                                    }}
+            
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
     await summarise_messages(userID)
     eZprint('messages summarised')
@@ -38,19 +59,10 @@ async def run_memory(convoID):
     for window in windows[userID]:
         window_counter += 1
         eZprint('window no ' + str(window_counter))
-        for summary in window:
-            
+        for summary in window:      
             print(summary)
     
-    
-    # for summary in summaries[userID]:
-    #     for key, val in summary.items():
-    #         print(f'{key} : {val} \n')
-    
-
 ##LOG SUMMARY FLOWS
-
-
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID):  
     eZprint('getting messages to summarise')
@@ -84,14 +96,13 @@ async def summarise_messages(userID):
     #gets all messages as normalised and readable for batch 
     for message in messages:
 
-        if message.id< 500:
-            normalised_messages.append({
-                'id': message.id,
-                'content': message.name+': '+message.body + '\n',
-                'docID' : message.SessionID,
-                'epoch' : 0,
-                
-            })
+        normalised_messages.append({
+            'id': message.id,
+            'content': message.name+': '+message.body + '\n',
+            'docID' : message.SessionID,
+            'epoch' : 0,
+            
+        })
 
     #passes messages as chunks, batched together per length    
     batches = await create_content_batches_by_token(normalised_messages)
@@ -129,7 +140,7 @@ async def summarise_groups(userID, field = 'docID'):
     ## finds summaries based on their group (so in this instance doc type) and summarises together, but could be extended to saydifferent doc values
 
     summary_groups = {}
-
+    
     if debug[userID]:
         candidates = summaries[userID]
     else:
@@ -241,6 +252,9 @@ async def summarise_epochs(userID):
     # print(f'{epochs}')
     
     epoch_summaries = 0
+    window = []
+
+
     for key, val in epochs.items():
         epoch = val
         # print(epoch)
@@ -253,6 +267,7 @@ async def summarise_epochs(userID):
             toSummarise = ''
             ids = []
             x = 0
+            counter = 0
             for summary in reversed(epoch):
                 ##goes through and creates batches in reverse
                 eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
@@ -265,6 +280,7 @@ async def summarise_epochs(userID):
                 groups = len(epoch) / resolution  
                 frac, whole = math.modf(groups)
                 max = len(epoch) - (1-frac)
+                print('max for batch is  ' +str(max))
                 if x >= resolution:
                     if counter >= max:
                         continue
@@ -296,15 +312,15 @@ async def summarise_epochs(userID):
         else:
             eZprint('epoch within resolution range so adding to latest : ' + str(key))
             counter = 0
-            window = []
             for summary in epoch:
                 window.append(summary)
                 counter += 1
-                if counter >= resolution:
+                if counter >= resolution - 1:
                     windows[userID].append(window)
                     window = []
                     counter = 0
-            windows[userID].append(window)
+    if window != []:
+        windows[userID].append(window)
 
 
     return True
@@ -410,8 +426,8 @@ async def summarise_batches(batches, userID):
         else:
             try:
             # print(batch)
-                summary = await get_fake_summaries(batch)
-                # summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
+                # summary = await get_fake_summaries(batch)
+                summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
                 summaryID = secrets.token_bytes(4).hex()
                 await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['docID'])
             except:
@@ -473,16 +489,16 @@ batch_summary_prompt = """
     """
 
 
-async def main() -> None:
-    eZprint('running main')
-    ##setup for debug, using UID as key
-    await prisma.connect()
-    novaConvo['test'] = {}
-    novaConvo['test']['userID'] = '110327569930296986874'
-    # userID = '110327569930296986874'
-    debug['userID'] = False
+# async def main() -> None:
+#     eZprint('running main')
+#     ##setup for debug, using UID as key
+#     await prisma.connect()
+#     novaConvo['test'] = {}
+#     novaConvo['test']['userID'] = '110327569930296986874'
+#     # userID = '110327569930296986874'
+#     debug['userID'] = False
 
-    await run_memory('test')
+#     await run_memory('test')
 
-if __name__ == '__main__':
-    asyncio.run(main())
+# if __name__ == '__main__':
+#     asyncio.run(main())

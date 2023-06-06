@@ -31,7 +31,7 @@ async def initialiseCartridges(convoID):
     eZprint('intialising cartridges')
     await loadCartridges(convoID)
     await runCartridges(convoID)
-    await run_memory(convoID)
+    # await run_memory(convoID)
     # await constructChatPrompt()
 
 async def loadCartridges(convoID):
@@ -63,8 +63,7 @@ async def runCartridges(convoID):
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-
-                await runMemory(convoID, cartKey, cartVal)
+                await run_memory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -153,7 +152,7 @@ async def constructChatPrompt(convoID):
         for index, cartVal in enumerate(sorted_cartridges):
             if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
                 promptString +=  cartVal['label'] + ":\n" + cartVal['prompt'] + "\n"
-            if (cartVal['enabled'] == True and cartVal['type'] =='summary'):
+            if (cartVal['type'] =='summary'):
                 eZprint('found summary cartridge')
                 print(cartVal)
                 if 'blocks' in cartVal:
