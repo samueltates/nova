@@ -20,9 +20,9 @@ async def run_memory(convoID):
     userID = novaConvo[convoID]['userID']
     debug[userID] = False
 
-    # await summarise_messages(userID)
-    # eZprint('messages summarised')
-    # print('number of summaries is ' + str(len(summaries[userID])))
+    await summarise_messages(userID)
+    eZprint('messages summarised')
+    print('number of summaries is ' + str(len(summaries[userID])))
 
     await summarise_groups(userID)    
 
@@ -40,7 +40,6 @@ async def run_memory(convoID):
         window_counter += 1
         eZprint('window no ' + str(window_counter))
         for summary in window:
-            eZprint('summary in window ' + str(summary['key']))
             print(summary)
     eZprint(len(windows[userID]))
     
@@ -84,11 +83,11 @@ async def summarise_messages(userID):
     eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
     for message in messages:
-        if message.id< 1000:
+        if message.id< 500:
             normalised_messages.append({
                 'id': message.id,
                 'content': message.name+': '+message.body + '\n',
-                'groupID' : message.SessionID,
+                'docID' : message.SessionID,
                 'epoch' : 0,
                 
             })
@@ -106,7 +105,7 @@ async def summarise_messages(userID):
                 updatedMessage = await prisma.message.update(
                     where={ 'id': remote_messages.id },
                     data={
-                        'summarised': False,
+                        'summarised': True,
                         'muted': True,
                         'minimised': True,
                     }
@@ -119,7 +118,7 @@ async def summarise_messages(userID):
 
 
 
-async def summarise_groups(userID, field = 'groupID'):
+async def summarise_groups(userID, field = 'docID'):
         
     ## so here this would then put rest of messages at same 'status' as the already summarised messages
     # logs_to_summarise.append(create_content_chunks(message_summaries))
@@ -141,28 +140,35 @@ async def summarise_groups(userID, field = 'groupID'):
         
     ##group by 'content ID' (which is parent doc) - then loop here based on that (so can be used)
     for candidate in candidates: 
-        print(candidate)
+        # print(candidate)
         #finds summaries assoiated with logs, preps for summary
-        summarDict = candidate.blob
-        if 'summarised' in summarDict:
-            if summarDict['summarised'] == True:
-                pass
-            summaryObj = await summary_into_candidate(summarDict)
-            if not summarDict[field] in summary_groups:
-                summary_groups[summarDict[field]] = []
-            summary_groups[summarDict[field]].append(summaryObj)
+        summary = dict(candidate.blob)
+
+        for key, val in summary.items():
+            if 'epoch' in val:
+                print(val)
+                print('found one')
+                val.update({'key':key})
+                if 'summarised' in val:
+                    if val['summarised'] == True:
+                        continue
+                    
+                summaryObj = await summary_into_candidate(val,candidate.id)
+                if not val[field] in summary_groups:
+                    summary_groups[val[field]] = []
+                summary_groups[val[field]].append(summaryObj)
 
 
     # print(summary_groups)
     batches = []
     toSummarise = ''
     ids = []
-    groupID = ''
+    docID = ''
 
     for key, val in summary_groups.items():
         # print(val)
         for chunk in val:
-            groupID = chunk['groupID']
+            docID = chunk['docID']
             # print(chunk)
             epoch = chunk['epoch']
             toSummarise += str(chunk['content'])
@@ -172,7 +178,7 @@ async def summarise_groups(userID, field = 'groupID'):
         batches.append({
                 'toSummarise': chunk['content'],
                 'ids': ids,
-                'groupID': groupID,
+                'docID': docID,
                 'epoch' : epoch
             })
             
@@ -180,23 +186,23 @@ async def summarise_groups(userID, field = 'groupID'):
     
     for batch in batches:
         for id in batch['ids']:
-            for candidate in candidates:
-                if candidate['id'] == id:
-                    candidate['blob']['summarised'] = True
-            summaries = await prisma.summary.find_first(
-            where={'id': id}
+            candidate = await prisma.summary.find_first(
+                where={ 'id': id },
             )
-            if summaries:
-                updatedMessage = await prisma.message.update(
-                    where={ 'id': summaries.id },
-                    data={
-                        "blob": Json({candidate['key']:summarDict})
+            if candidate:   
+                print(candidate)
 
-                    }
-                )
+                summary = dict(candidate.blob)
+                for key, val in summary.items():
+                    val['summarised'] == True
+                    updated_summary = await prisma.message.update(
+                        where={ 'id': candidate.id },
+                        data={
+                            "blob": Json({key:val})
+                        }
+                    )
 
 
-        # message_summaries.append(summaryObj)
 
 
 async def summarise_epochs(userID):
@@ -217,15 +223,19 @@ async def summarise_epochs(userID):
     epochs = {}
 
     for candidate in candidates:
-        summarDict = candidate.blob
-        if 'summarised' in summarDict:
-            if summarDict['summarised'] == True:
-                pass
-            epoch_no = 'epoch_' + str(summarDict['epoch'])
-            if epoch_no not in epochs:
-                eZprint('creating epoch ' + str(epoch_no))
-                epochs[epoch_no] = []
-            epochs[epoch_no].append(summarDict)
+        summary = dict(candidate.blob)
+
+        for key, val in summary.items():
+
+            if 'summarised' in val:
+                if val['summarised'] == True:
+                    pass
+                epoch_no = 'epoch_' + str(val['epoch'])
+                val['id'] = candidate.id
+                if epoch_no not in epochs:
+                    eZprint('creating epoch ' + str(epoch_no))
+                    epochs[epoch_no] = []
+                epochs[epoch_no].append(val)
     
     window_no = 3
     if userID not in windows:
@@ -260,7 +270,7 @@ async def summarise_epochs(userID):
                     batches.append({
                         'toSummarise': toSummarise,
                         'ids': ids,
-                        'groupID': summaryObj['groupID'],
+                        'docID': summaryObj['docID'],
                         'epoch' : summaryObj['epoch']
                     })
                     toSummarise = ''
@@ -305,12 +315,12 @@ async def create_content_batches_by_token(content):
     batches = []
     toSummarise = ''
     ids = []
-    groupID = ''
+    docID = ''
     epoch = 0
 
     #assumes parent level and child level? or per 'document' but document agnostic
     for chunk in content:
-        groupID = chunk['groupID']
+        docID = chunk['docID']
         epoch = chunk['epoch']
         tokens += len(str(chunk['content']))
         toSummarise += chunk['content']
@@ -319,7 +329,7 @@ async def create_content_batches_by_token(content):
             batches.append({
                 'toSummarise': toSummarise,
                 'ids': ids,
-                'groupID': groupID,
+                'docID': docID,
                 'epoch': epoch
             })
             tokens = 0
@@ -330,21 +340,30 @@ async def create_content_batches_by_token(content):
     batches.append({
         'toSummarise': toSummarise,
         'ids': ids, 
-        'groupID':groupID,
+        'docID':docID,
         'epoch': epoch
     })
    
     return batches
 
-async def summary_into_candidate(summarDict):
+async def summary_into_candidate(summarDict, id):
     ##turns summary objects themselves into candidates for summary
+    print(summarDict)
     summaryString = summarDict['title']+ '\n' + summarDict['body'] + '\n' + str(summarDict['timeRange'])
-    summary_ID = summarDict['key']
+    if 'docID' not in summarDict:
+        docID = ''
+    else:
+        docID = summarDict['docID']
+    if 'epoch' not in summarDict:
+        epoch = 0
+    else:
+        epoch = summarDict['epoch']
+
     candidate = {
         'content' : summaryString,
-        'id' : summary_ID,
-        'groupID' : summarDict['groupID'],
-        'epoch' : summarDict['epoch']
+        'id' : id,
+        'docID' : docID,
+        'epoch' : epoch
     }
     
     return candidate
@@ -364,7 +383,7 @@ async def summarise_batches(batches, userID):
             summary = await get_fake_summaries(batch)
             # summarDict = json.loads(summary)
             summary.update({'sourceIDs' : batch['ids']})
-            summary.update({'groupID' : batch['groupID']})
+            summary.update({'docID' : batch['docID']})
             summary.update({'epoch': epoch})
             summary.update({'summarised':False})
             summaryID = secrets.token_bytes(4).hex()
@@ -377,7 +396,7 @@ async def summarise_batches(batches, userID):
             summaries[userID].append(summaryObj)
             for summary in summaries[userID]:
                 for id in batch['ids']:
-                    if summary['key'] == id:
+                    if summary['id'] == id:
                         summary['blob']['summarised'] = True
             
             # for summary in summaries[userID]:
@@ -386,7 +405,10 @@ async def summarise_batches(batches, userID):
 
             summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
             summaryID = secrets.token_bytes(4).hex()
-            await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['groupID'])
+            try:
+                await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['docID'])
+            except:
+                print('error creating summary record')
             #sending summary state back to server
 
 
@@ -407,7 +429,8 @@ async def GetSummaryWithPrompt(prompt, textToSummarise):
 
 
 async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, content_id, convoID = ''):
-    
+    eZprint('creating summary record')
+    print(summary)
     summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
     summarDict.update({'docID': content_id})

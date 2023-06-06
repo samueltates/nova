@@ -10,13 +10,54 @@ prisma = Prisma()
 import pytz
 utc=pytz.UTC
 
+async def deleteSummaries():
+    summaries = await prisma.summary.delete_many(
+        where = {'UserID' : '110327569930296986874',}
+    )
 
 async def findSummaries():
     summaries = await prisma.summary.find_many(
                 where = {'UserID' : '110327569930296986874'}
 
     )
-    print(summaries)
+
+    
+    # print(summaries)
+    latest_summaries = []
+    for summary in summaries:
+        id = summary.id
+        summary = dict(summary.blob)
+        for key, val in summary.items():
+            if 'epoch' in val:
+                print(val)
+                print('found one')
+                # if val['epoch'] == 1:
+                #     latest_summaries.append(summary)
+                # val['summarised'] = True
+                # updateSummary = await prisma.summary.update(
+                #     where={'id': id},
+                #     data={'blob': Json(summary)}
+                # )
+
+        
+                # latest_summaries.append(summary)
+
+        # if 'summarised' in summary.blob:
+        #     if summary.blob['summarised'] == True:
+        #         pass
+        # # print(summary)
+        # # if 'epoch' in summary.blob:
+        # for key, val in summary.blob.items():
+        #     print(val)
+        #     if val['epoch'] == 0:
+        #         print('found one')
+        #         latest_summaries.append(summary)
+
+        # # latest_summaries.append(summary)
+    # for summary in latest_summaries:
+        # print(summary)
+    # print(len(latest_summaries))
+    
 
 
 async def findMessages():
@@ -41,9 +82,9 @@ async def findMessages_set_unsummarised():
             data={'summarised': False}
         )
         print(updatedMessage)
-        message_counter += 1
-        if message_counter > 500:
-            break
+        # message_counter += 1
+        # if message_counter > 500:
+        #     break
 
     # startDate = datetime(2023,4,1)
     # startDate = utc.localize(startDate)
@@ -220,8 +261,8 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs()
-    await findSummaries()
-    # await findMessages_set_unsummarised()
+    await deleteSummaries()
+    await findMessages_set_unsummarised()
     # await findCartridges()
     # await findAndMarkLogsOver2k()
     # await findUsers()
