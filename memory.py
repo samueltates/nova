@@ -41,7 +41,7 @@ async def run_memory(convoID, cartKey, cartVal):
     #                                 }}
             
     # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+    
     await summarise_messages(userID)
     eZprint('messages summarised')
 
@@ -100,30 +100,31 @@ async def summarise_messages(userID):
     #gets all messages as normalised and readable for batch 
     counter = 0
     for log in logs:
-        if counter < 20:
-            meta = ' '
-            normalised_messages = []
-            for message in messages:
-                if log.SessionID == message.SessionID:
-                    if meta == ' ':
-                        format = '%Y-%m-%dT%H:%M:%S.%f%z'
-                        date = datetime.strptime(message.timestamp, format)
-                        meta = {
-                            'overview': 'Conversation section from conversation ID: ' + str(log.id) + ' on ' + str(date),
-                            'docID': log.id,
-                            'timestamp': message.timestamp,
-                        }
-                        counter += 1
+        # if log.id < 800:
+        #     continue
+        meta = ' '
+        normalised_messages = []
+        for message in messages:
+            if log.SessionID == message.SessionID:
+                if meta == ' ':
+                    format = '%Y-%m-%dT%H:%M:%S.%f%z'
+                    date = datetime.strptime(message.timestamp, format)
+                    meta = {
+                        'overview': 'Conversation section from conversation ID: ' + str(log.id) + ' on ' + str(date),
+                        'docID': log.id,
+                        'timestamp': message.timestamp,
+                    }
+                    counter += 1
 
-                    normalised_messages.append({
-                        'id': message.id,
-                        'content': message.name+': '+ message.body + '\n',
-                        'epoch' : 0,
-                        'type' : 'message'        
-                    })
-            if len(normalised_messages) > 0:
-                print(meta)
-                batches += await create_content_batches_by_token(normalised_messages, meta)
+                normalised_messages.append({
+                    'id': message.id,
+                    'content': message.name+': '+ message.body + '\n',
+                    'epoch' : 0,
+                    'type' : 'message'        
+                })
+        if len(normalised_messages) > 0:
+            print(meta)
+            batches += await create_content_batches_by_token(normalised_messages, meta)
    
     await summarise_batches(batches, userID)
 
