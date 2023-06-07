@@ -61,7 +61,14 @@ async def run_memory(convoID, cartKey, cartVal):
         eZprint('window no ' + str(window_counter))
         for summary in window:      
             print(summary)
-    
+            cartVal['blocks'].append({'title':summary['title'], 'body':summary['body'], 'keywords':summary['keywords']})
+    payload = { 'key': cartKey,'fields': {
+                                'status': cartVal['status'],
+                                'blocks':cartVal['blocks'],
+                                'state': cartVal['state']
+                                    }}
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID):  
@@ -77,37 +84,40 @@ async def summarise_messages(userID):
                 'summarised': False
                 }
         )
+        logs = await prisma.message.find_many(
+                where={
+                'UserID': userID,
+                }
+        )
 
-        # logs = await prisma.log.find_many(
-        #     where={ 'UserID': userID })
-        # messages = []
-        # for log in logs:
-        #     print('found log getting messages')
-        #     if log.id < 100:
-        #         returned_messages = await prisma.message.find_many(
-        #                 where={ 'SessionID': log.SessionID }
-        #         )
-        #         for message in returned_messages:
-        #                 messages.append(message)
-
-    # print(messages)
     normalised_messages = []
+    batches = []
     eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
-    for message in messages:
 
-        normalised_messages.append({
-            'id': message.id,
-            'content': message.name+': '+message.body + '\n',
-            'docID' : message.SessionID,
-            'epoch' : 0,
-            
-        })
+    for log in logs:
+        format = '%Y-%m-%dT%H:%M:%S.%f%z'
 
-    #passes messages as chunks, batched together per length    
-    batches = await create_content_batches_by_token(normalised_messages)
-    # print(len(batches))
+        date = datetime.strptime(log.timestamp, format)
+        meta = {
+            'overview': 'Conversation section from conversation ID:' + str(log.id) + ' on ' + str(date),
+            'docID': log.id,
+            'timestamp': log.timestamp,
+        }
+        for message in messages:
+            if log.SessionID == message.SessionID:
+                if message.id < 100:
+                        break
+                normalised_messages.append({
+                    'id': message.id,
+                    'content': message.name+': '+ message.body + '\n',
+                    'epoch' : 0,
+                    'type' : 'message'        
+                })
+        batches += await create_content_batches_by_token(normalised_messages, meta)
+   
     await summarise_batches(batches, userID)
+
     for batch in batches:
         for id in batch['ids']:
             remote_messages = await prisma.message.find_first(
@@ -125,18 +135,129 @@ async def summarise_messages(userID):
 
 
 
+async def create_content_batches_by_token(content, meta):
+
+    ## takes document, breaks into chunks of 2000 tokens, and returns a list of chunks
+    ## returns with expected values, to summarise is text, id's is the source ID's
+
+    eZprint('creating content batches by token')
+    tokens = 0
+    batches = []
+    toSummarise = meta['overview'] + ' \n'
+    ids = []
+    docID = ''
+    epoch = 0
+
+    #assumes parent level and child level? or per 'document' but document agnostic
+    for chunk in content:
+        epoch = chunk['epoch']
+        tokens += len(str(chunk['content']))
+        toSummarise += chunk['content']
+        ids.append(chunk['id'])
+        if tokens > 2000:
+            batches.append({
+                'toSummarise': toSummarise,
+                'ids': ids,
+                'epoch': epoch,
+                'meta': meta
+            })
+            tokens = 0
+            toSummarise = ''
+            ids = []
+    
+    ##catches last lot that didn't tick over and get added
+    batches.append({
+        'toSummarise': toSummarise,
+        'ids': ids, 
+        'epoch': epoch,
+        'meta': meta
+
+    })
+   
+    return batches
+
 
 ##GROUP SUMMARY FLOWS
 
+async def summarise_batches(batches, userID):
+    eZprint('summarising batches')
+    ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
+    
+    if userID not in summaries:
+        summaries[userID] = []
+    for batch in batches:
+        # print('epoch on get' + str(batch['epoch']))
+        epoch = batch['epoch'] +1
+        
+        if debug[userID]:
+            summary = await get_fake_summaries(batch)
+            # summarDict = json.loads(summary)
+            summary.update({'sourceIDs' : batch['ids']})
+            summary.update({'epoch': epoch})
+            summary.update({'summarised':False})
+            summaryID = secrets.token_bytes(4).hex()
+            summary.update({'key':summaryID})
+            summaryObj = {
+                'key': summaryID,
+                'userID' : userID,
+                'blob': summary
+            }
+            summaries[userID].append(summaryObj)
+            for summary in summaries[userID]:
+                for id in batch['ids']:
+                    if summary['id'] == id:
+                        summary['blob']['summarised'] = True
+            
+            # for summary in summaries[userID]:
+            #     print(summary['blob']['summarised'])
+        else:
+            try:
+            # print(batch)
+                # summary = await get_fake_summaries(batch)
+                summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
+                summaryID = secrets.token_bytes(4).hex()
+                await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['meta'])
+            except:
+                pass
+                # print('error creating summary record')
+            #sending summary state back to server
+
+
+async def GetSummaryWithPrompt(prompt, textToSummarise):
+
+    promptObject = []
+    promptObject.append({'role' : 'system', 'content' : prompt})
+    promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    # print(textToSummarise)
+    # model = app.session.get('model')
+    # if model == None:
+    #     model = 'gpt-3.5-turbo'
+    response = await sendChat(promptObject, 'gpt-3.5-turbo')
+    # print(response)
+    return response["choices"][0]["message"]["content"]
+
+
+async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta, convoID = ''):
+    # eZprint('creating summary record')
+    summarDict = json.loads(summary)
+    summarDict.update({'sourceIDs' : sourceIDs})
+    summarDict.update({'meta': meta})
+    summarDict.update({'epoch': epoch})
+    summarDict.update({'summarised': False})
+    
+    summary = await prisma.summary.create(
+        data={
+            "key": summaryID,
+            "UserID": userID,
+            "timestamp": datetime.now(),
+            'SessionID' : convoID,
+            "blob": Json({summaryID:summarDict})
+
+        }
+    )
 
 
 async def summarise_groups(userID, field = 'docID'):
-        
-    ## so here this would then put rest of messages at same 'status' as the already summarised messages
-    # logs_to_summarise.append(create_content_chunks(message_summaries))
-    ##creates candidate batch of summaries
-    ##so could this be more generic?
-
     ## finds summaries based on their group (so in this instance doc type) and summarises together, but could be extended to saydifferent doc values
 
     summary_groups = {}
@@ -163,33 +284,41 @@ async def summarise_groups(userID, field = 'docID'):
                     if val['summarised'] == True or val['epoch'] != 1:
                         continue
                 print('found messages summary to summarise')
-                summaryObj = await summary_into_candidate(val,candidate.id)
+                summaryObj = await summary_into_candidate(val)
                 if not val[field] in summary_groups:
                     summary_groups[val[field]] = []
                     print ('creating new group for ' + str(val[field]) + '')
                 summary_groups[val[field]].append(summaryObj)
 
-
-    # print(summary_groups)
     batches = []
-    toSummarise = ''
-    ids = []
-    docID = ''
 
     for key, val in summary_groups.items():
-        # print(val)
+
+        meta = ' '
+        toSummarise = ''
+        ids = []
+        
         for chunk in val:
-            docID = chunk['docID']
+            if meta == ' ':
+                format = '%Y-%m-%dT%H:%M:%S.%f%z'
+                date = datetime.strptime(chunk['meta']['timestamp'], format)                
+                meta = {
+                    'overview' : 'summaries from conversation held ' + str(date),
+                    'timestamp' : chunk['meta']['timestamp'],
+                }
+
             epoch = chunk['epoch']
+            if toSummarise == '':
+                toSummarise += meta['overview']
             toSummarise += str(chunk['content'])
             ids.append(chunk['id'])
             
-
         batches.append({
-                'toSummarise': chunk['content'],
+                'toSummarise': toSummarise,
                 'ids': ids,
-                'docID': docID,
-                'epoch' : epoch
+                'epoch' : epoch,
+                'meta' : meta,
+                'type':'partial_doc'   
             })
             
     await summarise_batches(batches,userID)
@@ -208,6 +337,30 @@ async def summarise_groups(userID, field = 'docID'):
             )
           
                    
+
+
+##MOST GENERIC SUMMARY FUNCTIONS
+
+async def summary_into_candidate(summarDict ):
+    ##turns summary objects themselves into candidates for summary
+    summaryString = summarDict['title']+ '\n' + summarDict['body'] + '\n' + str(summarDict['timeRange'])
+
+    if 'epoch' not in summarDict:
+        epoch = 0
+    else:
+        epoch = summarDict['epoch']
+    if 'meta' not in summarDict:
+        meta = ''
+    else:
+        meta = summarDict['meta']
+
+    candidate = {
+        'content' : summaryString,
+        'meta' : meta,
+        'epoch' : epoch
+    }
+    
+    return candidate
 
 
 
@@ -268,10 +421,18 @@ async def summarise_epochs(userID):
             ids = []
             x = 0
             counter = 0
+            meta = ' '
             for summary in reversed(epoch):
                 ##goes through and creates batches in reverse
                 eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary, summary['id'])
+                format = '%Y-%m-%dT%H:%M:%S.%fz'
+                date = datetime.strptime(epoch[0]['timestamp'], format)    
+                if meta == ' ':
+                    meta = {
+                        'overview' : 'summaries of docoument summaries starting from ' + str(date),
+                        'first-doc' : epoch[0]['timestamp'],
+                    }
                 toSummarise += str(summaryObj['content'])
                 ids.append(summary['id'])
                 x += 1
@@ -281,19 +442,28 @@ async def summarise_epochs(userID):
                 frac, whole = math.modf(groups)
                 max = len(epoch) - (1-frac)
                 print('max for batch is  ' +str(max))
+
                 if x >= resolution:
                     if counter >= max:
                         continue
                     eZprint('adding to batch for summary')
+
+                    meta['last-doc'] = summary['timestamp']
+                    format = '%Y-%m-%dT%H:%M:%S.%fz'
+                    date = datetime.strptime(meta['last-doc'], format)    
+                    meta['overview'] = meta['overview'] + ' to ' + str(date) + 'consisting of ' + str(counter) + ' summaries'
+
+                    toSummarise += meta['overview'] + '\n' + toSummarise
                     batches.append({
                         'toSummarise': toSummarise,
                         'ids': ids,
-                        'docID': summaryObj['docID'],
+                        'meta': meta,
                         'epoch' : summaryObj['epoch']
                     })
                     toSummarise = ''
                     ids = []
                     x = 0
+                    meta = ' '
 
             await summarise_batches(batches,userID)
             
@@ -327,149 +497,7 @@ async def summarise_epochs(userID):
 
 
 
-##MOST GENERIC SUMMARY FUNCTIONS
-
-async def create_content_batches_by_token(content):
-
-    ## takes document, breaks into chunks of 2000 tokens, and returns a list of chunks
-    ## returns with expected values, to summarise is text, id's is the source ID's
-
-    eZprint('creating content batches by token')
-    tokens = 0
-    batches = []
-    toSummarise = ''
-    ids = []
-    docID = ''
-    epoch = 0
-
-    #assumes parent level and child level? or per 'document' but document agnostic
-    for chunk in content:
-        docID = chunk['docID']
-        epoch = chunk['epoch']
-        tokens += len(str(chunk['content']))
-        toSummarise += chunk['content']
-        ids.append(chunk['id'])
-        if tokens > 2000:
-            batches.append({
-                'toSummarise': toSummarise,
-                'ids': ids,
-                'docID': docID,
-                'epoch': epoch
-            })
-            tokens = 0
-            toSummarise = ''
-            ids = []
-    
-    ##catches last lot that didn't tick over and get added
-    batches.append({
-        'toSummarise': toSummarise,
-        'ids': ids, 
-        'docID':docID,
-        'epoch': epoch
-    })
-   
-    return batches
-
-async def summary_into_candidate(summarDict, id):
-    ##turns summary objects themselves into candidates for summary
-    summaryString = summarDict['title']+ '\n' + summarDict['body'] + '\n' + str(summarDict['timeRange'])
-    if 'docID' not in summarDict:
-        docID = ''
-    else:
-        docID = summarDict['docID']
-    if 'epoch' not in summarDict:
-        epoch = 0
-    else:
-        epoch = summarDict['epoch']
-
-    candidate = {
-        'content' : summaryString,
-        'id' : id,
-        'docID' : docID,
-        'epoch' : epoch
-    }
-    
-    return candidate
-
-async def summarise_batches(batches, userID):
-    eZprint('summarising batches')
-    ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
-    
-    if userID not in summaries:
-        summaries[userID] = []
-    for batch in batches:
-        # print('epoch on get' + str(batch['epoch']))
-        epoch = batch['epoch'] +1
-        
-        if debug[userID]:
-            summary = await get_fake_summaries(batch)
-            # summarDict = json.loads(summary)
-            summary.update({'sourceIDs' : batch['ids']})
-            summary.update({'docID' : batch['docID']})
-            summary.update({'epoch': epoch})
-            summary.update({'summarised':False})
-            summaryID = secrets.token_bytes(4).hex()
-            summary.update({'key':summaryID})
-            summaryObj = {
-                'key': summaryID,
-                'userID' : userID,
-                'blob': summary
-            }
-            summaries[userID].append(summaryObj)
-            for summary in summaries[userID]:
-                for id in batch['ids']:
-                    if summary['id'] == id:
-                        summary['blob']['summarised'] = True
-            
-            # for summary in summaries[userID]:
-            #     print(summary['blob']['summarised'])
-        else:
-            try:
-            # print(batch)
-                # summary = await get_fake_summaries(batch)
-                summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
-                summaryID = secrets.token_bytes(4).hex()
-                await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['docID'])
-            except:
-                pass
-                # print('error creating summary record')
-            #sending summary state back to server
-
-
             #TODO - set summary 
-
-async def GetSummaryWithPrompt(prompt, textToSummarise):
-
-    promptObject = []
-    promptObject.append({'role' : 'system', 'content' : prompt})
-    promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    # print(textToSummarise)
-    # model = app.session.get('model')
-    # if model == None:
-    #     model = 'gpt-3.5-turbo'
-    response = await sendChat(promptObject, 'gpt-3.5-turbo')
-    # print(response)
-    return response["choices"][0]["message"]["content"]
-
-
-async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, content_id, convoID = ''):
-    # eZprint('creating summary record')
-    summarDict = json.loads(summary)
-    summarDict.update({'sourceIDs' : sourceIDs})
-    summarDict.update({'docID': content_id})
-    summarDict.update({'epoch': epoch})
-    summarDict.update({'summarised': False})
-    
-    summary = await prisma.summary.create(
-        data={
-            "key": summaryID,
-            "UserID": userID,
-            "timestamp": datetime.now(),
-            'SessionID' : convoID,
-            "blob": Json({summaryID:summarDict})
-
-        }
-    )
 
 batch_summary_prompt = """
     Generate a concise summary of this conversation in JSON format, including a title, time range, in-depth paragraph, top 3 keywords, and relevant notes. The summary should be organized as follows:
