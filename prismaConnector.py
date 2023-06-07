@@ -10,15 +10,14 @@ prisma = Prisma()
 import pytz
 utc=pytz.UTC
 
-async def deleteSummaries():
+async def deleteSummaries(userID):
     summaries = await prisma.summary.delete_many(
-        where = {'UserID' : '110327569930296986874',}
+        where = {'UserID' : userID,}
     )
 
-async def findSummaries():
+async def findSummaries(userID, epoch = None):
     summaries = await prisma.summary.find_many(
-                where = {'UserID' : '110327569930296986874'}
-
+                where = {'UserID' : userID}
     )
     print(len(summaries))
     
@@ -29,8 +28,15 @@ async def findSummaries():
         summary = dict(summary.blob)
         for key, val in summary.items():
             if 'epoch' in val:
-                print(str(val['epoch']) + ' ' + str(val['summarised']))
-                print(val['summarised'])
+                if epoch != None:
+                    if val['epoch'] == epoch:
+                        print(val)
+                        print('\n')
+                else:
+                    print(val)
+                    print('\n')
+                # print(str(val['epoch']) + ' ' + str(val['summarised']))
+                # print(val['summarised'])
     #             # print('found one')
     #             # if val['epoch'] == 1:
     #             #     latest_summaries.append(summary)
@@ -61,17 +67,31 @@ async def findSummaries():
     
 
 
-async def findMessages():
+async def findMessages(userID):
     messages = await prisma.message.find_many(
-        where = {'UserID' : '110327569930296986874',}
+        where = {'UserID' : userID,}
 
     )
-    print(messages)
+    for message in messages:
+        print('\n')
+        print(message)
 
 
-async def findMessages_set_unsummarised():
+async def find_and_delete_messages():
     messages = await prisma.message.find_many(
-        where = {'UserID' : '110327569930296986874',}
+        where = {'UserID' : '108238407115881872743',}
+    )
+    for message in messages:
+        if message.id < 5286:
+            await prisma.message.delete(
+                where={'id': message.id}
+            )
+        
+
+
+async def findMessages_set_unsummarised(userID):
+    messages = await prisma.message.find_many(
+        where = {'UserID' : userID,}
 
     )
     # print(messages)
@@ -248,25 +268,28 @@ async def findAndMarkLogsOver2k():
             )
             print(log)
 
-async def findLogs():
+async def findLogs(userID):
        # and sets to true if they're too long
     logs = await prisma.log.find_many(
-        where = {'UserID' : '108238407115881872743',}
+        where = {'UserID' : userID}
 
     )
-    print(logs)
-
+    for log in logs:
+        print(log)
+        print('\n')
     
 async def main() -> None:
     await prisma.connect()
     # await findBatches()
     # await findLogSummaries()
-    # await findLogs()
-    # await findSummaries()
-    await deleteSummaries()
-    await findMessages_set_unsummarised()
+    # await findLogs('108238407115881872743')
+    # await findSummaries('108238407115881872743')
+    await findMessages('108238407115881872743')
+    # await deleteSummaries('108238407115881872743')
+    # await findMessages_set_unsummarised('108238407115881872743')
     # await findCartridges()
     # await findAndMarkLogsOver2k()
+    # await find_and_delete_messages()
     # await findUsers()
     # await portUser()
     # await deleteCartridges()
