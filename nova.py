@@ -119,7 +119,7 @@ async def handleChatInput(sessionData):
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
-    userName = novaConvo[convoID]
+    userName = novaConvo[convoID]['userName']
     body = sessionData['body']
     order = await getNextOrder(convoID)
     messageObject = {
