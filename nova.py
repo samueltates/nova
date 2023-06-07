@@ -15,6 +15,7 @@ from prisma import Json
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
 from prismaHandler import prisma
+from memory import run_memory
 from debug import fakeResponse, eZprint
 
 agentName = "nova"
@@ -30,6 +31,7 @@ async def initialiseCartridges(convoID):
     eZprint('intialising cartridges')
     await loadCartridges(convoID)
     await runCartridges(convoID)
+    # await run_memory(convoID)
     # await constructChatPrompt()
 
 async def loadCartridges(convoID):
@@ -61,8 +63,7 @@ async def runCartridges(convoID):
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 eZprint('running cartridge: ' + str(cartVal))
-
-                await runMemory(convoID, cartKey, cartVal)
+                await run_memory(convoID, cartKey, cartVal)
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -118,7 +119,7 @@ async def handleChatInput(sessionData):
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
-    userName = novaConvo[convoID]
+    userName = novaConvo[convoID]['userName']
     body = sessionData['body']
     order = await getNextOrder(convoID)
     messageObject = {
@@ -709,6 +710,14 @@ async def runMemory(convoID, cartKey, cartVal):
         payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
                                                 'blocks':cartVal['blocks'] }}
         # socketio.emit('updateCartridgeFields', payload)
+        payload = { 'key': cartKey,'fields': {
+                            'status': cartVal['status'],
+                            'blocks':cartVal['blocks'],
+                            'state': cartVal['state']
+                            }}
+
+        availableCartridges[convoID][cartKey] = cartVal
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
         # return
         # summarises each batch if that isn't summarised, and adds to summary
@@ -764,8 +773,19 @@ async def runMemory(convoID, cartKey, cartVal):
                 runningBatchedSummaries += batchSummary + "\n"
                 # eZprint('batch summary is: ' + batchSummary)
                 # eZprint('running batched summary is: ' + runningBatchedSummaries)
+                if batch['summaries'] in cartVal['blocks']:
+                    cartVal['blocks'].remove(batch['summaries'])
+                
                 cartVal['status'] = 'batch summarised'
                 cartVal['blocks'].append({'summary':str(batchSummary)})
+                payload = { 'key': cartKey,'fields': {
+                            'status': cartVal['status'],
+                            'blocks':cartVal['blocks'],
+                            'state': cartVal['state']
+                                }}
+                
+                availableCartridges[convoID][cartKey] = cartVal
+                await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
                 batchRemote = await prisma.batch.create(
                     data={'dateRange': batch['startDate']+":" + batch['endDate'],
@@ -802,14 +822,28 @@ async def runMemory(convoID, cartKey, cartVal):
                         batchRangeEnd + " " + runningBatchedSummaries
                     eZprint('summary request is: ' + summaryRequest)
 
+                    if batchSummary in cartVal['blocks']:
+                        cartVal['blocks'].remove(batchSummary)                            
+
                     batchSummary = await getSummary(summaryRequest)
                     multiBatchSummary += batchSummary
+                    
+
                     cartVal['status'] = 'multi batch summarised'
                     cartVal['blocks'].append({'summary':str(batchSummary)})
                     payload = { 'key':cartKey,'fields': {'status': cartVal['status'],
                                                             'blocks':cartVal['blocks'] }}
-                    # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+                                
+                    cartVal['status'] = 'batch summarised'
+                    cartVal['blocks'].append({'summary':str(batchSummary)})
+                    payload = { 'key': cartKey,'fields': {
+                                'status': cartVal['status'],
+                                'blocks':cartVal['blocks'],
+                                'state': cartVal['state']
+                                    }}
+                    
+                    availableCartridges[convoID][cartKey] = cartVal
+                    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
                     # socketio.emit('updateCartridgeFields', payload)
                     batchBatch = await prisma.batch.create(
                         data={'dateRange': batch['startDate']+":" + batch['endDate'],
