@@ -26,6 +26,8 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 async def initialiseCartridges(convoID):
     
     eZprint('intialising cartridges')
+    novaConvo[convoID]['owner'] = True
+
     await loadCartridges(convoID)
     await runCartridges(convoID)
     # await run_memory(convoID)

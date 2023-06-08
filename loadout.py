@@ -2,7 +2,7 @@ from prismaHandler import prisma
 from prisma import Json
 import json
 from appHandler import app, websocket
-from nova import availableCartridges
+from nova import availableCartridges, runCartridges
 from sessionHandler import novaConvo, current_loadout, available_loadouts
 
 
@@ -72,6 +72,9 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     config = {}
     blob = json.loads(loadout.json())['blob']
     owner = not referal
+
+    novaConvo[convoID]['owner'] = owner
+
     for key, val in blob.items():
         config = val['config']
         await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': owner}}))
@@ -96,7 +99,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                     # cartVal.update({'enabled': True})
                     # cartVal.update({'via_loadout': True})
 
-
+        await runCartridges(convoID)    
 
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
 
