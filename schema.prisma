@@ -28,6 +28,13 @@ model log {
   batched   Boolean @default(false)
 }
 
+model convo {
+  id        Int     @id @default(autoincrement())
+  convo_ID  String  @default("")
+  user_ID   String  @default("")
+  timestamp String  @default("")
+}
+
 model message {
   id        Int    @id @default(autoincrement())
   key       String  @default("")
@@ -53,6 +60,10 @@ model summary {
   title     String? @db.Text @default("")
   body      String? @db.Text @default("")
   blob      Json? @default("{}")
+  convoID   String? @default("")
+  summarised Boolean @default(false)
+  minimised Boolean @default(false)
+  muted    Boolean @default(false)
 
 }
 
@@ -99,3 +110,11 @@ model cartridge {
     softDeleted Boolean @default(false)
     }
   
+  model loadout{
+
+    id        Int    @id @default(autoincrement())
+    key       String @default("")
+    UserID    String
+    blob      Json? @default("{}")
+  
+  }

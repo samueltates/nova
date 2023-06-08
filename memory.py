@@ -17,65 +17,59 @@ windows = {}
 ## after this, the next 'corpus' is the summaries, that are then 'chunked' based on their source (each convo)
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
+async def update_cartridge_summary(userID, cartKey, cartVal):
+
+    window_counter = 0
+    cartVal['blocks'] = []
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+
+    for window in windows[userID]:
+        window_counter += 1
+        eZprint('window no ' + str(window_counter))
+        for summary in reversed(window):   
+            if 'key' not in summary:
+                summary['key'] = ''    
+            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords']})
+
+    payload = { 'key': cartKey,'fields': {
+                                'status': cartVal['status'],
+                                'blocks':cartVal['blocks'],
+                                'state': cartVal['state']
+                                    }}
+            
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
+
 
 async def run_memory(convoID, cartKey, cartVal):
     userID = novaConvo[convoID]['userID']
     debug[userID] = False
     # eZprint('got epochs before new summaries')
-    # window_counter = 0
-    # await summarise_epochs(userID)
-    # cartVal['blocks'] = []
-    # cartVal['state'] = ''
-    # cartVal['status'] = ''
-
-    # for window in windows[userID]:
-    #     window_counter += 1
-    #     eZprint('window no ' + str(window_counter))
-    #     for summary in window:      
-    #         print(summary)
-    #         cartVal['blocks'].append({'title':summary['title'], 'body':summary['body'], 'keywords':summary['keywords']})
-    # payload = { 'key': cartKey,'fields': {
-    #                             'status': cartVal['status'],
-    #                             'blocks':cartVal['blocks'],
-    #                             'state': cartVal['state']
-    #                                 }}
-            
-    # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    
+    await get_summaries(userID)
+    await update_cartridge_summary(userID, cartKey, cartVal)
+ 
+    # return
+   
     await summarise_messages(userID)
-    eZprint('messages summarised')
+    # eZprint('messages summarised')
 
     await summarise_groups(userID)    
+    await update_cartridge_summary(userID, cartKey, cartVal)
 
-    eZprint('groups summarised')
+    # eZprint('groups summarised')
     
     windows[userID] = []
     epochs_summarised = await summarise_epochs(userID)
     while not epochs_summarised:
         await asyncio.sleep(1)
         epochs_summarised = await summarise_epochs(userID)
-    cartVal['blocks'] = []
-    cartVal['state'] = ''
-    cartVal['status'] = ''
-    eZprint('epochs summarised')
-    window_counter = 0
-    for window in windows[userID]:
-        window_counter += 1
-        eZprint('window no ' + str(window_counter))
-        for summary in window:      
-            print(summary)
-            cartVal['blocks'].append({'timestamp':summary['timestamp'],'title':summary['title'], 'body':summary['body'], 'keywords':summary['keywords']})
-    payload = { 'key': cartKey,'fields': {
-                                'status': cartVal['status'],
-                                'blocks':cartVal['blocks'],
-                                'state': cartVal['state']
-                                    }}
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+    await update_cartridge_summary(userID, cartKey, cartVal)
+    
+  
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID):  
-    eZprint('getting messages to summarise')
+    # eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
     if debug[userID]:
@@ -96,12 +90,12 @@ async def summarise_messages(userID):
 
     normalised_messages = []
     batches = []
-    eZprint('organising and normalising for batch')
+    # eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
     counter = 0
     for log in logs:
-        # if log.id < 800:
-        #     continue
+        if log.id < 800:
+            continue
         meta = ' '
         normalised_messages = []
         for message in messages:
@@ -189,7 +183,7 @@ async def create_content_batches_by_token(content, meta):
 ##GROUP SUMMARY FLOWS
 
 async def summarise_batches(batches, userID):
-    eZprint('summarising batches, number of batches ' + str(len(batches)))
+    # eZprint('summarising batches, number of batches ' + str(len(batches)))
     ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
     counter = 0
     if userID not in summaries:
@@ -227,7 +221,7 @@ async def summarise_batches(batches, userID):
                 # summary = await get_fake_summaries(batch)
                 summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
                 summaryID = secrets.token_bytes(4).hex()
-                await create_summary_record(userID, batch['ids'],summaryID, epoch, summary, batch['meta'])
+                await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'])
             except:
                 pass
                 # print('error creating summary record')
@@ -255,6 +249,7 @@ async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, me
     summarDict.update({'meta': meta})
     summarDict.update({'epoch': epoch})
     summarDict.update({'summarised': False})
+    summarDict.update({'key': summaryID})
     
     summary = await prisma.summary.create(
         data={
@@ -295,7 +290,7 @@ async def summarise_groups(userID, field = 'docID'):
                 if 'summarised' in val:
                     if val['summarised'] == True or val['epoch'] != 1:
                         continue
-                print('found messages summary to summarise')
+                # print('found messages summary to summarise')
                 summaryObj = await summary_into_candidate(val)
                 print(val['meta'])
                 if not val['meta'][field] in summary_groups:
@@ -336,7 +331,7 @@ async def summarise_groups(userID, field = 'docID'):
             
     await summarise_batches(batches,userID)
     
-    eZprint('number of batches is ' + str(len(batches)))
+    # eZprint('number of batches is ' + str(len(batches)))
     for batch in batches:
         for id in batch['ids']:
             summary = dict(candidate.blob)
@@ -349,8 +344,6 @@ async def summarise_groups(userID, field = 'docID'):
                 }
             )
           
-                   
-
 
 ##MOST GENERIC SUMMARY FUNCTIONS
 
@@ -382,7 +375,7 @@ async def summary_into_candidate(summarDict ):
 async def summarise_epochs(userID):
 
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    eZprint('starting epoch summary')
+    # eZprint('starting epoch summary')
 
     if debug[userID]:
         candidates = summaries[userID]
@@ -429,7 +422,7 @@ async def summarise_epochs(userID):
         #checks if epoch is 70% over resolution
         if len(epoch) >= ((resolution*2)-1):
             epoch_summaries += 1
-            eZprint('epoch too large, starting epoch batch and summarise')
+            # eZprint('epoch too large, starting epoch batch and summarise')
             ## if any epoch has too many summaries it'll go through and summarise to resolution specified, and then restart whole thing... will see if we can make more elegant, but can't think of how else apart from removing from that 
             batches = []
             toSummarise = ''
@@ -439,7 +432,7 @@ async def summarise_epochs(userID):
             meta = ' '
             for summary in reversed(epoch):
                 ##goes through and creates batches in reverse
-                eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
+                # eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary)
                 format = '%Y-%m-%dT%H:%M:%S.%f%z'
                 date = datetime.strptime(summary['timestamp'], format)    
@@ -455,12 +448,12 @@ async def summarise_epochs(userID):
                 groups = len(epoch) / resolution  
                 frac, whole = math.modf(groups)
                 max = len(epoch) - (1-frac)
-                print('max for batch is  ' +str(max))
+                # print('max for batch is  ' +str(max))
 
                 if x >= resolution:
                     if counter >= max:
                         continue
-                    eZprint('adding to batch for summary')
+                    # eZprint('adding to batch for summary')
 
                     meta['last-doc'] = summary['timestamp']
                     format = '%Y-%m-%dT%H:%M:%S.%f%z'
@@ -494,7 +487,7 @@ async def summarise_epochs(userID):
                     )
             return False                        
         else:
-            eZprint('epoch within resolution range so adding to latest : ' + str(key))
+            # eZprint('epoch within resolution range so adding to latest : ' + str(key))
             counter = 0
             for summary in epoch:
                 window.append(summary)
@@ -509,7 +502,49 @@ async def summarise_epochs(userID):
 
     return True
 
+async def get_summaries(userID):
 
+    # eZprint('getting summaries')
+    summaries = await prisma.summary.find_many(
+        where={
+        'UserID': userID,
+        }
+    ) 
+
+    epochs = {}
+    for summary in summaries:
+        summaryObj = dict(summary.blob)
+
+        for key, val in summaryObj.items():
+            if 'summarised' in val:
+                if val['summarised'] == True:
+                    continue
+                val.update({'key': summary.key})
+                epoch_no = 'epoch_' + str(val['epoch'])
+                if epoch_no not in epochs:
+                    eZprint('creating epoch ' + str(epoch_no))
+                    epochs[epoch_no] = []
+                epochs[epoch_no].append(val)
+        
+    if userID not in windows:
+        windows[userID] = []
+
+    resolution = 3
+    window = []
+
+    for key, val in epochs.items():
+        epoch = val
+        # eZprint('epoch within resolution range so adding to latest : ' + str(key))
+        counter = 0
+        for summary in epoch:
+            window.append(summary)
+            counter += 1
+            if counter >= resolution - 1:
+                windows[userID].append(window)
+                window = []
+                counter = 0
+    if window != []:
+        windows[userID].append(window)
 
             #TODO - set summary 
 
@@ -524,6 +559,12 @@ batch_summary_prompt = """
     "notes": {
         "[Note Title1]": "[Note Body1]",
         "[Note Title2]": "[Note Body2]"
+    },
+    "insights": {
+        "people": "[Insight Body1]",
+        "places": "[Insight Body2]",
+        "positive memories": "[Insight Body4]",
+        "negative memories": "[Insight Body5]",
     }
     }
 

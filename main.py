@@ -13,11 +13,13 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialiseCartridges, addCartridgePrompt, handleChatInput, handleIndexQuery, updateCartridgeField, summariseChatBlocks, updateContentField
+from nova import initialiseCartridges, handleChatInput, handleIndexQuery, summariseChatBlocks
+from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
+from loadout import add_loadout, get_loadouts, set_loadout
 
 app.session = session
 Session(app)
@@ -217,6 +219,30 @@ async def process_message(parsed_data):
         print('authCompletePing called by html template.')
         print(parsed_data['payload'])
         app.session['requesting'] = False
+    if(parsed_data['type'] == 'add_loadout'):
+        eZprint('add_loadout route hit')
+        print(parsed_data['data'])
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
+        await add_loadout(loadout, convoID)
+
+    if(parsed_data['type'] == 'request_loadouts'):
+        eZprint('request_loadouts route hit')
+        convoID = parsed_data['data']['convoID']
+        await get_loadouts(convoID)
+
+    if(parsed_data['type'] == 'set_loadout'):
+        eZprint('set_loadout route hit')
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
+        await set_loadout(loadout, convoID)
+
+    if(parsed_data['type'] == 'loadout_referal'):
+        eZprint('loadout_referal route hit')
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
+
+        await set_loadout(loadout, convoID, True)
      
 
 file_chunks = {}
