@@ -19,7 +19,7 @@ from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
-from loadout import add_loadout, get_loadouts, set_loadout
+from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field
 
 app.session = session
 Session(app)
@@ -240,9 +240,35 @@ async def process_message(parsed_data):
     if(parsed_data['type'] == 'loadout_referal'):
         eZprint('loadout_referal route hit')
         convoID = parsed_data['data']['convoID']
-        loadout = parsed_data['data']['loadout']
-
+        loadout = parsed_data['data']['loadout']    
         await set_loadout(loadout, convoID, True)
+    if(parsed_data['type']=='delete_loadout'):
+        eZprint('delete_loadout route hit')
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
+        await delete_loadout(loadout, convoID)
+
+    if(parsed_data['type'] == 'set_read_only'):
+        eZprint('read_only route hit')
+        loadout = parsed_data['data']['loadout']
+        convoID = parsed_data['data']['convoID']
+        read_only = parsed_data['data']['read_only']
+        await set_read_only(loadout, read_only)
+
+    if(parsed_data['type'] == 'set_title'):
+        eZprint('update_title route hit')
+        loadout = parsed_data['data']['loadout']
+        convoID = parsed_data['data']['convoID']
+        title = parsed_data['data']['title']
+        await set_loadout_title(loadout, title)
+
+    if(parsed_data['type']=='update_loadout_field'):
+        eZprint('update_loadout_field route hit')
+        loadout = parsed_data['data']['loadout']
+        convoID = parsed_data['data']['convoID']
+        field = parsed_data['data']['field']
+        value = parsed_data['data']['value']
+        await update_loadout_field(loadout, field, value)
      
 
 file_chunks = {}

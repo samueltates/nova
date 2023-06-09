@@ -30,7 +30,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
         for summary in reversed(window):   
             if 'key' not in summary:
                 summary['key'] = ''    
-            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords']})
+            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords'], 'epoch':summary['epoch']})
 
     payload = { 'key': cartKey,'fields': {
                                 'status': cartVal['status'],
@@ -94,8 +94,8 @@ async def summarise_messages(userID, convoID):
     #gets all messages as normalised and readable for batch 
     counter = 0
     for log in logs:
-        if log.id < 800:
-            continue
+        # if log.id < 800:
+        #     continue
         meta = ' '
         normalised_messages = []
         for message in messages:
