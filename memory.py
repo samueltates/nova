@@ -58,7 +58,7 @@ async def run_memory(convoID, cartKey, cartVal, ):
 
         eZprint('groups summarised')
         
-        windows[userID] = []
+        windows[userID+convoID] = []
         epochs_summarised = await summarise_epochs(userID, convoID)
         while not epochs_summarised:
             await asyncio.sleep(1)
@@ -194,7 +194,7 @@ async def summarise_batches(batches, userID, convoID):
         eZprint('summarising batch no ' + str(counter) + 'of' + str(len(batches)))
         epoch = batch['epoch'] +1
         
-        if debug[userID]:
+        if debug[userID+convoID]:
             summary = await get_fake_summaries(batch)
             # summarDict = json.loads(summary)
             summary.update({'sourceIDs' : batch['ids']})
@@ -208,7 +208,7 @@ async def summarise_batches(batches, userID, convoID):
                 'blob': summary
             }
             summaries[userID+convoID].append(summaryObj)
-            for summary in summaries[userID]:
+            for summary in summaries[userID+convoID]:
                 for id in batch['ids']:
                     if summary['id'] == id:
                         summary['blob']['summarised'] = True
@@ -269,7 +269,7 @@ async def summarise_groups(userID, convoID, field = 'docID'):
     summary_groups = {}
     
     if debug[userID+convoID]:
-        candidates = summaries[userID]
+        candidates = summaries[userID+convoID]
     else:
         candidates = await prisma.summary.find_many(
             where={
@@ -493,11 +493,11 @@ async def summarise_epochs(userID, convoID):
                 window.append(summary)
                 counter += 1
                 if counter >= resolution - 1:
-                    windows[userID].append(window)
+                    windows[userID+convoID].append(window)
                     window = []
                     counter = 0
     if window != []:
-        windows[userID].append(window)
+        windows[userID+convoID].append(window)
 
 
     return True
