@@ -76,8 +76,8 @@ async def updateCartridgeField(input):
     # print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
-        'blob':
-        {'equals': Json({input['cartKey']: targetCartVal})}
+        'key':
+        {'equals': input['cartKey']}
         },         
     )
 

@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime
 from query import sendChat
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
-from sessionHandler import novaConvo
+from sessionHandler import novaConvo, availableCartridges
 from appHandler import websocket
 
 summaries = {}
@@ -32,6 +32,8 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
                 summary['key'] = ''    
             cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords'], 'epoch':summary['epoch']})
 
+    availableCartridges[convoID][cartKey] = cartVal
+
     payload = { 'key': cartKey,'fields': {
                                 'status': cartVal['status'],
                                 'blocks':cartVal['blocks'],
@@ -41,7 +43,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
 
-async def run_memory(convoID, cartKey, cartVal, ):
+async def run_memory(convoID, cartKey, cartVal ):
     userID = novaConvo[convoID]['userID']
     debug[userID+convoID] = False
     # eZprint('got epochs before new summaries')
