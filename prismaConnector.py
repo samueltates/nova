@@ -132,27 +132,39 @@ async def findUsers():
     )
     print(users)
  
-async def findCartridges():
+async def findCartridges(userID):
     cartridges = await prisma.cartridge.find_many(
-        where = {'UserID' : 'guest'}
+        where = {'UserID' :userID}
 
     )
 
+    print(cartridges)
     
     # lastCart = cartridges[-1]
     # for cartridge in cartridges:
     # await prisma.cartridge.delete_many(
     #     where = {'UserID' : '110327569930296986874',}
     # )
-    for each in cartridges:
-        print(each)
+    # for each in cartridges:
+    #     print(each)
     # print(cartridges)
 
 async def editCartridge():
     cartridge = await prisma.cartridge.find_first(
-        where = {'userID' : 'guest'}
+        where = {'id' : 14}
+    ) 
+    print(cartridge)
+    
+    blob = json.loads(cartridge.json())['blob']
+    for key, val in blob.items():
+        val['enabled'] = True
+        updatedCartridge = await prisma.cartridge.update(
+            where={'id': 14},
+            data={ 
+                'key': key,
+                'blob': Json(blob)}
+        )
 
-    )
 
 async def deleteCartridges():
     cartridges = await prisma.cartridge.delete_many(
@@ -285,9 +297,10 @@ async def main() -> None:
     # await findLogs('108238407115881872743')
     # await findSummaries('108238407115881872743')
     # await findMessages('110327569930296986874')
-    await deleteSummaries('110327569930296986874')
-    await findMessages_set_unsummarised('110327569930296986874')
-    # await findCartridges()
+    # await deleteSummaries('110327569930296986874')
+    # await findMessages_set_unsummarised('110327569930296986874')
+    # await findCartridges('110327569930296986874')
+    await editCartridge()
     # await findAndMarkLogsOver2k()
     # await find_and_delete_messages()
     # await findUsers()

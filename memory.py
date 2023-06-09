@@ -353,7 +353,7 @@ async def summarise_groups(userID, convoID, field = 'docID'):
 
 async def summary_into_candidate(summarDict ):
     ##turns summary objects themselves into candidates for summary
-    summaryString = summarDict['title']+ '\n' + summarDict['body'] + '\n' + str(summarDict['timestamp'])
+    summaryString = str(summarDict['title'])+ '\n' + str(summarDict['body']) + '\n' + str(summarDict['timestamp'])
 
     if 'epoch' not in summarDict:
         epoch = 0

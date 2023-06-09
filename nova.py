@@ -13,7 +13,7 @@ from prisma import Json
 
 #NOVA STUFF
 from appHandler import app, websocket
-from sessionHandler import novaSession, novaConvo, availableCartridges, chatlog, cartdigeLookup
+from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
 from prismaHandler import prisma
 from memory import run_memory
 from debug import fakeResponse, eZprint
@@ -154,12 +154,11 @@ async def constructChatPrompt(convoID):
         sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
         for index, cartVal in enumerate(sorted_cartridges):
             # print(cartVal['label'] + ' : enabled : ' + str(cartVal['enabled']) + 'type: '+ str(cartVal['type']) + cartVal['label'] + ":\n" + cartVal['prompt'] + "\n")
-            if (cartVal['enabled'] == True and cartVal['type'] =='prompt'):
+            if (cartVal['type'] =='prompt'):
                 print('adding prompt' )
                 promptString +=  cartVal['label'] + ":\n" + cartVal['prompt'] + "\n"
             if (cartVal['enabled'] == True and cartVal['type'] =='summary'):
                 eZprint('found summary cartridge')
-                print(cartVal)
                 if 'blocks' in cartVal:
                     promptString += "Summary from past conversations:\n" 
                     for block in cartVal['blocks']:
