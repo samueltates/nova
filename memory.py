@@ -30,6 +30,8 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
         for summary in reversed(window):   
             if 'key' not in summary:
                 summary['key'] = ''    
+            if 'keywords' not in summary:
+                summary['keywords'] = []
             cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords'], 'epoch':summary['epoch']})
 
     availableCartridges[convoID][cartKey] = cartVal
