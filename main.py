@@ -73,7 +73,7 @@ async def startsession():
     convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
     novaConvo[convoID] = {}
-    novaConvo[convoID]['userName'] = novaSession[sessionID]['userID']
+    novaConvo[convoID]['userName'] = novaSession[sessionID]['userName']
     novaConvo[convoID]['userID'] = novaSession[sessionID]['userID']
 
     app.session['convoID'] = convoID

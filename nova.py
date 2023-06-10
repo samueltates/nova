@@ -107,7 +107,6 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
 
 async def getNextOrder(convoID):
 
-
     if convoID not in chatlog:
         chat_log_length = 0
     else:
@@ -129,7 +128,7 @@ async def handleChatInput(sessionData):
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
     userName = novaConvo[convoID]['userName']
-    body ="""{"answer" : '"""+ sessionData['body']+ """', commands : []}"""
+    body = sessionData['body']
     order = await getNextOrder(convoID)
 
 
@@ -177,19 +176,27 @@ async def handleChatInput(sessionData):
         content = str(response["choices"][0]["message"]["content"])
         string = content
         ##check if response string is able to be parsed as JSON or is just a  or string
-        try:
-            json_objects = json.loads(content)
+    try:
+        json_objects = json.loads(content)
+        print('response is JSON')
+        content = ''
+        for key, val in json_objects.items():
+            if key == 'answer':
+                print('answer found')
+                print(val)
+                content += val + '\n'
+        await handle_commands(json_objects, convoID)
+    except:
+        strip = content.strip()    
+        print('failed trying to strip')
+        try: 
+            json_objects = json.loads(strip)
             print('response is JSON')
-            print(json_objects)
-            content = ''
-            for key, val in json_objects.items():
-                if key == 'answer':
-                    print('answer found')
-                    print(val)
-                    content += val + '\n'
-            await handle_commands(json_objects)
-        except:
-            print('response is string')
+            await handle_commands(json_objects, convoID)
+        except: 
+            print('response cant be parsed')
+
+
 
     messageID = secrets.token_bytes(4).hex()
     time = str(datetime.now())
@@ -198,6 +205,7 @@ async def handleChatInput(sessionData):
     userID = novaConvo[convoID]['userID']
     if userID == None: 
         userID = 'guest'
+        
     messageObject = {
         "sessionID": convoID,
         "userID": str(userID),
@@ -207,7 +215,6 @@ async def handleChatInput(sessionData):
         "role": "system",
         "timestamp": time,
         "order": order,
-
     }
     asyncio.create_task(logMessage(messageObject))
     if convoID not in chatlog:
@@ -484,8 +491,6 @@ async def summariseChatBlocks(input):
             log['minimised'] = True
             payload = {'ID':log['ID'], 'fields' :{ 'summaryState': 'SUMMARISED'}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
-
-
 
 
 

@@ -20,18 +20,24 @@ windows = {}
 async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 
     window_counter = 0
-    cartVal['blocks'] = []
+    if 'blocks' not in cartVal:
+        cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     cartVal['status'] = ''
     payload = { 'key': cartKey,'fields': {
-                            'state': cartVal['state']
-                                }}
-    
+                'state': cartVal['state']
+                    }}
+
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
+    
+    if userID+convoID not in windows:
+        windows[userID+convoID] = []
 
     for window in windows[userID+convoID]:
         window_counter += 1
         eZprint('window no ' + str(window_counter))
+        if window_counter > 2:
+            continue
         for summary in reversed(window):   
             if 'key' not in summary:
                 summary['key'] = ''    
@@ -54,14 +60,18 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 async def summarise_convos(convoID, cartKey, cartVal, ):
     userID = novaConvo[convoID]['userID']
     debug[userID+convoID] = False
+
+    await get_summaries(userID, convoID)
+    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+
  
     # return
     if novaConvo[convoID]['owner']:
-        # cartVal['state'] = 'loading'
-        # payload = { 'key': cartKey,'fields': {
-        #                         'state': cartVal['state']
-        #                             }}
-        # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
+        cartVal['state'] = 'loading'
+        payload = { 'key': cartKey,'fields': {
+                                'state': cartVal['state']
+                                    }}
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
         await summarise_messages(userID, convoID)
         eZprint('messages summarised')
 
@@ -75,6 +85,15 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
         while not epochs_summarised:
             await asyncio.sleep(1)
             epochs_summarised = await summarise_epochs(userID, convoID)
+
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+    payload = { 'key': cartKey,'fields': {
+                'state': cartVal['state'],
+                'status': cartVal['status']
+                    }}
+
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
         # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
         
   
@@ -447,7 +466,8 @@ async def summarise_epochs(userID, convoID):
                 # eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary)
                 format = '%Y-%m-%dT%H:%M:%S.%f%z'
-                date = datetime.strptime(summary['timestamp'], format)    
+                # date = datetime.strptime(summary['timestamp'], format)  
+                date =''  
                 if meta == ' ':
                     meta = {
                         'overview' : 'Summaries of docoument summaries starting from ' + str(date),
