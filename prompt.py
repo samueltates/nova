@@ -19,11 +19,7 @@ async def construct_prompt(convoID):
     # Fetch the sorted cartridges asynchronously
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     
-    prompt_objects = []
 
-    prompt_string += """"\nPrompts:
-    # Instructions from Sam:
-    """
     # Use a priority queue to store the prompt cartridges
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
@@ -43,65 +39,10 @@ async def construct_prompt(convoID):
                     indexObj.update({'notes': cartVal['blocks']})
 
 
-    summary_string = """
-    There have been 300 seperate conversations between Nova and Sam, from september 2022 to June 2023.
-    """
-
-
-
-    ##creating sub commands
-    command_string = ''
-    keyword_string = ''
-    document_string = ''
-
-    print(keywords_available)
-    print(len(keywords_available))
-
-    # if len(keywords_available) > 1:
-    #     keyword_string = """
-    #     The following are keywords from all conversation sumaries.\n
-    #     """
-    #     for keyword in keywords_available:
-    #         keyword_string +=  str(keyword['keywords']) + "\n"
-        
-    #     command_string += """
-    #     command: select-keyword args:[keyword] (opens a summary based on a keyword)\n"""
-
-    if len(documents_available) != 0:
-        document_string =  "__________\nThe following are documents and current notes, which can queried via query command.\n"
-        documents_available += cartVal['label'] + "\n\n"
-        for document in documents_available:
-            document_string += document['label'] + ":\n" 
-            if 'notes' in document:
-                for note in document['notes']:
-                    document_string += str(note['notes']) + "\n"
-            document_string += "\nQuery via docID: " + document['key'] + "\n"
-        command_string += "__________\n 'query' [docID] ['question'] - query the index for a specific keyword or phrase.\n"
-
-
-
-    if command_string != '':
-        command_string = """
-        Available commands are:"""+command_string+"""
-        command: update-note args:[title]
-        command: add-note args:[title]
-        command: delete-note args:[title]
-        command: search args:[keyword]
-        command: query args:[docID] args:[question]
-        """
- 
-    
-
-    #setting up final prompts
-    # if keyword_string != '':
-    #     prompt_string = keyword_string + prompt_string
-    # if document_string != '':
-    #     prompt_string += document_string
-    # if command_string != '':
-    system_string = await construct_system_prompt()
+    system_string = construct_system_prompt()
 
     # summary_object = [{'role': 'system', 'content': summary_string}]
-    prompt_object = [{'role': 'system', 'content': prompt_string + command_string + system_string }]
+    prompt_object = [{'role': 'system', 'content': prompt_string + commands_list + system_string }]
 
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
@@ -121,19 +62,21 @@ async def construct_chat_query(convoID):
                 if log['role'] == 'system':
                     chat_log.append({"role": "assistant", "content": log['body']})
                 if log['role'] == 'user':  
-                    chat_log.append({"role": "user", "content":log['body']})
-        chat_log.append({'role': 'user', 'content': 'Based on prompts & any messages, respond using the format specified above:'})
+                    chat_log.append({"role": "user", "content": "Human feedback: " + log['body']})
+        chat_log.append({'role': 'user', 'content': "Respond only with the output in the exact format specified in the system prompt, with no explanation or conversation."})
 
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['chat'] = chat_log
 
 
-async def construct_system_prompt():
+def construct_system_prompt():
     response_format = {
         "thoughts": {
-            "reasoning": "any reasoning or thinking behind the response",
-            "answer": "response to prompt in natural language",
+            "text": "thought",
+            "reasoning": "reasoning",
+            "criticism": "constructive self-criticism",
+            "speak": "thoughts summary to say to user"
         },
         "command": {"name": "command name", "args": {"arg name": "value"}},
     }
@@ -145,8 +88,11 @@ async def construct_system_prompt():
         " parsed by Python json.loads"
     )
 
-example_assistant = {'role': 'assistant', 'content': '{\n    "thoughts": {\n         "reasoning": "A user has logged on, and there are instructions and formats I must adhere to.",\n  "answer": ""\n    },\n     "command": {\n        "name": "",\n        "args": {}\n    }\n}'}
+example_assistant = {'role': 'assistant', 'content': '{\n    "thoughts": {\n        "text" : "understanding new session", "reasoning": "A user has logged on, I will greet them and .",\n  "speak": ""\n    },\n     "command": {\n        "name": "",\n        "args": {}\n    }\n}'}
 
 commands_list = """
-\nCommands:\n1. analyze_code: Analyze Code, args: "code": "<full_code_string>"\n2. execute_python_file: Execute Python File, args: "filename": "<filename>"\n3. append_to_file: Append to file, args: "filename": "<filename>", "text": "<text>"\n4. delete_file: Delete file, args: "filename": "<filename>"\n5. list_files: List Files in Directory, args: "directory": "<directory>"\n6. read_file: Read a file, args: "filename": "<filename>"\n7. write_to_file: Write to file, args: "filename": "<filename>", "text": "<text>"\
-"""
+\nCommands:\n1. add_note: Creates new note for later reference, args: "title" : <title>, "body" : <body>\n2. list_notes: shows available notes, args: "note": "<note title>"\n3. append_to_note: Append note with new line, args: "note": "<note title>, "new line":<new line>"""
+# \n3. append_to_file: Append to file, args: "filename": "<filename>", "text": "<text>
+
+# \n4. delete_file: Delete file, args: "filename": "<filename>"\n5. list_files: List Files in Directory, args: "directory": "<directory>"\n6. read_file: Read a file, args: "filename": "<filename>"\n7. write_to_file: Write to file, args: "filename": "<filename>", "text": "<text>"\
+# """

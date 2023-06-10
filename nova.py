@@ -36,7 +36,7 @@ async def initialiseCartridges(convoID):
     await loadCartridges(convoID)
     await runCartridges(convoID)
     # await run_memory(convoID)
-    # await constructChatPrompt()
+    await handleChatInput({'convoID':convoID})
 
 async def loadCartridges(convoID):
     eZprint('load cartridges called')
@@ -120,7 +120,6 @@ async def getNextOrder(convoID):
 
 
 #CHAT HANDLING
-
 async def handleChatInput(sessionData):
 
     ## creates message
@@ -129,24 +128,25 @@ async def handleChatInput(sessionData):
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
     userName = novaConvo[convoID]['userName']
-    body = sessionData['body']
-    order = await getNextOrder(convoID)
+    if 'body' in sessionData:
+        body = sessionData['body']
+        order = await getNextOrder(convoID)
 
-    messageObject = {
-        "sessionID": convoID,
-        "ID": sessionData['ID'],
-        "userName": userName,
-        "userID": str(userID),
-        "body": body,
-        "role": "user",
-        "timestamp": str(datetime.now()),
-        "order": order,
-    }
+        messageObject = {
+            "sessionID": convoID,
+            "ID": sessionData['ID'],
+            "userName": userName,
+            "userID": str(userID),
+            "body": body,
+            "role": "user",
+            "timestamp": str(datetime.now()),
+            "order": order,
+        }
 
-    asyncio.create_task(logMessage(messageObject))
-    if convoID not in chatlog:
-        chatlog[convoID] = []
-    chatlog[convoID].append(messageObject)
+        asyncio.create_task(logMessage(messageObject))
+        if convoID not in chatlog:
+            chatlog[convoID] = []
+        chatlog[convoID].append(messageObject)
 
     await construct_prompt(convoID),
     promptObject = current_prompt[convoID]['prompt']
@@ -179,7 +179,7 @@ async def handleChatInput(sessionData):
         json_object = json.loads(content)
         for responseKey, responseVal in json_object.items():
             for key, val in responseVal.items():
-                if key == 'answer':
+                if key == 'speak':
                     parsed_reply += val + '\n'
                     print('answer found')
                     print(val)
