@@ -2,6 +2,7 @@
 import os
 import json
 import asyncio
+from copy import copy
 from pathlib import Path
 import sys
 import gptindex
@@ -128,8 +129,10 @@ async def handleChatInput(sessionData):
     convoID = sessionData['convoID']
     userID = novaConvo[convoID]['userID']
     userName = novaConvo[convoID]['userName']
-    body = sessionData['body']
+    body ="""{"answer" : '"""+ sessionData['body']+ """', commands : []}"""
     order = await getNextOrder(convoID)
+
+
     messageObject = {
         "sessionID": convoID,
         "ID": sessionData['ID'],
@@ -152,7 +155,10 @@ async def handleChatInput(sessionData):
     promptSize = estimateTokenSize(str(promptObject))
 
     await construct_chat_query(convoID)
+    promptObject += current_prompt[convoID]['chat']
     chatSize =  estimateTokenSize(str(promptObject)) - promptSize 
+
+
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
 
@@ -169,31 +175,21 @@ async def handleChatInput(sessionData):
         eZprint('response received')
         print(response)
         content = str(response["choices"][0]["message"]["content"])
-
+        string = content
         ##check if response string is able to be parsed as JSON or is just a  or string
         try:
-            content = content.replace('\n', '')
-            json_list = content.split('}{')
-            json_list[0] += '}'
-            for i in range(1, len(json_list)-1):
-                json_list[i] = '{' + json_list[i] + '}'
-            json_list[-1] = '{' + json_list[-1]
-            # Parse the JSON objects into a list
-            json_objects = []
-            for json_str in json_list:
-                json_objects.append(json.loads(json_str))
-
+            json_objects = json.loads(content)
             print('response is JSON')
             print(json_objects)
             content = ''
-            for object in json_objects:
-                if 'answer' in object:
-                    content += object['answer'] + '\n'
-                
+            for key, val in json_objects.items():
+                if key == 'answer':
+                    print('answer found')
+                    print(val)
+                    content += val + '\n'
             await handle_commands(json_objects)
         except:
             print('response is string')
-            content = content
 
     messageID = secrets.token_bytes(4).hex()
     time = str(datetime.now())
@@ -207,7 +203,7 @@ async def handleChatInput(sessionData):
         "userID": str(userID),
         "ID": messageID,
         "userName": agentName,
-        "body": content,
+        "body": string,
         "role": "system",
         "timestamp": time,
         "order": order,
@@ -217,7 +213,9 @@ async def handleChatInput(sessionData):
     if convoID not in chatlog:
         chatlog[convoID] = []
     chatlog[convoID].append(messageObject)
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+    parsedMessage = copy(messageObject)
+    parsedMessage['body'] = content
+    asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':parsedMessage})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
     
 def estimateTokenSize(text):

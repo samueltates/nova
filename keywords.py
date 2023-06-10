@@ -133,7 +133,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
 async def main() -> None:
     await prisma.connect()
     eZprint('running main')
-    await get_keywords()
+    # await get_keywords()
 
 if __name__ == '__main__':
     asyncio.run(main())
