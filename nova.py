@@ -107,6 +107,7 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
 
 async def getNextOrder(convoID):
 
+
     if convoID not in chatlog:
         chat_log_length = 0
     else:
@@ -131,7 +132,6 @@ async def handleChatInput(sessionData):
     body = sessionData['body']
     order = await getNextOrder(convoID)
 
-
     messageObject = {
         "sessionID": convoID,
         "ID": sessionData['ID'],
@@ -148,7 +148,6 @@ async def handleChatInput(sessionData):
         chatlog[convoID] = []
     chatlog[convoID].append(messageObject)
 
-
     await construct_prompt(convoID),
     promptObject = current_prompt[convoID]['prompt']
     promptSize = estimateTokenSize(str(promptObject))
@@ -160,6 +159,7 @@ async def handleChatInput(sessionData):
 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
+    parsed_reply = ''
 
     #fake response
     if app.config['DEBUG']:
@@ -174,29 +174,19 @@ async def handleChatInput(sessionData):
         eZprint('response received')
         print(response)
         content = str(response["choices"][0]["message"]["content"])
-        string = content
         ##check if response string is able to be parsed as JSON or is just a  or string
     try:
-        json_objects = json.loads(content)
-        print('response is JSON')
-        content = ''
-        for key, val in json_objects.items():
-            if key == 'answer':
-                print('answer found')
-                print(val)
-                content += val + '\n'
-        await handle_commands(json_objects, convoID)
+        json_object = json.loads(content)
+        for responseKey, responseVal in json_object.items():
+            for key, val in responseVal.items():
+                if key == 'answer':
+                    parsed_reply += val + '\n'
+                    print('answer found')
+                    print(val)
+                if key == 'command':
+                    await handle_commands({key:val})
     except:
-        strip = content.strip()    
-        print('failed trying to strip')
-        try: 
-            json_objects = json.loads(strip)
-            print('response is JSON')
-            await handle_commands(json_objects, convoID)
-        except: 
-            print('response cant be parsed')
-
-
+            print('response is string')
 
     messageID = secrets.token_bytes(4).hex()
     time = str(datetime.now())
@@ -205,13 +195,12 @@ async def handleChatInput(sessionData):
     userID = novaConvo[convoID]['userID']
     if userID == None: 
         userID = 'guest'
-        
     messageObject = {
         "sessionID": convoID,
         "userID": str(userID),
         "ID": messageID,
         "userName": agentName,
-        "body": string,
+        "body": content,
         "role": "system",
         "timestamp": time,
         "order": order,
@@ -221,7 +210,7 @@ async def handleChatInput(sessionData):
         chatlog[convoID] = []
     chatlog[convoID].append(messageObject)
     parsedMessage = copy(messageObject)
-    parsedMessage['body'] = content
+    parsedMessage['body'] = parsed_reply
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':parsedMessage})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
     

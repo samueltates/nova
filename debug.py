@@ -8,6 +8,8 @@ credentials = '{"token": "ya29.a0AWY7CkmXEArxPmjv6q0m23LMk_Yd6nXCiMK-wENAptDOnqk
 
 ##could we make an ezprint class (or debug object session fenced so calling that and it runs in that session) 
 
+
+
 def eZprint(string):
     print('\n_____________')
     print(string )
