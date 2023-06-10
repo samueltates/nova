@@ -15,26 +15,71 @@ async def deleteSummaries(userID):
         where = {'UserID' : userID,}
     )
 
+
 async def findSummaries(userID, epoch = None):
     summaries = await prisma.summary.find_many(
                 where = {'UserID' : userID}
     )
-    print(len(summaries))
+
+    latest_summaries = []
+    summary_by_id = {}
+    for summary in summaries:
+        id = summary.id
+        print(summary)
+        print('\n')
+     
+                
+async def sort_summaries(userID, epoch = None):
+    summaries = await prisma.summary.find_many(
+                where = {'UserID' : userID}
+    )
+    # print(len(summaries))
     
     # print(summaries)
     latest_summaries = []
+    summary_by_id = {}
     for summary in summaries:
         id = summary.id
-        summary = dict(summary.blob)
-        for key, val in summary.items():
+        # print(summary)
+        # print('\n')
+        obj = dict(summary.blob)
+        for key, val in obj.items():
             if 'epoch' in val:
-                if epoch != None:
-                    if val['epoch'] == epoch:
-                        print(val)
-                        print('\n')
-                else:
-                    print(val)
-                    print('\n')
+                if 'id' in val:
+                    if val['id'] not in summary_by_id:
+                        print('creating new ID record')
+                        summary_by_id[val['id']] = []
+                    summary_by_id[val['id']].append(summary)
+
+    for id in summary_by_id:
+        print(id)
+        # print (summary_by_id[0]['title'])
+        print(len(summary_by_id[id]))
+        saved = False
+        for summary in summary_by_id[id]:
+            if saved == False:
+                saved = True
+                print('saved ' + str(summary.id))
+            else:
+                delete = await prisma.summary.delete(
+                    where={'id': summary.id}
+                )
+                print('deleted ' + str(summary.id))
+                
+
+
+    
+
+
+
+
+                # if epoch != None:
+                #     if val['epoch'] == epoch:
+                #         print(val)
+                #         print('\n')
+                # else:
+                #     print(val)
+                #     print('\n')
                 # print(str(val['epoch']) + ' ' + str(val['summarised']))
                 # print(val['summarised'])
     #             # print('found one')
@@ -295,12 +340,14 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs('108238407115881872743')
-    # await findSummaries('108238407115881872743')
+    await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
     # await deleteSummaries('110327569930296986874')
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges('110327569930296986874')
     await editCartridge()
+    # await findCartridges()
+
     # await findAndMarkLogsOver2k()
     # await find_and_delete_messages()
     # await findUsers()

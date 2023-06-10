@@ -21,8 +21,13 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 
     window_counter = 0
     cartVal['blocks'] = []
-    cartVal['state'] = ''
+    cartVal['state'] = 'loading'
     cartVal['status'] = ''
+    payload = { 'key': cartKey,'fields': {
+                            'state': cartVal['state']
+                                }}
+    
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
     for window in windows[userID+convoID]:
         window_counter += 1
@@ -35,6 +40,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
             cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords'], 'epoch':summary['epoch']})
 
     availableCartridges[convoID][cartKey] = cartVal
+    cartVal['state'] = ''
 
     payload = { 'key': cartKey,'fields': {
                                 'status': cartVal['status'],
@@ -45,20 +51,22 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
 
-async def run_memory(convoID, cartKey, cartVal ):
+async def summarise_convos(convoID, cartKey, cartVal, ):
     userID = novaConvo[convoID]['userID']
     debug[userID+convoID] = False
-    # eZprint('got epochs before new summaries')
-    await get_summaries(userID, convoID)
-    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
  
     # return
     if novaConvo[convoID]['owner']:
+        # cartVal['state'] = 'loading'
+        # payload = { 'key': cartKey,'fields': {
+        #                         'state': cartVal['state']
+        #                             }}
+        # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
         await summarise_messages(userID, convoID)
         eZprint('messages summarised')
 
         await summarise_groups(userID, convoID)    
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
         eZprint('groups summarised')
         
@@ -67,7 +75,7 @@ async def run_memory(convoID, cartKey, cartVal ):
         while not epochs_summarised:
             await asyncio.sleep(1)
             epochs_summarised = await summarise_epochs(userID, convoID)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
         
   
 ##LOG SUMMARY FLOWS
@@ -121,7 +129,7 @@ async def summarise_messages(userID, convoID):
                     'type' : 'message'        
                 })
         if len(normalised_messages) > 0:
-            print(meta)
+            # print(meta)
             batches += await create_content_batches_by_token(normalised_messages, meta)
    
     await summarise_batches(batches, userID, convoID)
@@ -223,7 +231,7 @@ async def summarise_batches(batches, userID, convoID):
             try:
             # print(batch)
                 # summary = await get_fake_summaries(batch)
-                summary = await GetSummaryWithPrompt(batch_summary_prompt, str(batch['toSummarise']))
+                summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
                 summaryID = secrets.token_bytes(4).hex()
                 await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'])
             except:
@@ -232,7 +240,7 @@ async def summarise_batches(batches, userID, convoID):
             #sending summary state back to server
 
 
-async def GetSummaryWithPrompt(prompt, textToSummarise):
+async def get_summary_with_prompt(prompt, textToSummarise):
 
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
@@ -296,7 +304,7 @@ async def summarise_groups(userID, convoID, field = 'docID'):
                         continue
                 # print('found messages summary to summarise')
                 summaryObj = await summary_into_candidate(val)
-                print(val['meta'])
+                # print(val['meta'])
                 if not val['meta'][field] in summary_groups:
                     summary_groups[val['meta'][field]] = []
                     print ('creating new group for ' + str(val['meta'][field]) + '')

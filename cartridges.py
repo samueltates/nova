@@ -69,7 +69,7 @@ async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
     targetCartVal = availableCartridges[convoID][targetCartKey]
-    print(targetCartKey)
+    # print(targetCartKey)
     # print(sessionData)
     # TODO: switch to do lookup via key not blob
     eZprint('cartridge update input')
@@ -81,7 +81,7 @@ async def updateCartridgeField(input):
         },         
     )
 
-    print(matchedCart)
+    # print(matchedCart)
     for key, val in input['fields'].items():
         availableCartridges[convoID][targetCartKey][key] = val
         
@@ -92,7 +92,7 @@ async def updateCartridgeField(input):
                 'blob' : Json({targetCartKey:targetCartVal})
             }
         )
-        print(updatedCart)
+        # print(updatedCart)
         eZprint('updated cartridge')
         # print(updatedCart)
     payload = { 'key':targetCartKey,'fields': {'state': ''}}
