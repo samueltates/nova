@@ -49,7 +49,7 @@ async def construct_prompt(convoID):
     current_prompt[convoID]['prompt'] = prompt_object
     
 
-async def construct_chat_query(convoID):
+async def construct_chat_query(convoID, fake = False):
     eZprint('constructing chat')
     chat_log = []
     if convoID in chatlog:
@@ -58,6 +58,7 @@ async def construct_chat_query(convoID):
         # chat_log.append(example_assistant)
         for log in chatlog[convoID]:
             # print(log['order'])
+            # print(log)
             if 'muted' not in log or log['muted'] == False:
                 if log['role'] == 'system':
                     chat_log.append({"role": "system", "content": log['body']})
@@ -65,11 +66,15 @@ async def construct_chat_query(convoID):
                     chat_log.append({"role": "assistant", "content": log['body']})
                 if log['role'] == 'user':  
                     chat_log.append({"role": "user", "content": "Human feedback: " + log['body']})
+        
+    if not fake:
         if len(chat_log) >  0:
             chat_log.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
         else :
             chat_log.append({"role": "user", "content": "Think about current instructions and context, and initiate session with a short greeting using the format specified above:"})
 
+
+    if  chatlog[convoID]['prompt_estimate'] > (chatlog[convoID]['token_limit'])*.7:
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['chat'] = chat_log

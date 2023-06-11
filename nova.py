@@ -9,7 +9,7 @@ import openai
 from human_id import generate_id
 from datetime import datetime
 from prisma import Json
-
+from chat import initiate_conversation
 #NOVA STUFF
 from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
@@ -31,6 +31,7 @@ async def initialiseCartridges(convoID):
 
     await loadCartridges(convoID)
     await runCartridges(convoID)
+    await initiate_conversation(convoID)
     # await run_memory(convoID)
 
 async def loadCartridges(convoID):

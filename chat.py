@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 import asyncio
-import random
+import re
 import secrets
 import openai
 from copy import deepcopy
@@ -17,6 +17,19 @@ from commands import handle_commands
 agentName = 'nova'
 
 
+
+async def initiate_conversation(convoID):
+    
+    if convoID not in chatlog:
+        chatlog[convoID] = {}
+    chatlog[convoID]['agent_name'] = agentName
+    chatlog[convoID]['token_limit'] = 4000
+
+    await construct_prompt(convoID),
+    await construct_chat_query(convoID)
+    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+    await send_to_GPT(convoID, query_object)
+
 async def user_input(sessionData):
     #takes user iput and runs message cycle
     #TODO add prompt size management
@@ -27,12 +40,13 @@ async def user_input(sessionData):
     await construct_chat_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
     await send_to_GPT(convoID, query_object)
+    
 
 async def handle_message(convoID, message, role = 'user', key = None):
 
     eZprint('handling new log')
 
-    print(message, role, key)
+    # print(message, role, key)
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
 
@@ -64,26 +78,32 @@ async def handle_message(convoID, message, role = 'user', key = None):
         "order": order,
     }
 
+    
+    estimate = getPromptEstimate(convoID)
+    chatlog[convoID]['prompt_estimate'] = estimate
+    if estimate > chatlog[convoID]['token_limit']:
+        print('prompt too big')
+
     chatlog[convoID].append(messageObject)
     asyncio.create_task(logMessage(messageObject))
     copiedMessage = deepcopy(messageObject)
 
-    if( role == 'assistant'):
+    if( role != 'user'):
         json_object = parse_json_string(message)
         if json_object != None:
             copiedMessage = deepcopy(messageObject)
             response = await get_json_val(json_object, 'speak')
             copiedMessage['body'] = response
         
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
-        await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
+    asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
 
 
 async def send_to_GPT(convoID, promptObject):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
-    print(promptObject)
+    # print(promptObject)
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
     content = str(response["choices"][0]["message"]["content"])
@@ -94,7 +114,8 @@ async def send_to_GPT(convoID, promptObject):
     json_object = None
     parsed_reply = ''
     json_object = parse_json_string(content)
-    
+    await handle_message(convoID, content, 'assistant')
+
     if json_object != None:
         eZprint('response is JSON')
         command = await get_json_val(json_object, 'command')
@@ -103,10 +124,14 @@ async def send_to_GPT(convoID, promptObject):
             command_response = await handle_commands(command, convoID)
             eZprint(command_response)
             if command_response:
-                command_response = json.dumps(command_response)
-                await handle_message(convoID, command_response, 'system')
-    await handle_message(convoID, content, 'assistant')
-
+                #bit of a lazy hack to get it to match what the assistant parse takes
+                command_response.update({"speak" : "Command " + command_response['name'] + " returned " + command_response['status'] + " with message " + command_response['message']})
+                command_object = {
+                    "system": command_response,
+                }
+                command_object = json.dumps(command_object)
+                await handle_message(convoID, command_object, 'system')
+    await fake_user_input(convoID)
     
 
 async def command_interface(responseVal, convoID):
@@ -173,38 +198,20 @@ async def getNextOrder(convoID):
 
 
 async def getPromptEstimate(convoID):
-    promptObject = []
-    if availableCartridges[convoID] != None:
-        sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
-        for index, promptVal in enumerate(sorted_cartridges):
-            if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
-                promptObject.append({"role": "system", "content": "\n Prompt instruction for NOVA to follow - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
-            if (promptVal['enabled'] == True and promptVal['type'] =='summary'):
-                if 'blocks' in promptVal:
-                    promptObject.append({"role": "system", "content": "\n Summary from past conversations - " + promptVal['label'] + ":\n" + str(promptVal['blocks']) + "\n" })
-            if (promptVal['enabled'] == True and promptVal['type'] =='index'):
-                if 'blocks' in promptVal:
-                    promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
-    promptSize = estimateTokenSize(str(promptObject))
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize}})))
-    
-async def getChatEstimate(convoID):
-    promptObject = []
-    if convoID in chatlog:
-        for log in chatlog[convoID]:
-            if 'muted' not in log or log['muted'] == False:
-                if log['role'] == 'system':
-                    promptObject.append({"role": "assistant", "content": log['body']})
-                if log['role'] == 'user':  
-                    promptObject.append({"role": "user", "content": log['body']})
-    promptSize = estimateTokenSize(str(promptObject))
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'chatSize': promptSize}})))
+    prompt = ''
+    if convoID not in chatlog:
+        prompt = ''
+    else:
+        for message in chatlog[convoID]:
+            prompt += message['body'] + '\n'
+    prompt_token_count = estimateTokenSize(prompt)
+    return prompt_token_count
 
 async def get_json_val(json_object, key_requested):
  
     eZprint('getting val ' + key_requested+ ' from json')
     for responseKey, responseVal in json_object.items():
-        if responseVal != None:
+        if responseVal is not None and not isinstance(responseVal, str):
             for key, val in responseVal.items():
                 if key_requested == key:
                     return val
@@ -219,36 +226,94 @@ def parse_json_string(content):
 
     # eZprint('parsing json string')
     # print(content)
+    json_object = None
+
     try:
-        # try to parse the content string as a JSON object
-        # eZprint('trying to parse json')
-        # print(content)
-
         json_object = json.loads(content)
-        # eZprint('json parsed')
-
         return json_object
 
     except ValueError as e:
         # the string is not valid JSON, try to remove unwanted characters
         print(f"Error parsing JSON: {e}")
-        print('trying to remove newlines and extra spaces...')
         print(content)
 
-        # remove unwanted newline and whitespace characters using the replace function
-        content = content.replace('\n', '').replace('  ', '')
+    if json_object == None:
+        
+        print('clearing anything before and after brackets')
+        start_index = content.find('{')
+        end_index = content.rfind('}')
+        json_data = content[start_index:end_index+1]
+        print(json_data)
+    try: 
+        json_object = json.loads(json_data)
+        return json_object
+    
+    except ValueError as e:
+        # the string is still not valid JSON, print the error message
+        print(f"Error parsing JSON: {e}")
 
-        try: 
-            eZprint('trying to parse json')
-            print(content)
+    if json_object == None:
+        print('trying to parse json with commas')
+        json_string = re.sub(r',(?!.*})', r'', content)
+        print(json_string)
 
-            # try to parse the string as a JSON object again after removing unwanted characters
-            json_object = json.loads(content)
-            # print(json_object)
+    try: 
+        json_object = json.loads(json_string)
+        return json_object
+    
+    except ValueError as e:
+        # the string is still not valid JSON, print the error message
+        print(f"Error parsing JSON: {e}")
+    
+    return None
 
-            return json_object
+def remove_trailing_commas(broken_json):
+    # Find all commas at the end of a line
+    regex = re.compile(r',\s*([\]}])')
+    # Replace them with just the matched bracket/brace
+    return regex.sub(r'\g<1>', broken_json)
 
-        except ValueError as e:
-            # the string is still not valid JSON, print the error message
-            print(f"Error parsing JSON: {e}")
-            return None
+
+async def fake_user_input(convoID):
+    # await construct_prompt(convoID),
+    await construct_chat_query(convoID, True)
+    eZprint('fake user input triggered')
+    key = secrets.token_bytes(4).hex()
+    fake_user = [{"role": "system", "content": "You are playing an interested customer visiting NOVA for the first time, and hoping to learn more about the product. You are not sure what to ask, but you are curious about the product and want to learn more."}]
+    fake_user_end = [{"role": "system", "content": "Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from a potential customer."}]
+    query_object = fake_user + current_prompt[convoID]['chat']  + fake_user_end
+    print(query_object)
+    response = await sendChat(query_object, 'gpt-3.5-turbo')
+    content = str(response["choices"][0]["message"]["content"])
+    print(content)
+    fake_session = {    
+        "convoID": convoID,
+        "body": content,
+        "ID": key,
+    }
+    await user_input(fake_session)
+
+broken_json="""
+{
+    "thoughts": {
+        "text": "Absolutely! Prompts and modes allow you to interact with Nova in different ways, expanding the creative potential of the interface. Prompts are questions or statements that encourage users to generate new ideas or explore different perspectives. For example, a prompt might ask you to describe an object from a new angle or to imagine a fictional character with a unique backstory. Modes are like different "settings" that change the output or functionality of the interface. For example, a "collage mode" might combine elements from different documents or images to create a new composition. There are many different prompts and modes available, each with unique benefits for the creative process.",
+        "reasoning": "Explaining the benefits of prompts and modes can help to provide users with practical examples of how Nova can assist them in their creative endeavors. Additionally, demonstrating the versatility of these tools can encourage continued exploration of the interface.",
+        "plan": "- explain some of the available prompts and modes, such as collage mode or character design prompts\n- provide examples of how these tools can be used to generate new ideas or break creative blocks\n- emphasize the potential for customization and personalization",
+        "criticism": "I need to ensure that I am providing clear and concise explanations of these features, including concrete examples of how they can be used in creative work.",
+        "speak": "Prompts and modes are tools that can help you explore new ideas and expand your creative potential with Nova. Prompts are questions or statements that encourage you to generate new content or explore different perspectives, while modes are like different "settings" that change the output or functionality of the interface. For example, in "collage mode," you can combine elements from different documents or images to create a new composition. Some prompts might ask you to describe an object from a new angle, while others might prompt you to imagine a character with a unique backstory. These tools can be especially helpful for breaking through creative blocks or generating new ideas. Additionally, because Nova is programmable, you can customize and personalize each prompt or mode to meet your specific creative needs." 
+    },
+    "command": {}
+}
+"""
+
+
+
+# async def main() -> None:
+#     # json = remove_trailing_commas(broken_json)
+#     # await prisma.connect()
+#     # eZprint('running main')
+#     # await get_keywords()
+
+# if __name__ == '__main__':
+#     asyncio.run(main())
+
