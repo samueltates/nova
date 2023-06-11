@@ -4,22 +4,18 @@ import json
 import asyncio
 from copy import copy
 from pathlib import Path
-import sys
 import gptindex
-import secrets
 import openai
 from human_id import generate_id
 from datetime import datetime
 from prisma import Json
-from heapq import heappush, heappop
 
 #NOVA STUFF
 from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
-from prompt import construct_prompt, construct_chat_query, current_prompt
-from commands import handle_commands
 from prismaHandler import prisma
 from memory import summarise_convos, get_summary_with_prompt
+
 from keywords import get_summary_keywords
 from debug import fakeResponse, eZprint
 
@@ -36,7 +32,6 @@ async def initialiseCartridges(convoID):
     await loadCartridges(convoID)
     await runCartridges(convoID)
     # await run_memory(convoID)
-    await handleChatInput({'convoID':convoID})
 
 async def loadCartridges(convoID):
     eZprint('load cartridges called')
@@ -105,184 +100,6 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     return newCart.blob
      
 
-async def getNextOrder(convoID):
-
-
-    if convoID not in chatlog:
-        chat_log_length = 0
-    else:
-        chat_log_length = len(chatlog[convoID])
-        # eZprint('chat log printing on order request')
-    # print(chatLog)
-    next_order = chat_log_length + 1
-    # print('next order is: ' + str(next_order))
-    return next_order
-
-
-#CHAT HANDLING
-async def handleChatInput(sessionData):
-
-    ## creates message
-    eZprint('handling message')
-    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
-    convoID = sessionData['convoID']
-    userID = novaConvo[convoID]['userID']
-    userName = novaConvo[convoID]['userName']
-    if 'body' in sessionData:
-        body = sessionData['body']
-        order = await getNextOrder(convoID)
-
-        messageObject = {
-            "sessionID": convoID,
-            "ID": sessionData['ID'],
-            "userName": userName,
-            "userID": str(userID),
-            "body": body,
-            "role": "user",
-            "timestamp": str(datetime.now()),
-            "order": order,
-        }
-
-        asyncio.create_task(logMessage(messageObject))
-        if convoID not in chatlog:
-            chatlog[convoID] = []
-        chatlog[convoID].append(messageObject)
-
-    await construct_prompt(convoID),
-    promptObject = current_prompt[convoID]['prompt']
-    promptSize = estimateTokenSize(str(promptObject))
-
-    await construct_chat_query(convoID)
-    promptObject += current_prompt[convoID]['chat']
-    chatSize =  estimateTokenSize(str(promptObject)) - promptSize 
-
-
-    # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize, 'chatSize': chatSize}})))
-    parsed_reply = ''
-
-    #fake response
-    if app.config['DEBUG']:
-        content = fakeResponse()
-        await asyncio.sleep(1)
-    else :
-        # model = app.session.get('model')
-        # if model == None:
-        #     model = 'gpt-3.5-turbo'
-        print(f"{promptObject}")
-        response = await sendChat(promptObject, 'gpt-3.5-turbo')
-        eZprint('response received')
-        print(response)
-        content = str(response["choices"][0]["message"]["content"])
-        ##check if response string is able to be parsed as JSON or is just a  or string
-    try:
-        json_object = json.loads(content)
-        for responseKey, responseVal in json_object.items():
-            for key, val in responseVal.items():
-                if key == 'speak':
-                    parsed_reply += val + '\n'
-                    print('answer found')
-                    print(val)
-                if key == 'command':
-                    await handle_commands({key:val})
-    except:
-            print('response is string')
-
-    messageID = secrets.token_bytes(4).hex()
-    time = str(datetime.now())
-    order = await getNextOrder(convoID)
-    
-    userID = novaConvo[convoID]['userID']
-    if userID == None: 
-        userID = 'guest'
-    messageObject = {
-        "sessionID": convoID,
-        "userID": str(userID),
-        "ID": messageID,
-        "userName": agentName,
-        "body": content,
-        "role": "system",
-        "timestamp": time,
-        "order": order,
-    }
-    asyncio.create_task(logMessage(messageObject))
-    if convoID not in chatlog:
-        chatlog[convoID] = []
-    chatlog[convoID].append(messageObject)
-    parsedMessage = copy(messageObject)
-    parsedMessage['body'] = parsed_reply
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':parsedMessage})))
-    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
-    
-def estimateTokenSize(text):
-    tokenCount =  text.count(' ') + 1
-    return tokenCount
-
-async def sendChat(promptObj, model):
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
-    return response
-
-async def logMessage(messageObject):
-    print('logging message')
-    # print(messageObject)
-    if app.config['DEBUG']:
-        return
-    log = await prisma.log.find_first(
-        where={'SessionID': messageObject['sessionID']}
-    )
-    # TODO - need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
-    if log == None:
-        log = await prisma.log.create(
-            data={
-                "SessionID": messageObject['sessionID'],
-                "UserID": messageObject['userID'],
-                "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-                "summary": "",
-                "body": "",
-                "batched": False,
-            }
-        )
-
-    # eZprint('logging message')
-    # print(messageObject)
-    message = await prisma.message.create(
-        data={
-            "UserID": str(messageObject['userID']),
-            "SessionID": str(messageObject['sessionID']),
-            "name": str(messageObject['userName']),
-            "timestamp": datetime.now(),
-            "body": str(messageObject['body']),
-        }
-    )
-
-async def getPromptEstimate(convoID):
-    promptObject = []
-    if availableCartridges[convoID] != None:
-        sorted_cartridges = sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf')))
-        for index, promptVal in enumerate(sorted_cartridges):
-            if (promptVal['enabled'] == True and promptVal['type'] =='prompt'):
-                promptObject.append({"role": "system", "content": "\n Prompt instruction for NOVA to follow - " + promptVal['label'] + ":\n" + promptVal['prompt'] + "\n" })
-            if (promptVal['enabled'] == True and promptVal['type'] =='summary'):
-                if 'blocks' in promptVal:
-                    promptObject.append({"role": "system", "content": "\n Summary from past conversations - " + promptVal['label'] + ":\n" + str(promptVal['blocks']) + "\n" })
-            if (promptVal['enabled'] == True and promptVal['type'] =='index'):
-                if 'blocks' in promptVal:
-                    promptObject.append({"role": "system", "content": "\n" + promptVal['label'] + " sumarised by index-query -:\n" + str(promptVal['blocks']) + "\n. If this is not sufficient simply request more information" })
-    promptSize = estimateTokenSize(str(promptObject))
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'promptSize': promptSize}})))
-    
-async def getChatEstimate(convoID):
-    promptObject = []
-    if convoID in chatlog:
-        for log in chatlog[convoID]:
-            if 'muted' not in log or log['muted'] == False:
-                if log['role'] == 'system':
-                    promptObject.append({"role": "assistant", "content": log['body']})
-                if log['role'] == 'user':  
-                    promptObject.append({"role": "user", "content": log['body']})
-    promptSize = estimateTokenSize(str(promptObject))
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendPromptSize', 'payload':{'chatSize': promptSize}})))
 
 #######################
 #ACTIVE CARTRIDGE HANDLING
@@ -480,9 +297,6 @@ async def summariseChatBlocks(input):
             log['minimised'] = True
             payload = {'ID':log['ID'], 'fields' :{ 'summaryState': 'SUMMARISED'}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
-
-
-
 
 
 onboarding_prompts = [

@@ -11,9 +11,9 @@ credentials = '{"token": "ya29.a0AWY7CkmXEArxPmjv6q0m23LMk_Yd6nXCiMK-wENAptDOnqk
 
 
 def eZprint(string):
-    print('\n_____________')
+    print('_____________')
     print(string )
-    print('_____________\n')
+    print('_____________')
 
 def fakeResponse():
     return choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",

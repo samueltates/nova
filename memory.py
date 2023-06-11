@@ -20,8 +20,8 @@ windows = {}
 async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 
     window_counter = 0
-    if 'blocks' not in cartVal:
-        cartVal['blocks'] = []
+    # if 'blocks' not in cartVal:
+    cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     cartVal['status'] = ''
     payload = { 'key': cartKey,'fields': {
@@ -43,7 +43,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
                 summary['key'] = ''    
             if 'keywords' not in summary:
                 summary['keywords'] = []
-            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'body':summary['body'], 'keywords':summary['keywords'], 'epoch':summary['epoch']})
+            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'epoch':summary['epoch']})
 
     availableCartridges[convoID][cartKey] = cartVal
     cartVal['state'] = ''

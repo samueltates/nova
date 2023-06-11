@@ -5,5 +5,12 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 async def sendChat(promptObj, model):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+    try:
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+    except:
+        try:
+            response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+        except:
+            response = "Assistant did not return a message"
+        
     return response

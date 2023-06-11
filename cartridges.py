@@ -1,12 +1,44 @@
 import json
-from nova import getPromptEstimate, getChatEstimate
+import asyncio
+# from nova import getPromptEstimate, getChatEstimate
 from appHandler import app, websocket
 from prismaHandler import prisma
 from prisma import Json
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
 from debug import eZprint
 from human_id import generate_id
-from loadout import current_loadout, add_cartridge_to_loadout
+# from loadout import current_loadout, add_cartridge_to_loadout
+
+async def addCartridge(cartVal, convoID):
+    eZprint('add cartridge triggered')
+    userID = novaConvo[convoID]['userID']
+    cartKey = generate_id()
+    if 'blocks' not in cartVal:
+        cartVal.update({"blocks":[]})
+    if 'enabled' not in cartVal:
+        cartVal.update({"enabled":True})
+    if 'softDelete' not in cartVal:
+        cartVal.update({"softDelete":False})
+
+    newCart = await prisma.cartridge.create(
+        data={
+            'key': cartKey,
+            'UserID':userID,
+            'blob': Json({cartKey:cartVal})
+        }
+    )
+
+    if convoID not in availableCartridges:
+        availableCartridges[convoID]  = {}
+    availableCartridges[convoID][cartKey] = cartVal
+
+    payload = {
+            'cartKey': cartKey,
+            'cartVal': cartVal,
+        }
+
+    await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
+    return True
 
 
 async def addCartridgePrompt(input):
@@ -23,6 +55,7 @@ async def addCartridgePrompt(input):
             'blob': Json({cartKey:cartVal})
         }
     )
+    
     if convoID not in availableCartridges:
         availableCartridges[convoID]  = {}
     availableCartridges[convoID][cartKey] = cartVal
@@ -30,7 +63,7 @@ async def addCartridgePrompt(input):
             'tempKey': input['tempKey'],
             'newCartridge': {cartKey:cartVal},
         }
-    await add_cartridge_to_loadout(convoID, cartKey)
+    # await add_cartridge_to_loadout(convoID, cartKey)
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 async def addCartridgeTrigger(input):
@@ -61,7 +94,7 @@ async def addCartridgeTrigger(input):
     if convoID not in availableCartridges:
         availableCartridges[convoID] = {}
     availableCartridges[convoID][cartKey] = cartVal
-    await add_cartridge_to_loadout(convoID,cartKey)
+    # await add_cartridge_to_loadout(convoID,cartKey)
 
     return newCart
 
@@ -97,7 +130,7 @@ async def updateCartridgeField(input):
         # print(updatedCart)
     payload = { 'key':targetCartKey,'fields': {'state': ''}}
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    await getPromptEstimate(convoID)
+    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': 'nova', 'state': ''}}))
 
 async def updateContentField(input):
     convoID = input['convoID']
@@ -106,4 +139,4 @@ async def updateContentField(input):
         if log['ID'] == input['ID']:
             for key, val in input['fields'].items():
                 log[key] = val
-    await getChatEstimate(convoID)
+    # await getChatEstimate(convoID)

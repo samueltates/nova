@@ -13,7 +13,8 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialiseCartridges, handleChatInput, handleIndexQuery, summariseChatBlocks
+from nova import initialiseCartridges, handleIndexQuery, summariseChatBlocks
+from chat import handle_message, user_input
 from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
@@ -164,7 +165,7 @@ async def process_message(parsed_data):
         await initialiseCartridges(convoID)
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
-        await handleChatInput(parsed_data['data'])
+        await user_input(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
         print(parsed_data['data']['fields'])
         await updateCartridgeField(parsed_data['data'])
