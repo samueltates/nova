@@ -10,7 +10,9 @@ async def sendChat(promptObj, model):
     except:
         try:
             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
-        except:
+        except Exception as e:
+            print(e)
+            print(promptObj)
             response = "Assistant did not return a message"
-        
+
     return response

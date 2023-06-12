@@ -6,7 +6,7 @@ from sessionHandler import availableCartridges
 from memory import summarise_from_range
 async def handle_commands(command_object, convoID):
     eZprint('handling command')
-    print(command_object)
+    # print(command_object)
     if command_object:
         if 'name' and 'args' in command_object:
             command_response = await parse_command(command_object['name'], command_object['args'], convoID)

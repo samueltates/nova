@@ -13,13 +13,14 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialiseCartridges, handleIndexQuery, summariseChatBlocks
+from nova import initialiseCartridges, handleIndexQuery
 from chat import handle_message, user_input
 from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
+from memory import summariseChatBlocks
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field
 
 app.session = session

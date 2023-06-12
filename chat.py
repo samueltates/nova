@@ -8,12 +8,12 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, chatlog, availableCartridges
+from sessionHandler import novaConvo, chatlog, availableCartridges, novaSession
 from prismaHandler import prisma
 from prompt import construct_prompt, construct_chat_query, current_prompt
 from query import sendChat
 from commands import handle_commands    
-
+from jsonfixes import correct_json
 agentName = 'nova'
 
 
@@ -24,6 +24,8 @@ async def initiate_conversation(convoID):
         novaConvo[convoID] = {}
     novaConvo[convoID]['agent_name'] = agentName
     novaConvo[convoID]['token_limit'] = 4000
+    sessionID = novaConvo[convoID]['sessionID'] 
+    novaSession[sessionID]['latestConvo']= convoID
 
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
@@ -34,7 +36,10 @@ async def user_input(sessionData):
     #takes user iput and runs message cycle
     #TODO add prompt size management
     convoID = sessionData['convoID']
-    message = sessionData['body'].strip()
+    try:
+        message = sessionData['body'].strip()
+    except:
+        message = sessionData['body']
     await handle_message(convoID, message, 'user', sessionData['ID']), 
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
@@ -44,7 +49,7 @@ async def user_input(sessionData):
 
 async def handle_message(convoID, message, role = 'user', key = None):
 
-    eZprint('handling new log')
+    # eZprint('handling new log')
 
     # print(message, role, key)
     #handles input from any source, adding to logs and records 
@@ -89,6 +94,7 @@ async def handle_message(convoID, message, role = 'user', key = None):
             response = await get_json_val(json_object, 'speak')
             copiedMessage['body'] = response
         
+    eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
     asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
 
@@ -119,13 +125,14 @@ async def send_to_GPT(convoID, promptObject):
     json_object = None
     parsed_reply = ''
     json_object = await parse_json_string(content)
+
     await handle_message(convoID, content, 'assistant')
 
     if json_object != None:
         eZprint('response is JSON')
         command = await get_json_val(json_object, 'command')
         if command != None:
-            eZprint('command found')
+            # eZprint('command found')
             command_response = await handle_commands(command, convoID)
             eZprint(command_response)
             if command_response:
@@ -136,7 +143,10 @@ async def send_to_GPT(convoID, promptObject):
                 }
                 command_object = json.dumps(command_object)
                 await handle_message(convoID, command_object, 'system')
-    # await fake_user_input(convoID)
+
+    sessionID = novaConvo[convoID]['sessionID'] 
+    if convoID == novaSession[sessionID]['latestConvo']:
+        await fake_user_input(convoID)
     
 
 async def command_interface(responseVal, convoID):
@@ -153,7 +163,7 @@ async def sendChat(promptObj, model):
     return response
 
 async def logMessage(messageObject):
-    print('logging message')
+    # print('logging message')
 
     log = await prisma.log.find_first(
         where={'SessionID': messageObject['sessionID']}
@@ -204,7 +214,7 @@ async def getNextOrder(convoID):
 
 async def get_json_val(json_object, key_requested):
  
-    eZprint('getting val ' + key_requested+ ' from json')
+    # eZprint('getting val ' + key_requested+ ' from json')
     for responseKey, responseVal in json_object.items():
         if responseVal is not None and not isinstance(responseVal, str):
             for key, val in responseVal.items():
@@ -222,7 +232,7 @@ async def parse_json_string(content):
     # eZprint('parsing json string')
     # print(content)
     json_object = None
-
+    error = None
     try:
         json_object = json.loads(content)
         return json_object
@@ -232,13 +242,16 @@ async def parse_json_string(content):
         print(f"Error parsing JSON: {e}")
         print(content)
 
+
+##########################REMOVE BRACKETS
+
     if json_object == None:
         
         print('clearing anything before and after brackets')
         start_index = content.find('{')
         end_index = content.rfind('}')
         json_data = content[start_index:end_index+1]
-        print(json_data)
+        # print(json_data)
     try: 
         json_object = json.loads(json_data)
         return json_object
@@ -246,17 +259,39 @@ async def parse_json_string(content):
     except ValueError as e:
         # the string is still not valid JSON, print the error message
         print(f"Error parsing JSON: {e}")
+        error = e
+
+##########################MANUALLY REMOVE COMMA
 
     if json_object == None:
-        print('trying to send back to gpt')
+            print('trying manual parsing')
+            json_data = remove_commas_after_property(content)
 
-        system = [{"role": "user", "content": "As a JSON parser, your mission is to clean and reformat JSON strings that have raised exceptions. You'll receive a JSON string as input that doesn't pass validation and can't be loaded with json.loads(). Your goal is to properly format it according to the example schema below so it can be loaded and parsed without errors. Make sure the final output is valid JSON.\n\n" + JSON_SCHEMA}]
-                
-        user =[{"role": "user", "content": content }]
+    try: 
+        json_object = json.loads(json_data)
+        return json_object
+    
+    except ValueError as e:
+        # the string is still not valid JSON, print the error message
+        print(f"Error parsing JSON: {e}")
+          
+##########################AUTOGPT
+    if json_object == None:
+            print('trying auto gpt correct func')
+            json_data = correct_json(content)
 
-        response = await sendChat(system+user, 'gpt-3.5-turbo')
-        json_data = str(response["choices"][0]["message"]["content"])
-        print(json_data)
+    try: 
+        json_object = json.loads(json_data)
+        return json_object
+    
+    except ValueError as e:
+        # the string is still not valid JSON, print the error message
+        print(f"Error parsing JSON: {e}")
+        
+    if json_object == None:
+
+        json_data = await JSON_Parse_request_to_GPT(content, error)
+        # print(json_data)
     try: 
 
         json_object = json.loads(json_data)
@@ -265,7 +300,18 @@ async def parse_json_string(content):
     except ValueError as e:
         # the string is still not valid JSON, print the error message
         print(f"Error parsing JSON: {e}")
+        error = e
 
+    if json_object == None:
+        json_data = await JSON_Parse_request_to_GPT(content, error)
+    try: 
+        json_object = json.loads(json_data)
+        return json_object
+    
+    except ValueError as e:
+        # the string is still not valid JSON, print the error message
+        print(f"Error parsing JSON: {e}")
+        print(content)
     # if json_object == None:
     #     print('trying to parse json with commas')
     #     json_string = re.sub(r',(?!.*})', r'', content)
@@ -287,11 +333,40 @@ def remove_trailing_commas(broken_json):
     # Replace them with just the matched bracket/brace
     return regex.sub(r'\g<1>', broken_json)
 
+def remove_commas_after_property(content):
+    counter = 0
+    lastChar = ''
+    removal_candidate = 0
+    removal_candidates = []
+    for char in content:
+        print(char + ' | ')
+        if not removal_candidate:
+            if char == ',' and lastChar == '"':
+                print('found char for removal')
+                removal_candidate = counter
+        elif removal_candidate :
+            if (char == ',' or char == ' ' or char == '\n') and (lastChar == ',' or lastChar == ' ' or lastChar == '\n'):
+                print('current and last either apostrophe, space or enter')
+                pass
+            elif char == '}' and (lastChar == ' ' or lastChar == ','):
+                print('now on close bracked followed by either space or comma,')
+                removal_candidates.append(removal_candidate)
+            else:
+                print('not on a space followed by comma or a space so not a candidate')
+                removal_candidate = 0
+        counter += 1
+        lastChar = char
+    removal_candidates.reverse()
+    for candidate in removal_candidates:
+        content = content[:candidate] + content[candidate+1:]
+    print (content)
+    return content
+
 
 async def fake_user_input(convoID):
     # await construct_prompt(convoID),
     await construct_chat_query(convoID, True)
-    eZprint('fake user input triggered')
+    # eZprint('fake user input triggered')
     key = secrets.token_bytes(4).hex()
     fake_user = [{"role": "system", "content": "You are playing an interested customer visiting NOVA for the first time, and hoping to learn more about the product. You are not sure what to ask, but you are curious about the product and want to learn more."}]
     fake_user_end = [{"role": "system", "content": "Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from a potential customer."}]
@@ -318,6 +393,20 @@ async def fake_user_input(convoID):
         "ID": key,
     }
     await user_input(fake_session)
+
+
+async def JSON_Parse_request_to_GPT(content, e):
+        print('trying to send back to gpt')
+
+        system = [{"role": "user", "content": "As a JSON parser, your mission is to clean and reformat JSON strings that have raised exceptions. You'll receive a JSON string as input that doesn't pass validation and can't be loaded with json.loads(). Your goal is to properly format it according to the example schema below so it can be loaded and parsed without errors. Make sure the final output is valid JSON.\n\n" + JSON_SCHEMA}]
+                
+        user =[{"role": "user", "content": content }]
+        system =[{"role": "user", "content": f"Error parsing JSON: {e}" }]
+
+        response = await sendChat(user+system, 'gpt-3.5-turbo')
+        json_data = str(response["choices"][0]["message"]["content"])
+        print(json_data)
+        return json_data
 
 broken_json="""
 {

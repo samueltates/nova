@@ -264,13 +264,16 @@ async def get_summary_with_prompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    print(textToSummarise)
+    # print(textToSummarise)
     # model = app.session.get('model')
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
     print(response)
-    return response["choices"][0]["message"]["content"]
+    try:
+        return response["choices"][0]["message"]["content"]
+    except:
+        return response
 
 
 async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta, convoID = ''):
@@ -612,7 +615,7 @@ async def summarise_percent(convoID, percent):
     for log in chatlog[convoID]:
         if 'summarised' not in log:
             if counter <= max:
-                eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
+                # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
                 to_summarise.append(log['ID'])
                 counter += 1
 
@@ -623,24 +626,26 @@ async def summarise_percent(convoID, percent):
     }
 
 
-    payload = {'sumaryID':summaryID, 'messages': to_summarise}
+    payload = {'summaryID':summaryID, 'messages': to_summarise}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
 
     await summariseChatBlocks(summary_block)
 
 async def summarise_from_range(convoID, start, end):
 
+    start = int(start)
+    end = int(end)
     eZprint('summarising from range')
     summaryID = secrets.token_bytes(4).hex()
     to_summarise = []
     counter = 0
     for log in chatlog[convoID]:
-        # if 'summarised' not in log:
+        if 'summarised' not in log:
         # print(log)
         # if log['summarised'] == False:
-        if counter >= start and counter <= end:
-            # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
-            to_summarise.append(log['ID'])
+            if counter >= start and counter <= end:
+                # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
+                to_summarise.append(log['ID'])
         counter += 1
 
     summary_block = {
@@ -649,14 +654,15 @@ async def summarise_from_range(convoID, start, end):
         'summaryID': summaryID,
     }
 
-
-    payload = {'sumaryID':summaryID, 'messages': to_summarise}
+    payload = {'summaryID':summaryID, 'messages': to_summarise}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
     summary_result = await summariseChatBlocks(summary_block)
+    return summary_result
 
 
 
 async def summariseChatBlocks(input):
+    eZprint('summarising chat blocks')
     convoID = input['convoID']
     messageIDs = input['messageIDs']
     summaryID = input['summaryID']
@@ -666,6 +672,8 @@ async def summariseChatBlocks(input):
         for log in chatlog[convoID]:
             if messageID == log['ID']:
                 messagesToSummarise.append(log)
+    print(messagesToSummarise)
+    print(len(messagesToSummarise))
     payload = []   
     summary= ""
     prompt = """
@@ -686,7 +694,12 @@ async def summariseChatBlocks(input):
     """
     summary = await get_summary_with_prompt(prompt, str(messagesToSummarise))
     #wait for 2 seconds
-    summarDict = json.loads(summary)
+    summarDict = {}
+    try:
+        summarDict = json.loads(summary)
+    except:
+        print('error parsing summary')
+        summarDict.update({'title':'error parsing summary', 'body':summary})
     fields = {}
     for key, value in summarDict.items():
       fields[key] = value
@@ -703,10 +716,10 @@ async def summariseChatBlocks(input):
             "blob": Json({summaryID:summarDict})
         }
     )
-    print(summary)
+    # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 
-    chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'body':summaryID, 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
+    chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'body':summarDict['title'], 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
 
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
@@ -724,7 +737,7 @@ async def summariseChatBlocks(input):
             log['summarised'] = True
             log['muted'] = True
             log['minimised'] = True
-            payload = {'ID':log['ID'], 'fields' :{ 'summarised': True}}
+            payload = {'ID':log['ID'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     return True
 

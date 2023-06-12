@@ -40,7 +40,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
     for summary in summaries:
         blob = json.loads(summary.json())['blob']
         for key, val in blob.items():
-            if val['summarised'] == False:
+            if 'summarised ' not in val or val['summarised'] == False:
                 # # print(summary)
                 if userID+convoID not in summaries_available:
                     summaries_available[userID+convoID] = []
@@ -76,7 +76,9 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
                                 notes_available[userID+convoID][subKey] = []
                             if isinstance(subVal, str):
                                 print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
-                                notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
+                                notes_available[userID+convoID][subKey].append({'line':subVal, 'summaryKey':summary.key,'active': False})
+
+                                # notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
                             elif isinstance(subVal, dict):
                                 for subSubKey, subSubVal in subVal[key].items():
                                     if subSubKey in SKIP_KEYS:

@@ -8,7 +8,7 @@ current_prompt = {}
 
 
 async def construct_prompt(convoID):
-    eZprint('constructing chat prompt')
+    # eZprint('constructing chat prompt')
     prompt_string = ''
     keywords_available = []
     documents_available = []
@@ -50,7 +50,7 @@ async def construct_prompt(convoID):
     
 
 async def construct_chat_query(convoID, fake = False):
-    eZprint('constructing chat')
+    # eZprint('constructing chat')
     chat_log = []
     if convoID in chatlog:
         # if len(chatlog[convoID]) == 0:
@@ -80,25 +80,21 @@ async def construct_chat_query(convoID, fake = False):
 
     estimate = await getPromptEstimate(convoID)
 
-    if  estimate > (novaConvo[convoID]['token_limit'])*.3:
-        eZprint('prompt estimate is greater than 50% of token limit')
-        chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [0]  to [" + str(len(chat_log)) + "] (or less) to summarise."})
-    if  estimate > (novaConvo[convoID]['token_limit'])*.6:
-        print('prompt estimate is greater than 60% of token limit')
-        await summarise_percent(convoID, 0.5)
+    if not fake:
 
-    print('chat log is: ' + str(chat_log))
+        if  estimate > (novaConvo[convoID]['token_limit'])*.3:
+            eZprint('prompt estimate is greater than 50% of token limit')
+            chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [0]  to [" + str(len(chat_log)-1) + "] (or less) to summarise."})
+        if  estimate > (novaConvo[convoID]['token_limit'])*.6:
+            print('prompt estimate is greater than 60% of token limit')
+            await summarise_percent(convoID, 0.5)
+
+    # print('chat log is: ' + str(chat_log))
 
 
 async def getPromptEstimate(convoID):
-    eZprint('getting prompt estimate')
-    prompt = ''
-    if convoID not in chatlog:
-        prompt = ''
-    else:
-        for message in chatlog[convoID]:
-            prompt += message['body'] + '\n'
-    prompt_token_count = estimateTokenSize(prompt)
+    # eZprint('getting prompt estimate')
+    prompt_token_count = estimateTokenSize(str(current_prompt[convoID]['chat'])+ str(current_prompt[convoID]['prompt']))
     print('prompt token count is: ' + str(prompt_token_count))
     return prompt_token_count
 
