@@ -1,8 +1,8 @@
 import asyncio
 import json
 from debug import eZprint
-from sessionHandler import availableCartridges, chatlog
-
+from sessionHandler import availableCartridges, chatlog, novaConvo
+from memory import summarise_percent
 current_prompt = {}
 
 
@@ -26,7 +26,7 @@ async def construct_prompt(convoID):
             if cartVal['type'] == 'prompt':
                 prompt_string += cartVal['label'] + ":\n" + cartVal['prompt'] + "\n\n"           
             if cartVal['type'] == 'summary':
-                print(cartVal)
+                # print(cartVal)
                 if 'blocks' in cartVal:
                     for block in cartVal['blocks']:
                         if 'keywords' in block:
@@ -74,11 +74,37 @@ async def construct_chat_query(convoID, fake = False):
             chat_log.append({"role": "user", "content": "Think about current instructions and context, and initiate session with a short greeting using the format specified above:"})
 
 
-    if  chatlog[convoID]['prompt_estimate'] > (chatlog[convoID]['token_limit'])*.7:
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['chat'] = chat_log
 
+    estimate = await getPromptEstimate(convoID)
+
+    if  estimate > (novaConvo[convoID]['token_limit'])*.3:
+        eZprint('prompt estimate is greater than 50% of token limit')
+        chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [0]  to [" + str(len(chat_log)) + "] (or less) to summarise."})
+    if  estimate > (novaConvo[convoID]['token_limit'])*.6:
+        print('prompt estimate is greater than 60% of token limit')
+        await summarise_percent(convoID, 0.5)
+
+    print('chat log is: ' + str(chat_log))
+
+
+async def getPromptEstimate(convoID):
+    eZprint('getting prompt estimate')
+    prompt = ''
+    if convoID not in chatlog:
+        prompt = ''
+    else:
+        for message in chatlog[convoID]:
+            prompt += message['body'] + '\n'
+    prompt_token_count = estimateTokenSize(prompt)
+    print('prompt token count is: ' + str(prompt_token_count))
+    return prompt_token_count
+
+def estimateTokenSize(text):
+    tokenCount =  text.count(' ') + 1
+    return tokenCount
 
 def construct_system_prompt():
     response_format = {
@@ -102,6 +128,9 @@ def construct_system_prompt():
 
 commands_list = """
 \nCommands:\n1. add_note: Creates new note for later reference, args: "title" : <title>, "body" : <body>\n2. list_notes: shows available notes, args: "note": "<note title>"\n3. append_to_note: Append note with new line, args: "note": "<note title>, "new line":<new line>"""
+
+summary_command = ""
+
 # \n3. append_to_file: Append to file, args: "filename": "<filename>", "text": "<text>
 
 # \n4. delete_file: Delete file, args: "filename": "<filename>"\n5. list_files: List Files in Directory, args: "directory": "<directory>"\n6. read_file: Read a file, args: "filename": "<filename>"\n7. write_to_file: Write to file, args: "filename": "<filename>", "text": "<text>"\
@@ -109,8 +138,9 @@ commands_list = """
 
 
 full_copy = """
-\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n6. open_note: Open a note, args: "label": "<labelname>"\n7. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "text": "<text>"
+\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n5. open_note: Open a note, args: "label": "<labelname>"\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "text": "<text>" \n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" <text>
 """
+
 # \n8. google: Google Search, args: "query": "<query>"
 # \n9. improve_code: Get Improved Code, args: "suggestions": "<list_of_suggestions>", "code": "<full_code_string>"\n10. browse_website: Browse Website, args: "url": "<url>", "question": "<what_you_want_to_find_on_website>"\n11. write_tests: Write Tests, args: "code": "<full_code_string>", "focus": "<list_of_focus_areas>"\n12. delete_agent: Delete GPT Agent, args: "key": "<key>"\n13. get_hyperlinks: Get hyperlinks, args: "url": "<url>"\n14. get_text_summary: Get text summary, args: "url": "<url>", "question": "<question>"\n15. list_agents: List GPT Agents, args: () -> str\n16. message_agent: Message GPT Agent, args: "key": "<key>", "message": "<message>"\n17. start_agent: Start GPT Agent, args: "name": "<name>", "task": "<short_task_desc>", "prompt": "<prompt>"\n18. task_complete: Task Complete (Shutdown), args: "reason": "<reason>"
 # 

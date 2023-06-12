@@ -3,7 +3,7 @@ from keywords import get_summary_from_keyword, keywords_available
 from debug import eZprint
 from cartridges import addCartridge, updateCartridgeField
 from sessionHandler import availableCartridges
-
+from memory import summarise_from_range
 async def handle_commands(command_object, convoID):
     eZprint('handling command')
     print(command_object)
@@ -18,18 +18,28 @@ async def handle_commands(command_object, convoID):
 async def parse_command(name, args, convoID):
     eZprint('parsing command')
     command_return = {"status": "", "name" : name, "message": ""}
+    if name == 'summarise_conversation':
+        eZprint('summarising conversation')
+        summmarised = await summarise_from_range(convoID, args['start-line'], args['end-line'])
+        if summmarised:
+            command_return['status'] = "success"
+            command_return['message'] = "summary completed" 
+            print(command_return)
+        else:
+            command_return['status'] = "error"
+            command_return['message'] = "summary failed"
+            print(command_return)
+        return command_return
     if name == 'create_note':
         eZprint('creating note')
         if 'label' not in args:
-            command_return['status'] = "error"
+            args['label'] = ''
+            command_return['status'] = "warning"
             command_return['message'] = "no label supplied"
-            return command_return
         if 'body' not in args:
             args['body'] = ''
-            return
         blocks = []
         blocks.append({'body': args['body']})
-
         cartVal = {
         'label' : args['label'],
         'blocks' :blocks,

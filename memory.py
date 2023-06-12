@@ -603,16 +603,58 @@ batch_summary_prompt = """
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
 
-async def handle_ongoing_summaries(userID, convoID):
-
-    summary_candidates = []
+async def summarise_percent(convoID, percent):
+    eZprint('summarising percent')
+    summaryID = secrets.token_bytes(4).hex()
+    to_summarise = []
+    counter = 0
+    max = len(chatlog[convoID]) * percent
     for log in chatlog[convoID]:
-        if log['summary'] == False:
+        if 'summarised' not in log:
+            if counter <= max:
+                eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
+                to_summarise.append(log['ID'])
+                counter += 1
+
+    summary_block = {
+        'convoID': convoID,
+        'messageIDs': to_summarise,
+        'summaryID': summaryID,
+    }
 
 
+    payload = {'sumaryID':summaryID, 'messages': to_summarise}
+    await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
 
-    await get_summaries(userID, convoID)
-    return False
+    await summariseChatBlocks(summary_block)
+
+async def summarise_from_range(convoID, start, end):
+
+    eZprint('summarising from range')
+    summaryID = secrets.token_bytes(4).hex()
+    to_summarise = []
+    counter = 0
+    for log in chatlog[convoID]:
+        # if 'summarised' not in log:
+        # print(log)
+        # if log['summarised'] == False:
+        if counter >= start and counter <= end:
+            # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
+            to_summarise.append(log['ID'])
+        counter += 1
+
+    summary_block = {
+        'convoID': convoID,
+        'messageIDs': to_summarise,
+        'summaryID': summaryID,
+    }
+
+
+    payload = {'sumaryID':summaryID, 'messages': to_summarise}
+    await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
+    summary_result = await summariseChatBlocks(summary_block)
+
+
 
 async def summariseChatBlocks(input):
     convoID = input['convoID']
@@ -668,24 +710,23 @@ async def summariseChatBlocks(input):
 
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
-            where={'id': log['id']}
+            where={'key': log['ID']}
         )
         if remoteMessage:
             updatedMessage = await prisma.message.update(
-                where={ 'id': log['ID'] },
+                where={ 'id': remoteMessage.id },
                 data={
-                    'summaryState': 'SUMMARISED',
+                    'summarised': True,
                     'muted': True,
                     'minimised': True,
-                    'summaryID': summaryID
                  }
             )
-            log['summaryState'] = 'SUMMARISED'
+            log['summarised'] = True
             log['muted'] = True
             log['minimised'] = True
-            payload = {'ID':log['ID'], 'fields' :{ 'summaryState': 'SUMMARISED'}}
+            payload = {'ID':log['ID'], 'fields' :{ 'summarised': True}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
-
+    return True
 
 # async def main() -> None:
 #     eZprint('running main')

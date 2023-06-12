@@ -20,10 +20,10 @@ agentName = 'nova'
 
 async def initiate_conversation(convoID):
     
-    if convoID not in chatlog:
-        chatlog[convoID] = {}
-    chatlog[convoID]['agent_name'] = agentName
-    chatlog[convoID]['token_limit'] = 4000
+    if convoID not in novaConvo:
+        novaConvo[convoID] = {}
+    novaConvo[convoID]['agent_name'] = agentName
+    novaConvo[convoID]['token_limit'] = 4000
 
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
@@ -78,18 +78,12 @@ async def handle_message(convoID, message, role = 'user', key = None):
         "order": order,
     }
 
-    
-    estimate = getPromptEstimate(convoID)
-    chatlog[convoID]['prompt_estimate'] = estimate
-    if estimate > chatlog[convoID]['token_limit']:
-        print('prompt too big')
-
     chatlog[convoID].append(messageObject)
     asyncio.create_task(logMessage(messageObject))
     copiedMessage = deepcopy(messageObject)
-
+    
     if( role != 'user'):
-        json_object = parse_json_string(message)
+        json_object = await parse_json_string(message)
         if json_object != None:
             copiedMessage = deepcopy(messageObject)
             response = await get_json_val(json_object, 'speak')
@@ -104,16 +98,27 @@ async def send_to_GPT(convoID, promptObject):
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
     # print(promptObject)
+    content = ''
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
-    response = await sendChat(promptObject, 'gpt-3.5-turbo')
-    content = str(response["choices"][0]["message"]["content"])
+    try:
+        response = await sendChat(promptObject, 'gpt-3.5-turbo')
+        content = str(response["choices"][0]["message"]["content"])
+    except Exception as e:
+        print(e)
+        print('trying again')
+        try: 
+            response = await sendChat(promptObject, 'gpt-3.5-turbo')
+            content = str(response["choices"][0]["message"]["content"])
+
+        except Exception as e:
+            print(e)
+            content = e
     eZprint('response recieved')
-    print(response)
 
     ##check if response string is able to be parsed as JSON or is just a  or string
     json_object = None
     parsed_reply = ''
-    json_object = parse_json_string(content)
+    json_object = await parse_json_string(content)
     await handle_message(convoID, content, 'assistant')
 
     if json_object != None:
@@ -131,7 +136,7 @@ async def send_to_GPT(convoID, promptObject):
                 }
                 command_object = json.dumps(command_object)
                 await handle_message(convoID, command_object, 'system')
-    await fake_user_input(convoID)
+    # await fake_user_input(convoID)
     
 
 async def command_interface(responseVal, convoID):
@@ -141,9 +146,6 @@ async def command_interface(responseVal, convoID):
     handle_message(convoID, system_response, 'system')
     
 
-def estimateTokenSize(text):
-    tokenCount =  text.count(' ') + 1
-    return tokenCount
 
 async def sendChat(promptObj, model):
     loop = asyncio.get_event_loop()
@@ -174,6 +176,7 @@ async def logMessage(messageObject):
     # print(messageObject)
     message = await prisma.message.create(
         data={
+            "key": messageObject['ID'],
             "UserID": str(messageObject['userID']),
             "SessionID": str(messageObject['sessionID']),
             "name": str(messageObject['userName']),
@@ -197,15 +200,7 @@ async def getNextOrder(convoID):
     return next_order
 
 
-async def getPromptEstimate(convoID):
-    prompt = ''
-    if convoID not in chatlog:
-        prompt = ''
-    else:
-        for message in chatlog[convoID]:
-            prompt += message['body'] + '\n'
-    prompt_token_count = estimateTokenSize(prompt)
-    return prompt_token_count
+
 
 async def get_json_val(json_object, key_requested):
  
@@ -222,7 +217,7 @@ async def get_json_val(json_object, key_requested):
 
 
 
-def parse_json_string(content):
+async def parse_json_string(content):
 
     # eZprint('parsing json string')
     # print(content)
@@ -253,17 +248,36 @@ def parse_json_string(content):
         print(f"Error parsing JSON: {e}")
 
     if json_object == None:
-        print('trying to parse json with commas')
-        json_string = re.sub(r',(?!.*})', r'', content)
-        print(json_string)
+        print('trying to send back to gpt')
 
+        system = [{"role": "user", "content": "As a JSON parser, your mission is to clean and reformat JSON strings that have raised exceptions. You'll receive a JSON string as input that doesn't pass validation and can't be loaded with json.loads(). Your goal is to properly format it according to the example schema below so it can be loaded and parsed without errors. Make sure the final output is valid JSON.\n\n" + JSON_SCHEMA}]
+                
+        user =[{"role": "user", "content": content }]
+
+        response = await sendChat(system+user, 'gpt-3.5-turbo')
+        json_data = str(response["choices"][0]["message"]["content"])
+        print(json_data)
     try: 
-        json_object = json.loads(json_string)
+
+        json_object = json.loads(json_data)
         return json_object
     
     except ValueError as e:
         # the string is still not valid JSON, print the error message
         print(f"Error parsing JSON: {e}")
+
+    # if json_object == None:
+    #     print('trying to parse json with commas')
+    #     json_string = re.sub(r',(?!.*})', r'', content)
+    #     print(json_string)
+
+    # try: 
+    #     json_object = json.loads(json_string)
+    #     return json_object
+    
+    # except ValueError as e:
+    #     # the string is still not valid JSON, print the error message
+    #     print(f"Error parsing JSON: {e}")
     
     return None
 
@@ -282,10 +296,22 @@ async def fake_user_input(convoID):
     fake_user = [{"role": "system", "content": "You are playing an interested customer visiting NOVA for the first time, and hoping to learn more about the product. You are not sure what to ask, but you are curious about the product and want to learn more."}]
     fake_user_end = [{"role": "system", "content": "Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from a potential customer."}]
     query_object = fake_user + current_prompt[convoID]['chat']  + fake_user_end
-    print(query_object)
-    response = await sendChat(query_object, 'gpt-3.5-turbo')
-    content = str(response["choices"][0]["message"]["content"])
-    print(content)
+    # print(query_object)
+    try:
+        response = await sendChat(query_object, 'gpt-3.5-turbo')
+        content = str(response["choices"][0]["message"]["content"])
+    except Exception as e:
+        print(e)
+        print('trying again')
+        try: 
+            response = await sendChat(query_object, 'gpt-3.5-turbo')
+            content = str(response["choices"][0]["message"]["content"])
+
+        except Exception as e:
+            print(e)
+            content = e
+        
+    # print(content)
     fake_session = {    
         "convoID": convoID,
         "body": content,
@@ -317,3 +343,21 @@ broken_json="""
 # if __name__ == '__main__':
 #     asyncio.run(main())
 
+JSON_SCHEMA = """
+{
+    "command": {
+        "name": "command name",
+        "args": {
+            "arg name": "value"
+        }
+    },
+    "thoughts":
+    {
+        "text": "thought",
+        "reasoning": "reasoning",
+        "plan": "- short bulleted\n- list that conveys\n- long-term plan",
+        "criticism": "constructive self-criticism",
+        "speak": "thoughts summary to say to user"
+    }
+}
+"""
