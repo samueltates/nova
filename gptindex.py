@@ -2,11 +2,13 @@ import logging
 import sys
 import tempfile
 import json
-import nova
 import base64
 import os
 from appHandler import app, websocket
 import asyncio
+
+from cartridges import addCartridgeTrigger
+from debug import eZprint
 
 from GoogleDocsReader import GoogleDocsReader 
 from UnstructuredReader import UnstructuredReader
@@ -36,7 +38,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
 async def indexDocument(payload):
-    nova.eZprint('indexDocument called')
+    eZprint('indexDocument called')
     # print(payload)
 
     userID = payload['userID']
@@ -63,7 +65,7 @@ async def indexDocument(payload):
         file_name = payload['file_name']
         documentTitle = file_name
         file_type = payload['file_type']
-        nova.eZprint('reconstructing file')
+        eZprint('reconstructing file')
         payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
         await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
         print(file_type)
@@ -80,10 +82,10 @@ async def indexDocument(payload):
     index = None
     if(indexType == 'Vector'):
         # index = GPTSimpleVectorIndex.from_documents(documents)
-        nova.eZprint('vector index created')
+        eZprint('vector index created')
     if(indexType == 'List'):
         index = GPTListIndex.from_documents(document)
-        nova.eZprint('list index created')
+        eZprint('list index created')
 
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
@@ -117,10 +119,10 @@ async def indexDocument(payload):
         'cartVal': cartVal,
         }
 
-    newCart = await nova.addCartridgeTrigger(cartUpdate)
+    newCart = await addCartridgeTrigger(cartUpdate)
     payload = { 'key':tempKey,'fields': {'label':documentTitle, 'status': 'index created, getting summary'}}
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    nova.eZprint('printing new cartridge')
+    eZprint('printing new cartridge')
     return newCart
 
 async def reconstructIndex(indexJson):
@@ -139,7 +141,7 @@ async def reconstructIndex(indexJson):
             print(f"Error writing file: {str(e)}")
 
     storage_context = StorageContext.from_defaults(persist_dir=tmpDir, )
-    nova.eZprint("reconstructIndex: storage_context={}".format(storage_context))
+    eZprint("reconstructIndex: storage_context={}".format(storage_context))
     index = load_index_from_storage(storage_context)
     return index
 
@@ -162,13 +164,13 @@ async def queryIndex(queryString, index, indexType ):
         response_gpt = index.query(
             queryString
         )
-        nova.eZprint(response_gpt)
+        eZprint(response_gpt)
         return response_gpt
     if(indexType == 'List'):
         # index = GPTListIndex.load_from_disk(tmpfile.name)
         loop = asyncio.get_event_loop()
         query_engine = index.as_query_engine()
         response = await loop.run_in_executor(None, lambda: query_engine.query(queryString))
-        nova.eZprint(response)
+        eZprint(response)
         return response 
 
