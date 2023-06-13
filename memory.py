@@ -20,8 +20,8 @@ windows = {}
 async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 
     window_counter = 0
-    # if 'blocks' not in cartVal:
-    cartVal['blocks'] = []
+    if 'blocks' not in cartVal:
+        cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     cartVal['status'] = ''
     payload = { 'key': cartKey,'fields': {
@@ -73,30 +73,30 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
         await summarise_messages(userID, convoID)
         eZprint('messages summarised')
 
-        await get_summaries(userID, convoID)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        # await get_summaries(userID, convoID)
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
         # await summarise_groups(userID, convoID)    
         # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
         eZprint('groups summarised')
 
-        await get_summaries(userID, convoID)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        # await get_summaries(userID, convoID)
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
         
         windows[userID+convoID] = []
         epochs_summarised = await summarise_epochs(userID, convoID)
         while not epochs_summarised:
             await asyncio.sleep(1)
-            print('epoch overloaded')
-            await get_summaries(userID, convoID)
-            await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+            # print('epoch overloaded')
+            # await get_summaries(userID, convoID)
+            # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
             epochs_summarised = await summarise_epochs(userID, convoID)
 
         
-        await get_summaries(userID, convoID)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        # await get_summaries(userID, convoID)
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
     
 

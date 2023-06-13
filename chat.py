@@ -33,7 +33,7 @@ async def initiate_conversation(convoID):
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
     await send_to_GPT(convoID, query_object)
 
-async def user_input(sessionData):
+async def user_input(sessionData, fake = False):
     #takes user iput and runs message cycle
     #TODO add prompt size management
     convoID = sessionData['convoID']
@@ -42,7 +42,10 @@ async def user_input(sessionData):
     except:
         message = sessionData['body']
 
-    await handle_message(convoID, message, 'user', sessionData['ID']), 
+    if fake == True:
+        await handle_message(convoID, message, 'fake', sessionData['ID'])
+    else:
+        await handle_message(convoID, message, 'user', sessionData['ID']), 
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
@@ -56,14 +59,20 @@ async def handle_message(convoID, message, role = 'user', key = None):
     # print(message, role, key)
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
-
+    fake = False
     userID = novaConvo[convoID]['userID']
     if role == 'user':
         userName = novaConvo[convoID]['userName']
     elif role == 'assistant':
         userName = agentName
+    elif role == 'fake':
+        fake = True
+        userName = 'Archer'
+        role = 'user'
     else:
         userName = 'system'
+
+    
 
     sessionID = novaConvo[convoID]['sessionID']
 
@@ -89,7 +98,7 @@ async def handle_message(convoID, message, role = 'user', key = None):
     asyncio.create_task(logMessage(messageObject))
     copiedMessage = deepcopy(messageObject)
     
-    if( role != 'user'):
+    if( role != 'user' or fake == True):
         json_object = await parse_json_string(message)
         if json_object != None:
             copiedMessage = deepcopy(messageObject)
@@ -151,6 +160,7 @@ async def send_to_GPT(convoID, promptObject):
     # sessionID = novaConvo[convoID]['sessionID'] 
     # if convoID == novaSession[sessionID]['latestConvo']:
     #     await fake_user_input(convoID)
+    #     novaConvo[convoID]['userName'] = "Archer"
     
 
 async def command_interface(responseVal, convoID):
@@ -367,13 +377,15 @@ def remove_commas_after_property(content):
     return content
 
 
+
+
 async def fake_user_input(convoID):
     # await construct_prompt(convoID),
     await construct_chat_query(convoID, True)
     # eZprint('fake user input triggered')
     key = secrets.token_bytes(4).hex()
-    fake_user = [{"role": "system", "content": "You are playing an interested customer visiting NOVA for the first time, and hoping to learn more about the product. You are not sure what to ask, but you are curious about the product and want to learn more."}]
-    fake_user_end = [{"role": "system", "content": "Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from a potential customer."}]
+    fake_user = [{"role": "system", "content": fake_user_prompt_elderly}]
+    fake_user_end = [{"role": "system", "content": fake_user__system_elderly}]
     query_object = fake_user + current_prompt[convoID]['chat']  + fake_user_end
     # print(query_object)
     try:
@@ -395,8 +407,25 @@ async def fake_user_input(convoID):
         "convoID": convoID,
         "body": content,
         "ID": key,
+
+
     }
-    await user_input(fake_session)
+    await user_input(fake_session, fake = True)
+
+
+###fake user customer#
+fake_user_prompt="""You are playing an interested customer visiting NOVA for the first time, and hoping to learn more about the product. You are not sure what to ask, but you are curious about the product and want to learn more.
+"""
+fake_user__system = """
+Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from a potential customer.
+"""
+
+###fake user elderly person entering a session of reminiscence therapy###
+fake_user_prompt_elderly="""You are playing an elderly person entering a session of reminiscence therapy. You want to explore old memories and will bring up cherished and painful memories when prompted. You are initially uncertain but become familiar and comfortable with the agent in later sessions"""
+
+fake_user__system_elderly = """
+Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from an elderly person entering a session of reminiscence therapy.
+"""
 
 
 async def JSON_Parse_request_to_GPT(content, e):

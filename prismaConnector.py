@@ -15,6 +15,10 @@ async def deleteSummaries(userID):
         where = {'UserID' : userID,}
     )
 
+async def deleteMessages(userID):
+    messages = await prisma.message.delete_many(
+        where = {'UserID' : userID,}
+    )
 
 async def findSummaries(userID, epoch = None, summarised = None):
     summaries = await prisma.summary.find_many(
@@ -350,9 +354,10 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs('108238407115881872743')
-    await findSummaries('110327569930296986874')
+    # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
-    # await deleteSummaries('110327569930296986874')
+    await deleteMessages('108238407115881872743')
+    await deleteSummaries('108238407115881872743')
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')

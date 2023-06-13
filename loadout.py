@@ -5,6 +5,7 @@ from appHandler import app, websocket
 from nova import availableCartridges, runCartridges
 from sessionHandler import novaConvo, current_loadout, available_loadouts
 from human_id import generate_id
+from chat import initiate_conversation
 
 
 async def get_loadouts(convoID):
@@ -82,7 +83,7 @@ async def handle_referal(loadout_key: str, convoID):
         remote_cartridges = await prisma.cartridge.find_first(
             where={ "key": cartridge },
         )
-        print(remote_cartridges)
+        # print(remote_cartridges)
         cartridges_to_add.append(remote_cartridges)
     
     if len(cartridges_to_add) != 0:
@@ -91,7 +92,7 @@ async def handle_referal(loadout_key: str, convoID):
             if config.shared:
                 blob = json.loads(cartridge.json())
                 for cartKey, cartVal in blob['blob'].items():
-                    if 'softDelete' not in cartVal:
+                    if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                         print(cartVal)
                         availableCartridges[convoID][cartKey] = cartVal
             else:
@@ -103,9 +104,10 @@ async def handle_referal(loadout_key: str, convoID):
                         "blob": cartridge.blob,
                     })
 
-        await runCartridges(convoID)    
-
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        
+        await runCartridges(convoID)    
+        await initiate_conversation(convoID)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
@@ -150,6 +152,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                     # cartVal.update({'via_loadout': True})
 
         await runCartridges(convoID)    
+        await initiate_conversation(convoID)
 
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
 

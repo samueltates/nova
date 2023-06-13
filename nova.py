@@ -61,8 +61,8 @@ async def runCartridges(convoID):
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
-                asyncio.create_task(get_summaries(userID, convoID))
-                asyncio.create_task(update_cartridge_summary(userID, cartKey, cartVal, convoID))
+                cartVal['blocks'] = []
+
                 asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
                 # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
                 asyncio.create_task(summarise_convos(convoID, cartKey, cartVal))

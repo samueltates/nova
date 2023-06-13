@@ -5,7 +5,7 @@ from prismaHandler import prisma
 from sessionHandler import novaConvo
 from debug import eZprint
 
-SKIP_KEYS = {'key', 'overview', 'timestamp', 'first-doc', 'last-doc', 'body', 'title', 'meta', 'epoch', 'sourceIDs', 'summarised', 'keywords'}
+SKIP_KEYS = {'key', 'overview', 'timestamp', 'first-doc', 'last-doc', 'body', 'title', 'meta', 'epoch', 'sourceIDs', 'summarised', 'keywords', 'end', 'start', 'Participants', 'Session ID', 'sources', 'timeRange', 'end line', 'start line'}
 
 summaries_available = {}
 keywords_available = {}
@@ -15,7 +15,8 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
 
     eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaConvo[convoID]['userID']
-    cartVal['blocks'] = []
+    if 'blocks' not in cartVal:
+        cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     payload = { 'key': cartKey,
                'fields': {
@@ -103,6 +104,36 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
                 'blocks': cartVal['blocks']
                         }}
     
+          
+    print('notes')
+        
+    if 'blocks' not in cartVal:
+        cartVal['blocks'] = []
+    for key, val in notes_available[userID+convoID].items():
+        print('--'+key) 
+        block = {'label': key}
+        line = ''
+        lastline = ''
+        for note in val:
+            print(note['line'])
+            if note['line'] == lastline:
+                continue
+            line += str(note['line']) + '\n'
+            lastline = note['line']
+        block.update({'text': line})
+        cartVal['blocks'].append(block)
+
+
+    cartVal['state'] = ''
+    payload = { 'key': cartKey,
+               'fields': {
+                'state': cartVal['state'],
+                'blocks': cartVal['blocks']
+                        }}
+    
+
+    
+    
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
 
 
@@ -125,16 +156,7 @@ async def get_summary_from_keyword(convoID, supplied_keyword, cartVal):
 
     #     for records in keywords_available[userID+convoID][keywords]:
     #         print(records['title'])
-      
-    print('notes')
-    for key, val in notes_available[userID+convoID].items():
-        print('--'+key) 
-        for note in val:
-            print(note['line'] + ' from ' + str(note['sourceID']) + ' at ' + str(note['timestamp']))
 
-    
-
-    
 # async def sort_layers_by_key(object):
 #     for key in object.keys():
 #             if key in SKIP_KEYS: 
