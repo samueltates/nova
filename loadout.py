@@ -5,7 +5,7 @@ from appHandler import app, websocket
 from nova import availableCartridges, runCartridges
 from sessionHandler import novaConvo, current_loadout, available_loadouts
 from human_id import generate_id
-from chat import initiate_conversation
+from chat import agent_initiate_convo
 
 
 async def get_loadouts(convoID):
@@ -107,7 +107,8 @@ async def handle_referal(loadout_key: str, convoID):
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
         
         await runCartridges(convoID)    
-        await initiate_conversation(convoID)
+        if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
+            await agent_initiate_convo(convoID)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
@@ -151,10 +152,13 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                     # cartVal.update({'enabled': True})
                     # cartVal.update({'via_loadout': True})
 
-        await runCartridges(convoID)    
-        await initiate_conversation(convoID)
-
+        
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        await runCartridges(convoID)    
+        if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
+            await agent_initiate_convo(convoID)
+
+
 
 
 async def delete_loadout(loadout_key: str, convoID):

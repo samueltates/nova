@@ -9,10 +9,10 @@ import openai
 from human_id import generate_id
 from datetime import datetime
 from prisma import Json
-from chat import initiate_conversation
+from chat import agent_initiate_convo
 #NOVA STUFF
 from appHandler import app, websocket
-from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
+from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession
 from prismaHandler import prisma
 from memory import summarise_convos, get_summaries, update_cartridge_summary
 
@@ -24,15 +24,40 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
  
 ##CARTRIDGE MANAGEMENT
+
+
+
+
+async def initialise_conversation(convoID, params):
+    ##session setup stuff should be somewhere else
+    eZprint('initialising conversation')
+    print(params)
+    if 'fake_user' in params and params['fake_user'] == 'True':
+        eZprint('fake user detected')
+        novaConvo[convoID]['fake_user'] = True 
+        novaConvo[convoID]['userName'] = "Archer"
+
+    if 'agent_initiated' in params and params['agent_initiated'] == 'True':
+        eZprint('agent initiated convo')
+        novaConvo[convoID]['agent_initiated'] = True
+
+    if convoID not in novaConvo:
+        novaConvo[convoID] = {}
+    novaConvo[convoID]['agent_name'] = agentName
+    novaConvo[convoID]['token_limit'] = 4000
+    sessionID = novaConvo[convoID]['sessionID'] 
+    novaSession[sessionID]['latestConvo']= convoID
+
 async def initialiseCartridges(convoID):
     
     eZprint('intialising cartridges')
-    novaConvo[convoID]['owner'] = True
 
+    novaConvo[convoID]['owner'] = True
     await loadCartridges(convoID)
     await runCartridges(convoID)
-    await initiate_conversation(convoID)
-    # await run_memory(convoID)
+
+    if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
+        await agent_initiate_convo(convoID)
 
 async def loadCartridges(convoID):
     eZprint('load cartridges called')
@@ -62,8 +87,9 @@ async def runCartridges(convoID):
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 cartVal['blocks'] = []
-
-                asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
+                await get_summaries(userID, convoID)
+                await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
                 # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
                 asyncio.create_task(summarise_convos(convoID, cartKey, cartVal))
                 # print(availableCartridges[convoID])

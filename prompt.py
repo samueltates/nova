@@ -2,7 +2,7 @@ import asyncio
 import json
 from debug import eZprint
 from sessionHandler import availableCartridges, chatlog, novaConvo
-from memory import summarise_percent
+from memory import summarise_percent, get_sessions
 current_prompt = {}
 
 
@@ -14,6 +14,7 @@ async def construct_prompt(convoID):
     documents_available = ''
     summary_string = ''
     notes_available = ''
+    await get_sessions(convoID)
 
     #TODO - abstract to prompt build / chat build + estimate, to be called on inputs / updates (combine with estimate)
     
@@ -52,7 +53,13 @@ async def construct_prompt(convoID):
                 notes_available += "\n\n"
 
 
+    token_limit = novaConvo[convoID]['token_limit']
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
+    token_usage_string = ''
+    if convoID in chatlog:
+        if len(chatlog[convoID]) > 0:
+            estimate = await getPromptEstimate(convoID)
+            token_usage_string =  f"""Current session context is {estimate} tokens, maximum tokens are {token_limit}. Close notes or summarise chat to reduce tokens.\n"""
 
     if 'sessions' in novaConvo[convoID]:
         if novaConvo[convoID]['sessions'] > 0:
@@ -70,10 +77,10 @@ async def construct_prompt(convoID):
     if documents_available != '':   
         documents_available = "Documents:\n" + documents_available + "\n\n"
     if notes_available != '':
-        notes_available = "Notes:\n" + notes_available + "\n\n"
+        notes_available = "Open Notes:\n" + notes_available + "\n\n"
 
 
-    final_prompt = session_string + summary_string + prompt_string + system_string + documents_available + notes_available+full_copy + resources_list
+    final_prompt = prompt_string + session_string + summary_string + token_usage_string + system_string + documents_available + notes_available + command_string + resources_list
 
     # summary_object = [{'role': 'system', 'content': summary_string}]
     prompt_object = [{"role": "system", "content": final_prompt }]
@@ -122,10 +129,9 @@ async def construct_chat_query(convoID, fake = False):
         estimate += estimateTokenSize(log['content'])
 
     if not fake:
-
         if  estimate > (novaConvo[convoID]['token_limit'])*.7:
-            eZprint('prompt estimate is greater than 50% of token limit')
-            chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [" + str(summary_count) + "]  to [" + str(len(chat_log)-2) + "] (or less) to summarise."})
+            eZprint('prompt estimate is greater than 70% of token limit')
+            chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Close unneeded open notes or use 'summarise_conversation'. Available lines [" + str(summary_count) + "]  to [" + str(len(chat_log)-2) + "]"})
         if  estimate > (novaConvo[convoID]['token_limit'])*.8:
             print('prompt estimate is greater than 60% of token limit')
             await summarise_percent(convoID, 0.5)
@@ -175,8 +181,31 @@ summary_command = ""
 
 
 full_copy = """
-\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n5. open_note: Open a note, args: "label": "<labelname>"\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "query": "<text>" \n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" <text>
-\n9. search_summaries: Use keyword or title to search conversation summaries, args: "query" : <text>, "notes" <text>\n10. create_prompt: Create new prompt used to direct Agent, args: "prompt-text" : <text>, "prompt-title" : <text>, "start-enabled" : <bool>\n"""
+\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. """
+
+
+create_note = """\n1. create_note: Create Note , args: "label": "<label_string>", "body": "<body_string>"\n"""
+append_note = """\n2. append_note: Append Note, args: "label": "<filename>", "line" : "<new_line>"\n """
+list_files = """\n3. list_files: List available files that aren't open, args: "type": "<resource type>"\n"""
+open_note = """\n4. open_note: Open a note, args: "label": "<labelname>"\n"""
+close_note = """\n5. close_note: Close a note, args: "label": "<labelname>"\n"""
+
+list_documents = """\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n"""
+
+query_document = """\n7. query_document: Query document embedding, args: "document": "<filename>", "query": "<text>"\n"""
+
+summarise_conversation = """\n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" "<text>"\n"""
+
+search_summaries = """\n9. search_summaries: Use keyword or title to search conversation summaries, args: "query" : <text>, "notes" <text>"\n"""
+
+create_prompt = """\n10. create_prompt: Create new prompt for yourself, args: "prompt-text" : <text>, "prompt-title" : "<text>", "start-enabled" : "<bool>"\n"""
+enable_prompt = """\n11. enable_prompt: Enable prompt, args: "prompt-title" : "<text>"\n"""
+disable_prompt = """\n12. disable_prompt: Disable prompt, args: "prompt-title" : "<text>"\n"""
+
+glossary = """\n\nCommand Instructions:\nWhen you see see information worth preserving you will create a note, or append content to an existing one. \nYou will list files to find answers or existing notes that might be relavent. \nYou will be able to create new behaviours for yourself by creating a prompt, and triggering them by enabling or disabling. \nYou will manage your memory by closing unneeded notes, disabling uneeded prompts and summarising sections of the conversations. \nThe user will not use these commands and you will not mention them, they will be used by you to achieve your goals.\n"""
+
+command_string = full_copy + create_note + append_note + list_files + open_note + close_note + list_documents + query_document + summarise_conversation + search_summaries + create_prompt + enable_prompt + disable_prompt + glossary
+
 
 # \n8. google: Google Search, args: "query": "<query>"
 # \n9. improve_code: Get Improved Code, args: "suggestions": "<list_of_suggestions>", "code": "<full_code_string>"\n10. browse_website: Browse Website, args: "url": "<url>", "question": "<what_you_want_to_find_on_website>"\n11. write_tests: Write Tests, args: "code": "<full_code_string>", "focus": "<list_of_focus_areas>"\n12. delete_agent: Delete GPT Agent, args: "key": "<key>"\n13. get_hyperlinks: Get hyperlinks, args: "url": "<url>"\n14. get_text_summary: Get text summary, args: "url": "<url>", "question": "<question>"\n15. list_agents: List GPT Agents, args: () -> str\n16. message_agent: Message GPT Agent, args: "key": "<key>", "message": "<message>"\n17. start_agent: Start GPT Agent, args: "name": "<name>", "task": "<short_task_desc>", "prompt": "<prompt>"\n18. task_complete: Task Complete (Shutdown), args: "reason": "<reason>"

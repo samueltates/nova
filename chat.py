@@ -19,19 +19,13 @@ agentName = 'nova'
 
 
 
-async def initiate_conversation(convoID):
-    
-    if convoID not in novaConvo:
-        novaConvo[convoID] = {}
-    novaConvo[convoID]['agent_name'] = agentName
-    novaConvo[convoID]['token_limit'] = 4000
-    sessionID = novaConvo[convoID]['sessionID'] 
-    novaSession[sessionID]['latestConvo']= convoID
-    await get_sessions(convoID)
+
+async def agent_initiate_convo(convoID):
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
     await send_to_GPT(convoID, query_object)
+
 
 async def user_input(sessionData, fake = False):
     #takes user iput and runs message cycle
@@ -98,12 +92,20 @@ async def handle_message(convoID, message, role = 'user', key = None):
     asyncio.create_task(logMessage(messageObject))
     copiedMessage = deepcopy(messageObject)
     
-    if( role != 'user' or fake == True):
+    if role != 'user' :
         json_object = await parse_json_string(message)
         if json_object != None:
             copiedMessage = deepcopy(messageObject)
             response = await get_json_val(json_object, 'speak')
             copiedMessage['body'] = response
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+        if role == 'assistant':
+            if 'fake_user' in novaConvo[convoID] and novaConvo[convoID]['fake_user'] == True:
+                sessionID = novaConvo[convoID]['sessionID'] 
+                if convoID == novaSession[sessionID]['latestConvo']:
+                    await fake_user_input(convoID, copiedMessage['body'])
+
+    if fake:    
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
         
     eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
@@ -157,19 +159,13 @@ async def send_to_GPT(convoID, promptObject):
                 command_object = json.dumps(command_object)
                 asyncio.create_task(handle_message(convoID, command_object, 'system'))
 
-    # sessionID = novaConvo[convoID]['sessionID'] 
-    # if convoID == novaSession[sessionID]['latestConvo']:
-    #     await fake_user_input(convoID)
-    #     novaConvo[convoID]['userName'] = "Archer"
-    
+        
 
 async def command_interface(responseVal, convoID):
     #handles commands from user input
     system_response = await handle_commands(responseVal, convoID)
-
     handle_message(convoID, system_response, 'system')
     
-
 
 async def sendChat(promptObj, model):
     loop = asyncio.get_event_loop()
@@ -353,7 +349,7 @@ def remove_commas_after_property(content):
     removal_candidate = 0
     removal_candidates = []
     for char in content:
-        print(char + ' | ')
+        # print(char + ' | ')
         if not removal_candidate:
             if char == ',' and lastChar == '"':
                 print('found char for removal')
@@ -379,15 +375,18 @@ def remove_commas_after_property(content):
 
 
 
-async def fake_user_input(convoID):
+async def fake_user_input(convoID, query):
     # await construct_prompt(convoID),
-    await construct_chat_query(convoID, True)
-    # eZprint('fake user input triggered')
+    eZprint('fake user input triggered')
     key = secrets.token_bytes(4).hex()
-    fake_user = [{"role": "system", "content": fake_user_prompt_elderly}]
-    fake_user_end = [{"role": "system", "content": fake_user__system_elderly}]
-    query_object = fake_user + current_prompt[convoID]['chat']  + fake_user_end
+    await construct_chat_query(convoID, True)
+    prompt = "Your name is " + novaConvo[convoID]['userName'] + ". " + fake_user_prompt_elderly
+    fake_agent = [{"role": "system", "content": prompt}]
+    fake_user_query = [{"role": "user", "content": query}]
+    fake_agent_end = [{"role": "system", "content": fake_user__system_elderly}]
+    query_object = fake_agent + fake_user_query  + fake_agent_end
     # print(query_object)
+    print(query_object)
     try:
         response = await sendChat(query_object, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
@@ -421,10 +420,10 @@ Based on the above conversations and prompts from the NOVA agent, respond with a
 """
 
 ###fake user elderly person entering a session of reminiscence therapy###
-fake_user_prompt_elderly="""You are playing an elderly person entering a session of reminiscence therapy. You want to explore old memories and will bring up cherished and painful memories when prompted. You are initially uncertain but become familiar and comfortable with the agent in later sessions"""
+fake_user_prompt_elderly="""You are an elderly person entering a session of reminiscence therapy. You want to explore old memories and will bring up cherished and painful memories when prompted. You are initially uncertain but become familiar and comfortable with the agent in later sessions."""
 
 fake_user__system_elderly = """
-Based on the above conversations and prompts from the NOVA agent, respond with a message that simulates a response from an elderly person entering a session of reminiscence therapy.
+Based on the above conversations, respond with a message that simulates a response from an elderly person entering a session of reminiscence therapy.
 """
 
 

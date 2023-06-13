@@ -56,6 +56,7 @@ async def parse_command(name, args, convoID):
 
     if name == 'append_note':
         eZprint('appending note')
+        eZprint(args)
         for key, val in availableCartridges[convoID].items():
             if val['label'] == args['label']:
                 if 'blocks' not in val:
@@ -72,11 +73,10 @@ async def parse_command(name, args, convoID):
                 command_return['message'] = "note " +args['label']  + " appended"
                 print(command_return)
                 return command_return
-            else : 
-                command_return['status'] = "error"
-                command_return['message'] = "note " +args['label']  + " not found"
-                print(command_return)
-                return command_return
+        command_return['status'] = "error"
+        command_return['message'] = "note " +args['label']  + " not found"
+        print(command_return)
+        return command_return
             
     # if name == 'edit_note':
     #     eZprint('editing note')

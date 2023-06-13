@@ -59,17 +59,11 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
     userID = novaConvo[convoID]['userID']
     debug[userID+convoID] = False
 
-    await get_summaries(userID, convoID)
-    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
- 
     # return
     if novaConvo[convoID]['owner']:
-        cartVal['state'] = 'loading'
-        payload = { 'key': cartKey,'fields': {
-                                'state': cartVal['state']
-                                    }}
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
+
+        
         await summarise_messages(userID, convoID)
         eZprint('messages summarised')
 

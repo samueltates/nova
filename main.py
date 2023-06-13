@@ -13,7 +13,7 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialiseCartridges, handleIndexQuery
+from nova import initialise_conversation, initialiseCartridges, handleIndexQuery
 from chat import handle_message, user_input
 from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
 from gptindex import indexDocument
@@ -163,6 +163,11 @@ async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
         convoID = parsed_data['data']['convoID']
         eZprint('requestCartridges route hit')
+        params = {}
+        if 'params' in parsed_data['data']:
+            params = parsed_data['data']['params']
+        print(parsed_data['data'])
+        await initialise_conversation(convoID, params)
         await initialiseCartridges(convoID)
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
@@ -243,6 +248,8 @@ async def process_message(parsed_data):
         eZprint('loadout_referal route hit')
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']    
+        params = parsed_data['data']['params']
+        await initialise_conversation(convoID, params)
         await set_loadout(loadout, convoID, True)
     if(parsed_data['type']=='delete_loadout'):
         eZprint('delete_loadout route hit')
