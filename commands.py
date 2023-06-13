@@ -4,9 +4,11 @@ from debug import eZprint
 from cartridges import addCartridge, updateCartridgeField
 from sessionHandler import availableCartridges
 from memory import summarise_from_range
+# from nova import handleIndexQuery
+import asyncio
 async def handle_commands(command_object, convoID):
     eZprint('handling command')
-    # print(command_object)
+    print(command_object)
     if command_object:
         if 'name' and 'args' in command_object:
             command_response = await parse_command(command_object['name'], command_object['args'], convoID)
@@ -102,47 +104,73 @@ async def parse_command(name, args, convoID):
                 
     if name == 'open_note':
         eZprint('opening note')
+        string = ''
         for key, val in availableCartridges[convoID].items():
+            if 'label' in val:
+                if val['label'] == args['label']:
+                    if val['enabled']:
+                        string += '\n' + val['label'] + ' is already open'
+                    else:
+                        val['enabled'] = True
+                        string += '\n' + val['label'] + ' opened'
+            
+            command_return['status'] = 'success'
+            command_return['message'] = string
+            print(command_return)
+            return command_return
+        command_return['status'] = 'error'
+        command_return['message'] = 'note not found'
 
+    if name == 'close_note':
+        eZprint('closing note')
+        string = ''
+        for key, val in availableCartridges[convoID].items():
             if val['label'] == args['label']:
-                print(val['blocks'])
-                payload = {
-                'convoID': convoID,
-                'cartKey' : key,
-                'fields':
-                        {'enabled': True}
-                        }
-                await updateCartridgeField(payload)
-                command_return['status'] = "success"
-                command_return['message'] = "note " +args['label']  + " appended"
-                print(command_return)
-                return command_return
-            else : 
-                command_return['status'] = "error"
-                command_return['message'] = "note " +args['label']  + " not found"
-                print(command_return)
-                return command_return
+                if val['enabled']:
+                    val['enabled'] = False
+                    string += '\n' + val['label'] + ' closed'
+                else:
+                    string += '\n' + val['label'] + ' is already closed'
+            command_return['status'] = 'success'
+            command_return['message'] = string
+            print(command_return)
+            return command_return
+        command_return['status'] = 'error'
+        command_return['message'] = 'note not found'
 
     if name == 'list_documents':
-        eZprint('listing documents')
+        eZprint('listing notes')
+        string = '\nDocuments available:'
         for key, val in availableCartridges[convoID].items():
             if val['type'] == 'index':
-                print(val['label'])
-        
+                if val['enabled'] == True:
+                    string += '\n' + val['label']+"\n"
+        command_return['status'] = 'success'
+        command_return['message'] = string
+        print(command_return)
+        return command_return
+                
     
     if name == 'query_document':
         eZprint('querying document')
         for key, val in availableCartridges[convoID].items():
             if val['label'] == args['document']:
-                print(val['blocks'])
-                payload = {
-                'convoID': convoID,
-                'cartKey' : key,
-                'query' : args['query'],
-                'fields':
-                        {'enabled': True}
-                        }
-            # await handleIndexQuery(payload)
+                queryPackage = {
+                'query': args['query'],
+                'cartKey': key,
+                'convoID': convoID 
+                }
+        
+                # asyncio.create_task(handleIndexQuery(queryPackage))
+
+                print(command_return)
+                command_return['status'] = "success"
+                command_return['message'] = "index " +args['document']  + "query commenced"
+                return command_return
+            
+        command_return['status'] = "error"
+        command_return['message'] = "index " +args['document']  + " not found"
+        return command_return
 
 # command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n6. open_note: Open a note, args: "label": "<labelname>"\n7. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "text": "<text>"
 # """

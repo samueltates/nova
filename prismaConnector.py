@@ -16,7 +16,7 @@ async def deleteSummaries(userID):
     )
 
 
-async def findSummaries(userID, epoch = None):
+async def findSummaries(userID, epoch = None, summarised = None):
     summaries = await prisma.summary.find_many(
                 where = {'UserID' : userID}
     )
@@ -25,9 +25,14 @@ async def findSummaries(userID, epoch = None):
     summary_by_id = {}
     for summary in summaries:
         id = summary.id
-        print(summary)
-        print('\n')
-     
+        blob = json.loads(summary.json())['blob']
+        # print(blob)
+        for key, val in blob.items():
+            if 'summarised' in val :
+                if not val['summarised']:
+                    print(summary)
+                    print('\n')
+        
                 
 async def sort_summaries(userID, epoch = None):
     summaries = await prisma.summary.find_many(
@@ -177,11 +182,15 @@ async def findUsers():
     )
     print(users)
  
-async def findCartridges(userID):
-    cartridges = await prisma.cartridge.find_many(
-        where = {'UserID' :userID}
+async def findCartridges(userID = None):
 
-    )
+    if userID == None:
+        cartridges = await prisma.cartridge.find_many()
+    else:
+        cartridges = await prisma.cartridge.find_many(
+            where = {'UserID' :userID}
+
+        )
 
     print(cartridges)
     
@@ -345,7 +354,7 @@ async def main() -> None:
     # await findMessages('110327569930296986874')
     # await deleteSummaries('110327569930296986874')
     # await findMessages_set_unsummarised('110327569930296986874')
-    # await findCartridges('110327569930296986874')
+    # await findCartridges()
     # await editCartridge('110327569930296986874')
     # await findCartridges()
 

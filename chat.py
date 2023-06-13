@@ -13,6 +13,7 @@ from prismaHandler import prisma
 from prompt import construct_prompt, construct_chat_query, current_prompt
 from query import sendChat
 from commands import handle_commands    
+from memory import get_sessions
 from jsonfixes import correct_json
 agentName = 'nova'
 
@@ -26,7 +27,7 @@ async def initiate_conversation(convoID):
     novaConvo[convoID]['token_limit'] = 4000
     sessionID = novaConvo[convoID]['sessionID'] 
     novaSession[sessionID]['latestConvo']= convoID
-
+    await get_sessions(convoID)
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
@@ -40,6 +41,7 @@ async def user_input(sessionData):
         message = sessionData['body'].strip()
     except:
         message = sessionData['body']
+
     await handle_message(convoID, message, 'user', sessionData['ID']), 
     await construct_prompt(convoID),
     await construct_chat_query(convoID)
@@ -93,9 +95,9 @@ async def handle_message(convoID, message, role = 'user', key = None):
             copiedMessage = deepcopy(messageObject)
             response = await get_json_val(json_object, 'speak')
             copiedMessage['body'] = response
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
         
     eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
-    asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
 
 
@@ -104,6 +106,8 @@ async def send_to_GPT(convoID, promptObject):
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
     # print(promptObject)
+    for line in promptObject:
+        print(f"{line}")
     content = ''
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     try:
@@ -126,7 +130,7 @@ async def send_to_GPT(convoID, promptObject):
     parsed_reply = ''
     json_object = await parse_json_string(content)
 
-    await handle_message(convoID, content, 'assistant')
+    asyncio.create_task(handle_message(convoID, content, 'assistant'))
 
     if json_object != None:
         eZprint('response is JSON')
@@ -142,11 +146,11 @@ async def send_to_GPT(convoID, promptObject):
                     "system": command_response,
                 }
                 command_object = json.dumps(command_object)
-                await handle_message(convoID, command_object, 'system')
+                asyncio.create_task(handle_message(convoID, command_object, 'system'))
 
-    sessionID = novaConvo[convoID]['sessionID'] 
-    if convoID == novaSession[sessionID]['latestConvo']:
-        await fake_user_input(convoID)
+    # sessionID = novaConvo[convoID]['sessionID'] 
+    # if convoID == novaSession[sessionID]['latestConvo']:
+    #     await fake_user_input(convoID)
     
 
 async def command_interface(responseVal, convoID):

@@ -27,6 +27,8 @@ async def addCartridge(cartVal, convoID):
             'blob': Json({cartKey:cartVal})
         }
     )
+    eZprint('new cartridge added to [nova]')
+    print(newCart)
 
     if convoID not in availableCartridges:
         availableCartridges[convoID]  = {}

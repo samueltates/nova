@@ -15,7 +15,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
 
     eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaConvo[convoID]['userID']
-
+    cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     payload = { 'key': cartKey,
                'fields': {
@@ -63,7 +63,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
                         notes_available[userID+convoID][key] = []
                     if isinstance(val[key], str):
                         ## if its base then add it to the list
-                        print('adding line ' + val[key] + ' to ' + key + '\n')
+                        # print('adding line ' + val[key] + ' to ' + key + '\n')
                         notes_available[userID+convoID][key].append({'line':val[key], 'timestamp': val['timestamp'], 'summaryKey':summary.key, 'active': False} )
                     elif isinstance(val[key], dict):
                         ## if its a dict then add all the sub keys
@@ -72,10 +72,10 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
                             if subKey in SKIP_KEYS:
                                 continue
                             if subKey not in notes_available[userID+convoID]:
-                                print('creating record for ' + subKey + '\n')
+                                # print('creating record for ' + subKey + '\n')
                                 notes_available[userID+convoID][subKey] = []
                             if isinstance(subVal, str):
-                                print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
+                                # print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
                                 notes_available[userID+convoID][subKey].append({'line':subVal, 'summaryKey':summary.key,'active': False})
 
                                 # notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
@@ -84,18 +84,18 @@ async def get_summary_keywords(convoID, cartKey, cartVal):
                                     if subSubKey in SKIP_KEYS:
                                         continue
                                     if subSubKey not in notes_available:
-                                        print('creating record for ' + subSubKey + '\n')
+                                        # print('creating record for ' + subSubKey + '\n')
                                         notes_available[userID+convoID][subSubKey] = []
                                     if isinstance(subSubVal, str):
                                         notes_available[userID+convoID][subSubKey].append({'line':subSubVal, 'timestamp':val['timestamp'], 'summaryKey':summary.key, 'active': False})
 
-    keyword_string = ''
+    keyword_string = ""
     for keyword in keywords_available[userID+convoID]:
-        keyword_string += keyword + ', '
+        keyword_string += keyword + ", "
 
     # if 'blocks' not in cartVal:
-    cartVal['blocks'] = []
-    cartVal['blocks'].append({'keywords': keyword_string})
+    #     cartVal['blocks'] = []
+    # cartVal['blocks'].append({'keywords': keyword_string})
     cartVal['state'] = ''
     payload = { 'key': cartKey,
                'fields': {
@@ -126,11 +126,11 @@ async def get_summary_from_keyword(convoID, supplied_keyword, cartVal):
     #     for records in keywords_available[userID+convoID][keywords]:
     #         print(records['title'])
       
-    # print('notes')
-    # for key, val in notes_available[userID+convoID].items():
-    #     print('--'+key) 
-    #     for note in val:
-    #         print(note['line'] + ' from ' + str(note['sourceID']) + ' at ' + str(note['timestamp']))
+    print('notes')
+    for key, val in notes_available[userID+convoID].items():
+        print('--'+key) 
+        for note in val:
+            print(note['line'] + ' from ' + str(note['sourceID']) + ' at ' + str(note['timestamp']))
 
     
 

@@ -14,7 +14,7 @@ from chat import initiate_conversation
 from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
 from prismaHandler import prisma
-from memory import summarise_convos, get_summary_with_prompt
+from memory import summarise_convos, get_summaries, update_cartridge_summary
 
 from keywords import get_summary_keywords
 from debug import fakeResponse, eZprint
@@ -47,12 +47,12 @@ async def loadCartridges(convoID):
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
-                if 'softDelete' not in cartVal:
+                if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                     availableCartridges[convoID][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     if cartVal['type'] == 'summary':
                         cartVal.update({'state': 'loading'})
-    # print('available cartridges are ' + str(app.session[availableCartKey]))
+        # print('available cartridges are ' + str(availableCartridges[convoID]))
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
@@ -61,9 +61,11 @@ async def runCartridges(convoID):
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
-                await get_summary_keywords(convoID, cartKey, cartVal)
-                eZprint('running cartridge: ' + str(cartVal))
-                await summarise_convos(convoID, cartKey, cartVal)
+                asyncio.create_task(get_summaries(userID, convoID))
+                asyncio.create_task(update_cartridge_summary(userID, cartKey, cartVal, convoID))
+                asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
+                # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
+                asyncio.create_task(summarise_convos(convoID, cartKey, cartVal))
                 # print(availableCartridges[convoID])
     else    :
         eZprint('no cartridges found, loading default')
@@ -110,6 +112,7 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
 async def handleIndexQuery(input):
     cartKey = input['cartKey']
     convoID = input['convoID']
+
     query = input['query']
     #TODO -  basically could comine with index query (or this is request, query is internal)
     payload = { 'key': cartKey,'fields': {

@@ -35,15 +35,13 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
 
     for window in windows[userID+convoID]:
         window_counter += 1
-        eZprint('window no ' + str(window_counter))
-        if window_counter > 2:
-            continue
-        for summary in reversed(window):   
-            if 'key' not in summary:
-                summary['key'] = ''    
-            if 'keywords' not in summary:
-                summary['keywords'] = []
-            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'timestamp':summary['timestamp'], 'epoch':summary['epoch']})
+        # eZprint('window no ' + str(window_counter))
+        for summary in window:   
+
+            # if 'keywords' not in summary:
+            #     summary['keywords'] = []
+            # print(summary['title'] +' ' + str(summary['epoch']))
+            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp']})
 
     availableCartridges[convoID][cartKey] = cartVal
     cartVal['state'] = ''
@@ -75,16 +73,32 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
         await summarise_messages(userID, convoID)
         eZprint('messages summarised')
 
-        await summarise_groups(userID, convoID)    
+        await get_summaries(userID, convoID)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+
+        # await summarise_groups(userID, convoID)    
         # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
         eZprint('groups summarised')
+
+        await get_summaries(userID, convoID)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+
         
         windows[userID+convoID] = []
         epochs_summarised = await summarise_epochs(userID, convoID)
         while not epochs_summarised:
             await asyncio.sleep(1)
+            print('epoch overloaded')
+            await get_summaries(userID, convoID)
+            await update_cartridge_summary(userID, cartKey, cartVal, convoID)
             epochs_summarised = await summarise_epochs(userID, convoID)
+
+        
+        await get_summaries(userID, convoID)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+
+    
 
     cartVal['state'] = ''
     cartVal['status'] = ''
@@ -123,6 +137,7 @@ async def summarise_messages(userID, convoID):
     batches = []
     # eZprint('organising and normalising for batch')
     #gets all messages as normalised and readable for batch 
+    novaConvo[convoID]['pastConvos'] = len(logs)
     counter = 0
     for log in logs:
         # if log.id < 800:
@@ -269,7 +284,7 @@ async def get_summary_with_prompt(prompt, textToSummarise):
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
-    print(response)
+    # print(response)
     try:
         return response["choices"][0]["message"]["content"]
     except:
@@ -409,7 +424,7 @@ async def summary_into_candidate(summarDict ):
 async def summarise_epochs(userID, convoID):
 
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    # eZprint('starting epoch summary')
+    eZprint('starting epoch summary')
 
     if debug[userID+convoID]:
         candidates = summaries[userID+convoID]
@@ -464,7 +479,7 @@ async def summarise_epochs(userID, convoID):
             x = 0
             counter = 0
             meta = ' '
-            for summary in reversed(epoch):
+            for summary in epoch:
                 ##goes through and creates batches in reverse
                 # eZprint('summarising chunk ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary)
@@ -534,12 +549,32 @@ async def summarise_epochs(userID, convoID):
     if window != []:
         windows[userID+convoID].append(window)
 
-
+    
     return True
+
+async def summarise_by_window(userID, convoID):
+    eZprint('starting epoch summary')
+
+    if debug[userID+convoID]:
+        candidates = summaries[userID+convoID]
+
+    else:
+        candidates = await prisma.summary.find_many(
+            where={
+            'UserID': userID,
+            }
+        ) 
+    for candidate in candidates:
+        summary = dict(candidate.blob)
+
+        for key, val in summary.items():
+            if 'summarised' in val:
+                if val['summarised'] == True:
+                    continue
 
 async def get_summaries(userID, convoID):
 
-    # eZprint('getting summaries')
+    eZprint('getting summaries')
     summaries = await prisma.summary.find_many(
         where={
         'UserID': userID,
@@ -556,22 +591,23 @@ async def get_summaries(userID, convoID):
                     continue
                 val.update({'key': summary.key})
                 epoch_no = 'epoch_' + str(val['epoch'])
-                if epoch_no not in epochs:
-                    eZprint('creating epoch ' + str(epoch_no))
-                    epochs[epoch_no] = []
-                epochs[epoch_no].append(val)
+                if val['epoch'] not in epochs:
+                    # eZprint('creating epoch ' + str(epoch_no))
+                    epochs[val['epoch']] = []
+                epochs[val['epoch']].append(val)
         
     if userID not in windows:
         windows[userID+convoID] = []
 
     resolution = 3
     window = []
-
-    for key, val in epochs.items():
-        epoch = val
-        # eZprint('epoch within resolution range so adding to latest : ' + str(key))
+    sorted_epochs = sorted(epochs.items(), key=lambda x: x[0])
+    # print(sorted_epochs)
+    for epochs in sorted_epochs:
+        (epoch_no, summaries) = epochs
         counter = 0
-        for summary in epoch:
+        for summary in summaries:
+            # print(summary)
             window.append(summary)
             counter += 1
             if counter >= resolution - 1:
@@ -740,6 +776,35 @@ async def summariseChatBlocks(input):
             payload = {'ID':log['ID'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     return True
+
+
+async def get_sessions(convoID):
+    print('getting sessions')
+    logs = await prisma.log.find_many(
+    where = {
+        "UserID": novaConvo[convoID]['userID'],
+    })
+    
+    sessions = 0
+    
+    if logs:
+        print('logs found')
+        sessions = len(logs)
+    first_date = ''
+    last_date = ''
+    for log in logs:
+        if first_date == '':
+            first_date = log.date
+        if last_date == '':
+            last_date = log.date
+        if log.date < first_date:
+            first_date = log.date
+        if log.date > last_date:
+            last_date = log.date
+
+    novaConvo[convoID]['sessions'] = sessions
+    novaConvo[convoID]['first_date'] = first_date
+    novaConvo[convoID]['last_date'] = last_date
 
 # async def main() -> None:
 #     eZprint('running main')

@@ -10,9 +10,10 @@ current_prompt = {}
 async def construct_prompt(convoID):
     # eZprint('constructing chat prompt')
     prompt_string = ''
-    keywords_available = []
-    documents_available = []
-
+    keywords_available = ''
+    documents_available = ''
+    summary_string = ''
+    notes_available = ''
 
     #TODO - abstract to prompt build / chat build + estimate, to be called on inputs / updates (combine with estimate)
     
@@ -29,29 +30,63 @@ async def construct_prompt(convoID):
                 # print(cartVal)
                 if 'blocks' in cartVal:
                     for block in cartVal['blocks']:
-                        if 'keywords' in block:
-                            if 'key' not in cartVal:
-                                cartVal['key'] = ''
-                            keywords_available.append({"keywords": block['keywords'], "label": cartVal['label'], "key": cartVal['key']})      
+                        # if 'keywords' in block:
+                        #     keywords_available +=  block['keywords']
+                        if 'title' in block:
+                            summary_string += block['title'] + "\n\n"
+                        if 'body' in block:
+                            summary_string += block['body'] + "\n\n"
+                        # print(summary_string)
             elif cartVal['type'] == 'index':
-                indexObj = {'title':cartVal['label'], 'key': cartVal['key']}
+                documents_available += cartVal['label'] + "\n\n"
                 if 'blocks' in cartVal:
-                    indexObj.update({'notes': cartVal['blocks']})
+                    for block in cartVal['blocks']:
+                        documents_available+= block + "\n"
+                documents_available+="\n\n"
+            if cartVal['type'] == 'note':
+                notes_available += cartVal['label']+ "\n"
+                if 'blocks' in cartVal:
+                    for block in cartVal['blocks']:
+                        if 'body' in block:
+                            notes_available += block['body'] + "\n"
+                notes_available += "\n\n"
+
+
+    session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
+
+    if 'sessions' in novaConvo[convoID]:
+        if novaConvo[convoID]['sessions'] > 0:
+            session_string += "You have spoken " + str(novaConvo[convoID]['sessions']) + "times.\n"
+        
+        if 'first-date' in novaConvo[convoID]:
+            session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
 
 
     system_string = construct_system_prompt()
+    if summary_string != '':
+        summary_string = "\nPast conversation summaries:\n" + summary_string + "\n\n" 
+    # if keywords_available != '':
+    #     keywords_available = "Past conversation keywords:\n" + keywords_available + "\n\n"
+    if documents_available != '':   
+        documents_available = "Documents:\n" + documents_available + "\n\n"
+    if notes_available != '':
+        notes_available = "Notes:\n" + notes_available + "\n\n"
+
+
+    final_prompt = session_string + summary_string + prompt_string + system_string + documents_available + notes_available+full_copy + resources_list
 
     # summary_object = [{'role': 'system', 'content': summary_string}]
-    prompt_object = [{"role": "system", "content": prompt_string + full_copy +resources_list }]
+    prompt_object = [{"role": "system", "content": final_prompt }]
 
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['prompt'] = prompt_object
-    
+
 
 async def construct_chat_query(convoID, fake = False):
     # eZprint('constructing chat')
     chat_log = []
+    summary_count = 0
     if convoID in chatlog:
         # if len(chatlog[convoID]) == 0:
             # promptObject.append({"role": "system", "content": "Based on these prompts, please initiate the conversation with a short engaginge greeting."})
@@ -66,7 +101,11 @@ async def construct_chat_query(convoID, fake = False):
                     chat_log.append({"role": "assistant", "content": log['body']})
                 if log['role'] == 'user':  
                     chat_log.append({"role": "user", "content": "Human feedback: " + log['body']})
-        
+                if 'name ' in log and log['name'] == 'summary':
+                    summary_count += 1
+                    print('summary count is: ' + str(summary_count))
+        if summary_count > 3:
+            summary_count = 0
     if not fake:
         if len(chat_log) >  0:
             chat_log.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
@@ -79,13 +118,15 @@ async def construct_chat_query(convoID, fake = False):
     current_prompt[convoID]['chat'] = chat_log
 
     estimate = await getPromptEstimate(convoID)
+    for log in chat_log:
+        estimate += estimateTokenSize(log['content'])
 
     if not fake:
 
-        if  estimate > (novaConvo[convoID]['token_limit'])*.3:
+        if  estimate > (novaConvo[convoID]['token_limit'])*.7:
             eZprint('prompt estimate is greater than 50% of token limit')
-            chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [0]  to [" + str(len(chat_log)-1) + "] (or less) to summarise."})
-        if  estimate > (novaConvo[convoID]['token_limit'])*.6:
+            chat_log.append({"role": "system", "content": "Warning - You are approaching the token limit for this session. Select section of conversation to summarise using 'summarise_conversation' command and select a range from line  [" + str(summary_count) + "]  to [" + str(len(chat_log)-2) + "] (or less) to summarise."})
+        if  estimate > (novaConvo[convoID]['token_limit'])*.8:
             print('prompt estimate is greater than 60% of token limit')
             await summarise_percent(convoID, 0.5)
 
@@ -134,8 +175,8 @@ summary_command = ""
 
 
 full_copy = """
-\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n5. open_note: Open a note, args: "label": "<labelname>"\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "text": "<text>" \n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" <text>
-"""
+\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n5. open_note: Open a note, args: "label": "<labelname>"\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "query": "<text>" \n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" <text>
+\n9. search_summaries: Use keyword or title to search conversation summaries, args: "query" : <text>, "notes" <text>\n10. create_prompt: Create new prompt used to direct Agent, args: "prompt-text" : <text>, "prompt-title" : <text>, "start-enabled" : <bool>\n"""
 
 # \n8. google: Google Search, args: "query": "<query>"
 # \n9. improve_code: Get Improved Code, args: "suggestions": "<list_of_suggestions>", "code": "<full_code_string>"\n10. browse_website: Browse Website, args: "url": "<url>", "question": "<what_you_want_to_find_on_website>"\n11. write_tests: Write Tests, args: "code": "<full_code_string>", "focus": "<list_of_focus_areas>"\n12. delete_agent: Delete GPT Agent, args: "key": "<key>"\n13. get_hyperlinks: Get hyperlinks, args: "url": "<url>"\n14. get_text_summary: Get text summary, args: "url": "<url>", "question": "<question>"\n15. list_agents: List GPT Agents, args: () -> str\n16. message_agent: Message GPT Agent, args: "key": "<key>", "message": "<message>"\n17. start_agent: Start GPT Agent, args: "name": "<name>", "task": "<short_task_desc>", "prompt": "<prompt>"\n18. task_complete: Task Complete (Shutdown), args: "reason": "<reason>"
