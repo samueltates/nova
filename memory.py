@@ -18,10 +18,10 @@ windows = {}
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
 async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
-
+    print('update_cartridge_summary')
     window_counter = 0
-    if 'blocks' not in cartVal:
-        cartVal['blocks'] = []
+    # if 'blocks' not in cartVal:
+    cartVal['blocks'] = []
     cartVal['state'] = 'loading'
     cartVal['status'] = ''
     payload = { 'key': cartKey,'fields': {
@@ -55,16 +55,24 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
 
-async def summarise_convos(convoID, cartKey, cartVal, ):
+async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
+    
+    print('update_cartridge_summary')
+
     userID = novaConvo[convoID]['userID']
     debug[userID+convoID] = False
 
 
     # return
     if novaConvo[convoID]['owner']:
+        cartVal['state'] = 'loading'
+        payload = { 'key': cartKey,'fields': {
+                    'state': cartVal['state'],
+                        }}
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
 
         
-        await summarise_messages(userID, convoID)
+        await summarise_messages(userID, convoID, loadoutID)
         eZprint('messages summarised')
 
         # await get_summaries(userID, convoID)
@@ -80,13 +88,13 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
 
         
         windows[userID+convoID] = []
-        epochs_summarised = await summarise_epochs(userID, convoID)
+        epochs_summarised = await summarise_epochs(userID, convoID, loadoutID)
         while not epochs_summarised:
             await asyncio.sleep(1)
             # print('epoch overloaded')
             # await get_summaries(userID, convoID)
             # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-            epochs_summarised = await summarise_epochs(userID, convoID)
+            epochs_summarised = await summarise_epochs(userID, convoID, loadoutID)
 
         
         # await get_summaries(userID, convoID)
@@ -107,60 +115,62 @@ async def summarise_convos(convoID, cartKey, cartVal, ):
   
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
-async def summarise_messages(userID, convoID):  
-    # eZprint('getting messages to summarise')
+async def summarise_messages(userID, convoID, loadoutID = None):  
+    eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
-    if debug[userID+convoID]:
-        messages = await get_fake_messages()
-    else :
-        messages = await prisma.message.find_many(
-                where={
-                'UserID': userID,
-                'summarised': False
-                }
-        )
+    
 
-        logs = await prisma.log.find_many(
-                where={
-                'UserID': userID,
-                }
-        )
+    remote_messages = await prisma.message.find_many(
+            where={
+            'UserID': userID,
+            'summarised': False
+            }
+    )
+
+
+    messages = []
+    for message in remote_messages:
+        splitID = message.SessionID.split('-')
+        print(splitID)
+        print(len(splitID))
+        if len(splitID) >=3:
+            if splitID[2] == loadoutID:
+                print('adding message matching loadout')
+                messages.append(message)
+        elif loadoutID == None:
+            print('adding message when no loadout')
+            messages.append(message)
+
+
 
     normalised_messages = []
     batches = []
-    # eZprint('organising and normalising for batch')
-    #gets all messages as normalised and readable for batch 
-    novaConvo[convoID]['pastConvos'] = len(logs)
     counter = 0
-    for log in logs:
-        # if log.id < 800:
-        #     continue
-        meta = ' '
-        normalised_messages = []
-        for message in messages:
-            if log.SessionID == message.SessionID:
-                if meta == ' ':
-                    format = '%Y-%m-%dT%H:%M:%S.%f%z'
-                    date = datetime.strptime(message.timestamp, format)
-                    meta = {
-                        'overview': 'Conversation section from conversation ID: ' + str(log.id) + ' on ' + str(date),
-                        'docID': log.id,
-                        'timestamp': message.timestamp,
-                    }
-                    counter += 1
+    meta = ' '
+    normalised_messages = []
+    for message in messages:
+        if meta == ' ':
+            format = '%Y-%m-%dT%H:%M:%S.%f%z'
+            date = datetime.strptime(message.timestamp, format)
+            meta = {
+                'overview': 'Conversation section from conversation ' + str(date),
+                'docID': message.SessionID,
+                'timestamp': message.timestamp,
+            }
+            counter += 1
 
-                normalised_messages.append({
-                    'id': message.id,
-                    'content': message.name+': '+ message.body + '\n',
-                    'epoch' : 0,
-                    'type' : 'message'        
-                })
-        if len(normalised_messages) > 0:
-            # print(meta)
-            batches += await create_content_batches_by_token(normalised_messages, meta)
-   
-    await summarise_batches(batches, userID, convoID)
+        normalised_messages.append({
+            'id': message.id,
+            'content': message.name+': '+ message.body + '\n',
+            'epoch' : 0,
+            'type' : 'message'        
+        })
+    if len(normalised_messages) > 0:
+        # print(meta)
+        batches += await create_content_batches_by_token(normalised_messages, meta)
+
+    await summarise_batches(batches, userID, convoID, loadoutID)
 
     for batch in batches:
         for id in batch['ids']:
@@ -222,7 +232,7 @@ async def create_content_batches_by_token(content, meta):
 
 ##GROUP SUMMARY FLOWS
 
-async def summarise_batches(batches, userID, convoID):
+async def summarise_batches(batches, userID, convoID, loadoutID = None):
     # eZprint('summarising batches, number of batches ' + str(len(batches)))
     ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
     counter = 0
@@ -261,7 +271,7 @@ async def summarise_batches(batches, userID, convoID):
                 # summary = await get_fake_summaries(batch)
                 summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
                 summaryID = secrets.token_bytes(4).hex()
-                await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'])
+                await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'], convoID, loadoutID)
             except:
                 pass
                 # print('error creating summary record')
@@ -285,7 +295,7 @@ async def get_summary_with_prompt(prompt, textToSummarise):
         return response
 
 
-async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta, convoID = ''):
+async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta, convoID = '', loadoutID = None):
     # eZprint('creating summary record')
     summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
@@ -294,12 +304,16 @@ async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, me
     summarDict.update({'summarised': False})
     summarDict.update({'key': summaryID})
     
+    SessionID = convoID
+    if loadoutID:
+        SessionID += "-"+convoID+"-"+str(loadoutID)
+
     summary = await prisma.summary.create(
         data={
             "key": summaryID,
             "UserID": userID,
             "timestamp": datetime.now(),
-            'SessionID' : convoID,
+            'SessionID' : SessionID,
             "blob": Json({summaryID:summarDict})
 
         }
@@ -415,23 +429,39 @@ async def summary_into_candidate(summarDict ):
 
 
 
-async def summarise_epochs(userID, convoID):
+async def summarise_epochs(userID, convoID, loadoutID = None):
 
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
     eZprint('starting epoch summary')
 
-    if debug[userID+convoID]:
-        candidates = summaries[userID+convoID]
 
-    else:
-        candidates = await prisma.summary.find_many(
-            where={
-            'UserID': userID,
-            }
-        ) 
+    candidates = await prisma.summary.find_many(
+        where={
+        'UserID': userID,
+        }
+    ) 
+
+    print('number of candidates is ' + str(len(candidates)))
+    # if len(candidates)<4:
+    #     return True
+
+    loadout_candidates = []
+    for candidate in candidates:
+        print(candidate.SessionID)
+        splitID = candidate.SessionID.split('-')
+        print(splitID)
+        if len(splitID) > 2:
+            if splitID[1] == loadoutID:
+                print('found loadout candidate')
+                loadout_candidates.append(candidate)
+        elif loadoutID  == None:
+            print('adding on a none loadout')
+            loadout_candidates.append(candidate)
+
 
     epochs = {}
 
+ 
     for candidate in candidates:
         summary = dict(candidate.blob)
 
@@ -516,7 +546,7 @@ async def summarise_epochs(userID, convoID):
                     x = 0
                     meta = ' '
 
-            await summarise_batches(batches,userID, convoID)
+            await summarise_batches(batches,userID, convoID, loadoutID)
             
             for batch in batches:
                 for id in batch['ids']:
@@ -546,27 +576,8 @@ async def summarise_epochs(userID, convoID):
     
     return True
 
-async def summarise_by_window(userID, convoID):
-    eZprint('starting epoch summary')
 
-    if debug[userID+convoID]:
-        candidates = summaries[userID+convoID]
-
-    else:
-        candidates = await prisma.summary.find_many(
-            where={
-            'UserID': userID,
-            }
-        ) 
-    for candidate in candidates:
-        summary = dict(candidate.blob)
-
-        for key, val in summary.items():
-            if 'summarised' in val:
-                if val['summarised'] == True:
-                    continue
-
-async def get_summaries(userID, convoID):
+async def get_summaries(userID, convoID, loadoutID):
 
     eZprint('getting summaries')
     summaries = await prisma.summary.find_many(
@@ -574,6 +585,25 @@ async def get_summaries(userID, convoID):
         'UserID': userID,
         }
     ) 
+
+    print(summaries)
+    summary_candidates = []
+    if len(summaries) == 0:
+        return 
+    print('loadoutID is ' + str(loadoutID))
+    for summary in summaries:
+        print(summary)
+        splitID = str(summary.SessionID).split('-')
+        print(splitID)
+        if(len(splitID) >= 2):
+            if splitID[1] == loadoutID:
+                print('loadout ID found')
+                summary_candidates.append(summary)
+        elif loadoutID == None:
+            summary_candidates.append(summary)
+
+    summaries = summary_candidates
+
     windows[userID+convoID] = []
     epochs = {}
     for summary in summaries:
@@ -636,7 +666,7 @@ batch_summary_prompt = """
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
 
-async def summarise_percent(convoID, percent):
+async def summarise_percent(convoID, percent, loadoutID = None):
     eZprint('summarising percent')
     summaryID = secrets.token_bytes(4).hex()
     to_summarise = []
@@ -661,7 +691,7 @@ async def summarise_percent(convoID, percent):
 
     await summariseChatBlocks(summary_block)
 
-async def summarise_from_range(convoID, start, end):
+async def summarise_from_range(convoID, start, end,  loadoutID = None):
 
     start = int(start)
     end = int(end)
@@ -691,7 +721,7 @@ async def summarise_from_range(convoID, start, end):
 
 
 
-async def summariseChatBlocks(input):
+async def summariseChatBlocks(input,  loadoutID = None):
     eZprint('summarising chat blocks')
     convoID = input['convoID']
     messageIDs = input['messageIDs']
@@ -737,15 +767,7 @@ async def summariseChatBlocks(input):
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     summarDict.update({'sources':messageIDs})
-    summary = await prisma.summary.create(
-        data={
-            "key": summaryID,
-            "SessionID": convoID,
-            "UserID": userID,
-            "timestamp": datetime.now(),
-            "blob": Json({summaryID:summarDict})
-        }
-    )
+    await create_summary_record(summaryID, userID, convoID, summarDict, loadoutID)
     # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 

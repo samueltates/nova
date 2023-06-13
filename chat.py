@@ -9,6 +9,7 @@ from copy import deepcopy
 from debug import eZprint
 from appHandler import websocket
 from sessionHandler import novaConvo, chatlog, availableCartridges, novaSession
+from loadout import current_loadout
 from prismaHandler import prisma
 from prompt import construct_prompt, construct_chat_query, current_prompt
 from query import sendChat
@@ -67,8 +68,12 @@ async def handle_message(convoID, message, role = 'user', key = None):
         userName = 'system'
 
     
+    loadout_ID = ''
 
-    sessionID = novaConvo[convoID]['sessionID']
+    sessionID = novaConvo[convoID]['sessionID'] +"-"+convoID
+    if convoID in current_loadout:
+
+        sessionID += "-"+str(current_loadout[convoID])
 
     if key == None:
         key = secrets.token_bytes(4).hex()
@@ -76,9 +81,10 @@ async def handle_message(convoID, message, role = 'user', key = None):
         chatlog[convoID] = []
 
     order = await getNextOrder(convoID)
+    
 
     messageObject = {
-        "sessionID": sessionID +'-'+convoID,
+        "sessionID": sessionID,
         "ID": key, ##actually sending what is stored as key
         "userName": userName,
         "userID": str(userID),
@@ -284,7 +290,7 @@ async def parse_json_string(content):
     except ValueError as e:
         # the string is still not valid JSON, print the error message
         print(f"Error parsing JSON: {e}")
-          
+    return
 ##########################AUTOGPT
     if json_object == None:
             print('trying auto gpt correct func')

@@ -21,7 +21,7 @@ async def construct_prompt(convoID):
     # Fetch the sorted cartridges asynchronously
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     
-
+    print(sorted_cartridges)
     # Use a priority queue to store the prompt cartridges
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
@@ -57,7 +57,7 @@ async def construct_prompt(convoID):
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
     token_usage_string = ''
     if convoID in chatlog:
-        if len(chatlog[convoID]) > 0:
+        if 'chat' in chatlog[convoID]:
             estimate = await getPromptEstimate(convoID)
             token_usage_string =  f"""Current session context is {estimate} tokens, maximum tokens are {token_limit}. Close notes or summarise chat to reduce tokens.\n"""
 
@@ -141,6 +141,7 @@ async def construct_chat_query(convoID, fake = False):
 
 async def getPromptEstimate(convoID):
     # eZprint('getting prompt estimate')
+    print(current_prompt[convoID]['chat'])    
     prompt_token_count = estimateTokenSize(str(current_prompt[convoID]['chat'])+ str(current_prompt[convoID]['prompt']))
     print('prompt token count is: ' + str(prompt_token_count))
     return prompt_token_count

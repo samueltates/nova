@@ -13,15 +13,15 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialise_conversation, initialiseCartridges, handleIndexQuery
+from nova import initialise_conversation, initialiseCartridges, loadCartridges, handleIndexQuery, runCartridges
 from chat import handle_message, user_input
-from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
+from cartridges import addCartridgePrompt,addCartridge, updateCartridgeField, updateContentField
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
 from memory import summariseChatBlocks
-from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field
+from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 
 app.session = session
 Session(app)
@@ -243,6 +243,8 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         await set_loadout(loadout, convoID)
+        novaConvo[convoID]['owner'] = True
+        await runCartridges(convoID)
 
     if(parsed_data['type'] == 'loadout_referal'):
         eZprint('loadout_referal route hit')
@@ -257,6 +259,13 @@ async def process_message(parsed_data):
         loadout = parsed_data['data']['loadout']
         await delete_loadout(loadout, convoID)
 
+    if(parsed_data['type']=='clear_loadout'):
+        eZprint('clear_loadout route hit')
+        convoID = parsed_data['data']['convoID']
+        await clear_loadout(convoID)
+        await loadCartridges(convoID)
+        await runCartridges(convoID)
+
     if(parsed_data['type'] == 'set_read_only'):
         eZprint('read_only route hit')
         loadout = parsed_data['data']['loadout']
@@ -270,6 +279,7 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         title = parsed_data['data']['title']
         await set_loadout_title(loadout, title)
+        
 
     if(parsed_data['type']=='update_loadout_field'):
         eZprint('update_loadout_field route hit')

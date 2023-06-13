@@ -7,7 +7,7 @@ from prisma import Json
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
 from debug import eZprint
 from human_id import generate_id
-# from loadout import current_loadout, add_cartridge_to_loadout
+from loadout import current_loadout, add_cartridge_to_loadout
 
 async def addCartridge(cartVal, convoID):
     eZprint('add cartridge triggered')
@@ -65,7 +65,7 @@ async def addCartridgePrompt(input):
             'tempKey': input['tempKey'],
             'newCartridge': {cartKey:cartVal},
         }
-    # await add_cartridge_to_loadout(convoID, cartKey)
+    await add_cartridge_to_loadout(convoID, cartKey)
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 async def addCartridgeTrigger(input):
@@ -96,7 +96,7 @@ async def addCartridgeTrigger(input):
     if convoID not in availableCartridges:
         availableCartridges[convoID] = {}
     availableCartridges[convoID][cartKey] = cartVal
-    # await add_cartridge_to_loadout(convoID,cartKey)
+    await add_cartridge_to_loadout(convoID,cartKey)
 
     return newCart
 

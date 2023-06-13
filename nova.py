@@ -12,7 +12,7 @@ from prisma import Json
 from chat import agent_initiate_convo
 #NOVA STUFF
 from appHandler import app, websocket
-from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession
+from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession, current_loadout
 from prismaHandler import prisma
 from memory import summarise_convos, get_summaries, update_cartridge_summary
 
@@ -28,7 +28,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
 
-async def initialise_conversation(convoID, params):
+async def initialise_conversation(convoID, params = None):
     ##session setup stuff should be somewhere else
     eZprint('initialising conversation')
     print(params)
@@ -56,8 +56,6 @@ async def initialiseCartridges(convoID):
     await loadCartridges(convoID)
     await runCartridges(convoID)
 
-    if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
-        await agent_initiate_convo(convoID)
 
 async def loadCartridges(convoID):
     eZprint('load cartridges called')
@@ -75,24 +73,36 @@ async def loadCartridges(convoID):
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                     availableCartridges[convoID][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
-                    if cartVal['type'] == 'summary':
-                        cartVal.update({'state': 'loading'})
+                    # if cartVal['type'] == 'summary':
+                    #     cartVal.update({'state': 'loading'})
         # print('available cartridges are ' + str(availableCartridges[convoID]))
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID):
     userID = novaConvo[convoID]['userID']
+    if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
+        await agent_initiate_convo(convoID)
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 cartVal['blocks'] = []
-                await get_summaries(userID, convoID)
-                await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-                # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
-                # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
-                asyncio.create_task(summarise_convos(convoID, cartKey, cartVal))
-                # print(availableCartridges[convoID])
+                loadout = None
+                if 'loadout' in cartVal:
+                    loadout = cartVal['loadout']
+                if (convoID in current_loadout and current_loadout[convoID] == loadout) or loadout == None:
+                    eZprint('running cartridge')
+                    print('running cartridge: ' + str(cartVal))
+                    print('loadout is ' + str(loadout))
+                    await get_summaries(userID, convoID, loadout)
+                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                    # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
+                    # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
+                    await summarise_convos(convoID, cartKey, cartVal, loadout)
+                    # print(availableCartridges[convoID])
+                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                    print('ending run')
+
     else    :
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
