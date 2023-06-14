@@ -38,11 +38,18 @@ async def construct_prompt(convoID):
                         if 'body' in block:
                             summary_string += block['body'] + "\n\n"
                         # print(summary_string)
+                summary_string += "\n\n"
+                
             elif cartVal['type'] == 'index':
                 documents_available += cartVal['label'] + "\n\n"
                 if 'blocks' in cartVal:
                     for block in cartVal['blocks']:
-                        documents_available+= block + "\n"
+                        if 'query' in block:
+                            documents_available += block['query'] + "\n"
+                        if 'response' in block:
+                            documents_available += block['response'] + "\n"
+                    documents_available+="\n\n"
+                        
                 documents_available+="\n\n"
             if cartVal['type'] == 'note':
                 notes_available += cartVal['label']+ "\n"

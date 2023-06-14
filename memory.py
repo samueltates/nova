@@ -407,10 +407,10 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
         # print(splitID)
         if len(splitID) >= 2:
             if splitID[2] == loadoutID:
-                print('found loadout candidate')
+                # print('found loadout candidate')
                 loadout_candidates.append(candidate)
         elif loadoutID  == None:
-            print('adding on a none loadout')
+            # print('adding on a none loadout')
             loadout_candidates.append(candidate)
 
 
@@ -427,6 +427,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                 epoch_no = 'epoch_' + str(val['epoch'])
                 val.update({'id': candidate.id})
                 val.update({'timestamp': candidate.timestamp})
+                eZprint('found summary candidate')
                 if epoch_no not in epochs:
                     # eZprint('creating epoch ' + str(epoch_no))
                     epochs[epoch_no] = []
@@ -534,10 +535,10 @@ async def get_summaries(userID, convoID, loadoutID):
         # print(splitID)
         if(len(splitID) >= 2):
             if splitID[2] == loadoutID:
-                print('loadout ID found')
+                # print('loadout ID found')
                 summary_candidates.append(summary)
         elif loadoutID == None:
-            print('adding on a none loadout')
+            # print('adding on a none loadout')
             summary_candidates.append(summary)
 
     summaries = summary_candidates
@@ -551,6 +552,8 @@ async def get_summaries(userID, convoID, loadoutID):
             if 'summarised' in val:
                 if val['summarised'] == True:
                     continue
+                eZprint('found summary candidate')
+
                 val.update({'key': summary.key})
                 epoch_no = 'epoch_' + str(val['epoch'])
                 if val['epoch'] not in epochs:

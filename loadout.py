@@ -12,7 +12,7 @@ async def get_loadouts(convoID):
     loadouts = await prisma.loadout.find_many(
         where={ "UserID": userID },
     )
-    current_loadout[convoID] = []
+    # del current_loadout[convoID]
     available_loadouts[convoID] = {}
     for loadout in loadouts:
         # print(loadout)
@@ -153,7 +153,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
 async def clear_loadout(convoID):
     if convoID in current_loadout:
         del current_loadout[convoID]
-
+        
 async def delete_loadout(loadout_key: str, convoID):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
