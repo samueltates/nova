@@ -21,7 +21,7 @@ async def construct_prompt(convoID):
     # Fetch the sorted cartridges asynchronously
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     
-    print(sorted_cartridges)
+    # print(sorted_cartridges)
     # Use a priority queue to store the prompt cartridges
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
@@ -205,7 +205,9 @@ disable_prompt = """\n12. disable_prompt: Disable prompt, args: "prompt-title" :
 
 glossary = """\n\nCommand Instructions:\nWhen you see see information worth preserving you will create a note, or append content to an existing one. \nYou will list files to find answers or existing notes that might be relavent. \nYou will be able to create new behaviours for yourself by creating a prompt, and triggering them by enabling or disabling. \nYou will manage your memory by closing unneeded notes, disabling uneeded prompts and summarising sections of the conversations. \nThe user will not use these commands and you will not mention them, they will be used by you to achieve your goals.\n"""
 
-command_string = full_copy + create_note + append_note + list_files + open_note + close_note + list_documents + query_document + summarise_conversation + search_summaries + create_prompt + enable_prompt + disable_prompt + glossary
+command_string = full_copy + create_note + append_note + list_files + open_note + close_note + list_documents + query_document + summarise_conversation + search_summaries + create_prompt + enable_prompt + disable_prompt 
+
+
 
 
 # \n8. google: Google Search, args: "query": "<query>"

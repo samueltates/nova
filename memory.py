@@ -13,6 +13,39 @@ from appHandler import websocket
 summaries = {}
 windows = {}
 
+
+
+async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
+    
+    print('update_cartridge_summary')
+    userID = novaConvo[convoID]['userID']
+
+    if novaConvo[convoID]['owner']:
+        cartVal['state'] = 'loading'
+        payload = { 'key': cartKey,'fields': {
+                    'state': cartVal['state'],
+                        }}
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
+        await summarise_messages(userID, convoID, loadoutID)
+        await get_summaries(userID, convoID, loadoutID)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        eZprint('messages summarised')
+        await summarise_epochs(userID, convoID, loadoutID)
+        await get_summaries(userID, convoID, loadoutID)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        eZprint('epochs summarised')
+    
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+    payload = { 'key': cartKey,'fields': {
+                'state': cartVal['state'],
+                'status': cartVal['status']
+                    }}
+
+    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
+        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        
+
 ##attempt at abstracting parts of flow, general idea is that there is 'corpus' which is broken into 'chunks' which are then batched together on token size, to be summarised
 ## after this, the next 'corpus' is the summaries, that are then 'chunked' based on their source (each convo)
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
@@ -41,7 +74,9 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
             # if 'keywords' not in summary:
             #     summary['keywords'] = []
             # print(summary['title'] +' ' + str(summary['epoch']))
-            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp']})
+            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp'], 'epoch': "epoche: " + str(summary['epoch'])})
+
+            # cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp']})
 
     availableCartridges[convoID][cartKey] = cartVal
     cartVal['state'] = ''
@@ -54,64 +89,6 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
             
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
-
-async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
-    
-    print('update_cartridge_summary')
-
-    userID = novaConvo[convoID]['userID']
-    debug[userID+convoID] = False
-
-
-    # return
-    if novaConvo[convoID]['owner']:
-        cartVal['state'] = 'loading'
-        payload = { 'key': cartKey,'fields': {
-                    'state': cartVal['state'],
-                        }}
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
-
-        
-        await summarise_messages(userID, convoID, loadoutID)
-        eZprint('messages summarised')
-
-        # await get_summaries(userID, convoID)
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-
-        # await summarise_groups(userID, convoID)    
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-
-        eZprint('groups summarised')
-
-        # await get_summaries(userID, convoID)
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-
-        
-        windows[userID+convoID] = []
-        epochs_summarised = await summarise_epochs(userID, convoID, loadoutID)
-        while not epochs_summarised:
-            await asyncio.sleep(1)
-            # print('epoch overloaded')
-            # await get_summaries(userID, convoID)
-            # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-            epochs_summarised = await summarise_epochs(userID, convoID, loadoutID)
-
-        
-        # await get_summaries(userID, convoID)
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-
-    
-
-    cartVal['state'] = ''
-    cartVal['status'] = ''
-    payload = { 'key': cartKey,'fields': {
-                'state': cartVal['state'],
-                'status': cartVal['status']
-                    }}
-
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-        
   
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
@@ -133,7 +110,7 @@ async def summarise_messages(userID, convoID, loadoutID = None):
     for message in remote_messages:
         splitID = message.SessionID.split('-')
         print(splitID)
-        print(len(splitID))
+        # print(len(splitID))
         if len(splitID) >=3:
             if splitID[2] == loadoutID:
                 print('adding message matching loadout')
@@ -244,37 +221,15 @@ async def summarise_batches(batches, userID, convoID, loadoutID = None):
         eZprint('summarising batch no ' + str(counter) + 'of' + str(len(batches)))
         epoch = batch['epoch'] +1
         
-        if debug[userID+convoID]:
-            summary = await get_fake_summaries(batch)
-            # summarDict = json.loads(summary)
-            summary.update({'sourceIDs' : batch['ids']})
-            summary.update({'epoch': epoch})
-            summary.update({'summarised':False})
-            summaryID = secrets.token_bytes(4).hex()
-            summary.update({'key':summaryID})
-            summaryObj = {
-                'key': summaryID,
-                'userID' : userID,
-                'blob': summary
-            }
-            summaries[userID+convoID].append(summaryObj)
-            for summary in summaries[userID+convoID]:
-                for id in batch['ids']:
-                    if summary['id'] == id:
-                        summary['blob']['summarised'] = True
-            
-            # for summary in summaries[userID]:
-            #     print(summary['blob']['summarised'])
-        else:
-            try:
+
             # print(batch)
                 # summary = await get_fake_summaries(batch)
-                summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
-                summaryID = secrets.token_bytes(4).hex()
-                await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'], convoID, loadoutID)
-            except:
-                pass
-                # print('error creating summary record')
+        try:
+            summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
+            summaryID = secrets.token_bytes(4).hex()
+            await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'], convoID, loadoutID)
+        except:
+            print('error creating summary record')
             #sending summary state back to server
 
 
@@ -295,7 +250,7 @@ async def get_summary_with_prompt(prompt, textToSummarise):
         return response
 
 
-async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta, convoID = '', loadoutID = None):
+async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta = {}, convoID = '', loadoutID = None):
     # eZprint('creating summary record')
     summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
@@ -447,11 +402,11 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
 
     loadout_candidates = []
     for candidate in candidates:
-        print(candidate.SessionID)
+        # print(candidate.SessionID)
         splitID = candidate.SessionID.split('-')
-        print(splitID)
-        if len(splitID) > 2:
-            if splitID[1] == loadoutID:
+        # print(splitID)
+        if len(splitID) >= 2:
+            if splitID[2] == loadoutID:
                 print('found loadout candidate')
                 loadout_candidates.append(candidate)
         elif loadoutID  == None:
@@ -462,7 +417,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
     epochs = {}
 
  
-    for candidate in candidates:
+    for candidate in loadout_candidates:
         summary = dict(candidate.blob)
 
         for key, val in summary.items():
@@ -473,20 +428,14 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                 val.update({'id': candidate.id})
                 val.update({'timestamp': candidate.timestamp})
                 if epoch_no not in epochs:
-                    eZprint('creating epoch ' + str(epoch_no))
+                    # eZprint('creating epoch ' + str(epoch_no))
                     epochs[epoch_no] = []
                 epochs[epoch_no].append(val)
-    
-    window_no = 3
-    if userID not in windows:
-        windows[userID+convoID] = []
-
     ## number of pieces of content per window 
     resolution = 3
     # print(f'{epochs}')
     
     epoch_summaries = 0
-    window = []
 
 
     for key, val in epochs.items():
@@ -559,19 +508,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                             "blob": Json({key:val})
                         }
                     )
-            return False                        
-        else:
-            # eZprint('epoch within resolution range so adding to latest : ' + str(key))
-            counter = 0
-            for summary in epoch:
-                window.append(summary)
-                counter += 1
-                if counter >= resolution - 1:
-                    windows[userID+convoID].append(window)
-                    window = []
-                    counter = 0
-    if window != []:
-        windows[userID+convoID].append(window)
+
 
     
     return True
@@ -586,20 +523,21 @@ async def get_summaries(userID, convoID, loadoutID):
         }
     ) 
 
-    print(summaries)
+    # print(summaries)
     summary_candidates = []
     if len(summaries) == 0:
         return 
     print('loadoutID is ' + str(loadoutID))
     for summary in summaries:
-        print(summary)
+        # print(summary)
         splitID = str(summary.SessionID).split('-')
-        print(splitID)
+        # print(splitID)
         if(len(splitID) >= 2):
-            if splitID[1] == loadoutID:
+            if splitID[2] == loadoutID:
                 print('loadout ID found')
                 summary_candidates.append(summary)
         elif loadoutID == None:
+            print('adding on a none loadout')
             summary_candidates.append(summary)
 
     summaries = summary_candidates
@@ -630,7 +568,7 @@ async def get_summaries(userID, convoID, loadoutID):
     for epochs in sorted_epochs:
         (epoch_no, summaries) = epochs
         counter = 0
-        for summary in summaries:
+        for summary in reversed(summaries):
             # print(summary)
             window.append(summary)
             counter += 1
@@ -766,8 +704,13 @@ async def summariseChatBlocks(input,  loadoutID = None):
     fields['state'] = ''
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+    date = datetime.now()
     summarDict.update({'sources':messageIDs})
-    await create_summary_record(summaryID, userID, convoID, summarDict, loadoutID)
+    meta = {
+        'overview': 'Conversation section from conversation ' + str(date),
+
+    }    
+    await create_summary_record(summaryID, userID, convoID, summarDict, loadoutID, meta)
     # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 

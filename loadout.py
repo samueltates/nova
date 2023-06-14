@@ -15,7 +15,7 @@ async def get_loadouts(convoID):
     current_loadout[convoID] = []
     available_loadouts[convoID] = {}
     for loadout in loadouts:
-        print(loadout)
+        # print(loadout)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             available_loadouts[convoID][key] = val
@@ -108,13 +108,13 @@ async def handle_referal(loadout_key: str, convoID):
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
-    print(loadout_key)
+    # print(loadout_key)
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
     )
 
     current_loadout[convoID] = loadout_key
-    print(loadout)
+    # print(loadout)
     loadout_cartridges = []
     config = {}
     blob = json.loads(loadout.json())['blob']
@@ -133,7 +133,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         remote_cartridges = await prisma.cartridge.find_first(
             where={ "key": cartridge },
         )
-        print(remote_cartridges)
+        # print(remote_cartridges)
         cartridges_to_add.append(remote_cartridges)
     
 
@@ -143,7 +143,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
-                    print(cartVal)
+                    # print(cartVal)
                     availableCartridges[convoID][cartKey] = cartVal
                     # cartVal.update({'enabled': True})
                     # cartVal.update({'via_loadout': True})

@@ -92,7 +92,7 @@ async def runCartridges(convoID):
                     loadout = cartVal['loadout']
                 if (convoID in current_loadout and current_loadout[convoID] == loadout) or convoID not in current_loadout:
                     eZprint('running cartridge')
-                    print('running cartridge: ' + str(cartVal))
+                    print('running cartridge: ' + str(cartVal['label']))
                     print('loadout is ' + str(loadout))
                     await get_summaries(userID, convoID, loadout)
                     await update_cartridge_summary(userID, cartKey, cartVal, convoID)

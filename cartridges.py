@@ -19,7 +19,8 @@ async def addCartridge(cartVal, convoID):
         cartVal.update({"enabled":True})
     if 'softDelete' not in cartVal:
         cartVal.update({"softDelete":False})
-
+    if convoID in current_loadout:
+        cartVal.update({'loadout':current_loadout[convoID] })
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
