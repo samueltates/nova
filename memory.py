@@ -109,14 +109,14 @@ async def summarise_messages(userID, convoID, loadoutID = None):
     messages = []
     for message in remote_messages:
         splitID = message.SessionID.split('-')
-        print(splitID)
+        # print(splitID)
         # print(len(splitID))
         if len(splitID) >=3:
             if splitID[2] == loadoutID:
-                print('adding message matching loadout')
+                # print('adding message matching loadout')
                 messages.append(message)
         elif loadoutID == None:
-            print('adding message when no loadout')
+            # print('adding message when no loadout')
             messages.append(message)
 
 
@@ -218,7 +218,7 @@ async def summarise_batches(batches, userID, convoID, loadoutID = None):
     for batch in batches:
         # print('epoch on get' + str(batch['epoch']))
         counter += 1
-        eZprint('summarising batch no ' + str(counter) + 'of' + str(len(batches)))
+        # eZprint('summarising batch no ' + str(counter) + 'of' + str(len(batches)))
         epoch = batch['epoch'] +1
         
 
@@ -307,7 +307,7 @@ async def summarise_groups(userID, convoID, field = 'docID'):
                 # print(val['meta'])
                 if not val['meta'][field] in summary_groups:
                     summary_groups[val['meta'][field]] = []
-                    print ('creating new group for ' + str(val['meta'][field]) + '')
+                    # print ('creating new group for ' + str(val['meta'][field]) + '')
                 summary_groups[val['meta'][field]].append(summaryObj)
 
     batches = []
@@ -396,7 +396,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
         }
     ) 
 
-    print('number of candidates is ' + str(len(candidates)))
+    # print('number of candidates is ' + str(len(candidates)))
     # if len(candidates)<4:
     #     return True
 
@@ -427,7 +427,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                 epoch_no = 'epoch_' + str(val['epoch'])
                 val.update({'id': candidate.id})
                 val.update({'timestamp': candidate.timestamp})
-                eZprint('found summary candidate')
+                # eZprint('found summary candidate')
                 if epoch_no not in epochs:
                     # eZprint('creating epoch ' + str(epoch_no))
                     epochs[epoch_no] = []
@@ -528,7 +528,7 @@ async def get_summaries(userID, convoID, loadoutID):
     summary_candidates = []
     if len(summaries) == 0:
         return 
-    print('loadoutID is ' + str(loadoutID))
+    # print('loadoutID is ' + str(loadoutID))
     for summary in summaries:
         # print(summary)
         splitID = str(summary.SessionID).split('-')
@@ -552,7 +552,7 @@ async def get_summaries(userID, convoID, loadoutID):
             if 'summarised' in val:
                 if val['summarised'] == True:
                     continue
-                eZprint('found summary candidate')
+                # eZprint('found summary candidate')
 
                 val.update({'key': summary.key})
                 epoch_no = 'epoch_' + str(val['epoch'])
