@@ -13,13 +13,15 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
-from nova import initialiseCartridges, handleChatInput, handleIndexQuery, summariseChatBlocks
-from cartridges import addCartridgePrompt, updateCartridgeField, updateContentField
+from nova import initialise_conversation, initialiseCartridges, loadCartridges, handleIndexQuery, runCartridges
+from chat import handle_message, user_input
+from cartridges import addCartridgePrompt,addCartridge, updateCartridgeField, updateContentField
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
-from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field
+from memory import summariseChatBlocks
+from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 
 app.session = session
 Session(app)
@@ -73,7 +75,7 @@ async def startsession():
     convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
     novaConvo[convoID] = {}
-    novaConvo[convoID]['userName'] = novaSession[sessionID]['userID']
+    novaConvo[convoID]['userName'] = novaSession[sessionID]['userName']
     novaConvo[convoID]['userID'] = novaSession[sessionID]['userID']
 
     app.session['convoID'] = convoID
@@ -161,10 +163,15 @@ async def process_message(parsed_data):
     if(parsed_data['type'] == 'requestCartridges'):
         convoID = parsed_data['data']['convoID']
         eZprint('requestCartridges route hit')
+        params = {}
+        if 'params' in parsed_data['data']:
+            params = parsed_data['data']['params']
+        print(parsed_data['data'])
+        await initialise_conversation(convoID, params)
         await initialiseCartridges(convoID)
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
-        await handleChatInput(parsed_data['data'])
+        await user_input(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
         print(parsed_data['data']['fields'])
         await updateCartridgeField(parsed_data['data'])
@@ -236,17 +243,28 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         await set_loadout(loadout, convoID)
+        novaConvo[convoID]['owner'] = True
+        await runCartridges(convoID)
 
     if(parsed_data['type'] == 'loadout_referal'):
         eZprint('loadout_referal route hit')
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']    
+        params = parsed_data['data']['params']
+        await initialise_conversation(convoID, params)
         await set_loadout(loadout, convoID, True)
     if(parsed_data['type']=='delete_loadout'):
         eZprint('delete_loadout route hit')
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         await delete_loadout(loadout, convoID)
+
+    if(parsed_data['type']=='clear_loadout'):
+        eZprint('clear_loadout route hit')
+        convoID = parsed_data['data']['convoID']
+        await clear_loadout(convoID)
+        await loadCartridges(convoID)
+        await runCartridges(convoID)
 
     if(parsed_data['type'] == 'set_read_only'):
         eZprint('read_only route hit')
@@ -261,6 +279,7 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         title = parsed_data['data']['title']
         await set_loadout_title(loadout, title)
+        
 
     if(parsed_data['type']=='update_loadout_field'):
         eZprint('update_loadout_field route hit')

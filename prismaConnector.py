@@ -15,26 +15,80 @@ async def deleteSummaries(userID):
         where = {'UserID' : userID,}
     )
 
-async def findSummaries(userID, epoch = None):
+async def deleteMessages(userID):
+    messages = await prisma.message.delete_many(
+        where = {'UserID' : userID,}
+    )
+
+async def findSummaries(userID, epoch = None, summarised = None):
     summaries = await prisma.summary.find_many(
                 where = {'UserID' : userID}
     )
-    print(len(summaries))
+
+    latest_summaries = []
+    summary_by_id = {}
+    for summary in summaries:
+        id = summary.id
+        blob = json.loads(summary.json())['blob']
+        # print(blob)
+        for key, val in blob.items():
+            if 'summarised' in val :
+                if not val['summarised']:
+                    print(summary)
+                    print('\n')
+        
+                
+async def sort_summaries(userID, epoch = None):
+    summaries = await prisma.summary.find_many(
+                where = {'UserID' : userID}
+    )
+    # print(len(summaries))
     
     # print(summaries)
     latest_summaries = []
+    summary_by_id = {}
     for summary in summaries:
         id = summary.id
-        summary = dict(summary.blob)
-        for key, val in summary.items():
+        # print(summary)
+        # print('\n')
+        obj = dict(summary.blob)
+        for key, val in obj.items():
             if 'epoch' in val:
-                if epoch != None:
-                    if val['epoch'] == epoch:
-                        print(val)
-                        print('\n')
-                else:
-                    print(val)
-                    print('\n')
+                if 'id' in val:
+                    if val['id'] not in summary_by_id:
+                        print('creating new ID record')
+                        summary_by_id[val['id']] = []
+                    summary_by_id[val['id']].append(summary)
+
+    for id in summary_by_id:
+        print(id)
+        # print (summary_by_id[0]['title'])
+        print(len(summary_by_id[id]))
+        saved = False
+        for summary in summary_by_id[id]:
+            if saved == False:
+                saved = True
+                print('saved ' + str(summary.id))
+            else:
+                delete = await prisma.summary.delete(
+                    where={'id': summary.id}
+                )
+                print('deleted ' + str(summary.id))
+                
+
+
+    
+
+
+
+
+                # if epoch != None:
+                #     if val['epoch'] == epoch:
+                #         print(val)
+                #         print('\n')
+                # else:
+                #     print(val)
+                #     print('\n')
                 # print(str(val['epoch']) + ' ' + str(val['summarised']))
                 # print(val['summarised'])
     #             # print('found one')
@@ -132,27 +186,44 @@ async def findUsers():
     )
     print(users)
  
-async def findCartridges():
-    cartridges = await prisma.cartridge.find_many(
-        where = {'UserID' : 'guest'}
+async def findCartridges(userID = None):
 
-    )
+    if userID == None:
+        cartridges = await prisma.cartridge.find_many()
+    else:
+        cartridges = await prisma.cartridge.find_many(
+            where = {'UserID' :userID}
 
+        )
+
+    print(cartridges)
     
     # lastCart = cartridges[-1]
     # for cartridge in cartridges:
     # await prisma.cartridge.delete_many(
     #     where = {'UserID' : '110327569930296986874',}
     # )
-    for each in cartridges:
-        print(each)
+    # for each in cartridges:
+    #     print(each)
     # print(cartridges)
 
-async def editCartridge():
-    cartridge = await prisma.cartridge.find_first(
-        where = {'userID' : 'guest'}
+async def editCartridge(userID):
+    cartridges = await prisma.cartridge.find_many(
+        where = {'UserID' : userID}
+    ) 
+    for cartridge in cartridges:
+        blob = json.loads(cartridge.json())['blob']
+        # if 'index' in blob:
+        #     await
+        for key, val in blob.items():
+            val['enabled'] = True
+            updatedCartridge = await prisma.cartridge.update(
+                where={'id': cartridge.id},
+                data={ 
+                    'key': key,
+                    'blob': Json(blob)}
+            )
 
-    )
 
 async def deleteCartridges():
     cartridges = await prisma.cartridge.delete_many(
@@ -283,11 +354,15 @@ async def main() -> None:
     # await findBatches()
     # await findLogSummaries()
     # await findLogs('108238407115881872743')
-    # await findSummaries('108238407115881872743')
+    # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
-    await deleteSummaries('110327569930296986874')
-    await findMessages_set_unsummarised('110327569930296986874')
+    await deleteMessages('108238407115881872743')
+    await deleteSummaries('108238407115881872743')
+    # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
+    # await editCartridge('110327569930296986874')
+    # await findCartridges()
+
     # await findAndMarkLogsOver2k()
     # await find_and_delete_messages()
     # await findUsers()
