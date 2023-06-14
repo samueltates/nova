@@ -6,6 +6,9 @@ from sessionHandler import availableCartridges
 from memory import summarise_from_range
 # from nova import handleIndexQuery
 import asyncio
+
+system_threads = {}
+
 async def handle_commands(command_object, convoID):
     eZprint('handling command')
     print(command_object)

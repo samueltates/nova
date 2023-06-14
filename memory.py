@@ -16,7 +16,7 @@ windows = {}
 
 
 async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
-    
+
     print('update_cartridge_summary')
     userID = novaConvo[convoID]['userID']
 
@@ -741,6 +741,7 @@ async def summariseChatBlocks(input,  loadoutID = None):
 
 
 async def get_sessions(convoID):
+    
     print('getting sessions')
     logs = await prisma.log.find_many(
     where = {
