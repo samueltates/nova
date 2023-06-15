@@ -8,6 +8,8 @@ from query import sendChat
 
 current_prompt = {}
 
+
+
 async def construct_query(convoID, thread = 0):
     print('constructing query')
     cartridges = await unpack_cartridges(convoID)

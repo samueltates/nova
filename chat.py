@@ -20,7 +20,9 @@ agentName = 'nova'
 
 
 async def agent_initiate_convo(convoID):
-    query_object = await construct_query(convoID),
+    await construct_query(convoID),
+    query_object = current_prompt[convoID]['prompt']
+    
     await send_to_GPT(convoID, query_object)
 
 
