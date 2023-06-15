@@ -9,13 +9,13 @@ import openai
 from human_id import generate_id
 from datetime import datetime
 from prisma import Json
-from chat import agent_initiate_convo
+from chat import agent_initiate_convo, construct_query
 #NOVA STUFF
 from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession, current_loadout
 from prismaHandler import prisma
 from memory import summarise_convos, get_summaries, update_cartridge_summary
-
+from query import get_summary_with_prompt
 from keywords import get_summary_keywords
 from debug import fakeResponse, eZprint
 
@@ -76,10 +76,12 @@ async def loadCartridges(convoID):
                     # if cartVal['type'] == 'summary':
                     #     cartVal.update({'state': 'loading'})
         # print('available cartridges are ' + str(availableCartridges[convoID]))
+
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID):
+    # await construct_query(convoID)
     userID = novaConvo[convoID]['userID']
     if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
         await agent_initiate_convo(convoID)
@@ -98,11 +100,22 @@ async def runCartridges(convoID):
                     # print('loadout is ' + str(loadout))
                     await get_summaries(userID, convoID, loadout)
                     await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+
+
                     # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
                     # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
                     await summarise_convos(convoID, cartKey, cartVal, loadout)
                     # print(availableCartridges[convoID])
                     await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                    response = ''
+                    # if 'values' in cartVal:
+                    #     if 'overview' in cartVal['values']:
+                    #         if cartVal['values']['overview']:
+                    #             if cartVal['blocks']:
+                    #                 response = await get_summary_with_prompt(past_convo_prompts, convoID, loadout)
+                    #                 if response != '':
+                    #                     cartVal['blocks'] = {'past-conversations' : response}
+                    #                     print('getting overview of summary')
                     print('ending run')
 
     else    :
@@ -284,3 +297,4 @@ onboarding_prompts = [
 
 ]
 
+past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and return your notes."""

@@ -16,3 +16,21 @@ async def sendChat(promptObj, model):
             response = "Assistant did not return a message"
 
     return response
+
+
+
+async def get_summary_with_prompt(prompt, textToSummarise):
+
+    promptObject = []
+    promptObject.append({'role' : 'system', 'content' : prompt})
+    promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    # print(textToSummarise)
+    # model = app.session.get('model')
+    # if model == None:
+    #     model = 'gpt-3.5-turbo'
+    response = await sendChat(promptObject, 'gpt-3.5-turbo')
+    # print(response)
+    try:
+        return response["choices"][0]["message"]["content"]
+    except:
+        return response

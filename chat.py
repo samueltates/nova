@@ -8,10 +8,10 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, chatlog
+from sessionHandler import novaConvo, chatlog, availableCartridges
 from loadout import current_loadout
 from prismaHandler import prisma
-from prompt import construct_query
+from prompt import construct_query, current_prompt
 from query import sendChat
 from commands import handle_commands, system_threads
 from memory import get_sessions
@@ -26,22 +26,31 @@ async def agent_initiate_convo(convoID):
 
 async def user_input(sessionData):
     #takes user iput and runs message cycle
+    print('user input')
     convoID = sessionData['convoID']
     message = sessionData['body']
     userName = novaConvo[convoID]['userName']
-    
+
+    # print(availableCartridges[convoID])
     await handle_message(convoID, message, 'user', userName, sessionData['ID'])
-    query_object = await construct_query(convoID),
+    await construct_query(convoID),
+    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+    if 'commands' in novaConvo[convoID]:
+        if novaConvo[convoID]['commands']:
+            query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
     await send_to_GPT(convoID, query_object)
     
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0):
-
+    print('handling message')
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     userID = novaConvo[convoID]['userID']
     sessionID = novaConvo[convoID]['sessionID'] +"-"+convoID
-    json_return = novaConvo[convoID]['commands'] = True
+    if 'commands' in novaConvo[convoID]:
+        json_return = novaConvo[convoID]['commands']
+    else:
+        json_return = False
 
     if convoID in current_loadout:
         sessionID += "-"+str(current_loadout[convoID])
@@ -82,8 +91,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID].append(messageObject)
 
     asyncio.create_task(logMessage(messageObject))
-
     copiedMessage = deepcopy(messageObject)
+    print(copiedMessage)
     if role != 'user' :
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
@@ -98,9 +107,11 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
                 await command_interface(command, convoID, thread)
                 copiedMessage['body'] = response
+        print(copiedMessage)
+
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
         
-    eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
+    # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
 
 
@@ -108,14 +119,14 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
-    # print(promptObject)
-    for line in promptObject:
-        print(f"{line}")
+    print(promptObject)
+
     content = ''
     await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
+        print(response)
     except Exception as e:
         print(e)
         print('trying again')
@@ -128,7 +139,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
             content = e
     eZprint('response recieved')
 
-    asyncio.create_task(handle_message(convoID, content, 'assistant', thread))
+    asyncio.create_task(handle_message(convoID, content, 'assistant', 'Nova', None, thread))
         
             
 
@@ -155,12 +166,12 @@ async def command_interface(command, convoID, threadRequested):
         else:
             thread = threadRequested
 
-        await handle_message(convoID, system_response, 'system', None, thread)
+        await handle_message(convoID, system_response, 'system', 'sys', None, thread)
 
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
 
-        query_object = await construct_query(convoID),
+        query_object = await construct_query(convoID, thread),
         await send_to_GPT(convoID, query_object, thread)
 
 

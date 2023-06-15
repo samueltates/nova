@@ -109,7 +109,7 @@ async def updateCartridgeField(input):
     # print(sessionData)
     # TODO: switch to do lookup via key not blob
     eZprint('cartridge update input')
-    # print(input)
+    print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
         'key':

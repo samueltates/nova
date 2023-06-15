@@ -4,47 +4,44 @@ from debug import eZprint
 from sessionHandler import availableCartridges, chatlog, novaConvo
 from memory import summarise_percent, get_sessions
 from commands import system_threads
+from query import sendChat
 
 current_prompt = {}
 
-async def construct_query(convoID):
-
-    print(availableCartridges[convoID])
+async def construct_query(convoID, thread = 0):
+    print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    main_string = await construct_string(cartridges)
-    chat_objects = await construct_chat(convoID)
-    to_send = await construct_objects(convoID, main_string, cartridges, chat_objects)
-
-    return to_send    
+    main_string = await construct_string(cartridges, convoID)
+    await construct_chat(convoID, thread)
+    await construct_objects(convoID, main_string, cartridges)
 
 async def unpack_cartridges(convoID):
-
+    print('unpacking cartridges')
+    print(convoID)
+    # print(availableCartridges[convoID])
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     ##IDEA - construct object out of type as field name, then loop to construct object
     cartridge_contents = {} 
     for cartVal in sorted_cartridges:
-        if cartVal.get('enabled', False):
-            continue
-        if cartVal['type'] not in cartridge_contents:
-            cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
-        if 'label' in cartVal:
-            cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
-            cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
-        if 'prompt' in cartVal:
-            cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n"
-        if 'blocks' in cartVal:
-            for block in cartVal['blocks']:
-                for key, value in block.items():
-                    cartridge_contents[cartVal['type']]['string'] += value + "\n"
-        if 'values' in cartVal:
-            cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
-
+        if cartVal.get('enabled', True):
+            if cartVal['type'] not in cartridge_contents:
+                cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
+            if 'label' in cartVal:
+                cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
+            if 'prompt' in cartVal:
+                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n"
+            if 'blocks' in cartVal:
+                for block in cartVal['blocks']:
+                    for key, value in block.items():
+                        cartridge_contents[cartVal['type']]['string'] += value + "\n"
+            if 'values' in cartVal:
+                cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
+    print(cartridge_contents)
     return cartridge_contents
 
 
-async def construct_string(convoID):
-    prompt_objects = await unpack_cartridges(convoID)
-
+async def construct_string(prompt_objects, convoID):
+    print('constructing string')
     final_string = ''
 
     if 'prompt' in prompt_objects:
@@ -55,12 +52,10 @@ async def construct_string(convoID):
     if 'index' in prompt_objects:
         final_string += prompt_objects['index']['string']
     if 'commands' in prompt_objects:
-        final_string += command_string
-        novaConvo[convoID]['commands'] = True
-    
+        final_string += prompt_objects['commands']['string']
+
+    print(final_string)
     return final_string
-
-
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
@@ -68,14 +63,18 @@ async def construct_chat(convoID, thread = 0):
     if convoID in chatlog:
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
-                current_chat.append({"role": log['role'], "content": log['body']})
+                current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
             if 'thread' in log:
                 if log['thread'] == thread:
                     continue
                     
-    if convoID in system_threads & thread:
+    if convoID in system_threads and thread:
         if thread in system_threads[convoID]:
-            current_chat.append({"role": 'system', "content": thread['body']})
+            current_chat.append({"role": "system", "content": f"{thread['body']}"})
+    if convoID not in current_prompt:
+        current_prompt[convoID] = {}
+    current_prompt[convoID]['chat'] = current_chat
+
 
 
 async def construct_context(convoID):
@@ -89,28 +88,41 @@ async def construct_context(convoID):
 
 
 
+
 async def construct_objects(convoID, main_string = None, prompt_objects = None,  chat_objects = None, ):
     list_to_send = []
+    print('main string is: ' + str(main_string))
+    print('chat objects are: ' + str(chat_objects))
     if main_string:
-        list_to_send.append({'role': 'system', 'content': main_string})
-    list_to_send.append(chat_objects)
+        list_to_send.append({"role" : "system", "content": main_string})
     if 'system' in prompt_objects:
-        list_to_send.append({'type': 'system', 'string': prompt_objects['system']['string']})
-    if 'values' in prompt_objects['system']:
-        for value in prompt_objects['system']['values']:
-            if 'warn_token' in value:
-                warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
-                if warning:
-                    warning = value['warn_start'] + warning + value['warn_end']
-                    list_to_send.append({'type': 'system', 'content': warning})
-            if 'give_context' in value:
-                context = construct_context(convoID)
-                list_to_send.append({'type': 'system', 'content': context})
-  
-    return list_to_send
+        list_to_send.append({'role': "system", "content": f"{ prompt_objects['system']['string']}"})
+        if 'values' in prompt_objects['system']:
+            for value in prompt_objects['system']['values']:
+                if 'warn_token' in value:
+                    if value['warn_token'] == True:
+                        warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
+                        if warning:
+                            warning = value['warn_start'] + warning + value['warn_end']
+                            list_to_send.append({"role": "system", "content": f"{warning}"})
+                if 'give_context' in value:
+                    if value['give_context'] == True:
+                        context = construct_context(convoID)
+                        list_to_send.append({"role": "system", 'content': context})
+                if 'commands' in value:
+                    if value['commands'] == True:
+                        list_to_send.append({"role": "system", 'content': command_string})                 
+                        novaConvo[convoID]['commands'] = True
 
 
-async def get_token_warning(string_to_check, limit, message, convoID):
+    print('list to send is: ' + str(list_to_send))
+    if convoID not in current_prompt:
+        current_prompt[convoID] = {}
+    current_prompt[convoID]['prompt'] = list_to_send
+    
+
+
+async def get_token_warning(string_to_check, limit, convoID):
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
     if tokens > limit:
@@ -131,14 +143,13 @@ def estimateTokenSize(text):
 
 
 
-
-
 response_format = {
     "thoughts": {
-        "text": "thought",
-        "reasoning": "reasoning",
-        "criticism": "constructive self-criticism",
-        "speak": "thoughts summary to say to user"
+        "think" : "internal world",
+        "reason": "logic and flow",
+        "critique": "challenge and unpack",
+        "plan": "what comes next",
+        "answer": "say out loud"
     },
     "command": {"name": "command name", "args": {"arg name": "value"}},
 }

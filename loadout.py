@@ -46,6 +46,8 @@ async def add_loadout(loadout: str, convoID):
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
 
 async def add_cartridge_to_loadout(convoID, cartridge):
+    if convoID not in current_loadout:
+        return
     loadout = await prisma.loadout.find_first(
         where={ "key": str(current_loadout[convoID]) },
     )

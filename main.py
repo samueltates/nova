@@ -253,6 +253,7 @@ async def process_message(parsed_data):
         params = parsed_data['data']['params']
         await initialise_conversation(convoID, params)
         await set_loadout(loadout, convoID, True)
+        await runCartridges(convoID)
     if(parsed_data['type']=='delete_loadout'):
         eZprint('delete_loadout route hit')
         convoID = parsed_data['data']['convoID']

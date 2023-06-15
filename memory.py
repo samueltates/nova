@@ -5,7 +5,7 @@ from prismaHandler import prisma
 from prisma import Json
 import secrets
 from datetime import datetime
-from query import sendChat
+from query import sendChat, get_summary_with_prompt
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
 from sessionHandler import novaConvo, availableCartridges, chatlog
 from appHandler import websocket
@@ -232,22 +232,6 @@ async def summarise_batches(batches, userID, convoID, loadoutID = None):
             print('error creating summary record')
             #sending summary state back to server
 
-
-async def get_summary_with_prompt(prompt, textToSummarise):
-
-    promptObject = []
-    promptObject.append({'role' : 'system', 'content' : prompt})
-    promptObject.append({'role' : 'user', 'content' : textToSummarise})
-    # print(textToSummarise)
-    # model = app.session.get('model')
-    # if model == None:
-    #     model = 'gpt-3.5-turbo'
-    response = await sendChat(promptObject, 'gpt-3.5-turbo')
-    # print(response)
-    try:
-        return response["choices"][0]["message"]["content"]
-    except:
-        return response
 
 
 async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta = {}, convoID = '', loadoutID = None):
