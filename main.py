@@ -15,7 +15,7 @@ from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, handleIndexQuery, runCartridges
 from chat import handle_message, user_input
-from cartridges import addCartridgePrompt,addCartridge, updateCartridgeField, updateContentField
+from cartridges import addCartridgePrompt,updateCartridgeField, updateContentField,get_cartridge_list, addExistingCartridgeToLoadout
 from gptindex import indexDocument
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
@@ -290,6 +290,17 @@ async def process_message(parsed_data):
         field = parsed_data['data']['field']
         value = parsed_data['data']['value']
         await update_loadout_field(loadout, field, value)
+
+    if(parsed_data['type']=='request_cartridge_list'):
+        eZprint('request_cartridge_list route hit')
+        convoID = parsed_data['data']['convoID']
+        await get_cartridge_list(convoID)
+
+    if(parsed_data['type']=='addExistingCartridge'):
+        eZprint('addExistingCartridge route hit')
+        convoID = parsed_data['data']['convoID']
+        # cartridge = parsed_data['data']['cartridge']
+        await addExistingCartridgeToLoadout(parsed_data['data'])
      
 
 file_chunks = {}

@@ -17,7 +17,7 @@ windows = {}
 
 async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
 
-    print('update_cartridge_summary')
+    # print('update_cartridge_summary')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
@@ -51,7 +51,7 @@ async def summarise_convos(convoID, cartKey, cartVal, loadoutID= None):
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
 async def update_cartridge_summary(userID, cartKey, cartVal, convoID):
-    print('update_cartridge_summary')
+    # print('update_cartridge_summary')
     window_counter = 0
     # if 'blocks' not in cartVal:
     cartVal['blocks'] = []

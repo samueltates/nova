@@ -225,6 +225,57 @@ async def editCartridge(userID):
             )
 
 
+async def editCartridgeKeys(UserID):
+    cartridges = await prisma.cartridge.find_many(
+        where = {'UserID' : UserID}
+    ) 
+    for cartridge in cartridges:
+        blob = json.loads(cartridge.json())['blob']
+
+        if cartridge.key == '':
+
+            for key, val in blob.items():
+                if 'key' in val and val['key'] != '':
+                    update = await prisma.cartridge.update(
+                        where={'id': cartridge.id},
+                        data={'key': key}
+                    )
+
+                else :
+                    newKey = generate_id()
+                    val['key'] = newKey
+                    update = await prisma.cartridge.update(
+                        where={'id': cartridge.id},
+                        data={'key': key,
+                            'blob': Json({key:val})}
+                    )
+        else:
+            for key, val in blob.items():
+                if 'key' not in val or val['key'] == '':
+                    val['key'] = cartridge.key
+                    update = await prisma.cartridge.update(
+                        where={'id': cartridge.id},
+                        data={'blob': Json({key:val})}
+                    )
+# async def findCartridges(userID = None):
+
+
+#     cartridges = await prisma.cartridge.find_many(
+#             where = {'UserID' :userID}
+#         )
+    
+#     for cartridge in cartridges:
+#         for key, val in cartridge.blob.items():
+#             if 'key' not in val or val['key'] == '':
+#                 val['key'] = cartridge.key
+#                 update = await prisma.cartridge.update(
+#                     where={'id': cartridge.id},
+#                     data={'blob': Json({key:val})}
+#                 )
+
+
+    
+
 async def deleteCartridges():
     cartridges = await prisma.cartridge.delete_many(
         where = {'UserID' : 'notSet'}
@@ -356,11 +407,13 @@ async def main() -> None:
     # await findLogs('108238407115881872743')
     # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
-    await deleteMessages('108238407115881872743')
-    await deleteSummaries('108238407115881872743')
+    # await deleteMessages('108238407115881872743')
+    # await deleteSummaries('108238407115881872743')
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
+    await editCartridgeKeys('110327569930296986874')
+
     # await findCartridges()
 
     # await findAndMarkLogsOver2k()

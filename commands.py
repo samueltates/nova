@@ -1,13 +1,17 @@
 
 from keywords import get_summary_from_keyword, keywords_available
 from debug import eZprint
-from cartridges import addCartridge, updateCartridgeField
+from cartridges import addCartridge, updateCartridgeField, get_cartridge_list, whole_cartridge_list
 from sessionHandler import availableCartridges
 from memory import summarise_from_range
 # from nova import handleIndexQuery
 import asyncio
 
 system_threads = {}
+
+command_state = {}
+
+all_cartridges = {}
 
 async def handle_commands(command_object, convoID):
     eZprint('handling command')
@@ -18,12 +22,137 @@ async def handle_commands(command_object, convoID):
             return command_response
     else:
         eZprint('no command found')
-        return
+        command_return = {"status": "", "name" : "command", "message": ""}
+        command_return['status'] = "Error."
+        command_return['message'] = "No command found."
+        return command_response
 
 async def parse_command(name, args, convoID):
     eZprint('parsing command')
+    if convoID not in command_state:
+        command_state[convoID] = {}
+
     command_return = {"status": "", "name" : name, "message": ""}
-    if name == 'summarise_conversation':
+                
+    if name == 'write':
+        eZprint('writing file')
+        if 'filename' in args:
+            for key, val in availableCartridges[convoID].items():
+                if val['filename'] == args['filename']:
+                    if 'blocks' not in val:
+                        val['blocks'] = []
+
+                    val['blocks'].append({'text': args['text']})
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'blocks': val['blocks']}
+                                }
+                    await updateCartridgeField(payload)
+                else : 
+                    blocks = []
+                    blocks.append({'text': args['text']})
+                    cartVal = {
+                    'filename' : args['filename'],
+                    'blocks' :blocks,
+                    'type' : 'text'
+                    }
+                    print(cartVal)
+                    await addCartridge(cartVal, convoID)
+
+                command_return['status'] = "success"
+                command_return['message'] = "file " +args['filename']  + " written"
+                print(command_return)
+                return command_return
+        command_return['status'] = "Error."
+        command_return['message'] = "Arg 'filename' missing"
+        return command_return
+
+    if name == 'list':
+        eZprint('list available files')
+        string = '\nFiles available:\n'
+
+        await get_cartridge_list(convoID)
+        whole_cartridge_list[convoID]
+        for key, val in availableCartridges[convoID].items():
+            string += '\n' + val['label']+" -- " + val['type'] + " -- " + val['description']+'\n'
+
+
+        string += follow_up_commands
+        string += "\n"
+        
+        command_return['status'] = 'success'
+        command_return['message'] = string
+        command_state[convoID]['files_open'] = True
+        print(command_return)
+        return command_return
+
+
+    if name == 'preview':
+        eZprint('previewing file')
+        if 'label' in args:
+            for key, val in whole_cartridge_list[convoID].items():
+                if val['filename'] == args['filename']:
+                    preview_string = val['filename'] + '\n'
+                    if 'blocks' in val:
+                        for block in val['blocks']:
+                            preview_string += block['body'] + '\n'
+                    preview_string += '\n'
+                    command_return['status'] = "success"
+                    command_return['message'] = preview_string
+                    print(command_return)
+                    return command_return
+            else: 
+                command_return['status'] = "Error."
+                command_return['message'] = "File not found."
+                print(command_return)
+                return command_return
+                
+    if name == 'open':
+        eZprint('reading file')
+        if 'filename' in args:
+            for key, val in availableCartridges[convoID].items():
+                if val['filename'] == args['filename']:
+                    val['enabled'] = True
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'enabled': val['enabled']}
+                                }
+                    await updateCartridgeField(payload)                    
+                    command_return['status'] = "Success."
+                    command_return['message'] = "File " + args['label'] + " opened.\n"
+                    print(command_return)
+                    return command_return
+                else:
+                    command_return['status'] = "Error."
+                    command_return['message'] = "File name not found.\n"
+                    print(command_return)
+                
+    if name == 'close':
+        if 'label' in args:
+            for key, val in availableCartridges[convoID].items():
+                if val['filename'] == args['filename']:
+                    val['enabled'] = False
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'enabled': val['enabled']}
+                                }
+                    await updateCartridgeField(payload)                    
+                    command_return['status'] = "success"
+                    command_return['message'] = "file " +args['label']  + " closed.\n"
+                    return command_return
+                else:
+                    command_return['status'] = "Error."
+                    command_return['message'] = "File not found."
+                    return command_return
+
+                
+    if name == 'summarise_messages':
         eZprint('summarising conversation')
         summmarised = await summarise_from_range(convoID, args['start-line'], args['end-line'])
         if summmarised:
@@ -141,18 +270,6 @@ async def parse_command(name, args, convoID):
         command_return['status'] = 'error'
         command_return['message'] = 'note not found'
 
-    if name == 'list_documents':
-        eZprint('listing notes')
-        string = '\nDocuments available:'
-        for key, val in availableCartridges[convoID].items():
-            if val['type'] == 'index':
-                if val['enabled'] == True:
-                    string += '\n' + val['label']+"\n"
-        command_return['status'] = 'success'
-        command_return['message'] = string
-        print(command_return)
-        return command_return
-                
     
     if name == 'query_document':
         eZprint('querying document')
@@ -175,13 +292,5 @@ async def parse_command(name, args, convoID):
         command_return['message'] = "index " +args['document']  + " not found"
         return command_return
 
-# command_name\n\nCommands:\n1. create_note: Create Note, args: "label": "<label_string>", "body": "<body_string>"\n2. append_note: Append Note, args: "label": "<filename>", "line" : <new_line> <\n4. list_notes: List available notes, args: "type": "<resource type>"\n6. open_note: Open a note, args: "label": "<labelname>"\n7. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n7. query_document: Query document embedding, args: "document": "<filename>", "text": "<text>"
-# """
 
-
-
-
-
-  
-
-"""\nCommands:\n1. add_note: Creates new note for later reference, args: "title" : <title>, "body" : <body>\n2. list_notes: shows available notes, args: "note": "<note title>"\n3. append_to_note: Append note with new line, args: "note": "<note title>, "new line":<new line>"""
+follow_up_commands = "\n Use commands preview, read, or query or to continue, or return answer, write to file or quit to finish"

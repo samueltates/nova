@@ -7,7 +7,25 @@ from prisma import Json
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
 from debug import eZprint
 from human_id import generate_id
-from loadout import current_loadout, add_cartridge_to_loadout
+from loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
+
+whole_cartridge_list = {}
+
+async def get_cartridge_list(convoID):
+    userID = novaConvo[convoID]['userID']
+    print('get cartridge list triggered')
+    cartridges = await prisma.cartridge.find_many(
+        where={ "UserID": userID },
+    )
+    cartridge_list = []
+    for cartridge in cartridges:
+        blob = json.loads(cartridge.json())['blob']
+        for key, val in blob.items():
+            if 'key' not in availableCartridges[convoID]:
+                val.update({'key':key})
+                cartridge_list.append(val)
+    whole_cartridge_list[convoID] = cartridge_list
+    await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
 
 async def addCartridge(cartVal, convoID):
     eZprint('add cartridge triggered')
@@ -21,6 +39,8 @@ async def addCartridge(cartVal, convoID):
         cartVal.update({"softDelete":False})
     if convoID in current_loadout:
         cartVal.update({'loadout':current_loadout[convoID] })
+    if 'key' not in cartVal:
+        cartVal.update({'key':cartKey})
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -50,6 +70,7 @@ async def addCartridgePrompt(input):
     convoID = input['convoID']
     cartVal = input['newCart'][input['tempKey']]
     cartVal.update({'state': ''})
+    cartVal.update({'key': cartKey})
     userID = novaConvo[convoID]['userID']
     newCart = await prisma.cartridge.create(
         data={
@@ -66,8 +87,15 @@ async def addCartridgePrompt(input):
             'tempKey': input['tempKey'],
             'newCartridge': {cartKey:cartVal},
         }
-    await add_cartridge_to_loadout(convoID, cartKey)
     await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    await add_cartridge_to_loadout(convoID, cartKey)
+
+async def addExistingCartridgeToLoadout(input):
+    print(input)
+    convoID = input['convoID']
+    cartKey = input['cartridge']
+    await add_cartridge_to_loadout(convoID,cartKey)
+
 
 async def addCartridgeTrigger(input):
     #TODO - very circular ' add index cartridge' triggered, goes to index, then back, then returns 
@@ -105,18 +133,18 @@ async def updateCartridgeField(input):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
     targetCartVal = availableCartridges[convoID][targetCartKey]
+    await update_settings_in_loadout(convoID, targetCartKey, input['fields'])
     # print(targetCartKey)
     # print(sessionData)
     # TODO: switch to do lookup via key not blob
-    eZprint('cartridge update input')
-    print(input)
+    # eZprint('cartridge update input')
+    # print(input)
     matchedCart = await prisma.cartridge.find_first(
         where={
         'key':
         {'equals': input['cartKey']}
         },         
     )
-
     # print(matchedCart)
     for key, val in input['fields'].items():
         availableCartridges[convoID][targetCartKey][key] = val
@@ -129,7 +157,7 @@ async def updateCartridgeField(input):
             }
         )
         # print(updatedCart)
-        eZprint('updated cartridge')
+        # eZprint('updated cartridge')
         # print(updatedCart)
     payload = { 'key':targetCartKey,'fields': {'state': ''}}
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
