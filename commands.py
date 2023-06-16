@@ -17,15 +17,22 @@ async def handle_commands(command_object, convoID):
     eZprint('handling command')
     print(command_object)
     if command_object:
-        if 'name' and 'args' in command_object:
-            command_response = await parse_command(command_object['name'], command_object['args'], convoID)
-            return command_response
-    else:
-        eZprint('no command found')
-        command_return = {"status": "", "name" : "command", "message": ""}
-        command_return['status'] = "Error."
-        command_return['message'] = "No command found."
+        name = ''
+        args = ''
+
+        if 'name' in command_object:
+            name = command_object['name']
+        if 'args' in command_object:
+            args = command_object['args']
+        
+        command_response = await parse_command(name, args, convoID)
         return command_response
+    # else:
+    #     eZprint('no command found')
+    #     command_response = {"status": "", "name" : "command", "message": ""}
+    #     command_response['status'] = "Error."
+    #     command_response['message'] = "No command found."
+    #     return command_response
 
 async def parse_command(name, args, convoID):
     eZprint('parsing command')
@@ -33,23 +40,48 @@ async def parse_command(name, args, convoID):
         command_state[convoID] = {}
 
     command_return = {"status": "", "name" : name, "message": ""}
-                
-    if name == 'write':
+    if 'list' in name:
+        eZprint('list available files')
+        string = '\nFiles available:\n'
+
+        await get_cartridge_list(convoID)
+        for key, val in availableCartridges[convoID].items():
+            label = ''
+            type = ''
+            description = ''
+            if 'label' in val:
+                label = val['label']
+            if 'type' in val:
+                type = val['type']
+            if 'description' in val:
+                description = val['description']
+            string += '\n--' + label+ " : " + type + " - " + description
+
+        string += follow_up_commands
+        string += "\n"
+        
+        command_return['status'] = 'success'
+        command_return['message'] = string
+        command_state[convoID]['files_open'] = True
+        print(command_return)
+        return command_return
+               
+    if 'write' in name:
         eZprint('writing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if val['filename'] == args['filename']:
-                    if 'blocks' not in val:
-                        val['blocks'] = []
+                if 'filename' in val and val['filename'] == args['filename']:
+                        if 'blocks' not in val:
+                            val['blocks'] = []
 
-                    val['blocks'].append({'text': args['text']})
-                    payload = {
-                        'convoID': convoID,
-                        'cartKey' : key,
-                        'fields':
-                                {'blocks': val['blocks']}
-                                }
-                    await updateCartridgeField(payload)
+                        val['blocks'].append({'text': args['text']})
+                        payload = {
+                            'convoID': convoID,
+                            'cartKey' : key,
+                            'fields':
+                                    {'blocks': val['blocks']}
+                                    }
+                        await updateCartridgeField(payload)
                 else : 
                     blocks = []
                     blocks.append({'text': args['text']})
@@ -69,31 +101,12 @@ async def parse_command(name, args, convoID):
         command_return['message'] = "Arg 'filename' missing"
         return command_return
 
-    if name == 'list':
-        eZprint('list available files')
-        string = '\nFiles available:\n'
-
-        await get_cartridge_list(convoID)
-        whole_cartridge_list[convoID]
-        for key, val in availableCartridges[convoID].items():
-            string += '\n' + val['label']+" -- " + val['type'] + " -- " + val['description']+'\n'
-
-
-        string += follow_up_commands
-        string += "\n"
-        
-        command_return['status'] = 'success'
-        command_return['message'] = string
-        command_state[convoID]['files_open'] = True
-        print(command_return)
-        return command_return
-
 
     if name == 'preview':
         eZprint('previewing file')
-        if 'label' in args:
-            for key, val in whole_cartridge_list[convoID].items():
-                if val['filename'] == args['filename']:
+        if 'filename' in args:
+            for key, val in availableCartridges[convoID].items():
+                if 'filename' in val and val['filename'] == args['filename']:
                     preview_string = val['filename'] + '\n'
                     if 'blocks' in val:
                         for block in val['blocks']:
@@ -108,6 +121,11 @@ async def parse_command(name, args, convoID):
                 command_return['message'] = "File not found."
                 print(command_return)
                 return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'filename' missing"
+            print(command_return)
+            return command_return
                 
     if name == 'open':
         eZprint('reading file')
@@ -150,6 +168,7 @@ async def parse_command(name, args, convoID):
                     command_return['status'] = "Error."
                     command_return['message'] = "File not found."
                     return command_return
+
 
                 
     if name == 'summarise_messages':

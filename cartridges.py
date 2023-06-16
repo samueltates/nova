@@ -24,8 +24,8 @@ async def get_cartridge_list(convoID):
             if 'key' not in availableCartridges[convoID]:
                 val.update({'key':key})
                 cartridge_list.append(val)
-    whole_cartridge_list[convoID] = cartridge_list
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
+
 
 async def addCartridge(cartVal, convoID):
     eZprint('add cartridge triggered')

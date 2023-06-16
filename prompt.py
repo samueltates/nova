@@ -11,14 +11,14 @@ simple_agents = {}
 
 
 async def construct_query(convoID, thread = 0):
-    # print('constructing query')
+    print('constructing query')
     cartridges = await unpack_cartridges(convoID)
     main_string = await construct_string(cartridges, convoID)
     await construct_chat(convoID, thread)
     await construct_objects(convoID, main_string, cartridges)
 
 async def unpack_cartridges(convoID):
-    # print('unpacking cartridges')
+    print('unpacking cartridges')
     # print(convoID)
     # print(availableCartridges[convoID])
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
@@ -48,7 +48,7 @@ async def unpack_cartridges(convoID):
 
 
 async def construct_string(prompt_objects, convoID):
-    # print('constructing string')
+    print('constructing string')
     final_string = ''
 
     if 'prompt' in prompt_objects:
@@ -64,20 +64,25 @@ async def construct_string(prompt_objects, convoID):
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
+    print('constructing chat for thread ' + str(thread))
     if convoID in chatlog:
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
                 current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
             if 'thread' in log:
                 if log['thread'] == thread:
+                    print('thread indicator found so breaking main chat')
                     continue
                     
-    if convoID in system_threads and thread:
+    if convoID in system_threads:
         if thread in system_threads[convoID]:
-            current_chat.append({"role": "system", "content": f"{thread['body']}"})
+            for obj in system_threads[convoID][thread]:
+                print('found log for this thread number')
+                current_chat.append({"role": "system", "content": f"{obj['body']}"})
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['chat'] = current_chat
+    print(current_chat)
 
 async def construct_context(convoID):
     get_sessions(convoID)
@@ -155,7 +160,8 @@ async def construct_commands(command_object):
                                 for key, val in value['args'].items():
                                     command_string += " " + key + ": " + val
                             counter += 1
-                            command_string += "\n"      
+                            command_string += "\n"
+                    
     # print(response_format)
     response_format = {
         "thoughts" :response_format,
