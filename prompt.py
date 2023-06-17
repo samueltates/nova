@@ -123,6 +123,14 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         list_to_send.append({"role": "system", 'content': context})
     if 'commands' in prompt_objects:
         print('commands found' + str(prompt_objects['commands']))
+        if 'label' in prompt_objects['commands']:
+            print('command label found')
+            print(prompt_objects['commands']['label'])
+            command_string+=  prompt_objects['commands']['label'] + "\n"
+        if 'prompt' in prompt_objects['commands']:
+            print('command prompt found')
+            print(prompt_objects['commands']['prompt'])
+            command_string+=  prompt_objects['commands']['prompt']
         command_string = await construct_commands(prompt_objects['commands'])
         list_to_send.append({"role": "system", 'content': command_string})
         novaConvo[convoID]['commands'] = True
