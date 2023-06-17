@@ -49,7 +49,7 @@ async def addCartridge(cartVal, convoID):
         }
     )
     eZprint('new cartridge added to [nova]')
-    print(newCart)
+    # print(newCart)
 
     if convoID not in availableCartridges:
         availableCartridges[convoID]  = {}
@@ -91,7 +91,7 @@ async def addCartridgePrompt(input):
     await add_cartridge_to_loadout(convoID, cartKey)
 
 async def addExistingCartridgeToLoadout(input):
-    print(input)
+    # print(input)
     convoID = input['convoID']
     cartKey = input['cartridge']
     await add_cartridge_to_loadout(convoID,cartKey)
@@ -165,7 +165,7 @@ async def updateCartridgeField(input):
 
 async def updateContentField(input):
     convoID = input['convoID']
-    print('update chatlog field')
+    # print('update chatlog field')
     for log in chatlog[convoID]:
         if log['ID'] == input['ID']:
             for key, val in input['fields'].items():

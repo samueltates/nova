@@ -257,21 +257,20 @@ async def editCartridgeKeys(UserID):
                         where={'id': cartridge.id},
                         data={'blob': Json({key:val})}
                     )
-# async def findCartridges(userID = None):
 
-
-#     cartridges = await prisma.cartridge.find_many(
-#             where = {'UserID' :userID}
-#         )
+async def updateIndex(userID = None):
+    cartridges = await prisma.cartridge.find_many(
+            where = {'UserID' :userID}
+        )
     
-#     for cartridge in cartridges:
-#         for key, val in cartridge.blob.items():
-#             if 'key' not in val or val['key'] == '':
-#                 val['key'] = cartridge.key
-#                 update = await prisma.cartridge.update(
-#                     where={'id': cartridge.id},
-#                     data={'blob': Json({key:val})}
-#                 )
+    for cartridge in cartridges:
+        for key, val in cartridge.blob.items():
+            if 'key' not in val or val['key'] == '':
+                val['key'] = cartridge.key
+                update = await prisma.cartridge.update(
+                    where={'id': cartridge.id},
+                    data={'blob': Json({key:val})}
+                )
 
 
     

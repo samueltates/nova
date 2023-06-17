@@ -13,12 +13,12 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    print(cartridges)
+    # print(cartridges)
     main_string = await construct_string(cartridges, convoID)
-    print(main_string)
+    # print(main_string)
 
-    await construct_chat(convoID, thread)
     await construct_objects(convoID, main_string, cartridges)
+    await construct_chat(convoID, thread)
 
 async def unpack_cartridges(convoID):
     print('unpacking cartridges')
@@ -65,8 +65,8 @@ async def construct_string(prompt_objects, convoID):
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string']
 
-    print('final_string')
-    print(final_string)
+    # print('final_string')
+    # print(final_string)
     return final_string
 
 async def construct_chat(convoID, thread = 0):
@@ -76,7 +76,7 @@ async def construct_chat(convoID, thread = 0):
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
                 current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
-            if 'thread' in log:
+            if 'thread' in log and thread > 0:
                 if log['thread'] == thread:
                     print('thread indicator found so breaking main chat')
                     continue
@@ -84,10 +84,20 @@ async def construct_chat(convoID, thread = 0):
     if convoID in system_threads:
         if thread in system_threads[convoID]:
             for obj in system_threads[convoID][thread]:
-                print('found log for this thread number')
+                # print('found log for this thread number')
                 current_chat.append({"role": "system", "content": f"{obj['body']}"})
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
+
+
+    if 'commands' in novaConvo[convoID]:
+        print('commands found appending sys')
+        if novaConvo[convoID]['commands']:
+            if thread == 0:
+                current_chat.append(basic_system_finish)
+            else:
+                current_chat.append(thread_system_finish)
+
     current_prompt[convoID]['chat'] = current_chat
     print(current_chat)
 
@@ -101,7 +111,7 @@ async def construct_context(convoID):
         session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
 
 
-async def construct_objects(convoID, main_string = None, prompt_objects = None,  chat_objects = None, ):
+async def construct_objects(convoID, main_string = None, prompt_objects = None, thread = 0 ):
     list_to_send = []
     # print('main string is: ' + str(main_string))
     # print('chat objects are: ' + str(chat_objects))
@@ -122,7 +132,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         context = construct_context(convoID)
                         list_to_send.append({"role": "system", 'content': context})
     if 'commands' in prompt_objects:
-        print('commands found' + str(prompt_objects['commands']))
+        # print('commands found' + str(prompt_objects['commands']))
         if 'label' in prompt_objects['commands']:
             # print('command label found')
             # print(prompt_objects['commands']['label'])
@@ -131,7 +141,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
             # print('command prompt found')
             # print(prompt_objects['commands']['prompt'])
             command_string+=  prompt_objects['commands']['prompt']
-        command_string = await construct_commands(prompt_objects['commands'])
+        command_string = await construct_commands(prompt_objects['commands'], thread)
         list_to_send.append({"role": "system", 'content': command_string})
         novaConvo[convoID]['commands'] = True
 
@@ -141,7 +151,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     current_prompt[convoID]['prompt'] = list_to_send
     
 
-async def construct_commands(command_object):
+async def construct_commands(command_object, thread = 0):
     # print('constructing commands')
     # print(command_object)
     response_format = {}
@@ -174,20 +184,31 @@ async def construct_commands(command_object):
                         # print('types found')
                         typeKey = ""
                         typeVal = ""
-                        print(response_type)
+                        # print(response_type)
                         for element in response_type:
                             for key, val in element.items():
-                                if key == 'type':
-                                    # print('type found' + str(val))
-                                    typeKey = val
-                                if key == 'instruction':
-                                    # print('instruction found'  + str(val))
-                                    typeVal = val
+                                if thread == 0:
+                                    if key == 'type':
+                                        # print('type found' + str(val))
+                                        typeKey = val
+                                    if key == 'instruction':
+                                        # print('instruction found'  + str(val))
+                                        typeVal = val
+                                else:
+                                    if val == 'reason' or val == 'plan':
+                                        if key == 'type':
+                                            # print('type found' + str(val))
+                                            typeKey = val
+                                        if key == 'instruction':
+                                            # print('instruction found'  + str(val))
+                                            typeVal = val
+
                             response_format[typeKey] =typeVal
                 if 'commands' in value:
                     # print('commands found')
                     command_string = ""
                     counter = 0
+                    print(value['commands'])
                     for command in value['commands']:
                             # print('command is ')
                             # print(command)
@@ -256,6 +277,9 @@ def estimateTokenSize(text):
     tokenCount =  text.count(' ') + 1
     return tokenCount
 
+basic_system_finish = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
+
+thread_system_finish = {"role": "user", "content": "You are now accessing terminal, Think about objectives,  instructions, and commands available, and carry out neccessary commands, functions and notes.\n>_:"}
 
 
 

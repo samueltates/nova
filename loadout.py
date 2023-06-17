@@ -78,9 +78,9 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
         where={ "key": str(current_loadout[convoID]) },
     )
     if loadout:
-        print(loadout)
-        print(cartridge)
-        print(settings)
+        # print(loadout)
+        # print(cartridge)
+        # print(settings)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             # print(key, val)
@@ -91,7 +91,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
                             cart['settings'] = {}                
                         for key, val in settings.items():
                             cart['settings'][key] = val
-                        print(cart)
+                        # print(cart)
          
         update = await prisma.loadout.update(
             where = {
@@ -102,12 +102,12 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
                 }
         )
 
-        print(update)
+        # print(update)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
     eZprint('set_loadout')
-    print(loadout_key)
+    # print(loadout_key)
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
     )

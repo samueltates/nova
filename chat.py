@@ -40,9 +40,7 @@ async def user_input(sessionData):
     await handle_message(convoID, message, 'user', userName, sessionData['ID'])
     await construct_query(convoID),
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-    if 'commands' in novaConvo[convoID]:
-        if novaConvo[convoID]['commands']:
-            query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+
     # print(query_object)
     await send_to_GPT(convoID, query_object)
 
@@ -51,7 +49,7 @@ async def user_input(sessionData):
     
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
-    print('handling message') 
+    print('handling message on thread: ' + str(thread)) 
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     userID = novaConvo[convoID]['userID']
@@ -80,6 +78,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "role": role,
         "timestamp": str(datetime.now()),
         "order": order,
+        "thread": thread,
     }
 
     if thread:
@@ -90,13 +89,20 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             system_threads[convoID] = {}
             if thread not in system_threads[convoID]:
                 ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
+                eZprint('NEW THREAD')
                 system_threads[convoID][thread] = []
                 messageObject.update({'thread':thread})
                 chatlog[convoID].append(messageObject)
+                print(system_threads[convoID][thread])
+
             else:
+
                 ##after that each loop it adds to thread 
                 ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
+                eZprint('THREAD UPDATE')
+                print(system_threads[convoID][thread])
                 system_threads[convoID][thread].append(messageObject)
+
     else:     
         chatlog[convoID].append(messageObject)
 
@@ -105,14 +111,14 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     # print(copiedMessage)
     
     command = None
+    simple_response = None
 
     if role != 'user' :
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
             json_object = await parse_json_string(message)
             if json_object != None:
-                copiedMessage = deepcopy(messageObject)
-                response = await get_json_val(json_object, 'speak')
+                simple_response = await get_json_val(json_object, 'speak')
                 if role == 'assistant':
                     command = await get_json_val(json_object, 'commands')
                 
@@ -121,11 +127,11 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 ##basically thinking 'thread requested' so if the message is coming from a specific thread then it'll use / keep to that, otherwise it'll start a new one, using zero as false in this instance.
                 # if command:
                 print('command', command)
-                copiedMessage['body'] = response
+                # copiedMessage['body'] = response
 
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
-        print(copiedMessage)
+        # print(copiedMessage)
         if len(simple_agents) > 0:
             asyncio.create_task(simple_agent_response(convoID))
 
@@ -181,10 +187,8 @@ async def command_interface(command, convoID, threadRequested):
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
-        command_response.update({"speak" : "Command " + command_response['name'] + " returned " + command_response['status'] + " with message " + command_response['message']})
-        command_object = {
-            "system": command_response,
-        }
+        command_object = {'commands':command_response['name'] + ": " + command_response['status'] + ". " + command_response['message']}
+        
 
         ## get command as understood
         command_object = json.dumps(command_object)
@@ -199,7 +203,7 @@ async def command_interface(command, convoID, threadRequested):
         else:
             thread = threadRequested
 
-        await handle_message(convoID, command_object, 'system', 'sys', None, thread)
+        await handle_message(convoID, command_object, 'system', '>', None, thread)
 
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
@@ -231,11 +235,11 @@ async def simple_agent_response(convoID):
                 if 'role' in chat:
                     if chat['role'] == 'assistant':
                         chat['role'] = 'user'
-                        # if 'content' in chat:
-                        #     chat['content'] = chat['content'] + '\n'
-                        #     json_object = await parse_json_string(chat['content'])
-                        #     response = await get_json_val(json_object, 'speak')
-                        #     chat['content'] = response
+                        if 'content' in chat:
+                            json_object = await parse_json_string(chat['content'])
+                            if json_object != None:
+                                response = await get_json_val(json_object, 'speak')
+                                chat['content'] = response
 
                     if chat['role'] == 'user':
                         chat['role'] = 'assistant'
@@ -486,41 +490,6 @@ def remove_commas_after_property(content):
 
 
 
-async def fake_user_input(convoID, query):
-    # await construct_prompt(convoID),
-    eZprint('fake user input triggered')
-    key = secrets.token_bytes(4).hex()
-    await construct_chat_query(convoID, True)
-    prompt = "Your name is " + novaConvo[convoID]['userName'] + ". " + fake_user_prompt_elderly
-    fake_agent = [{"role": "system", "content": prompt}]
-    fake_user_query = [{"role": "user", "content": query}]
-    fake_agent_end = [{"role": "system", "content": fake_user__system_elderly}]
-    query_object = fake_agent + fake_user_query  + fake_agent_end
-    # print(query_object)
-    print(query_object)
-    try:
-        response = await sendChat(query_object, 'gpt-3.5-turbo')
-        content = str(response["choices"][0]["message"]["content"])
-    except Exception as e:
-        print(e)
-        print('trying again')
-        try: 
-            response = await sendChat(query_object, 'gpt-3.5-turbo')
-            content = str(response["choices"][0]["message"]["content"])
-
-        except Exception as e:
-            print(e)
-            content = e
-        
-    # print(content)
-    fake_session = {    
-        "convoID": convoID,
-        "body": content,
-        "ID": key,
-
-
-    }
-    await user_input(fake_session, fake = True)
 
 
 ###fake user customer#
