@@ -124,12 +124,12 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     if 'commands' in prompt_objects:
         print('commands found' + str(prompt_objects['commands']))
         if 'label' in prompt_objects['commands']:
-            print('command label found')
-            print(prompt_objects['commands']['label'])
+            # print('command label found')
+            # print(prompt_objects['commands']['label'])
             command_string+=  prompt_objects['commands']['label'] + "\n"
         if 'prompt' in prompt_objects['commands']:
-            print('command prompt found')
-            print(prompt_objects['commands']['prompt'])
+            # print('command prompt found')
+            # print(prompt_objects['commands']['prompt'])
             command_string+=  prompt_objects['commands']['prompt']
         command_string = await construct_commands(prompt_objects['commands'])
         list_to_send.append({"role": "system", 'content': command_string})
@@ -142,8 +142,8 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     
 
 async def construct_commands(command_object):
-    print('constructing commands')
-    print(command_object)
+    # print('constructing commands')
+    # print(command_object)
     response_format = {}
     response_format_before = ""
     response_format_after = ""
@@ -151,17 +151,17 @@ async def construct_commands(command_object):
 
     if 'values' in command_object:
         for values in command_object['values']:
-            print('values found')
-            print(values)
+            # print('values found')
+            # print(values)
             for value in values:
-                print('value found')
-                print(value)
+                # print('value found')
+                # print(value)
                 if 'format instructions' in value:
-                    print('instructions found')
-                    print(value['format instructions'])
+                    # print('instructions found')
+                    # print(value['format instructions'])
                     for instruct in value['format instructions']:
-                        print('instruct found')
-                        print(instruct)
+                        # print('instruct found')
+                        # print(instruct)
                         for key, val in instruct.items():
                             if key == 'before-format':
                                 response_format_before += val
@@ -169,31 +169,31 @@ async def construct_commands(command_object):
                                 response_format_after += val + "\n"
                                 
                 if 'response types requested' in value:
-                    print('response found')
+                    # print('response found')
                     for response_type in value['response types requested']:
-                        print('types found')
+                        # print('types found')
                         typeKey = ""
                         typeVal = ""
                         print(response_type)
                         for element in response_type:
                             for key, val in element.items():
                                 if key == 'type':
-                                    print('type found' + str(val))
+                                    # print('type found' + str(val))
                                     typeKey = val
                                 if key == 'instruction':
-                                    print('instruction found'  + str(val))
+                                    # print('instruction found'  + str(val))
                                     typeVal = val
                             response_format[typeKey] =typeVal
                 if 'commands' in value:
-                    print('commands found')
+                    # print('commands found')
                     command_string = ""
                     counter = 0
                     for command in value['commands']:
-                            print('command is ')
-                            print(command)
+                            # print('command is ')
+                            # print(command)
                             ##TODO DEFINITELY MAKE THIS RECURSIVE
                             for element in command:
-                                print('element is '  + str(element))
+                                # print('element is '  + str(element))
                                 for key, value in element.items():
                                     if key == 'name':
                                         command_string += str(counter) + ". " + value
@@ -202,10 +202,10 @@ async def construct_commands(command_object):
                                     if isinstance(value, list):
                                         if key == 'args' and value != []:
                                             command_string += ", args: "
-                                        print('value is list' + str(value))
+                                        # print('value is list' + str(value))
                                         for args in value:
                                             for elements in args:
-                                                print('sub element is ' + str(elements))
+                                                # print('sub element is ' + str(elements))
                                                 for subKey, subVal in elements.items():
                                                     if subKey == 'name':
                                                         command_string += subVal + ": "

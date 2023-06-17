@@ -78,14 +78,20 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
         where={ "key": str(current_loadout[convoID]) },
     )
     if loadout:
+        print(loadout)
+        print(cartridge)
+        print(settings)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
-            if cartridge in val['cartridges']:
-                print(val['cartridges'][cartridge])
-                if 'settings' not in val['cartridges'][cartridge]:
-                    val['cartridges'][cartridge]['settings'] = {}
-                for key, val in settings.items():
-                    val['cartridges'][cartridge]['settings'][key] = val
+            # print(key, val)
+            if 'cartridges' in val:
+                for cart in val['cartridges']:
+                    if 'key' in cart and cart['key'] == cartridge:
+                        if 'settings' not in cart:
+                            cart['settings'] = {}                
+                        for key, val in settings.items():
+                            cart['settings'][key] = val
+                        print(cart)
          
         update = await prisma.loadout.update(
             where = {
@@ -96,7 +102,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
                 }
         )
 
-        # print(update)
+        print(update)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 

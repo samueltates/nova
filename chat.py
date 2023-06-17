@@ -101,8 +101,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID].append(messageObject)
 
     await logMessage(messageObject)
-    copiedMessage = deepcopy(messageObject)
-    print(copiedMessage)
+    # copiedMessage = deepcopy(messageObject)
+    # print(copiedMessage)
     
     command = None
 
@@ -123,7 +123,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 print('command', command)
                 copiedMessage['body'] = response
 
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
         print(copiedMessage)
         if len(simple_agents) > 0:
@@ -131,7 +131,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
 
     if meta == 'simple':
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
     if command:
         await command_interface(command, convoID, thread)

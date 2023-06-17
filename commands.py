@@ -71,6 +71,7 @@ async def parse_command(name, args, convoID):
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
                 if 'filename' in val and val['filename'] == args['filename']:
+                        
                         if 'blocks' not in val:
                             val['blocks'] = []
 
@@ -86,7 +87,7 @@ async def parse_command(name, args, convoID):
                     blocks = []
                     blocks.append({'text': args['text']})
                     cartVal = {
-                    'filename' : args['filename'],
+                    'label' : args['filename'],
                     'blocks' :blocks,
                     'type' : 'text'
                     }
