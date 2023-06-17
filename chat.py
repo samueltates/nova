@@ -125,9 +125,9 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
-        # print(copiedMessage)
-        # if len(simple_agents) > 0:
-        #     asyncio.create_task(await simple_agent_response(convoID))
+        print(copiedMessage)
+        if len(simple_agents) > 0:
+            asyncio.create_task(simple_agent_response(convoID))
 
 
     if meta == 'simple':

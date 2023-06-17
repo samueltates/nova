@@ -13,7 +13,10 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     print('constructing query')
     cartridges = await unpack_cartridges(convoID)
+    print(cartridges)
     main_string = await construct_string(cartridges, convoID)
+    print(main_string)
+
     await construct_chat(convoID, thread)
     await construct_objects(convoID, main_string, cartridges)
 
@@ -24,6 +27,8 @@ async def unpack_cartridges(convoID):
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     ##IDEA - construct object out of type as field name, then loop to construct object
     cartridge_contents = {} 
+    simple_agents[convoID] = {}
+
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
@@ -53,11 +58,12 @@ async def construct_string(prompt_objects, convoID):
 
     if 'prompt' in prompt_objects:
         final_string += prompt_objects['prompt']['string']
-    if 'notes' in prompt_objects:
-        final_string += "Open files:\n"
-        final_string += prompt_objects['notes']['string']
+    if 'note' in prompt_objects:
+        final_string += prompt_objects['note']['string']
     if 'index' in prompt_objects:
         final_string += prompt_objects['index']['string']
+    if 'summary' in prompt_objects:
+        final_string += prompt_objects['summary']['string']
 
     # print(final_string)
     return final_string
