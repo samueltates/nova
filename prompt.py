@@ -65,7 +65,8 @@ async def construct_string(prompt_objects, convoID):
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string']
 
-    # print(final_string)
+    print('final_string')
+    print(final_string)
     return final_string
 
 async def construct_chat(convoID, thread = 0):
@@ -121,6 +122,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         context = construct_context(convoID)
                         list_to_send.append({"role": "system", 'content': context})
     if 'commands' in prompt_objects:
+        print('commands found' + str(prompt_objects['commands']))
         command_string = await construct_commands(prompt_objects['commands'])
         list_to_send.append({"role": "system", 'content': command_string})
         novaConvo[convoID]['commands'] = True
@@ -132,39 +134,79 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     
 
 async def construct_commands(command_object):
-
+    print('constructing commands')
+    print(command_object)
     response_format = {}
     response_format_before = ""
     response_format_after = ""
     command_string = ""
 
     if 'values' in command_object:
-        for value in command_object['values']:
-            if 'instructions' in value:
-                # print('instructions found')
-                # print(value['instructions'])
-                if 'before-format' in value['instructions']:
-                    response_format_before += value['instructions']['before-format']
-                if 'after-format' in value['instructions']:
-                    response_format_after += value['instructions']['after-format']+ "\n"
-                    
-            if 'responses' in value:
-                # print('response found')
-                for key, val in value['responses'].items():
-                    # print(key, val)
-                    response_format[key] = val
-            if 'commands' in value:
-                # print('commands found')
-                command_string = ""
-                counter = 0
-                for key, value in value['commands'].items():
-                    if 'active' in value:
-                        if value['active'] == True:
-                            command_string += "\n"+ str(counter) +"."
-                            command_string += key + ": " + value['description']
-                            if 'args' in value:
-                                for key, val in value['args'].items():
-                                    command_string += " " + key + ": " + val
+        for values in command_object['values']:
+            print('values found')
+            print(values)
+            for value in values:
+                print('value found')
+                print(value)
+                if 'format instructions' in value:
+                    print('instructions found')
+                    print(value['format instructions'])
+                    for instruct in value['format instructions']:
+                        print('instruct found')
+                        print(instruct)
+                        for key, val in instruct.items():
+                            if key == 'before-format':
+                                response_format_before += val
+                            if key == 'after-format':
+                                response_format_after += val + "\n"
+                                
+                if 'response types requested' in value:
+                    print('response found')
+                    for response_type in value['response types requested']:
+                        print('types found')
+                        typeKey = ""
+                        typeVal = ""
+                        print(response_type)
+                        for element in response_type:
+                            for key, val in element.items():
+                                if key == 'type':
+                                    print('type found' + str(val))
+                                    typeKey = val
+                                if key == 'instruction':
+                                    print('instruction found'  + str(val))
+                                    typeVal = val
+                            response_format[typeKey] =typeVal
+                if 'commands' in value:
+                    print('commands found')
+                    command_string = ""
+                    counter = 0
+                    for command in value['commands']:
+                            print('command is ')
+                            print(command)
+                            ##TODO DEFINITELY MAKE THIS RECURSIVE
+                            for element in command:
+                                print('element is '  + str(element))
+                                for key, value in element.items():
+                                    if key == 'name':
+                                        command_string += str(counter) + ". " + value
+                                    if key == 'description':
+                                        command_string += ": " + value
+                                    if isinstance(value, list):
+                                        if key == 'args' and value != []:
+                                            command_string += ", args: "
+                                        print('value is list' + str(value))
+                                        for args in value:
+                                            for elements in args:
+                                                print('sub element is ' + str(elements))
+                                                for subKey, subVal in elements.items():
+                                                    if subKey == 'name':
+                                                        command_string += subVal + ": "
+                                                    if subKey == 'example':
+                                                        command_string += subVal + ", "
+                                    if key == 'active':
+                                        if value == False:
+                                            command_string = ""
+                                            break
                             counter += 1
                             command_string += "\n"
                     
