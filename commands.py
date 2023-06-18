@@ -3,6 +3,7 @@ from keywords import get_summary_from_keyword, keywords_available
 from debug import eZprint
 from cartridges import addCartridge, updateCartridgeField, get_cartridge_list, whole_cartridge_list
 from sessionHandler import availableCartridges
+from cartridges import whole_cartridge_list
 from memory import summarise_from_range
 # from nova import handleIndexQuery
 import asyncio
@@ -45,6 +46,17 @@ async def parse_command(name, args, convoID):
         string = '\nFiles available:\n'
 
         await get_cartridge_list(convoID)
+        if convoID in whole_cartridge_list:
+            for key, val in whole_cartridge_list[convoID].items():
+                if 'label' in val:
+                    string += val['label'] + '\n'
+                if 'type' in val:
+                    string += val['type'] + '\n'
+                if 'description' in val:
+                    string += val['description'] + '\n'
+                string += '\n'
+
+
         for key, val in availableCartridges[convoID].items():
             label = ''
             type = ''
@@ -73,9 +85,12 @@ async def parse_command(name, args, convoID):
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
+            for key, val in availableCartridges[convoID].items():
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].
             blocks = []
             if 'text' in args:
                 blocks.append({'text': args['text']})
+
             cartVal = {
             'label' : args['filename'],
             'blocks' :blocks,
@@ -84,6 +99,9 @@ async def parse_command(name, args, convoID):
             print(cartVal)
             await addCartridge(cartVal, convoID)
             command_return['status'] = "success"
+            command_return['message'] = "file " +args['filename']  + " created"
+            print(command_return)
+            return command_return
     if 'write' in name or name in 'write':
         eZprint('writing file')
         if 'filename' in args:

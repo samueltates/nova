@@ -21,6 +21,9 @@ async def get_cartridge_list(convoID):
     for cartridge in cartridges:
         blob = json.loads(cartridge.json())['blob']
         for key, val in blob.items():
+            if convoID not in whole_cartridge_list:
+                whole_cartridge_list[convoID] = {}
+            whole_cartridge_list[convoID][key] = val
             if 'key' not in availableCartridges[convoID]:
                 val.update({'key':key})
                 cartridge_list.append(val)
@@ -91,10 +94,21 @@ async def addCartridgePrompt(input):
     await add_cartridge_to_loadout(convoID, cartKey)
 
 async def addExistingCartridgeToLoadout(input):
-    # print(input)
+    print(input)
     convoID = input['convoID']
     cartKey = input['cartridge']
     await add_cartridge_to_loadout(convoID,cartKey)
+    cartridge = await prisma.cartridge.find_first(
+        where={
+            "key": cartKey
+            },
+    )
+
+    availableCartridges[convoID][cartKey] = json.loads(cartridge.json())['blob'][cartKey]
+
+    
+
+
 
 
 async def addCartridgeTrigger(input):
@@ -102,6 +116,7 @@ async def addCartridgeTrigger(input):
     #TODO - RENAME ADD CARTRIDGE INDEX
     cartKey = generate_id()
     convoID = input['convoID']
+
     userID = novaConvo[convoID]['userID']
     cartVal = input['cartVal']
     newCart = await prisma.cartridge.create(
@@ -115,8 +130,6 @@ async def addCartridgeTrigger(input):
                 'type': cartVal ['type'],   
                 'enabled': True,
                 'index':cartVal['index'],
-                'indexType': cartVal['indexType'],
-
             }})
         }
     )

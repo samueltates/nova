@@ -99,52 +99,52 @@ async def runCartridges(convoID):
                     loadout = cartVal['loadout']
                 # print('loadout is ' + str(loadout))
                 
-                if (convoID in current_loadout and current_loadout[convoID] == loadout) or convoID not in current_loadout:
+                # if (convoID in current_loadout and current_loadout[convoID] == loadout) or convoID not in current_loadout:
                     # eZprint('running cartridge')
                     # print('running cartridge: ' + str(cartVal['label']))
                     # print('loadout is ' + str(loadout))
-                    cartVal['blocks'] = []
+                    # cartVal['blocks'] = []
 
-                    await get_summaries(userID, convoID, loadout)
-                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                    # await get_summaries(userID, convoID, loadout)
+                    # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
 
 
-                    # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
-                    # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
-                    await summarise_convos(convoID, cartKey, cartVal, loadout)
-                    # print(availableCartridges[convoID])
-                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-                    response = ''
+                    # # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
+                    # # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
+                    # # await summarise_convos(convoID, cartKey, cartVal, loadout)
+                    # # print(availableCartridges[convoID])
+                    # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+                    # response = ''
 
-                    input = {
-                        'cartKey': cartKey,
-                        'convoID' : convoID,
-                        'fields' :{'blocks': cartVal['blocks']}
-                    }
-                    await updateCartridgeField(input)
+                    # input = {
+                    #     'cartKey': cartKey,
+                    #     'convoID' : convoID,
+                    #     'fields' :{'blocks': cartVal['blocks']}
+                    # }
+                    # await updateCartridgeField(input)
                     # print(cartVal)
-                    if 'values' in cartVal:
-                        # print('values found')
-                        if 'initial_overview' in cartVal['values']:
-                            # print('initial overview found')
-                            if cartVal['values']['initial_overview']:
-                                # print('initial overview true')
+                #     if 'values' in cartVal:
+                #         # print('values found')
+                #         if 'initial_overview' in cartVal['values']:
+                #             # print('initial overview found')
+                #             if cartVal['values']['initial_overview']:
+                #                 # print('initial overview true')
 
-                                if cartVal['blocks']:
-                                    # print('blocks found')
-                                    response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
-                                    # print('response is ' + str(response))
-                                    if response != '':
-                                        cartVal['blocks'] = []
-                                        cartVal['blocks'].append({'past-conversations' : response})
-                                        # print('getting overview of summary')
-                                        payload = { 'key': cartKey,'fields': {
-                                                    'state': cartVal['state'],
-                                                    'blocks': cartVal['blocks']
-                                                        }}
-                                        ##TODO: make it so only happens once per session?
-                                        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
-                # print('ending run')
+                #                 if cartVal['blocks']:
+                #                     # print('blocks found')
+                #                     response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
+                #                     # print('response is ' + str(response))
+                #                     if response != '':
+                #                         cartVal['blocks'] = []
+                #                         cartVal['blocks'].append({'past-conversations' : response})
+                #                         # print('getting overview of summary')
+                #                         payload = { 'key': cartKey,'fields': {
+                #                                     'state': cartVal['state'],
+                #                                     'blocks': cartVal['blocks']
+                #                                         }}
+                #                         ##TODO: make it so only happens once per session?
+                #                         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
+                # # print('ending run')
 
     else    :
         eZprint('no cartridges found, loading default')
@@ -202,7 +202,8 @@ async def handleIndexQuery(input):
     eZprint('handling index query')
     cartVal = availableCartridges[convoID][cartKey]
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
-        index = await getCartridgeDetail(cartKey)
+        index_key = cartVal['index']
+        index = await getCartridgeDetail(index_key)
         await triggerQueryIndex(convoID, cartKey, cartVal, query, index)
 
 async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson):
@@ -234,7 +235,7 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson):
                             'state': cartVal['state']
                                 }}
     index = await gptindex.reconstructIndex(indexJson)
-    insert = await gptindex.queryIndex(query, index, cartVal['indexType'])
+    insert = await gptindex.queryIndex(query, index)
     eZprint('index query complete')
     # eZprint(insert)
     if(insert != None):
@@ -279,19 +280,15 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson):
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
         
-async def getCartridgeDetail(cartKey):
+async def getCartridgeDetail(index_key):
     eZprint('getting cartridge detail')
-    id = cartdigeLookup[cartKey]
-    matchedCart = await prisma.cartridge.find_first(
+    matchedCart = await prisma.index.find_first(
         where={
-                'id': id
+                'key': index_key
                 }
     )
     dbRecord = json.loads(matchedCart.json())
-    localCartridge = dbRecord['blob']
-    for cartKey, cartVal in localCartridge.items():
-        index = cartVal['index']
-    return index
+    return dbRecord
 
 
 

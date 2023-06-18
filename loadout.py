@@ -12,6 +12,8 @@ async def get_loadouts(convoID):
     loadouts = await prisma.loadout.find_many(
         where={ "UserID": userID },
     )
+
+
     # del current_loadout[convoID]
     available_loadouts[convoID] = {}
     for loadout in loadouts:
@@ -19,7 +21,7 @@ async def get_loadouts(convoID):
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             available_loadouts[convoID][key] = val
-
+    
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[convoID]}))
 
 async def add_loadout(loadout: str, convoID):
@@ -47,12 +49,15 @@ async def add_loadout(loadout: str, convoID):
   
 
 async def add_cartridge_to_loadout(convoID, cartridge):
+    eZprint('add cartridge to loadout triggered')
+    print(current_loadout)
     if convoID not in current_loadout:
         return
     loadout = await prisma.loadout.find_first(
         where={ "key": current_loadout[convoID] },
     )
-    # print(loadout)
+    print('loadout found')
+    print(loadout)
     if loadout:
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
@@ -60,6 +65,7 @@ async def add_cartridge_to_loadout(convoID, cartridge):
                 'key':cartridge, 
                 'settings':{
                     'enabled':True,
+                    'softDelete':False,
             }})
 
         update = await prisma.loadout.update(
@@ -70,6 +76,9 @@ async def add_cartridge_to_loadout(convoID, cartridge):
                 "blob":Json(blob)
                 }
         )
+        print('loadout updated')
+        print(update)
+        
 
 async def update_settings_in_loadout(convoID, cartridge, settings):
     if convoID not in current_loadout:
@@ -87,10 +96,11 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
             if 'cartridges' in val:
                 for cart in val['cartridges']:
                     if 'key' in cart and cart['key'] == cartridge:
-                        if 'settings' not in cart:
-                            cart['settings'] = {}                
-                        for key, val in settings.items():
-                            cart['settings'][key] = val
+                        if 'key' == 'enabled' or 'key' == 'softDelete' or 'key' == 'minimised':
+                            if 'settings' not in cart:
+                                cart['settings'] = {}                
+                            for key, val in settings.items():
+                                cart['settings'][key] = val
                         # print(cart)
          
         update = await prisma.loadout.update(
@@ -111,9 +121,15 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
     )
+    
+    if not loadout:
+        if loadout_key == 'home':
+            await add_loadout('home', convoID)
+        return
+    
 
     current_loadout[convoID] = loadout_key
-    # print(loadout)
+    print(loadout)
     loadout_cartridges = []
     config = {}
     blob = json.loads(loadout.json())['blob']
@@ -130,20 +146,29 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     availableCartridges[convoID] = {}
 
     for loadout_cartridge in loadout_cartridges:
+        print(loadout_cartridge)
+        print(loadout_cartridge['key'])
         cartKey = loadout_cartridge
         if 'key' in loadout_cartridge:
             cartKey = loadout_cartridge['key']
         remote_cartridge = await prisma.cartridge.find_first(
             where={ "key": cartKey },
         )
-        # print(remote_cartridges)
+        print(remote_cartridge)
         cartridges_to_add.append(remote_cartridge)
         blob = json.loads(remote_cartridge.json())
         for cartKey, cartVal in blob['blob'].items():
             if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                 availableCartridges[convoID][cartKey] = cartVal
-                if   'settings' in loadout_cartridge:
-                    cartVal['enabled'] = loadout_cartridge['settings']['enabled']  
+                if  'settings' in loadout_cartridge:
+                    if 'enabled' in loadout_cartridge['settings']:
+                        cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
+                    else:
+                        cartVal['enabled'] = True
+                    if 'minimised' in loadout_cartridge['settings']:
+                        cartVal['minimised'] = loadout_cartridge['settings']['minimised']
+                    else:
+                        cartVal['minimised'] = False
 
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
 

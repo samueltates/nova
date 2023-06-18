@@ -93,10 +93,10 @@ async def construct_chat(convoID, thread = 0):
     if 'commands' in novaConvo[convoID]:
         print('commands found appending sys')
         if novaConvo[convoID]['commands']:
-            if thread == 0:
-                current_chat.append(basic_system_finish)
-            else:
-                current_chat.append(thread_system_finish)
+            # if thread == 0:
+            current_chat.append(basic_system_finish)
+            # else:
+            #     current_chat.append(thread_system_finish)
 
     current_prompt[convoID]['chat'] = current_chat
     print(current_chat)

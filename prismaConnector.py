@@ -224,6 +224,86 @@ async def editCartridge(userID):
                     'blob': Json(blob)}
             )
 
+async def portIndexesFromCartridges(userID):
+
+
+    ##gets cartridges
+    cartridges = await prisma.cartridge.find_many(
+        where = {'UserID' : userID}
+    ) 
+
+    ##makes list of keep / stay
+    keep_cartridges = []
+    delete_cartridges = []
+
+    #cycles through
+    for cartridge in cartridges:
+        blob = json.loads(cartridge.json())['blob']
+        # print(blob)
+        doc_store = ''
+        index_store = ''
+        vector_store = ''
+
+        #cycles through keep, adds to delete if already there
+        for cart in keep_cartridges:
+            if cart == cartridge.key:
+                delete_cartridges.append(cartridge)
+                break
+            else :
+                keep_cartridges.append(cartridge.key)
+        for key, value in blob.items():
+            if 'index' in value:
+                print('index found' ) 
+                ##gets vector store
+                if 'docstore' in value['index']:
+                    print(value['index']['docstore'])
+                    docstore = value['index']['docstore']
+                if 'index_store' in value['index']:
+                    print(value['index']['index_store'])
+                    index_store = value['index']['index_store']
+                if 'vector_store' in value['index']:
+                    print(value['index']['vector_store'])
+                    vector_store = value['index']['vector_store']
+                # continue
+                index_key = generate_id()
+                index_key = str(index_key)
+                index = await prisma.index.create(
+                    data={
+                        'UserID': userID,
+                        'key': index_key,
+                        'docstore': Json(docstore),
+                        'index_store': Json(index_store),
+                        'vector_store': Json(vector_store),
+                    }
+                )
+                print(index)
+                ##deltes blob replaces with key
+                del value['index']
+                value['index'] = index_key
+                #updates cart
+                updatedCartridge = await prisma.cartridge.update(
+                    where={'id': cartridge.id},
+                    data={
+                        # 'key': key,
+                        'blob': Json(blob)}
+                )
+                print(updatedCartridge)
+
+    #deletes unused cartridges
+    for cartridge in delete_cartridges:
+        await prisma.cartridge.delete(
+            where={'id': cartridge.id}
+        )
+
+
+
+
+
+
+
+
+            
+
 
 async def editCartridgeKeys(UserID):
     cartridges = await prisma.cartridge.find_many(
@@ -411,7 +491,7 @@ async def main() -> None:
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
-    await editCartridgeKeys('110327569930296986874')
+    await portIndexesFromCartridges('110327569930296986874')
 
     # await findCartridges()
 
