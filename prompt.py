@@ -187,21 +187,21 @@ async def construct_commands(command_object, thread = 0):
                         # print(response_type)
                         for element in response_type:
                             for key, val in element.items():
-                                if thread == 0:
+                                # if thread == 0:
                                     if key == 'type':
                                         # print('type found' + str(val))
                                         typeKey = val
                                     if key == 'instruction':
                                         # print('instruction found'  + str(val))
                                         typeVal = val
-                                else:
-                                    if val == 'reason' or val == 'plan':
-                                        if key == 'type':
-                                            # print('type found' + str(val))
-                                            typeKey = val
-                                        if key == 'instruction':
-                                            # print('instruction found'  + str(val))
-                                            typeVal = val
+                                # else:
+                                #     if val == 'reason' or val == 'plan':
+                                #         if key == 'type':
+                                #             # print('type found' + str(val))
+                                #             typeKey = val
+                                #         if key == 'instruction':
+                                #             # print('instruction found'  + str(val))
+                                #             typeVal = val
 
                             response_format[typeKey] =typeVal
                 if 'commands' in value:

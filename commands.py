@@ -14,7 +14,9 @@ command_state = {}
 
 all_cartridges = {}
 
-async def handle_commands(command_object, convoID):
+command_loops = {}
+
+async def handle_commands(command_object, convoID, thread = 0, loop = 0):
     eZprint('handling command')
     print(command_object)
     if command_object:
@@ -25,72 +27,53 @@ async def handle_commands(command_object, convoID):
             name = command_object['name']
         if 'args' in command_object:
             args = command_object['args']
-        
-        command_response = await parse_command(name, args, convoID)
-        return command_response
-    # else:
-    #     eZprint('no command found')
-    #     command_response = {"status": "", "name" : "command", "message": ""}
-    #     command_response['status'] = "Error."
-    #     command_response['message'] = "No command found."
-    #     return command_response
 
-async def parse_command(name, args, convoID):
     eZprint('parsing command')
     if convoID not in command_state:
         command_state[convoID] = {}
 
+    if 'list' in name or name in 'list':
+        response = await list_files(args, convoID)
+        print('back at list parent function')
+        print(response)
+        return response
+    
+    print('shouldnt be going past here')
+    if 'continue' in name :
+        response = await continue_command(args, convoID, thread, loop)
+        return response
+    
+    if 'return' in name:
+        response = await return_from_thread(args, convoID, thread, loop)
+        return response
+    
     command_return = {"status": "", "name" : name, "message": ""}
-    if 'list' in name:
-        eZprint('list available files')
-        string = '\nFiles available:\n'
 
-        await get_cartridge_list(convoID)
-        if convoID in whole_cartridge_list:
-            for key, val in whole_cartridge_list[convoID].items():
-                if 'label' in val:
-                    string += val['label'] + '\n'
-                if 'type' in val:
-                    string += val['type'] + '\n'
-                if 'description' in val:
-                    string += val['description'] + '\n'
-                string += '\n'
-
-
-        for key, val in availableCartridges[convoID].items():
-            label = ''
-            type = ''
-            description = ''
-            state = ''
-            if 'enabled' in val and val['enabled'] == True:
-                state = 'open'
-            else: 
-                state = 'closed'
-            if 'label' in val:
-                label = val['label']
-            if 'type' in val:
-                type = val['type']
-            if 'description' in val:
-                description = val['description']
-            string += '\n--' + label+ " : " + type + " - " + description + " - [" + state + "]\n"
-
-        string += list_return_string
-        string += "\n"
-        
-        command_return['status'] = 'success'
-        command_return['message'] = string
-        command_state[convoID]['files_open'] = True
-        print(command_return)
-        return command_return
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                    blocks = []
+                    if 'text' in args:
+                        blocks.append({'text': args['text']})
+
+                    cartVal = {
+                    'cartKey' : key,
+                    'convoID' : convoID,
+                    'fields' : {
+                        'blocks' :blocks,
+                    }
+                    }
+                    updateCartridgeField(convoID, key, cartVal)
+                    command_return['status'] = "success"
+                    command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
+                    print(command_return)
+                    return command_return
+                
             blocks = []
             if 'text' in args:
                 blocks.append({'text': args['text']})
-
             cartVal = {
             'label' : args['filename'],
             'blocks' :blocks,
@@ -106,8 +89,7 @@ async def parse_command(name, args, convoID):
         eZprint('writing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
-                        
+                if 'label' in val and args['filename'].lower() in val['label'].lower():                        
                         if 'blocks' not in val:
                             val['blocks'] = []
                         val['blocks'].append({'text': args['text']})
@@ -118,6 +100,9 @@ async def parse_command(name, args, convoID):
                                     {'blocks': val['blocks']}
                                     }
                         await updateCartridgeField(payload)
+                        command_return['status'] = "success"
+                        command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
+                        print(command_return)
                 else : 
                     blocks = []
                     if 'text' in args:
@@ -200,29 +185,27 @@ async def parse_command(name, args, convoID):
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
                 return_string = ''
-                if 'label' in val:
-                    if args['filename'].lower() in val['label'].lower() or ['label'].lower() in args['filename'].lower():
-                        print(val)
-
-                        if 'enabled' not in val:
-                            val['enabled'] = True
-                        if val['enabled'] == False:
-                            val['enabled'] = True
-                            return_string += "File " + args['filename'] + " opened.\n"
-                        else:
-                            return_string += "File " + args['filename'] + " already open.\n"
-                        
-                        payload = {
-                            'convoID': convoID,
-                            'cartKey' : key,
-                            'fields':
-                                    {'enabled': val['enabled']}
-                                    }
-                        await updateCartridgeField(payload)                    
-                        command_return['status'] = "Success."
-                        command_return['message'] = return_string
-                        print(command_return)
-                        return command_return
+                if 'label' in val and args['filename'].lower() in val['label'].lower():
+                    print(val)
+                    if 'enabled' not in val:
+                        val['enabled'] = True
+                    if val['enabled'] == False:
+                        val['enabled'] = True
+                        return_string += "File " + args['filename'] + " opened.\n"
+                    else:
+                        return_string += "File " + args['filename'] + " already open.\n"
+                    
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'enabled': val['enabled']}
+                                }
+                    await updateCartridgeField(payload)                    
+                    command_return['status'] = "Success."
+                    command_return['message'] = return_string
+                    print(command_return)
+                    return command_return
                 else:
                     command_return['status'] = "Error."
                     command_return['message'] = "File name not found.\n"
@@ -238,6 +221,7 @@ async def parse_command(name, args, convoID):
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
                 if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                    
                     return_string = ''
                     if 'enabled' not in val:
                         val['enabled'] = False
@@ -409,6 +393,156 @@ async def parse_command(name, args, convoID):
         command_return['status'] = "error"
         command_return['message'] = "index " +args['document']  + " not found"
         return command_return
+    else:
+        command_return['status'] = "error"
+        command_return['message'] = "command not found"
+        print(command_return)
+        return command_return
 
 
 list_return_string = "\n >_"
+
+
+async def list_files(name, convoID):
+    command_return = {"status": "", "name" : name, "message": ""}
+
+    eZprint('list available files')
+    string = '\nFiles available:\n'
+
+    label = ''
+    type = ''
+    description = ''
+    preview = ''
+    state = ''
+    string = ''
+    await get_cartridge_list(convoID)
+    if convoID in whole_cartridge_list:
+        for key, val in whole_cartridge_list[convoID].items():
+            if 'label' in val:
+                string += '\n -- ' + val['label']
+            if 'type' in val:
+                string += ' -- '+val['type']
+            if 'description' in val:
+                string +=  '\n' + val['description']
+            if 'prompt' in val:
+                string += val['prompt'][0:20] + '...\n'
+            if 'enabled' in val and val['enabled'] == True:
+                string += ' -- open'
+            else:
+                string += ' -- closed'
+            string += '\n'
+
+    else:
+        for key, val in availableCartridges[convoID].items():
+            if 'label' in val:
+                string += '\n -- ' + val['label']
+            if 'type' in val:
+                string += ' -- '+val['type']
+            if 'description' in val:
+                string +=  '\n' + val['description']
+            if 'prompt' in val:
+                string += val['prompt'][0:20] + '...\n'
+            if 'enabled' in val and val['enabled'] == True:
+                string += ' -- open'
+            else:
+                string += ' -- closed'
+            string += '\n'
+
+
+    string += list_return_string
+    string += "\n"
+    if len(string) > 2000:
+        command_return = await large_document_loop(string, name, convoID)
+        return command_return
+
+    command_return['status'] = 'success'
+    command_return['message'] = string
+    command_state[convoID]['files_open'] = True
+    print(command_return)
+    return command_return
+
+async def return_from_thread(args, convoID, thread):
+
+    eZprint('returning from thread')    
+
+    command_return = {"status": "", "name" : args['name'], "message": ""}
+    if args['message'] in command_state[convoID]:
+        command_return['status'] = 'success'
+        command_return['message'] = args['message']
+        command_loops[convoID][thread]['status'] = 'success'
+        command_loops[convoID][thread]['message'] = args['message']
+        return command_return
+    else:
+        command_return['status'] = 'error'
+        command_return['message'] = 'message not found'
+        command_loops[convoID][thread]['status'] = 'error'
+        command_loops[convoID][thread]['message'] = 'message not found'
+        return command_return
+
+
+async def continue_command(convoID, thread, loop):
+    eZprint('continuing command' + str(loop))
+    if convoID in command_loops:
+        if thread in command_loops[convoID]:
+            command_return = large_document_loop(convoID, thread, loop)
+            return command_return
+
+async def large_document_loop(string, command = '', convoID= '', thread = 0, loop = 0):
+
+    eZprint('large document loop' + str(loop) + ' ' + str(thread))
+    command_return = {"status": "", "name" : command, "message": ""}
+    if convoID not in command_loops:
+        command_loops[convoID] = {}
+    if thread not in command_loops[convoID]:
+        command_loops[convoID][thread] = {}
+
+    if loop == 0:
+        
+        eZprint('loop 0')
+        sections = []
+        range = 2000
+        i = 0
+
+        while i < len(string):
+            sections.append(string[i:i+range])
+            i += range
+
+
+        eZprint('sections created')
+        eZprint(sections)
+        eZprint(len(sections))
+        command_loops[convoID][thread]['sections'] = sections
+        command_loops[convoID][thread]['command'] = command
+
+    else:
+        eZprint('loop not 0 sections retrieved')
+
+        sections = command_loops[convoID][thread]['sections']
+        command = command_loops[convoID][thread]['command']
+
+    sections = command_loops[convoID][thread]['sections']
+    # print(sections)
+    print(len(sections))
+    print(loop)
+    if loop < len(sections):
+        eZprint('returning sections based on loop')
+        command_return['status'] = 'in-progress'
+        message = "List is too long, sending in sections, this is section " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  + ongoing_return_string
+        command_return['message'] = message
+        command_return['name'] = command
+        print(command_return)
+        return command_return
+    
+    else:
+        eZprint('Loop complete as sections val is not last val')
+        command_return['status'] = 'success'
+        message = "List is complete, closing loop." 
+        command_return['message'] = message
+        print(command_return)
+        return command_return
+
+
+
+ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
+
+    

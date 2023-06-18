@@ -107,7 +107,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID].append(messageObject)
 
     await logMessage(messageObject)
-    # copiedMessage = deepcopy(messageObject)
+    copiedMessage = deepcopy(messageObject)
     # print(copiedMessage)
     
     command = None
@@ -126,13 +126,13 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
                 ##basically thinking 'thread requested' so if the message is coming from a specific thread then it'll use / keep to that, otherwise it'll start a new one, using zero as false in this instance.
                 # if command:
-                print('command', command)
-                # copiedMessage['body'] = response
+                # print('command', command)
+                copiedMessage['body'] = json_object
 
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
         # print(copiedMessage)
-        if len(simple_agents) > 0:
+        if len(simple_agents) > 0 and role != 'system' and thread == 0:
             asyncio.create_task(simple_agent_response(convoID))
 
 
@@ -187,7 +187,12 @@ async def command_interface(command, convoID, threadRequested):
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
-        command_object = {'commands':command_response['name'] + ": " + command_response['status'] + ". " + command_response['message']}
+        command_object = {'commands':{
+                          "name" : str(command_response['name']), 
+                          "response" : str(command_response['status']), 
+                           "message" : str(command_response['message'])
+                           }
+                        }
         
 
         ## get command as understood
@@ -203,7 +208,7 @@ async def command_interface(command, convoID, threadRequested):
         else:
             thread = threadRequested
 
-        await handle_message(convoID, command_object, 'system', '>', None, thread)
+        await handle_message(convoID, command_object, 'system', 'terminal', None, thread)
 
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.

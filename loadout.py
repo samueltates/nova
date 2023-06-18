@@ -97,6 +97,8 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
                 for cart in val['cartridges']:
                     if 'key' in cart and cart['key'] == cartridge:
                         if 'key' == 'enabled' or 'key' == 'softDelete' or 'key' == 'minimised':
+                            if 'softDelete' in cart and cart['softDelete'] == True:
+                                val['cartridges'].remove(cart)
                             if 'settings' not in cart:
                                 cart['settings'] = {}                
                             for key, val in settings.items():
@@ -122,11 +124,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         where={ "key": str(loadout_key)}
     )
     
-    if not loadout:
-        if loadout_key == 'home':
-            await add_loadout('home', convoID)
-        return
-    
+
 
     current_loadout[convoID] = loadout_key
     print(loadout)
@@ -158,9 +156,9 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         cartridges_to_add.append(remote_cartridge)
         blob = json.loads(remote_cartridge.json())
         for cartKey, cartVal in blob['blob'].items():
-            if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                 availableCartridges[convoID][cartKey] = cartVal
-                if  'settings' in loadout_cartridge:
+                cartVal['softDelete'] = False
+                if 'settings' in loadout_cartridge:
                     if 'enabled' in loadout_cartridge['settings']:
                         cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
                     else:
@@ -169,6 +167,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                         cartVal['minimised'] = loadout_cartridge['settings']['minimised']
                     else:
                         cartVal['minimised'] = False
+                    
 
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
 
