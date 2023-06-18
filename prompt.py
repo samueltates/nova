@@ -79,8 +79,9 @@ async def construct_chat(convoID, thread = 0):
             if 'thread' in log and thread > 0:
                 if log['thread'] == thread:
                     print('thread indicator found so breaking main chat')
-                    continue
-                    
+                    break
+
+                
     if convoID in system_threads:
         if thread in system_threads[convoID]:
             for obj in system_threads[convoID][thread]:
@@ -93,10 +94,13 @@ async def construct_chat(convoID, thread = 0):
     if 'commands' in novaConvo[convoID]:
         print('commands found appending sys')
         if novaConvo[convoID]['commands']:
+            current_chat.append(basic_system_PS)
+
             # if thread == 0:
-            current_chat.append(basic_system_finish)
+            #     current_chat.append(basic_system_PS)
+            #     print('thread is 0 so appending sys')
             # else:
-            #     current_chat.append(thread_system_finish)
+            #     current_chat.append(thread_system_PS2)
 
     current_prompt[convoID]['chat'] = current_chat
     print(current_chat)
@@ -277,11 +281,11 @@ def estimateTokenSize(text):
     tokenCount =  text.count(' ') + 1
     return tokenCount
 
-basic_system_finish = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
+basic_system_PS = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
 
-thread_system_finish = {"role": "user", "content": "You are now accessing terminal, Think about objectives,  instructions, and commands available, and carry out neccessary commands, functions and notes.\n>_:"}
+thread_system_PS = {"role": "user", "content": "You are now accessing terminal, Think about objectives,  instructions, and commands available, and carry out neccessary commands, functions and notes.\n>_:"}
 
-
+thread_system_PS2 = {"role": "user", "content": "You are currently in a thread and have recieved a response from the command system. You can issue more commands, take notes, or return with message: "}
 
 # response_format = {
 #     "thoughts": {

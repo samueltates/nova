@@ -215,9 +215,9 @@ async def command_interface(command, convoID, threadRequested):
 
         await construct_query(convoID, thread)
         query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        if 'commands' in novaConvo[convoID]:
-            if novaConvo[convoID]['commands']:
-                query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+        # if 'commands' in novaConvo[convoID]:
+        #     if novaConvo[convoID]['commands']:
+        #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
 
         await send_to_GPT(convoID, query_object, thread)
 
@@ -270,9 +270,9 @@ async def simple_agent_response(convoID):
             await handle_message(convoID, content, 'user', val['label'], None, 0, 'simple')
             await construct_query(convoID),
             query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-            if 'commands' in novaConvo[convoID]:
-                if novaConvo[convoID]['commands']:
-                    query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+            # if 'commands' in novaConvo[convoID]:
+            #     if novaConvo[convoID]['commands']:
+            #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
 
             await send_to_GPT(convoID, query_object)
 

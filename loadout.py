@@ -66,6 +66,7 @@ async def add_cartridge_to_loadout(convoID, cartridge):
                 'settings':{
                     'enabled':True,
                     'softDelete':False,
+                    'minimised':True,
             }})
 
         update = await prisma.loadout.update(
@@ -87,23 +88,22 @@ async def update_settings_in_loadout(convoID, cartridge, settings):
         where={ "key": str(current_loadout[convoID]) },
     )
     if loadout:
-        # print(loadout)
-        # print(cartridge)
-        # print(settings)
+        print(loadout)
+        print(cartridge)
+        print(settings)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             # print(key, val)
             if 'cartridges' in val:
                 for cart in val['cartridges']:
                     if 'key' in cart and cart['key'] == cartridge:
-                        if 'key' == 'enabled' or 'key' == 'softDelete' or 'key' == 'minimised':
-                            if 'softDelete' in cart and cart['softDelete'] == True:
-                                val['cartridges'].remove(cart)
-                            if 'settings' not in cart:
-                                cart['settings'] = {}                
-                            for key, val in settings.items():
-                                cart['settings'][key] = val
-                        # print(cart)
+                        if 'softDelete' in cart and cart['softDelete'] == True:
+                            val['cartridges'].remove(cart)
+                        if 'settings' not in cart:
+                            cart['settings'] = {}                
+                        for key, val in settings.items():
+                            cart['settings'][key] = val
+                        print(cart)
          
         update = await prisma.loadout.update(
             where = {
@@ -227,7 +227,9 @@ async def update_loadout_field(loadout_key, field, value):
     )
     blob = json.loads(loadout.json())['blob']
     for key, val in blob.items():
+        print(key, val)
         val['config'][field] = value
+
         update = await prisma.loadout.update(
             where = {
                 'id' : loadout.id
@@ -236,3 +238,4 @@ async def update_loadout_field(loadout_key, field, value):
                 "blob":Json({key:val})
                 }
         )
+        print(update)

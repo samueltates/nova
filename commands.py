@@ -158,7 +158,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         eZprint('previewing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                if 'label' in val and args['filename'].lower() in val['label'].lower():
                     preview_string = val['filename'] + '\n'
                     if 'blocks' in val:
                         for block in val['blocks']:
@@ -220,7 +220,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
     if name == 'close':
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                if 'label' in val and args['filename'].lower() in val['label'].lower():
                     
                     return_string = ''
                     if 'enabled' not in val:
@@ -509,8 +509,8 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0, loo
 
 
         eZprint('sections created')
-        eZprint(sections)
-        eZprint(len(sections))
+        # eZprint(sections)
+        # eZprint(len(sections))
         command_loops[convoID][thread]['sections'] = sections
         command_loops[convoID][thread]['command'] = command
 
@@ -522,12 +522,13 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0, loo
 
     sections = command_loops[convoID][thread]['sections']
     # print(sections)
-    print(len(sections))
-    print(loop)
+    # print(len(sections))
+    # print(loop)
     if loop < len(sections):
         eZprint('returning sections based on loop')
         command_return['status'] = 'in-progress'
-        message = "List is too long, sending in sections, this is section " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  + ongoing_return_string
+        
+        message = "Files Available:\n Section " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  
         command_return['message'] = message
         command_return['name'] = command
         print(command_return)
@@ -543,6 +544,6 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0, loo
 
 
 
-ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
+# ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
 
-    
+ongoing_return_string = """\n ~continue for next page, or return for home."""
