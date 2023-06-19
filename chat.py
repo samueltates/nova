@@ -21,11 +21,20 @@ agentName = 'nova'
 
 async def agent_initiate_convo(convoID):
     print('agent initiate convo')
+    if 'message' in novaConvo[convoID]:       
+        print('message in nova convo' + novaConvo[convoID]['message'])  
+        await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaConvo[convoID]['userName'])
+    
     await construct_query(convoID),
-    query_object = current_prompt[convoID]['prompt']
-    if 'commands' in novaConvo[convoID]:
-        if novaConvo[convoID]['commands']:
-            query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+
+    if 'message' in novaConvo[convoID]:
+        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+    else:
+        query_object = current_prompt[convoID]['prompt']
+
+    # if 'commands' in novaConvo[convoID]:
+    #     if novaConvo[convoID]['commands']:
+    #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
     await send_to_GPT(convoID, query_object)
 
 
@@ -85,23 +94,25 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         ##TODO : command returns can give those deeper functions, and include 'close' to close loop
         ##TODO : heck it could even be an array of loops, should get / build events for this
         ##TODO : Clear these threads when done 
+
         if convoID not in system_threads:
             system_threads[convoID] = {}
-            if thread not in system_threads[convoID]:
-                ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
-                eZprint('NEW THREAD')
-                system_threads[convoID][thread] = []
-                messageObject.update({'thread':thread})
-                chatlog[convoID].append(messageObject)
-                print(system_threads[convoID][thread])
+        if thread not in system_threads[convoID]:
+            ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
+            eZprint('NEW THREAD')
+            system_threads[convoID][thread] = []
+            messageObject.update({'thread':thread})
+            chatlog[convoID].append(messageObject)
+            system_threads[convoID][thread].append(messageObject)
+            # print(system_threads[convoID][thread])
 
-            else:
+        else:
 
-                ##after that each loop it adds to thread 
-                ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
-                eZprint('THREAD UPDATE')
-                print(system_threads[convoID][thread])
-                system_threads[convoID][thread].append(messageObject)
+            ##after that each loop it adds to thread 
+            ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
+            eZprint('THREAD UPDATE')
+            # print(system_threads[convoID][thread])
+            system_threads[convoID][thread].append(messageObject)
 
     else:     
         chatlog[convoID].append(messageObject)
@@ -154,7 +165,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     print(promptObject)
 
     content = ''
-    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
+    if thread == 0:
+        await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
+    else:
+        await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'terminal', 'thread':thread}}))
 
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
@@ -183,17 +197,20 @@ async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
     command_response = await handle_commands(command, convoID)
     eZprint('command response')
-    eZprint(command_response)
+    # eZprint(command_response)
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
         command_object = {'commands':{
                           "name" : str(command_response['name']), 
-                          "response" : str(command_response['status']), 
+                          "status" : str(command_response['status']), 
                            "message" : str(command_response['message'])
                            }
                         }
         
+        if 'status' in command_object:
+            if command_object['status'] == 'return':
+                threadRequested = 0
 
         ## get command as understood
         command_object = json.dumps(command_object)
@@ -204,9 +221,13 @@ async def command_interface(command, convoID, threadRequested):
 
         ##if no specific thread requested, it'll make a new one, otherwise stick to current.
         if not threadRequested:
-            thread = len(system_threads) +1
+            if convoID not in system_threads:
+                system_threads[convoID] = {}
+            thread = len(system_threads[convoID]) +1
+            print('creting new thread ' + str(thread))
         else:
             thread = threadRequested
+
 
         await handle_message(convoID, command_object, 'system', 'terminal', None, thread)
 

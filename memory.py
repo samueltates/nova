@@ -13,11 +13,66 @@ from appHandler import websocket
 summaries = {}
 windows = {}
 
+async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
+    print('loadout is ' + str(loadout))
+
+    userID = novaConvo[convoID]['userID']
+    if loadout == current_loadout[convoID]:                
+        eZprint('running cartridge')
+        # print('running cartridge: ' + str(cartVal['label']))
+        print('loadout is ' + str(loadout))
+        cartVal['blocks'] = []
+        await get_summaries(userID, convoID, loadout)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
+
+        if 'values' in cartVal:
+            print('values found')
+            print(cartVal['values'])
+        else :
+            cartVal['values'] = [{'initial_overview': True}, {'max_tokens': 500}]
+            
+        for value in cartVal['values']:
+            if 'initial_overview' in value:
+                if value['initial_overview'] == True:
+                    print('initial overview found')
+                    if cartVal['blocks']:
+                        print('blocks found')
+                        await get_overview(convoID, cartKey, cartVal, loadout)
+        
+        await summarise_convos(convoID, cartKey, cartVal, loadout)
+
+
+
+async def get_overview (convoID, cartKey, cartVal, loadout = None):
+    if loadout == current_loadout[convoID]:
+        cartVal['state'] = 'loading'
+        payload = { 'key': cartKey,'fields': {
+                    'state': cartVal['state'],
+                    'blocks': cartVal['blocks']
+                        },
+        'loadout': loadout}
+        ##TODO: make it so only happens once per session?
+        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
+        response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
+        print('response is ' + str(response))
+    if response != '':
+        cartVal['blocks'] = []
+        cartVal['blocks'].append({'past-conversations' : response})
+        # print('getting overview of summary')
+        if loadout == current_loadout[convoID]:
+            cartVal['state'] = ''
+            payload = { 'key': cartKey,'fields': {
+                        'state': cartVal['state'],
+                        'blocks': cartVal['blocks']
+                            },
+            'loadout': loadout}
+            ##TODO: make it so only happens once per session?
+            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
 
 
 async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
 
-    # print('update_cartridge_summary')
+    eZprint('summarising convos')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
@@ -28,19 +83,10 @@ async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
                         'state': cartVal['state'],
                             },
                         'loadout': loadout
-                            }
-            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
-        
+                        }
+            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))        
         await summarise_messages(userID, convoID, loadout)
-        await get_summaries(userID, convoID, loadout)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-        eZprint('messages summarised')
         await summarise_epochs(userID, convoID, loadout)
-        await get_summaries(userID, convoID, loadout)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-        eZprint('epochs summarised')
-    
-
         if loadout == current_loadout[convoID]:
             cartVal['state'] = ''
             cartVal['status'] = ''
@@ -53,9 +99,17 @@ async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
                     'loadout': loadout
                         },
                             
-
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
-        # await update_cartridge_summary(userID, cartKey, cartVal, convoID)
+        
+        for value in cartVal['values']:
+            if 'initial_overview' in value:
+                if value['initial_overview'] == True:
+                    print('initial overview found')
+                    if cartVal['blocks']:
+                        print('blocks found')
+                        await get_overview(convoID, cartKey, cartVal, loadout)
+    
+
         
 
 ##attempt at abstracting parts of flow, general idea is that there is 'corpus' which is broken into 'chunks' which are then batched together on token size, to be summarised
@@ -790,3 +844,5 @@ async def get_sessions(convoID):
 
 # if __name__ == '__main__':
 #     asyncio.run(main())
+
+past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and return your notes."""

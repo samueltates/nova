@@ -14,7 +14,7 @@ from chat import agent_initiate_convo, construct_query
 from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession, current_loadout
 from prismaHandler import prisma
-from memory import summarise_convos, get_summaries, update_cartridge_summary
+from memory import run_summary_cartridges
 from cartridges import updateCartridgeField
 from query import get_summary_with_prompt
 from keywords import get_summary_keywords
@@ -44,6 +44,15 @@ async def initialise_conversation(convoID, params = None):
 
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
+
+    if 'name' in params:
+        novaConvo[convoID]['userName'] = params['name']
+        print(params['message'])
+
+
+    if 'message' in params:
+        novaConvo[convoID]['message'] = params['message']
+        print(params['message'])
     novaConvo[convoID]['agent_name'] = agentName
     novaConvo[convoID]['token_limit'] = 4000
     sessionID = novaConvo[convoID]['sessionID'] 
@@ -90,7 +99,6 @@ async def loadCartridges(convoID, loadout = None):
 async def runCartridges(convoID, loadout = None):
     # await construct_query(convoID)
     print('running cartridges')
-    userID = novaConvo[convoID]['userID']
     if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
         await agent_initiate_convo(convoID)
     if loadout != current_loadout[convoID]:
@@ -98,52 +106,8 @@ async def runCartridges(convoID, loadout = None):
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
-
-                print('loadout is ' + str(loadout))
-
-                if loadout == current_loadout[convoID]:                
-                    eZprint('running cartridge')
-                    print('running cartridge: ' + str(cartVal['label']))
-                    print('loadout is ' + str(loadout))
-                    cartVal['blocks'] = []
-                    await get_summaries(userID, convoID, loadout)
-                    await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-                    if 'values' in cartVal:
-                        print('values found')
-                        print(cartVal['values'])
-                        for value in cartVal['values']:
-                            if 'initial_overview' in value:
-                                print('initial overview found')
-                                if cartVal['blocks']:
-                                    print('blocks found')
-                                    if loadout == current_loadout[convoID]:
-                                        cartVal['state'] = 'loading'
-                                        payload = { 'key': cartKey,'fields': {
-                                                    'state': cartVal['state'],
-                                                    'blocks': cartVal['blocks']
-                                                        },
-                                        'loadout': loadout}
-                                        ##TODO: make it so only happens once per session?
-                                        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
-            # # print('ending run')
-                                        response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
-                                        print('response is ' + str(response))
-                                    if response != '':
-                                        cartVal['blocks'] = []
-                                        cartVal['blocks'].append({'past-conversations' : response})
-                                        # print('getting overview of summary')
-                                        if loadout == current_loadout[convoID]:
-                                            cartVal['state'] = ''
-                                            payload = { 'key': cartKey,'fields': {
-                                                        'state': cartVal['state'],
-                                                        'blocks': cartVal['blocks']
-                                                            },
-                                            'loadout': loadout}
-                                            ##TODO: make it so only happens once per session?
-                                            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
-                # # print('ending run')
-
-    else    :
+                await run_summary_cartridges(convoID, cartKey, cartVal, loadout)
+    else:
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
             cartKey = generate_id()
@@ -294,4 +258,3 @@ onboarding_prompts = [
 
 ]
 
-past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and return your notes."""

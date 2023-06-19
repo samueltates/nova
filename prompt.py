@@ -21,7 +21,7 @@ async def construct_query(convoID, thread = 0):
     await construct_chat(convoID, thread)
 
 async def unpack_cartridges(convoID):
-    print('unpacking cartridges')
+    # print('unpacking cartridges')
     # print(convoID)
     # print(availableCartridges[convoID])
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
@@ -53,7 +53,7 @@ async def unpack_cartridges(convoID):
 
 
 async def construct_string(prompt_objects, convoID):
-    print('constructing string')
+    # print('constructing string')
     final_string = ''
 
     if 'prompt' in prompt_objects:
@@ -75,18 +75,23 @@ async def construct_chat(convoID, thread = 0):
     if convoID in chatlog:
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
+                if 'thread' in log and thread > 0:
+                    if log['thread'] == thread:
+                        print('thread indicator found so breaking main chat')
+                        break
+                if log['role'] == 'user':
+                    log['body'] = "human response: " + log['body']
                 current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
-            if 'thread' in log and thread > 0:
-                if log['thread'] == thread:
-                    print('thread indicator found so breaking main chat')
-                    break
-
                 
     if convoID in system_threads:
         if thread in system_threads[convoID]:
+            print('constructing chat for thread ' + str(thread) )
+            thread_system_preline = await get_system_preline_object()
+            current_chat.append(thread_system_preline)
             for obj in system_threads[convoID][thread]:
                 # print('found log for this thread number')
-                current_chat.append({"role": "system", "content": f"{obj['body']}"})
+                current_chat.append({"role": "system", "content":  f"{obj['body']}"})
+
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
 
@@ -94,16 +99,15 @@ async def construct_chat(convoID, thread = 0):
     if 'commands' in novaConvo[convoID]:
         print('commands found appending sys')
         if novaConvo[convoID]['commands']:
-            current_chat.append(basic_system_PS)
 
-            # if thread == 0:
-            #     current_chat.append(basic_system_PS)
-            #     print('thread is 0 so appending sys')
-            # else:
-            #     current_chat.append(thread_system_PS2)
+            if thread == 0:
+                current_chat.append(basic_system_endline)
+                print('thread is 0 so appending basic')
+            else:
+                current_chat.append(thread_system_endline)
 
     current_prompt[convoID]['chat'] = current_chat
-    print(current_chat)
+    # print(current_chat)
 
 async def construct_context(convoID):
     get_sessions(convoID)
@@ -191,28 +195,28 @@ async def construct_commands(command_object, thread = 0):
                         # print(response_type)
                         for element in response_type:
                             for key, val in element.items():
-                                # if thread == 0:
+                                if thread == 0:
                                     if key == 'type':
                                         # print('type found' + str(val))
                                         typeKey = val
                                     if key == 'instruction':
                                         # print('instruction found'  + str(val))
                                         typeVal = val
-                                # else:
-                                #     if val == 'reason' or val == 'plan':
-                                #         if key == 'type':
-                                #             # print('type found' + str(val))
-                                #             typeKey = val
-                                #         if key == 'instruction':
-                                #             # print('instruction found'  + str(val))
-                                #             typeVal = val
+                                else:
+                                    if val == 'reason' or val == 'plan':
+                                        if key == 'type':
+                                            # print('type found' + str(val))
+                                            typeKey = val
+                                        if key == 'instruction':
+                                            # print('instruction found'  + str(val))
+                                            typeVal = val
 
                             response_format[typeKey] =typeVal
                 if 'commands' in value:
                     # print('commands found')
                     command_string = ""
                     counter = 0
-                    print(value['commands'])
+                    # print(value['commands'])
                     for command in value['commands']:
                             # print('command is ')
                             # print(command)
@@ -281,11 +285,31 @@ def estimateTokenSize(text):
     tokenCount =  text.count(' ') + 1
     return tokenCount
 
-basic_system_PS = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
 
-thread_system_PS = {"role": "user", "content": "You are now accessing terminal, Think about objectives,  instructions, and commands available, and carry out neccessary commands, functions and notes.\n>_:"}
+async def get_system_preline_object():
+    
+    thread_system_preline = {"role": "user", "content": "\n\n\n~~~~~~~~~~~NOVA TERMINAL ENGAGED~~~~~~~~~~~~~\n\n\n Additional commands:\n1." + return_command + "\n2." + next_command + "\n3." + quit_command + "\n\n\n "}
+    return thread_system_preline
 
-thread_system_PS2 = {"role": "user", "content": "You are currently in a thread and have recieved a response from the command system. You can issue more commands, take notes, or return with message: "}
+
+
+
+basic_system_endline = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
+
+thread_system_endline = {"role": "user", "content": "You have entered a terminal session. Think about current objectives, the system response, and return command using the format specified above:\n>_ "}
+
+
+
+return_command =  """return: returns from thread with message for user, args: "message": "<message_string>,"""
+
+next_command = """next: shows next page,"""
+
+quit_command = """quit: quits thread,"""
+
+
+
+
+# thread_system_PS2 = {"role": "user", "content": "You are currently in a thread and have recieved a response from the command system. You can issue more commands, take notes, or return with message: "}
 
 # response_format = {
 #     "thoughts": {
