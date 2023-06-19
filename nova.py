@@ -52,13 +52,14 @@ async def initialise_conversation(convoID, params = None):
 async def initialiseCartridges(convoID):
     
     eZprint('intialising cartridges')
-
+    if convoID not in current_loadout:
+        current_loadout[convoID] = None
     novaConvo[convoID]['owner'] = True
     await loadCartridges(convoID)
     await runCartridges(convoID)
 
 
-async def loadCartridges(convoID):
+async def loadCartridges(convoID, loadout = None):
     eZprint('load cartridges called')
     userID = novaConvo[convoID]['userID']
     cartridges = await prisma.cartridge.find_many(
@@ -80,75 +81,66 @@ async def loadCartridges(convoID):
                         # cartVal['blocks'] = []
 
         # print('available cartridge    s are ' + str(availableCartridges[convoID]))
-
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        print('loadout is ' + str(loadout))
+        print('current loadout is ' + str(current_loadout[convoID]))
+        if loadout == current_loadout[convoID]:
+            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
     eZprint('load cartridges complete')
 
-async def runCartridges(convoID):
+async def runCartridges(convoID, loadout = None):
     # await construct_query(convoID)
     print('running cartridges')
     userID = novaConvo[convoID]['userID']
     if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
         await agent_initiate_convo(convoID)
+    if loadout != current_loadout[convoID]:
+        return
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
-                cartVal['blocks'] = []
-                loadout = None
-                if 'loadout' in cartVal:
-                    loadout = cartVal['loadout']
+
                 print('loadout is ' + str(loadout))
-                
-                if (convoID in current_loadout and current_loadout[convoID] == loadout) or convoID not in current_loadout:
+
+                if loadout == current_loadout[convoID]:                
                     eZprint('running cartridge')
                     print('running cartridge: ' + str(cartVal['label']))
                     print('loadout is ' + str(loadout))
                     cartVal['blocks'] = []
-
                     await get_summaries(userID, convoID, loadout)
-                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-
-
-                    # asyncio.create_task(get_summary_keywords(convoID, cartKey, cartVal))
-                    # asyncio.create_task(eZprint('running cartridge: ' + str(cartVal)))
-                    # await summarise_convos(convoID, cartKey, cartVal, loadout)
-                    # print(availableCartridges[convoID])
-                    await update_cartridge_summary(userID, cartKey, cartVal, convoID)
-                    response = ''
-                    if 'values' not in cartVal:
-                        cartVal['values'] = [{'initial_overview' : True}, {'max_tokens': 500}]
-
-                    input = {
-                        'cartKey': cartKey,
-                        'convoID' : convoID,
-                        'fields' :{'blocks': cartVal['blocks'],
-                                   'values' : cartVal['values'],
-                                   }
-                        
-                    }
-                    await updateCartridgeField(input)
-                    print(cartVal)
+                    await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
                     if 'values' in cartVal:
-                        # print('values found')
-                        if 'initial_overview' in cartVal['values']:
-                            # print('initial overview found')
-                            if cartVal['values']['initial_overview']:
-                                # print('initial overview true')
-
+                        print('values found')
+                        print(cartVal['values'])
+                        for value in cartVal['values']:
+                            if 'initial_overview' in value:
+                                print('initial overview found')
                                 if cartVal['blocks']:
-                                    # print('blocks found')
-                                    response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
-                                    # print('response is ' + str(response))
+                                    print('blocks found')
+                                    if loadout == current_loadout[convoID]:
+                                        cartVal['state'] = 'loading'
+                                        payload = { 'key': cartKey,'fields': {
+                                                    'state': cartVal['state'],
+                                                    'blocks': cartVal['blocks']
+                                                        },
+                                        'loadout': loadout}
+                                        ##TODO: make it so only happens once per session?
+                                        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
+            # # print('ending run')
+                                        response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
+                                        print('response is ' + str(response))
                                     if response != '':
                                         cartVal['blocks'] = []
                                         cartVal['blocks'].append({'past-conversations' : response})
                                         # print('getting overview of summary')
-                                        payload = { 'key': cartKey,'fields': {
-                                                    'state': cartVal['state'],
-                                                    'blocks': cartVal['blocks']
-                                                        }}
-                                        ##TODO: make it so only happens once per session?
-                                        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
+                                        if loadout == current_loadout[convoID]:
+                                            cartVal['state'] = ''
+                                            payload = { 'key': cartKey,'fields': {
+                                                        'state': cartVal['state'],
+                                                        'blocks': cartVal['blocks']
+                                                            },
+                                            'loadout': loadout}
+                                            ##TODO: make it so only happens once per session?
+                                            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
                 # # print('ending run')
 
     else    :

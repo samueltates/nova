@@ -12,7 +12,7 @@ import secrets
 from random_word import RandomWords
 
 from appHandler import app, websocket
-from sessionHandler import novaSession, novaConvo
+from sessionHandler import novaSession, novaConvo,current_loadout
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, handleIndexQuery, runCartridges
 from chat import handle_message, user_input
 from cartridges import addCartridgePrompt,updateCartridgeField, updateContentField,get_cartridge_list, addExistingCartridgeToLoadout
@@ -169,16 +169,26 @@ async def process_message(parsed_data):
         print(parsed_data['data'])
         await initialise_conversation(convoID, params)
         await initialiseCartridges(convoID)
+        await runCartridges(convoID)
+
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await user_input(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
         print(parsed_data['data']['fields'])
-        await updateCartridgeField(parsed_data['data'])
+        convoID = parsed_data['data']['convoID']
+        loadout = None
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
+        await updateCartridgeField(parsed_data['data'], loadout)
     if(parsed_data['type']== 'updateContentField'):
         await updateContentField(parsed_data['data'])
     if(parsed_data['type']== 'newPrompt'):
-        await addCartridgePrompt(parsed_data['data'])
+        loadout = None
+        convoID = parsed_data['data']['convoID']
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
+        await addCartridgePrompt(parsed_data['data'], loadout)
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
         if 'gDocID' in data:
@@ -244,7 +254,7 @@ async def process_message(parsed_data):
         loadout = parsed_data['data']['loadout']
         await set_loadout(loadout, convoID)
         novaConvo[convoID]['owner'] = True
-        await runCartridges(convoID)
+        await runCartridges(convoID, loadout)
 
     if(parsed_data['type'] == 'loadout_referal'):
         eZprint('loadout_referal route hit')

@@ -30,7 +30,7 @@ async def get_cartridge_list(convoID):
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
 
 
-async def addCartridge(cartVal, convoID):
+async def addCartridge(cartVal, convoID, loadout = None):
     eZprint('add cartridge triggered')
     userID = novaConvo[convoID]['userID']
     cartKey = generate_id()
@@ -44,6 +44,13 @@ async def addCartridge(cartVal, convoID):
         cartVal.update({'loadout':current_loadout[convoID] })
     if 'key' not in cartVal:
         cartVal.update({'key':cartKey})
+
+    if current_loadout[convoID] != None:
+        if loadout == current_loadout[convoID]:
+            await add_cartridge_to_loadout(convoID, cartKey)
+            if 'softDelete' not in cartVal:
+                cartVal["softDelete"] = True
+
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -51,6 +58,7 @@ async def addCartridge(cartVal, convoID):
             'blob': Json({cartKey:cartVal})
         }
     )
+    
     eZprint('new cartridge added to [nova]')
     # print(newCart)
 
@@ -58,16 +66,25 @@ async def addCartridge(cartVal, convoID):
         availableCartridges[convoID]  = {}
     availableCartridges[convoID][cartKey] = cartVal
 
+    if current_loadout[convoID] != None:
+        if loadout == current_loadout[convoID]:
+            ##another stupid hack, this time to set it to avail as it isn't running the loadout change so setting it false for first load (or resetting)
+            if 'softDelete' not in cartVal:
+                cartVal["softDelete"] = False
+
     payload = {
             'cartKey': cartKey,
             'cartVal': cartVal,
         }
+    if current_loadout[convoID] == loadout:
+        await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
 
-    await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
     return True
 
 
-async def addCartridgePrompt(input):
+async def addCartridgePrompt(input, loadout = None):
+
+
     eZprint('add cartridge prompt triggered')
     cartKey = generate_id()
     convoID = input['convoID']
@@ -75,6 +92,14 @@ async def addCartridgePrompt(input):
     cartVal.update({'state': ''})
     cartVal.update({'key': cartKey})
     userID = novaConvo[convoID]['userID']
+
+    if current_loadout[convoID] != None:
+        if loadout == current_loadout[convoID]:
+            print('adding to loadout so setting as deleted on main')
+            await add_cartridge_to_loadout(convoID, cartKey)
+            if 'softDelete' not in cartVal:
+                cartVal["softDelete"] = True
+
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -86,17 +111,40 @@ async def addCartridgePrompt(input):
     if convoID not in availableCartridges:
         availableCartridges[convoID]  = {}
     availableCartridges[convoID][cartKey] = cartVal
+    
+    if current_loadout[convoID] != None:
+        if loadout == current_loadout[convoID]:
+            ##another stupid hack, this time to set it to avail as it isn't running the loadout change 
+            print('in loadout at the moment so setting back to enabled as loadout mutate hasnt occured')
+            cartVal["softDelete"] = False
+
     payload = {
             'tempKey': input['tempKey'],
             'newCartridge': {cartKey:cartVal},
         }
-    await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
-    await add_cartridge_to_loadout(convoID, cartKey)
+        
+    if current_loadout[convoID] == loadout:
+        await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
 async def addExistingCartridgeToLoadout(input):
     print(input)
     convoID = input['convoID']
     cartKey = input['cartridge']
+    
+    
+    if convoID not in current_loadout or not current_loadout[convoID]:    
+        ##bit of a hack as using 'add to loadout' to retrieve, really should be retrieve and if loadout is adding it'll add but still working out shape of loadout / not so just working around for now much to my chagrin later on I assume
+        ##TODO : figure out loadout and retrieval flow
+        input = {
+            'convoID': convoID,
+            'cartKey': cartKey,
+            'fields': {
+                'enabled': True,
+                'softDelete': False,
+            }
+        }
+        await updateCartridgeField(input)
+
     await add_cartridge_to_loadout(convoID,cartKey)
     cartridge = await prisma.cartridge.find_first(
         where={
@@ -105,10 +153,6 @@ async def addExistingCartridgeToLoadout(input):
     )
 
     availableCartridges[convoID][cartKey] = json.loads(cartridge.json())['blob'][cartKey]
-
-    
-
-
 
 
 async def addCartridgeTrigger(input):
@@ -142,39 +186,51 @@ async def addCartridgeTrigger(input):
 
     return newCart
 
-async def updateCartridgeField(input):
+async def updateCartridgeField(input, loadout = None):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
-    targetCartVal = availableCartridges[convoID][targetCartKey]
-    await update_settings_in_loadout(convoID, targetCartKey, input['fields'])
-    # print(targetCartKey)
-    # print(sessionData)
-    # TODO: switch to do lookup via key not blob
-    # eZprint('cartridge update input')
-    # print(input)
+
+    # print('update cartridge field' + targetCartKey)
     matchedCart = await prisma.cartridge.find_first(
         where={
         'key':
         {'equals': input['cartKey']}
         },         
     )
-    # print(matchedCart)
-    for key, val in input['fields'].items():
-        availableCartridges[convoID][targetCartKey][key] = val
-        
+
     if matchedCart:
+        # print('matched cart' + str(matchedCart.id))
+        matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
+        # print ('checking loadout ' + str(loadout))
+        if loadout:
+            #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
+            # print('update settings in loadout')
+            await update_settings_in_loadout(convoID, targetCartKey, input['fields'], loadout)
+            for key, val in input['fields'].items():
+                    if key == 'enabled':
+                        continue
+                    if key == 'minimised':
+                        continue
+                    if key == 'softDelete':
+                        continue
+                    matchedCartVal[key] = val
+            
+        else: 
+            #if not coming from loadout then applies to base
+            # print('update base cartridge')
+
+            for key, val in input['fields'].items():
+                matchedCartVal[key] = val
+
         updatedCart = await prisma.cartridge.update(
             where={ 'id': matchedCart.id },
             data={
-                'blob' : Json({targetCartKey:targetCartVal})
+                'blob' : Json({targetCartKey:matchedCartVal})
             }
         )
-        # print(updatedCart)
-        # eZprint('updated cartridge')
-        # print(updatedCart)
-    payload = { 'key':targetCartKey,'fields': {'state': ''}}
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': 'nova', 'state': ''}}))
+
+        # print('updated cart' + str(updatedCart))
+
 
 async def updateContentField(input):
     convoID = input['convoID']

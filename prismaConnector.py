@@ -297,8 +297,40 @@ async def portIndexesFromCartridges(userID):
 
 
 
+async def deleteDuplicateCartridges(UserID):
 
+    ##gets cartridges
+    cartridges = await prisma.cartridge.find_many(
+        where = {'UserID' : UserID}
+    ) 
 
+    ##makes list of keep / stay
+    keep_cartridges = []
+    delete_cartridges = []
+
+    for cartridge in cartridges:
+        blob = json.loads(cartridge.json())['blob']
+        
+        #cycles through keep, adds to delete if already there
+
+        keep = True
+
+        for key, val in blob.items():
+
+            for cart in keep_cartridges:
+                if 'label' in val and 'label' in cart and cart['label'] == val['label']:
+                    print('found duplicate ' + val['label'])
+                    delete_cartridges.append(cartridge)
+                    keep = False
+                    break
+            if keep:
+                keep_cartridges.append(val)
+
+    #deletes unused cartridges
+    for cartridge in delete_cartridges:
+        await prisma.cartridge.delete(
+            where={'id': cartridge.id}
+        )
 
 
 
@@ -491,7 +523,8 @@ async def main() -> None:
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
-    await portIndexesFromCartridges('110327569930296986874')
+    await deleteDuplicateCartridges('110327569930296986874')
+    # await portIndexesFromCartridges('110327569930296986874')
 
     # await findCartridges()
 

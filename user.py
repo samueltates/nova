@@ -27,6 +27,7 @@ async def GoogleSignOn(userInfo, token):
         )
         return newUser
 
+
 async def addAuth(userID, credentials):
     print(credentials.to_json())
     credentials = await prisma.user.create(
