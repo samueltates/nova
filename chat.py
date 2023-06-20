@@ -13,7 +13,7 @@ from loadout import current_loadout
 from prismaHandler import prisma
 from prompt import construct_query, construct_chat, current_prompt, simple_agents
 from query import sendChat
-from commands import handle_commands, system_threads
+from commands import handle_commands, system_threads, command_loops
 from memory import get_sessions
 from jsonfixes import correct_json
 agentName = 'nova'
@@ -102,7 +102,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             eZprint('NEW THREAD')
             system_threads[convoID][thread] = []
             messageObject.update({'thread':thread})
-            chatlog[convoID].append(messageObject)
+            # chatlog[convoID].append(messageObject)
             system_threads[convoID][thread].append(messageObject)
             # print(system_threads[convoID][thread])
 
@@ -113,6 +113,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             eZprint('THREAD UPDATE')
             # print(system_threads[convoID][thread])
             system_threads[convoID][thread].append(messageObject)
+
+  
 
     else:     
         chatlog[convoID].append(messageObject)
@@ -129,7 +131,6 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         if json_return:
             json_object = await parse_json_string(message)
             if json_object != None:
-                simple_response = await get_json_val(json_object, 'speak')
                 if role == 'assistant':
                     command = await get_json_val(json_object, 'commands')
                 
@@ -195,38 +196,100 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
-    command_response = await handle_commands(command, convoID)
-    eZprint('command response')
-    # eZprint(command_response)
+
+
+
+    command_response = await handle_commands(command, convoID, threadRequested)
+    eZprint('command response recieved from commands')
+    eZprint(command_response)
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
-        command_object = {'commands':{
-                          "name" : str(command_response['name']), 
-                          "status" : str(command_response['status']), 
-                           "message" : str(command_response['message'])
-                           }
-                        }
-        
-        if 'status' in command_object:
-            if command_object['status'] == 'return':
-                threadRequested = 0
+        name = ''
+        status = ''
+        message = ''
+        speak = ''
+        if 'name' in command_response:
+            name = command_response['name']
+        if 'status' in command_response:
+            status = command_response['status']
+        if 'message' in command_response:
+            message = command_response['message']
 
+            # if convoID not in command_loops:
+            #     command_loops[convoID] = {}
+            # if threadRequested not in command_loops[convoID]:
+            #     command_loops[convoID][threadRequested] = 0
+
+            
+        
+        ##if error or return, it'll send back to user and end thread
+        status_lower = status.lower()
+        if 'return' in status_lower:
+            summary = await get_thread_summary(convoID, threadRequested)
+            message += '\n Notes from thread:' + summary
+
+            command_object = {'commands':{
+                    "name" : name, 
+                    "status" : status, 
+                    "message" : message
+                    },
+                    'thoughts': {
+                        'speak': "Thread completed on command, " + name + "-" + status+": " +message
+                    }
+                }
+        
+            command_object = json.dumps(command_object)
+
+            await handle_message(convoID, command_object, 'system', 'terminal', None, 0)
+            return
+  
+        
         ## get command as understood
-        command_object = json.dumps(command_object)
         # asyncio.create_task(handle_message(convoID, command_object, 'system'))
         
         ## gets return
         # system_response = await handle_commands(command_object, convoID)
 
         ##if no specific thread requested, it'll make a new one, otherwise stick to current.
+
+        ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
             if convoID not in system_threads:
                 system_threads[convoID] = {}
             thread = len(system_threads[convoID]) +1
-            print('creting new thread ' + str(thread))
+            print('creating new thread ' + str(thread))
+            thread_string = str(thread)
+            print(command_response)
+
+            speak = "Command: " + name + " recieved, with status " + status + " Thread opened with ID: " + thread_string + ". Further results will be returned to this thread."
+            
+            command_object = {'commands':{
+                    "name" : name, 
+                    "status" : status, 
+                    },
+                    'thoughts': {
+                        'speak': speak
+                    }
+                }
+            command_object = json.dumps(command_object)
+
+            await handle_message(convoID, command_object, 'system', 'terminal', None, 0)
+        
         else:
             thread = threadRequested
+
+
+        
+        command_object = {'commands':{
+                "name" : name, 
+                "status" : status, 
+                "message" : message
+                },
+
+            }
+        
+        command_object = json.dumps(command_object)
 
 
         await handle_message(convoID, command_object, 'system', 'terminal', None, thread)
@@ -236,12 +299,34 @@ async def command_interface(command, convoID, threadRequested):
 
         await construct_query(convoID, thread)
         query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        # if 'commands' in novaConvo[convoID]:
-        #     if novaConvo[convoID]['commands']:
-        #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
-
         await send_to_GPT(convoID, query_object, thread)
 
+async def get_thread_summary(convoID, thread ):
+    await construct_query(convoID, thread)
+    to_summarise = ''
+    content = ''
+    if thread in system_threads[convoID]:
+        for obj in system_threads[convoID][thread]:
+            to_summarise += obj['role'] +": " + obj['body'] + '\n'
+
+            query_object = [{"role": "user", "content": to_summarise}]
+            query_object.append({"role": "user", "content": "Return concise summary of above contents."})
+        try:
+
+            response = await sendChat(query_object, "gpt-3.5-turbo")
+            content = str(response["choices"][0]["message"]["content"])
+
+        except Exception as e:
+            print(e)
+            print('trying again')
+            try: 
+                response = await sendChat(query_object, "gpt-3.5-turbo")
+                content = str(response["choices"][0]["message"]["content"])
+
+            except Exception as e:
+                print(e)
+                content = e
+    return content
 
 async def simple_agent_response(convoID):
     eZprint('simple agent response')

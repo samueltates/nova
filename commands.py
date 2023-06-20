@@ -16,7 +16,7 @@ all_cartridges = {}
 
 command_loops = {}
 
-async def handle_commands(command_object, convoID, thread = 0, loop = 0):
+async def handle_commands(command_object, convoID, thread = 0):
     eZprint('handling command')
     print(command_object)
     if command_object:
@@ -24,7 +24,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         args = ''
 
         if 'name' in command_object:
-            name = command_object['name']
+            name = str(command_object['name'])
         if 'args' in command_object:
             args = command_object['args']
 
@@ -32,15 +32,21 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
     if convoID not in command_state:
         command_state[convoID] = {}
 
-    if 'list' in name or name in 'list':
-        response = await list_files(args, convoID)
+    if name == '':
+        command_return = {"status": "Error", "name" : '', "message": "No command supplied"}
+        return 
+
+
+
+    if  name in 'list_files':
+        response = await list_files(name, convoID)
         print('back at list parent function')
         print(response)
         return response
     
     # print('shouldnt be going past here')
-    if 'continue' in name :
-        response = await continue_command(args, convoID, thread, loop)
+    if 'continue' in name or 'next' in name :
+        response = await continue_command(args, convoID, thread)
         return response
     
     if 'return' in name:
@@ -48,25 +54,29 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         return response
     
     command_return = {"status": "", "name" : name, "message": ""}
+    print( 'command name: ' + name + ' args: ' + str(args))
 
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
+            print(args['filename'])
+
             for key, val in availableCartridges[convoID].items():
                 if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
                     blocks = []
                     if 'text' in args:
                         blocks.append({'text': args['text']})
 
-                    cartVal = {
+                    payload = {
                     'cartKey' : key,
                     'convoID' : convoID,
                     'fields' : {
                         'blocks' :blocks,
                     }
                     }
-                    updateCartridgeField(convoID, key, cartVal)
-                    command_return['status'] = "success"
+                    
+                    updateCartridgeField(payload)
+                    command_return['status'] = "Success."
                     command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
                     print(command_return)
                     return command_return
@@ -81,7 +91,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
             }
             print(cartVal)
             await addCartridge(cartVal, convoID, current_loadout[convoID])
-            command_return['status'] = "success"
+            command_return['status'] = "Success."
             command_return['message'] = "file " +args['filename']  + " created"
             print(command_return)
             return command_return
@@ -89,10 +99,8 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         eZprint('writing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower():                        
-                        if 'blocks' not in val:
-                            val['blocks'] = []
-                        val['blocks'].append({'text': args['text']})
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                        val['blocks'] = {'text': args['text']}
                         payload = {
                             'convoID': convoID,
                             'cartKey' : key,
@@ -100,22 +108,22 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                                     {'blocks': val['blocks']}
                                     }
                         await updateCartridgeField(payload)
-                        command_return['status'] = "success"
+                        command_return['status'] = "Success."
                         command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
                         print(command_return)
-                else : 
-                    blocks = []
-                    if 'text' in args:
-                        blocks.append({'text': args['text']})
-                    cartVal = {
-                    'label' : args['filename'],
-                    'blocks' :blocks,
-                    'type' : 'text'
-                    }
-                    print(cartVal)
-                    await addCartridge(cartVal, convoID, current_loadout[convoID])
+                        return command_return
+                blocks = []
+                if 'text' in args:
+                    blocks.append({'text': args['text']})
+                cartVal = {
+                'label' : args['filename'],
+                'blocks' :blocks,
+                'type' : 'text'
+                }
+                print(cartVal)
+                await addCartridge(cartVal, convoID, current_loadout[convoID])
 
-                command_return['status'] = "success"
+                command_return['status'] = "Success."
                 command_return['message'] = "file " +args['filename']  + " written"
                 print(command_return)
                 return command_return
@@ -139,15 +147,14 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                                 {'blocks': val['blocks']}
                                 }
                     await updateCartridgeField(payload)                    
-                    command_return['status'] = "success"
+                    command_return['status'] = "Success."
                     command_return['message'] = "file " +args['filename']  + " appended"
                     print(command_return)
                     return command_return
-            else: 
-                command_return['status'] = "Error."
-                command_return['message'] = "File not found."
-                print(command_return)
-                return command_return
+            command_return['status'] = "Error."
+            command_return['message'] = "File not found."
+            print(command_return)
+            return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'filename' missing"
@@ -158,21 +165,20 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         eZprint('previewing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower():
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
                     preview_string = val['label'] + '\n'
                     if 'blocks' in val:
                         for block in val['blocks']:
                             preview_string +=  str(block) + '\n'
                     preview_string += '\n'
-                    command_return['status'] = "success"
+                    command_return['status'] = "Success."
                     command_return['message'] = preview_string
                     print(command_return)
                     return command_return
-            else: 
-                command_return['status'] = "Error."
-                command_return['message'] = "File not found."
-                print(command_return)
-                return command_return
+            command_return['status'] = "Error."
+            command_return['message'] = "File not found."
+            print(command_return)
+            return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'filename' missing"
@@ -181,11 +187,12 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                 
     if name in 'open' or 'open' in name :
         eZprint('reading file')
-
         if 'filename' in args:
+            print(availableCartridges[convoID])
             for key, val in availableCartridges[convoID].items():
+                print(val, args['filename'])
                 return_string = ''
-                if 'label' in val and args['filename'].lower() in val['label'].lower():
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
                     print(val)
                     if 'enabled' not in val:
                         val['enabled'] = True
@@ -206,22 +213,22 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                     command_return['message'] = return_string
                     print(command_return)
                     return command_return
-                else:
-                    command_return['status'] = "Error."
-                    command_return['message'] = "File name not found.\n"
-                    print(command_return)
-                    return command_return
+            command_return['status'] = "Error."
+            command_return['message'] = "File name not found.\n"
+            print(command_return)
+            return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'filename' missing"
             print(command_return)
             return command_return
                 
-    if name == 'close':
+    if name in 'close' or 'close' in name :
+        eZprint('closing file')
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower():
-                    
+                print(args['filename'], val)
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
                     return_string = ''
                     if 'enabled' not in val:
                         val['enabled'] = False
@@ -239,13 +246,38 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                                 {'enabled': val['enabled']}
                                 }
                     await updateCartridgeField(payload)                    
-                    command_return['status'] = "success"
+                    command_return['status'] = "Success."
                     command_return['message'] = return_string
                     return command_return
-                else:
-                    command_return['status'] = "Error."
-                    command_return['message'] = "File not found."
+            command_return['status'] = "Error."
+            command_return['message'] = "File not found."
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'filename' missing"
+            return command_return
+
+    if name in 'delete' or 'delete' in name :
+        eZprint('deleting file')
+        if 'filename' in args:
+            for key, val in availableCartridges[convoID].items():
+                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                    val['softDelete'] = True
+                    return_string += "File " + args['filename'] + " deleted.\n"
+
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'enabled': val['enabled']}
+                                }
+                    await updateCartridgeField(payload)                    
+                    command_return['status'] = "Success."
+                    command_return['message'] = return_string
                     return command_return
+            command_return['status'] = "Error."
+            command_return['message'] = "File not found."
+            return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'filename' missing"
@@ -257,7 +289,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         eZprint('summarising conversation')
         summmarised = await summarise_from_range(convoID, args['start-line'], args['end-line'])
         if summmarised:
-            command_return['status'] = "success"
+            command_return['status'] = "Success."
             command_return['message'] = "summary completed" 
             print(command_return)
         else:
@@ -283,7 +315,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         }
         print(cartVal)
         await addCartridge(cartVal, convoID, current_loadout[convoID])
-        command_return['status'] = "success"
+        command_return['status'] = "Success."
         command_return['message'] = "note " +args['label']  + " created"
         print(command_return)
         return command_return
@@ -303,11 +335,11 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                             {'blocks': val['blocks']}
                             }
                 await updateCartridgeField(payload)
-                command_return['status'] = "success"
+                command_return['status'] ="Success."
                 command_return['message'] = "note " +args['label']  + " appended"
                 print(command_return)
                 return command_return
-        command_return['status'] = "error"
+        command_return['status'] = "Error."
         command_return['message'] = "note " +args['label']  + " not found"
         print(command_return)
         return command_return
@@ -331,7 +363,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
         for key, val in availableCartridges[convoID].items():
             if val['type'] == 'note':
                 string += '\n' + val['label']
-        command_return['status'] = 'success'
+        command_return['status'] = "Success."
         command_return['message'] = string
         print(command_return)
         return command_return
@@ -348,11 +380,11 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                         val['enabled'] = True
                         string += '\n' + val['label'] + ' opened'
             
-            command_return['status'] = 'success'
+            command_return['status'] = "Success."
             command_return['message'] = string
             print(command_return)
             return command_return
-        command_return['status'] = 'error'
+        command_return['status'] = "Error."
         command_return['message'] = 'note not found'
 
     if name == 'close_note':
@@ -365,11 +397,11 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                     string += '\n' + val['label'] + ' closed'
                 else:
                     string += '\n' + val['label'] + ' is already closed'
-            command_return['status'] = 'success'
+            command_return['status'] = "Success."
             command_return['message'] = string
             print(command_return)
             return command_return
-        command_return['status'] = 'error'
+        command_return['status'] = "Error."
         command_return['message'] = 'note not found'
 
     
@@ -386,19 +418,19 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
                 # asyncio.create_task(handleIndexQuery(queryPackage))
 
                 print(command_return)
-                command_return['status'] = "success"
+                command_return['status'] = "Success."
                 command_return['message'] = "index " +args['document']  + "query commenced"
                 return command_return
             
-        command_return['status'] = "error"
+        command_return['status'] = "Error."
         command_return['message'] = "index " +args['document']  + " not found"
         return command_return
     
     if name == '':
-        command_return['status'] = "error"
-        command_return['message'] = "no command supplied - warning, any thought will not be included in final result, use commands or return."
+        command_return['status'] = "Error."
+        command_return['message'] = "no command supplied - warning, any thought will not be included in final result, use correct commands or return to continue."
     else:
-        command_return['status'] = "error"
+        command_return['status'] = "Error."
         command_return['message'] = "command not found"
         print(command_return)
         return command_return
@@ -406,7 +438,7 @@ async def handle_commands(command_object, convoID, thread = 0, loop = 0):
 
 
 
-async def list_files(name, convoID):
+async def list_files(name, convoID, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
 
     eZprint('list available files')
@@ -455,11 +487,11 @@ async def list_files(name, convoID):
 
 
     string += "\n"
-    if len(string) > 2000:
-        command_return = await large_document_loop(string, name, convoID)
+    if len(string) > 1000:
+        command_return = await large_document_loop(string, name, convoID, thread)
         return command_return
 
-    command_return['status'] = 'success'
+    command_return['status'] = "Success."
     command_return['message'] = string
     command_state[convoID]['files_open'] = True
     print(command_return)
@@ -471,10 +503,8 @@ async def return_from_thread(args, convoID, thread):
 
     command_return = {"status": "", "message": ""}
     if 'message' in args:
-        command_return['status'] = 'return'
+        command_return['status'] = 'Return.'
         command_return['message'] = "thread closed with message" + args['message']
-        command_loops[convoID][thread]['status'] = 'closed'
-        command_loops[convoID][thread]['message'] = args['message']
         return command_return
 
 
@@ -486,20 +516,25 @@ async def continue_command(convoID, thread, loop):
             command_return = large_document_loop(convoID, thread, loop)
             return command_return
 
-async def large_document_loop(string, command = '', convoID= '', thread = 0, loop = 0):
+async def large_document_loop(string, command = '', convoID= '', thread = 0):
 
-    eZprint('large document loop' + str(loop) + ' ' + str(thread))
     command_return = {"status": "", "name" : command, "message": ""}
+
     if convoID not in command_loops:
         command_loops[convoID] = {}
     if thread not in command_loops[convoID]:
         command_loops[convoID][thread] = {}
+        command_loops[convoID][thread]['loop'] = 0
+
+    loop = command_loops[convoID][thread]['loop']
+    
+    eZprint('large document loop' + str(loop) + ' ' + str(thread))
 
     if loop == 0:
         
         eZprint('loop 0')
         sections = []
-        range = 2000
+        range = 1000
         i = 0
 
         while i < len(string):
@@ -535,7 +570,7 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0, loo
     
     else:
         eZprint('Loop complete as sections val is not last val')
-        command_return['status'] = 'success'
+        command_return['status'] = "Success."
         message = "List is complete, closing loop." 
         command_return['message'] = message
         print(command_return)
@@ -545,4 +580,5 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0, loo
 
 # ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
 
-ongoing_return_string = """\n continue for next page, or return for home."""
+ongoing_return_string = """\n Enter 'next' for next page, or 'return' for home."""
+

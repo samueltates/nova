@@ -18,9 +18,10 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
 
     userID = novaConvo[convoID]['userID']
     if loadout == current_loadout[convoID]:                
-        eZprint('running cartridge')
+        eZprint('running cartridge' + str(cartVal['label']))
         # print('running cartridge: ' + str(cartVal['label']))
         print('loadout is ' + str(loadout))
+        
         cartVal['blocks'] = []
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
@@ -44,6 +45,7 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
 
 
 async def get_overview (convoID, cartKey, cartVal, loadout = None):
+    response = ''
     if loadout == current_loadout[convoID]:
         cartVal['state'] = 'loading'
         payload = { 'key': cartKey,'fields': {

@@ -47,7 +47,6 @@ async def initialise_conversation(convoID, params = None):
 
     if 'name' in params:
         novaConvo[convoID]['userName'] = params['name']
-        print(params['message'])
 
 
     if 'message' in params:
@@ -106,7 +105,8 @@ async def runCartridges(convoID, loadout = None):
     if convoID in availableCartridges:
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
-                await run_summary_cartridges(convoID, cartKey, cartVal, loadout)
+                if 'enabled' in cartVal and cartVal['enabled'] == True:
+                    await run_summary_cartridges(convoID, cartKey, cartVal, loadout)
     else:
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:

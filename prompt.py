@@ -3,7 +3,7 @@ import json
 from debug import eZprint
 from sessionHandler import availableCartridges, chatlog, novaConvo
 from memory import summarise_percent, get_sessions
-from commands import system_threads
+from commands import system_threads, command_loops
 from query import sendChat
 
 current_prompt = {}
@@ -88,9 +88,14 @@ async def construct_chat(convoID, thread = 0):
             print('constructing chat for thread ' + str(thread) )
             thread_system_preline = await get_system_preline_object()
             current_chat.append(thread_system_preline)
-            for obj in system_threads[convoID][thread]:
-                # print('found log for this thread number')
-                current_chat.append({"role": "system", "content":  f"{obj['body']}"})
+            if convoID in command_loops and thread in command_loops[convoID]:
+                print("Command loop found, appending last command only")
+                last_command = system_threads[convoID][thread][-1]
+                current_chat.append({"role": "system", "content":  f"{last_command['body']}"})
+            else:
+                for obj in system_threads[convoID][thread]:
+                    # print('found log for this thread number')
+                    current_chat.append({"role": "system", "content":  f"{obj['body']}"})
 
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
