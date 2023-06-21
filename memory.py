@@ -726,6 +726,8 @@ async def summarise_from_range(convoID, start, end):
     eZprint('summarising from range')
     summaryID = secrets.token_bytes(4).hex()
     to_summarise = []
+    print(chatlog[convoID])
+
     counter = 0
     for log in chatlog[convoID]:
         if 'summarised' not in log:
@@ -804,7 +806,7 @@ async def summariseChatBlocks(input,  loadout = None):
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 
     chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'body':summarDict['title'], 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
-
+    print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
             where={'key': log['ID']}
@@ -823,6 +825,7 @@ async def summariseChatBlocks(input,  loadout = None):
             log['minimised'] = True
             payload = {'ID':log['ID'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+    print(chatlog[convoID])
     return True
 
 

@@ -46,6 +46,7 @@ async def user_input(sessionData):
     userName = novaConvo[convoID]['userName']
 
     # print(availableCartridges[convoID])
+    message = userName + ': ' + message
     await handle_message(convoID, message, 'user', userName, sessionData['ID'])
     await construct_query(convoID),
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
@@ -131,7 +132,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     command = None
     simple_response = None
 
-    if role != 'user' :
+    if role == 'assistant' :
         # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
@@ -139,8 +140,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             json_object = await parse_json_string(message)
             if json_object != None:
                 # print('json object', json_object)
-                if role == 'assistant':
-                    command = await get_json_val(json_object, 'command')
+                command = await get_json_val(json_object, 'command')
                 
                 ##then if there's a response it sends it... wait no this is handling the agent response? so its handling everything, but if the agent responds with the thread no it'll parse that way, or just stay 
 
@@ -156,6 +156,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         if len(simple_agents) > 0 and role != 'system' and thread == 0:
             asyncio.create_task(simple_agent_response(convoID))
 
+    if meta == 'terminal':
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
     if meta == 'simple':
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
@@ -230,6 +232,7 @@ async def command_interface(command, convoID, threadRequested):
         status_lower = status.lower()
         if 'return' in status_lower or 'success' in status_lower or 'Error' in status_lower:
 
+            return_string = '% ' + name + ' ' + status + ' : ' + message
             command_object = {'command':{
                     "name" : name, 
                     "status" : status, 
@@ -239,7 +242,9 @@ async def command_interface(command, convoID, threadRequested):
         
             command_object = json.dumps(command_object)
 
-            await handle_message(convoID, command_object, 'system', 'system', None, 0)
+            meta = 'terminal'
+
+            await handle_message(convoID, return_string, 'user', 'system', None, 0, 'terminal')
             return
   
         

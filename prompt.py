@@ -5,6 +5,7 @@ from sessionHandler import availableCartridges, chatlog, novaConvo
 from memory import get_sessions
 from commands import system_threads, command_loops
 from query import sendChat
+from datetime   import datetime
 
 current_prompt = {}
 simple_agents = {}
@@ -67,6 +68,10 @@ async def construct_string(prompt_objects, convoID):
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string']
 
+
+    context = await construct_context(convoID)
+    final_string += context
+
     print('final_string')
     # print(final_string)
     return final_string
@@ -117,13 +122,16 @@ async def construct_chat(convoID, thread = 0):
     # print(current_chat)
 
 async def construct_context(convoID):
-    get_sessions(convoID)
+    await get_sessions(convoID)
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
+    session_string += f"""todays date is {datetime.now()}.\n"""
     if 'sessions' in novaConvo[convoID]:
         if novaConvo[convoID]['sessions'] > 0:
             session_string += "You have spoken " + str(novaConvo[convoID]['sessions']) + "times.\n"
     if 'first-date' in novaConvo[convoID]:
         session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
+
+    return session_string
 
 
 async def construct_objects(convoID, main_string = None, prompt_objects = None, thread = 0 ):
@@ -136,25 +144,24 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     if 'system' in prompt_objects:
         if 'string' in prompt_objects['system']:
             final_prompt_string += "\n"+prompt_objects['system']['string']
-        if 'values' in prompt_objects['system']:
-            for value in prompt_objects['system']['values']:
-                if 'auto-summarise' in value:
-                    if value['auto-summarise'] == True:
-                        print('auto summarise found')
+        # if 'values' in prompt_objects['system']:
+        #     for value in prompt_objects['system']['values']:
+        #         if 'auto-summarise' in value:
+        #             if value['auto-summarise'] == True:
+        #                 print('auto summarise found')
 
-                # if 'warn_token' in value:
-                #     summary = value['warn_start'] + summary + value['warn_end']
-                #     if summary:
-                #         list_to_send.append({"role": "system", "content": f"{summary}"})
-                #     if value['warn_token'] == True:
-                #         warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
-                #         if warning:
-                #             warning = value['warn_start'] + warning + value['warn_end']
-                #             list_to_send.append({"role": "system", "content": f"{warning}"})
-                if 'give_context' in value:
-                    if value['give_context'] == True:
-                        context = construct_context(convoID)
-                        list_to_send.append({"role": "system", 'content': context})
+        #         # if 'warn_token' in value:
+        #         #     summary = value['warn_start'] + summary + value['warn_end']
+        #         #     if summary:
+        #         #         list_to_send.append({"role": "system", "content": f"{summary}"})
+        #         #     if value['warn_token'] == True:
+        #         #         warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
+        #         #         if warning:
+        #         #             warning = value['warn_start'] + warning + value['warn_end']
+        #         #             list_to_send.append({"role": "system", "content": f"{warning}"})
+        #         if 'give_context' in value:
+        #             if value['give_context'] == True:
+        #                 final_prompt_string += "\n"+context
     if 'command' in prompt_objects:
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
