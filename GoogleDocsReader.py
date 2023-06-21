@@ -23,12 +23,15 @@ class GoogleDocsReader(BaseReader):
         """
         if document_ids is None:
             raise ValueError('Must specify a "document_ids" in `load_kwargs`.')
-
+        print(document_ids)
         results = []
         for document_id in document_ids:
+            print(document_id)
             docResult = await self._load_doc(document_id, sessionID)
+            print(docResult)
             doc = docResult['content']
             docTitle = docResult['title']
+            print(docTitle)
             results.append(Document(doc, extra_info={"document_id": document_id, "document_title": docTitle}))
         return results
 
@@ -47,10 +50,14 @@ class GoogleDocsReader(BaseReader):
         Returns:
             The document text.
         """
-
-        
+        print('load_doc route hit')
         docs_service = await getDocService(sessionID)
+        print('got service')
+        print(docs_service.documents())
+        print(docs_service)
         doc = docs_service.documents().get(documentId=document_id).execute()
+        print('got doc')
+        print(doc)
         doc_content = doc.get("body").get("content")
         doc_title = doc.get("title")
         # await nova.updateAuth(credentials)

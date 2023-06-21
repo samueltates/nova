@@ -11,10 +11,10 @@ from appHandler import websocket
 from sessionHandler import novaConvo, chatlog, availableCartridges
 from loadout import current_loadout
 from prismaHandler import prisma
-from prompt import construct_query, construct_chat, current_prompt, simple_agents
+from prompt import construct_query, construct_chat, current_prompt, simple_agents, get_token_warning
 from query import sendChat
 from commands import handle_commands, system_threads, command_loops
-from memory import get_sessions
+from memory import get_sessions, summarise_from_range
 from jsonfixes import correct_json
 agentName = 'nova'
 
@@ -32,9 +32,9 @@ async def agent_initiate_convo(convoID):
     else:
         query_object = current_prompt[convoID]['prompt']
 
-    # if 'commands' in novaConvo[convoID]:
-    #     if novaConvo[convoID]['commands']:
-    #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+    if 'command' in novaConvo[convoID]:
+        if novaConvo[convoID]['command']:
+            query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
     await send_to_GPT(convoID, query_object)
 
 
@@ -50,7 +50,12 @@ async def user_input(sessionData):
     await construct_query(convoID),
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
 
-    # print(query_object)
+    
+    warning = await get_token_warning(query_object, .7, convoID)
+    if warning:
+        end_range = len(current_prompt[convoID]['chat']) //2
+        await summarise_from_range(convoID, 0, end_range)
+    # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
     await send_to_GPT(convoID, query_object)
 
 
@@ -63,8 +68,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     userID = novaConvo[convoID]['userID']
     sessionID = novaConvo[convoID]['sessionID'] +"-"+convoID
-    if 'commands' in novaConvo[convoID]:
-        json_return = novaConvo[convoID]['commands']
+    if 'command' in novaConvo[convoID]:
+        json_return = novaConvo[convoID]['command']
     else:
         json_return = False
 
@@ -127,12 +132,15 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     simple_response = None
 
     if role != 'user' :
+        # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
+            # print('json return')
             json_object = await parse_json_string(message)
             if json_object != None:
+                # print('json object', json_object)
                 if role == 'assistant':
-                    command = await get_json_val(json_object, 'commands')
+                    command = await get_json_val(json_object, 'command')
                 
                 ##then if there's a response it sends it... wait no this is handling the agent response? so its handling everything, but if the agent responds with the thread no it'll parse that way, or just stay 
 
@@ -141,6 +149,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 # print('command', command)
                 copiedMessage['body'] = json_object
 
+            # print('json object', json_object)
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
         # print(copiedMessage)
@@ -197,11 +206,11 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
 
-
-
     command_response = await handle_commands(command, convoID, threadRequested)
-    eZprint('command response recieved from commands')
+    eZprint('command response recieved from command')
     eZprint(command_response)
+
+    thread = 0
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
@@ -216,72 +225,46 @@ async def command_interface(command, convoID, threadRequested):
         if 'message' in command_response:
             message = command_response['message']
 
-            # if convoID not in command_loops:
-            #     command_loops[convoID] = {}
-            # if threadRequested not in command_loops[convoID]:
-            #     command_loops[convoID][threadRequested] = 0
-
-            
         
-        ##if error or return, it'll send back to user and end thread
+        ##if return, it'll send back to user and end thread
         status_lower = status.lower()
-        if 'return' in status_lower:
-            summary = await get_thread_summary(convoID, threadRequested)
-            message += '\n Notes from thread:' + summary
+        if 'return' in status_lower or 'success' in status_lower or 'Error' in status_lower:
 
-            command_object = {'commands':{
+            command_object = {'command':{
                     "name" : name, 
                     "status" : status, 
                     "message" : message
                     },
-                    'thoughts': {
-                        'speak': "Thread completed on command, " + name + "-" + status+": " +message
-                    }
                 }
         
             command_object = json.dumps(command_object)
 
-            await handle_message(convoID, command_object, 'system', 'terminal', None, 0)
+            await handle_message(convoID, command_object, 'system', 'system', None, 0)
             return
   
         
-        ## get command as understood
-        # asyncio.create_task(handle_message(convoID, command_object, 'system'))
-        
-        ## gets return
-        # system_response = await handle_commands(command_object, convoID)
-
-        ##if no specific thread requested, it'll make a new one, otherwise stick to current.
-
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
             if convoID not in system_threads:
                 system_threads[convoID] = {}
-            thread = len(system_threads[convoID]) +1
-            print('creating new thread ' + str(thread))
-            thread_string = str(thread)
-            print(command_response)
-
-            speak = "Command: " + name + " recieved, with status " + status + " Thread opened with ID: " + thread_string + ". Further results will be returned to this thread."
             
-            command_object = {'commands':{
+            command_object = {'command':{
                     "name" : name, 
                     "status" : status, 
-                    },
-                    'thoughts': {
-                        'speak': speak
+                    "message" : message,
                     }
                 }
+            
             command_object = json.dumps(command_object)
 
-            await handle_message(convoID, command_object, 'system', 'terminal', None, 0)
+            await handle_message(convoID, command_object, 'system', 'system', None, 0)
         
         else:
             thread = threadRequested
 
 
         
-        command_object = {'commands':{
+        command_object = {'system':{
                 "name" : name, 
                 "status" : status, 
                 "message" : message
@@ -331,11 +314,11 @@ async def get_thread_summary(convoID, thread ):
 async def simple_agent_response(convoID):
     eZprint('simple agent response')
     #wait 
-    await asyncio.sleep(1)
+    await asyncio.sleep(3)
     if convoID in simple_agents:
 
         for key, val in simple_agents[convoID].items():
-            print(val)
+            # print(val)
             promptObject = {'role': "system", "content": val['label']+'\n'+val['prompt']}
             await construct_chat(convoID)
             simple_chat = []
@@ -352,11 +335,11 @@ async def simple_agent_response(convoID):
                                 response = await get_json_val(json_object, 'speak')
                                 chat['content'] = response
 
-                    if chat['role'] == 'user':
+                    elif chat['role'] == 'user':
                         chat['role'] = 'assistant'
             try:
                 print('reconstructing the chat')
-                print(simple_chat)
+                # print(simple_chat)
                 print('sending simpleChat')
                 response = await sendChat(simple_chat, 'gpt-3.5-turbo')
                 content = str(response["choices"][0]["message"]["content"])
@@ -373,13 +356,17 @@ async def simple_agent_response(convoID):
                     content = e
 
             eZprint('response recieved')
-            await handle_message(convoID, content, 'user', val['label'], None, 0, 'simple')
+            await handle_message(convoID, content, 'user', str(val['label']), None, 0, 'simple')
             await construct_query(convoID),
             query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-            # if 'commands' in novaConvo[convoID]:
-            #     if novaConvo[convoID]['commands']:
+            # if 'command' in novaConvo[convoID]:
+            #     if novaConvo[convoID]['command']:
             #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
-
+            warning = await get_token_warning(query_object, .7, convoID)
+            if warning:
+                end_range = len(current_prompt[convoID]['chat']) //2
+                await summarise_from_range(convoID, 0, end_range)
+            # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
             await send_to_GPT(convoID, query_object)
 
 

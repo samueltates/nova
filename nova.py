@@ -15,7 +15,7 @@ from appHandler import app, websocket
 from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession, current_loadout
 from prismaHandler import prisma
 from memory import run_summary_cartridges
-from cartridges import updateCartridgeField
+from cartridges import update_cartridge_field
 from query import get_summary_with_prompt
 from keywords import get_summary_keywords
 from debug import fakeResponse, eZprint
@@ -106,7 +106,7 @@ async def runCartridges(convoID, loadout = None):
         for cartKey, cartVal in availableCartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
-                    await run_summary_cartridges(convoID, cartKey, cartVal, loadout)
+                    asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
     else:
         eZprint('no cartridges found, loading default')
         for prompt in onboarding_prompts:
@@ -147,84 +147,6 @@ async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
 #######################
 #ACTIVE CARTRIDGE HANDLING
 #######################
-
-
-async def handleIndexQuery(input):
-    cartKey = input['cartKey']
-    convoID = input['convoID']
-
-    query = input['query']
-    #TODO -  basically could comine with index query (or this is request, query is internal)
-    payload = { 'key': cartKey,'fields': {
-            'status': 'querying Index',
-            'state': 'loading'
-    }}
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    eZprint('handling index query')
-    cartVal = availableCartridges[convoID][cartKey]
-    if cartVal['type'] == 'index' and cartVal['enabled'] == True :
-        index_key = cartVal['index']
-        index = await getCartridgeDetail(index_key)
-        await triggerQueryIndex(convoID, cartKey, cartVal, query, index)
-
-async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson):
-    userID = novaConvo[convoID]['userID']
-    eZprint('triggering index query')
-    oldVal = cartVal
-
-    cartVal['state'] = 'loading'
-    cartVal['status'] = 'index Found'
-    payload = { 'key':cartKey,'fields': {
-                            'status': cartVal['status'],
-                            'state': cartVal['state']
-                                }}
-    index = await gptindex.reconstructIndex(indexJson)
-    insert = await gptindex.queryIndex(query, index)
-    eZprint('index query complete')
-    # eZprint(insert)
-    if(insert != None):
-        print('inserting')
-        #TODO - replace this ID lookup with a key lookup
-        cartVal['state'] = ''
-        cartVal['status'] = ''
-        if 'blocks' not in cartVal:
-            cartVal['blocks'] = []
-        cartVal['blocks'].append({'query':query, 'response':str(insert)})
-        payload = { 'key':cartKey,'fields': {
-                            'status': cartVal['status'],
-                            'blocks':cartVal['blocks'],
-                            'state': cartVal['state']
-                                }}
-        id = cartdigeLookup[cartKey]
-
-        matchedCart = await prisma.cartridge.find_first(
-            where={
-                    'id': id                                    
-                      }
-        )
-
-        if matchedCart:
-            updatedCart = await prisma.cartridge.update(
-                where={ 'id': id },
-                data={
-                    'UserID': userID,
-                    'blob' : Json({cartKey:cartVal})
-                }
-            )
-
-
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
-        
-async def getCartridgeDetail(index_key):
-    eZprint('getting cartridge detail')
-    matchedCart = await prisma.index.find_first(
-        where={
-                'key': index_key
-                }
-    )
-    dbRecord = json.loads(matchedCart.json())
-    return dbRecord
 
 
 

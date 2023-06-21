@@ -9,38 +9,44 @@ from query import sendChat, get_summary_with_prompt
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
 from sessionHandler import novaConvo, availableCartridges, chatlog, current_loadout
 from appHandler import websocket
+from keywords import get_summary_keywords
 
 summaries = {}
 windows = {}
 
 async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
-    print('loadout is ' + str(loadout))
+    # print('loadout is ' + str(loadout))
+    # print(convoID)
 
     userID = novaConvo[convoID]['userID']
     if loadout == current_loadout[convoID]:                
-        eZprint('running cartridge' + str(cartVal['label']))
+        # eZprint('running cartridge' + str(cartVal['label']))
         # print('running cartridge: ' + str(cartVal['label']))
-        print('loadout is ' + str(loadout))
+        # print('loadout is ' + str(loadout))
         
         cartVal['blocks'] = []
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
 
+        # print(convoID)
+
         if 'values' in cartVal:
             print('values found')
-            print(cartVal['values'])
+            # print(cartVal['values'])
         else :
             cartVal['values'] = [{'initial_overview': True}, {'max_tokens': 500}]
             
         for value in cartVal['values']:
             if 'initial_overview' in value:
                 if value['initial_overview'] == True:
-                    print('initial overview found')
+                    # print('initial overview found')
                     if cartVal['blocks']:
-                        print('blocks found')
+                        # print('blocks found')
                         await get_overview(convoID, cartKey, cartVal, loadout)
         
         await summarise_convos(convoID, cartKey, cartVal, loadout)
+        await get_summary_keywords(convoID, cartKey, cartVal, loadout)
+
 
 
 
@@ -56,7 +62,7 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
         ##TODO: make it so only happens once per session?
         await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
         response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
-        print('response is ' + str(response))
+        # print('response is ' + str(response))
     if response != '':
         cartVal['blocks'] = []
         cartVal['blocks'].append({'past-conversations' : response})
@@ -89,26 +95,26 @@ async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))        
         await summarise_messages(userID, convoID, loadout)
         await summarise_epochs(userID, convoID, loadout)
-        if loadout == current_loadout[convoID]:
-            cartVal['state'] = ''
-            cartVal['status'] = ''
-            payload = { 
-                    'key': cartKey,
-                    'fields': {
-                        'state': cartVal['state'],
-                        'status': cartVal['status']
-                        },
-                    'loadout': loadout
-                        },
+        # if loadout == current_loadout[convoID]:
+        #     cartVal['state'] = ''
+        #     cartVal['status'] = ''
+        #     payload = { 
+        #             'key': cartKey,
+        #             'fields': {
+        #                 'state': cartVal['state'],
+        #                 'status': cartVal['status']
+        #                 },
+        #             'loadout': loadout
+        #                 },
                             
-            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
+        #     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))   
         
         for value in cartVal['values']:
             if 'initial_overview' in value:
                 if value['initial_overview'] == True:
-                    print('initial overview found')
+                    # print('initial overview found')
                     if cartVal['blocks']:
-                        print('blocks found')
+                        # print('blocks found')
                         await get_overview(convoID, cartKey, cartVal, loadout)
     
 
@@ -147,9 +153,25 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
             # if 'keywords' not in summary:
             #     summary['keywords'] = []
             # print(summary['title'] +' ' + str(summary['epoch']))
-            cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp'], 'epoch': "epoche: " + str(summary['epoch'])})
 
-            # cartVal['blocks'].append({'key':summary['key'], 'title':summary['title'], 'body':summary['body'], 'timestamp':summary['timestamp']})
+            key = ''
+            title = ''
+            body = ''
+            timestamp = ''
+            epoch = ''
+            if 'key' in summary:
+                key = summary['key']
+            if 'title' in summary:
+                title = summary['title']
+            if 'body' in summary:
+                body = summary['body']
+            if 'timestamp' in summary:
+                timestamp = summary['timestamp']
+            if 'epoch' in summary:
+                epoch = summary['epoch']
+            
+            cartVal['blocks'].append({'key':key, 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch)})
+
 
 
     if loadout == current_loadout[convoID]:
@@ -299,12 +321,12 @@ async def summarise_batches(batches, userID, convoID, loadout = None):
         counter += 1
         # eZprint('summarising batch no ' + str(counter) + 'of' + str(len(batches)))
         epoch = batch['epoch'] +1
-        
 
             # print(batch)
                 # summary = await get_fake_summaries(batch)
         try:
             summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
+            # print(summary)
             summaryID = secrets.token_bytes(4).hex()
             await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'], convoID, loadout)
         except:
@@ -313,9 +335,10 @@ async def summarise_batches(batches, userID, convoID, loadout = None):
 
 
 
-async def create_summary_record(userID, sourceIDs, summaryID, epoch, summary, meta = {}, convoID = '', loadout =None):
+async def create_summary_record(userID, sourceIDs, summaryID, epoch, summarDict, meta = {}, convoID = '', loadout =None):
+    # print(summary)
     # eZprint('creating summary record')
-    summarDict = json.loads(summary)
+    # summarDict = json.loads(str(summary))
     summarDict.update({'sourceIDs' : sourceIDs})
     summarDict.update({'meta': meta})
     summarDict.update({'epoch': epoch})
@@ -671,7 +694,7 @@ batch_summary_prompt = """
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
 
-async def summarise_percent(convoID, percent, loadout = None):
+async def summarise_percent(convoID, percent):
     eZprint('summarising percent')
     summaryID = secrets.token_bytes(4).hex()
     to_summarise = []
@@ -696,7 +719,7 @@ async def summarise_percent(convoID, percent, loadout = None):
 
     await summariseChatBlocks(summary_block)
 
-async def summarise_from_range(convoID, start, end,  loadout = None):
+async def summarise_from_range(convoID, start, end):
 
     start = int(start)
     end = int(end)
@@ -737,7 +760,7 @@ async def summariseChatBlocks(input,  loadout = None):
         for log in chatlog[convoID]:
             if messageID == log['ID']:
                 messagesToSummarise.append(log)
-    print(messagesToSummarise)
+    # print(messagesToSummarise)
     print(len(messagesToSummarise))
     payload = []   
     summary= ""
@@ -759,12 +782,9 @@ async def summariseChatBlocks(input,  loadout = None):
     """
     summary = await get_summary_with_prompt(prompt, str(messagesToSummarise))
     #wait for 2 seconds
-    summarDict = {}
-    try:
-        summarDict = json.loads(summary)
-    except:
-        print('error parsing summary')
-        summarDict.update({'title':'error parsing summary', 'body':summary})
+    # print(summary)
+    summarDict = json.loads(summary)
+    # print(summarDict)
     fields = {}
     for key, value in summarDict.items():
       fields[key] = value
@@ -777,7 +797,9 @@ async def summariseChatBlocks(input,  loadout = None):
         'overview': 'Conversation section from conversation ' + str(date),
 
     }    
-    await create_summary_record(summaryID, userID, convoID, summarDict, loadout, meta)
+    # print(summarDict)
+
+    await create_summary_record(userID, messagesToSummarise,summaryID, 0, summarDict, meta, convoID, loadout)
     # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 

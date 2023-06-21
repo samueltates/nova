@@ -2,7 +2,7 @@ import asyncio
 import json
 from debug import eZprint
 from sessionHandler import availableCartridges, chatlog, novaConvo
-from memory import summarise_percent, get_sessions
+from memory import get_sessions
 from commands import system_threads, command_loops
 from query import sendChat
 
@@ -19,6 +19,8 @@ async def construct_query(convoID, thread = 0):
 
     await construct_objects(convoID, main_string, cartridges)
     await construct_chat(convoID, thread)
+
+    
 
 async def unpack_cartridges(convoID):
     # print('unpacking cartridges')
@@ -37,11 +39,11 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n"
-            if 'blocks' in cartVal:
-                for block in cartVal['blocks']:
-                    for key, value in block.items():
-                        # print(key, value)
-                        cartridge_contents[cartVal['type']]['string'] += value + "\n"
+            # if 'blocks' in cartVal:
+            #     for block in cartVal['blocks']:
+            #         for key, value in block.items():
+            #             # print(key, value)
+            #             cartridge_contents[cartVal['type']]['string'] += value + "\n"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -65,13 +67,13 @@ async def construct_string(prompt_objects, convoID):
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string']
 
-    # print('final_string')
+    print('final_string')
     # print(final_string)
     return final_string
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
-    print('constructing chat for thread ' + str(thread))
+    # print('constructing chat for thread ' + str(thread))
     if convoID in chatlog:
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
@@ -80,7 +82,7 @@ async def construct_chat(convoID, thread = 0):
                         print('thread indicator found so breaking main chat')
                         break
                 if log['role'] == 'user':
-                    log['body'] = "human response: " + log['body']
+                    log['body'] = log['body']
                 current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
                 
     if convoID in system_threads:
@@ -89,7 +91,7 @@ async def construct_chat(convoID, thread = 0):
             thread_system_preline = await get_system_preline_object()
             current_chat.append(thread_system_preline)
             if convoID in command_loops and thread in command_loops[convoID]:
-                print("Command loop found, appending last command only")
+                # print("Command loop found, appending last command only")
                 last_command = system_threads[convoID][thread][-1]
                 current_chat.append({"role": "system", "content":  f"{last_command['body']}"})
             else:
@@ -101,9 +103,9 @@ async def construct_chat(convoID, thread = 0):
         current_prompt[convoID] = {}
 
 
-    if 'commands' in novaConvo[convoID]:
-        print('commands found appending sys')
-        if novaConvo[convoID]['commands']:
+    if 'command' in novaConvo[convoID]:
+        # print('command found appending sys')
+        if novaConvo[convoID]['command']:
 
             if thread == 0:
                 current_chat.append(basic_system_endline)
@@ -128,45 +130,62 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     list_to_send = []
     # print('main string is: ' + str(main_string))
     # print('chat objects are: ' + str(chat_objects))
+    final_prompt_string = ''
     if main_string:
-        list_to_send.append({"role" : "system", "content": main_string})
+        final_prompt_string += "\n"+ main_string
     if 'system' in prompt_objects:
-        list_to_send.append({'role': "system", "content": f"{ prompt_objects['system']['string']}"})
+        if 'string' in prompt_objects['system']:
+            final_prompt_string += "\n"+prompt_objects['system']['string']
         if 'values' in prompt_objects['system']:
             for value in prompt_objects['system']['values']:
-                if 'warn_token' in value:
-                    if value['warn_token'] == True:
-                        warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
-                        if warning:
-                            warning = value['warn_start'] + warning + value['warn_end']
-                            list_to_send.append({"role": "system", "content": f"{warning}"})
+                if 'auto-summarise' in value:
+                    if value['auto-summarise'] == True:
+                        print('auto summarise found')
+
+                # if 'warn_token' in value:
+                #     summary = value['warn_start'] + summary + value['warn_end']
+                #     if summary:
+                #         list_to_send.append({"role": "system", "content": f"{summary}"})
+                #     if value['warn_token'] == True:
+                #         warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
+                #         if warning:
+                #             warning = value['warn_start'] + warning + value['warn_end']
+                #             list_to_send.append({"role": "system", "content": f"{warning}"})
                 if 'give_context' in value:
                     if value['give_context'] == True:
                         context = construct_context(convoID)
                         list_to_send.append({"role": "system", 'content': context})
-    if 'commands' in prompt_objects:
-        # print('commands found' + str(prompt_objects['commands']))
-        if 'label' in prompt_objects['commands']:
-            # print('command label found')
-            # print(prompt_objects['commands']['label'])
-            command_string+=  prompt_objects['commands']['label'] + "\n"
-        if 'prompt' in prompt_objects['commands']:
-            # print('command prompt found')
-            # print(prompt_objects['commands']['prompt'])
-            command_string+=  prompt_objects['commands']['prompt']
-        command_string = await construct_commands(prompt_objects['commands'], thread)
-        list_to_send.append({"role": "system", 'content': command_string})
-        novaConvo[convoID]['commands'] = True
+    if 'command' in prompt_objects:
+        final_command_string = ''
+        final_command_string += "\n"+prompt_objects['command']['string']
 
+        print('command found' + str(prompt_objects['command']))
+        if 'label' in prompt_objects['command']:
+            print('command label found')
+            print(prompt_objects['commands']['label'])
+            final_command_string +=  prompt_objects['command']['label'] + "\n"
+        if 'prompt' in prompt_objects['command']:
+            print('command prompt found')
+            print(prompt_objects['commands']['prompt'])
+            final_command_string +=  prompt_objects['command']['prompt']
+        return_format = await construct_commands(prompt_objects['command'], thread)
+        print('return format is: ' + str(return_format))
+        final_command_string += return_format
+        print('command string is: ' + str(final_command_string))
+        final_prompt_string += "\n"+final_command_string
+        novaConvo[convoID]['command'] = True
+
+    print('final prompt string is: ' + str(final_prompt_string))
+    list_to_send.append({"role": "system", 'content': final_prompt_string})
     # print('list to send is: ' + str(list_to_send))
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['prompt'] = list_to_send
-    
+
 
 async def construct_commands(command_object, thread = 0):
-    # print('constructing commands')
-    # print(command_object)
+    print('constructing commands')
+    print(command_object)
     response_format = {}
     response_format_before = ""
     response_format_after = ""
@@ -174,17 +193,17 @@ async def construct_commands(command_object, thread = 0):
 
     if 'values' in command_object:
         for values in command_object['values']:
-            # print('values found')
-            # print(values)
+            print('values found')
+            print(values)
             for value in values:
-                # print('value found')
-                # print(value)
+                print('value found')
+                print(value)
                 if 'format instructions' in value:
-                    # print('instructions found')
-                    # print(value['format instructions'])
+                    print('instructions found')
+                    print(value['format instructions'])
                     for instruct in value['format instructions']:
-                        # print('instruct found')
-                        # print(instruct)
+                        print('instruct found')
+                        print(instruct)
                         for key, val in instruct.items():
                             if key == 'before-format':
                                 response_format_before += val
@@ -200,70 +219,75 @@ async def construct_commands(command_object, thread = 0):
                         # print(response_type)
                         for element in response_type:
                             for key, val in element.items():
-                                if thread == 0:
-                                    if key == 'type':
-                                        # print('type found' + str(val))
-                                        typeKey = val
-                                    if key == 'instruction':
-                                        # print('instruction found'  + str(val))
-                                        typeVal = val
-                                else:
-                                    if val == 'reason' or val == 'plan':
-                                        if key == 'type':
-                                            # print('type found' + str(val))
-                                            typeKey = val
-                                        if key == 'instruction':
-                                            # print('instruction found'  + str(val))
-                                            typeVal = val
+                                # if thread == 0:
+                                if key == 'type':
+                                    # print('type found' + str(val))
+                                    typeKey = val
+                                if key == 'instruction':
+                                    # print('instruction found'  + str(val))
+                                    typeVal = val
+                                # else:
+                                #     if val == 'reason' or val == 'plan':
+                                #         if key == 'type':
+                                #             # print('type found' + str(val))
+                                #             typeKey = val
+                                #         if key == 'instruction':
+                                #             # print('instruction found'  + str(val))
+                                #             typeVal = val
 
                             response_format[typeKey] =typeVal
-                if 'commands' in value:
-                    # print('commands found')
+                if 'command' in value:
+                    print('commands found')
                     command_string = ""
                     counter = 0
-                    # print(value['commands'])
-                    for command in value['commands']:
-                            # print('command is ')
-                            # print(command)
-                            ##TODO DEFINITELY MAKE THIS RECURSIVE
-                            for element in command:
-                                # print('element is '  + str(element))
-                                for key, value in element.items():
-                                    if key == 'name':
-                                        command_string += str(counter) + ". " + value
-                                    if key == 'description':
-                                        command_string += ": " + value
-                                    if isinstance(value, list):
-                                        if key == 'args' and value != []:
-                                            command_string += ", args: "
-                                        # print('value is list' + str(value))
-                                        for args in value:
-                                            for elements in args:
-                                                # print('sub element is ' + str(elements))
-                                                for subKey, subVal in elements.items():
-                                                    if subKey == 'name':
-                                                        command_string += subVal + ": "
-                                                    if subKey == 'example':
-                                                        command_string += subVal + ", "
-                                    if key == 'active':
-                                        if value == False:
-                                            command_string = ""
-                                            break
-                            counter += 1
-                            command_string += "\n"
+                    print(value['command'])
+                    for command in value['command']:
+                        command_line = ""
+                        print('command is ')
+                        print(command)
+                        ##TODO DEFINITELY MAKE THIS RECURSIVE
+                        for element in command:
+                            print('element is '  + str(element))
+                            for key, value in element.items():
+                                if key == 'name':
+                                    command_line += str(counter) + ". " + value
+                                if key == 'description':
+                                    command_line += ": " + value
+                                if isinstance(value, list):
+                                    if key == 'args' and value != []:
+                                        command_line += ", args: "
+                                    print('value is list' + str(value))
+                                    for args in value:
+                                        for elements in args:
+                                            print('sub element is ' + str(elements))
+                                            for subKey, subVal in elements.items():
+                                                if subKey == 'name':
+                                                    command_line += subVal + ": "
+                                                if subKey == 'example':
+                                                    command_line += subVal + ", "
+                                if key == 'active':
+                                    print('active is ' + str(value))
+                                    if value == False:
+                                        command_line = ""
+                                        continue
+                                    counter += 1
+                            if command_line != "":
+                                command_string += command_line + "\n"
                     
     # print(response_format)
     response_format = {
         "thoughts" :response_format,
-        "commands" : {"name": "command name", "args": {"arg name": "value"}},
+        "command" : {"name": "command name", "args": {"arg name": "value"}},
     }
     formatted_response_format = json.dumps(response_format, indent=4)
 
+    print(command_string)
     format_instruction = response_format_before + formatted_response_format + response_format_after
     command_string_instruction = command_string
 
     final_return = command_string_instruction + format_instruction
 
+    print('final return is: ' + str(final_return))
     return final_return
     
                 
@@ -273,10 +297,11 @@ async def construct_commands(command_object, thread = 0):
                  
 
 async def get_token_warning(string_to_check, limit, convoID):
+    print('checking token limit')
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
     if tokens > limit:
-        return tokens + " tokens used, " + limit + " tokens remaining."
+        return str(tokens) + " tokens used, " + str(limit) + " tokens remaining."
     else:
         return
         

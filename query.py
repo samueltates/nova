@@ -30,7 +30,6 @@ async def get_summary_with_prompt(prompt, textToSummarise):
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, 'gpt-3.5-turbo')
     # print(response)
-    try:
-        return response["choices"][0]["message"]["content"]
-    except:
-        return response
+    content = response["choices"][0]["message"]["content"]
+    # print(content)
+    return content

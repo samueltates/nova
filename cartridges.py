@@ -24,9 +24,9 @@ async def get_cartridge_list(convoID):
             if convoID not in whole_cartridge_list:
                 whole_cartridge_list[convoID] = {}
             whole_cartridge_list[convoID][key] = val
-            if 'key' not in availableCartridges[convoID]:
-                val.update({'key':key})
-                cartridge_list.append(val)
+            # if 'key' not in availableCartridges[convoID]:
+            val.update({'key':key})
+            cartridge_list.append(val)
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
 
 
@@ -84,7 +84,6 @@ async def addCartridge(cartVal, convoID, loadout = None):
 
 async def addCartridgePrompt(input, loadout = None):
 
-
     eZprint('add cartridge prompt triggered')
     cartKey = generate_id()
     convoID = input['convoID']
@@ -126,33 +125,51 @@ async def addCartridgePrompt(input, loadout = None):
     if current_loadout[convoID] == loadout:
         await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
-async def addExistingCartridgeToLoadout(input):
+async def add_existing_cartridge(input, loadout = None ):
+
     print(input)
     convoID = input['convoID']
     cartKey = input['cartridge']
-    
-    
-    if convoID not in current_loadout or not current_loadout[convoID]:    
-        ##bit of a hack as using 'add to loadout' to retrieve, really should be retrieve and if loadout is adding it'll add but still working out shape of loadout / not so just working around for now much to my chagrin later on I assume
-        ##TODO : figure out loadout and retrieval flow
-        input = {
-            'convoID': convoID,
-            'cartKey': cartKey,
-            'fields': {
-                'enabled': True,
-                'softDelete': False,
-            }
-        }
-        await updateCartridgeField(input)
 
-    await add_cartridge_to_loadout(convoID,cartKey)
+    
     cartridge = await prisma.cartridge.find_first(
         where={
             "key": cartKey
             },
     )
 
-    availableCartridges[convoID][cartKey] = json.loads(cartridge.json())['blob'][cartKey]
+    cartVal = json.loads(cartridge.json())['blob'][cartKey]
+    availableCartridges[convoID][cartKey] = cartVal
+
+    #as no lodout sets base layer settings
+    if loadout == None:
+        input = {
+            'convoID': convoID,
+            'cartKey': cartKey,
+            'fields':{
+            'softDelete': False,
+            'enabled': True,
+            },
+            }
+        await update_cartridge_field(input, loadout)
+
+    if loadout:
+        ## if loadout then sends to loadout, but sets base layer settings just for this session
+        await add_cartridge_to_loadout(convoID,cartKey, loadout)
+
+    cartVal["softDelete"] = False
+    cartVal["enabled"] = True
+
+    payload = {
+            'cartKey': cartKey,
+            'cartVal': cartVal,
+        }
+    
+    print('cartVal' , cartVal)    
+    ##if still on the right loadout then sends new cartridge.
+    # if current_loadout[convoID] == loadout:
+    await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
+
 
 
 async def addCartridgeTrigger(input):
@@ -186,10 +203,10 @@ async def addCartridgeTrigger(input):
 
     return newCart
 
-async def updateCartridgeField(input, loadout = None):
+async def update_cartridge_field(input, loadout = None, system = False):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
-
+    # print(input['fields'])
     # print('update cartridge field' + targetCartKey)
     matchedCart = await prisma.cartridge.find_first(
         where={
@@ -217,7 +234,7 @@ async def updateCartridgeField(input, loadout = None):
             
         else: 
             #if not coming from loadout then applies to base
-            # print('update base cartridge')
+            print('update base cartridge')
 
             for key, val in input['fields'].items():
                 matchedCartVal[key] = val
@@ -228,8 +245,12 @@ async def updateCartridgeField(input, loadout = None):
                 'blob' : Json({targetCartKey:matchedCartVal})
             }
         )
+        if system:
+            payload = { 'key':targetCartKey,'fields': input['fields'],
+                            }
 
-        # print('updated cart' + str(updatedCart))
+            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+
 
 
 async def updateContentField(input):

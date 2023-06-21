@@ -10,6 +10,12 @@ prisma = Prisma()
 import pytz
 utc=pytz.UTC
 
+async def clear_user_history(userID):
+    await deleteLoadouts(userID)
+    await deleteCartridges(userID)
+    await deleteSummaries(userID)
+    await deleteMessages(userID)
+
 async def deleteSummaries(userID):
     summaries = await prisma.summary.delete_many(
         where = {'UserID' : userID,}
@@ -17,6 +23,16 @@ async def deleteSummaries(userID):
 
 async def deleteMessages(userID):
     messages = await prisma.message.delete_many(
+        where = {'UserID' : userID,}
+    )
+
+async def deleteLoadouts(userID):
+    loadouts = await prisma.loadout.delete_many(
+        where = {'UserID' : userID,}
+    )
+
+async def deleteCartridges(userID):
+    cartridges = await prisma.cartridge.delete_many(
         where = {'UserID' : userID,}
     )
 
@@ -295,7 +311,11 @@ async def portIndexesFromCartridges(userID):
             where={'id': cartridge.id}
         )
 
-
+async def findIndexes(userID):
+    indexes = await prisma.index.find_many(
+        where = {'UserID' : userID}
+    ) 
+    print(indexes)
 
 async def deleteDuplicateCartridges(UserID):
 
@@ -387,11 +407,11 @@ async def updateIndex(userID = None):
 
     
 
-async def deleteCartridges():
-    cartridges = await prisma.cartridge.delete_many(
-        where = {'UserID' : 'notSet'}
-    )
-    print(cartridges)
+# async def deleteCartridges():
+#     cartridges = await prisma.cartridge.delete_many(
+#         where = {'UserID' : 'notSet'}
+#     )
+#     print(cartridges)
 
 async def portUser():
 
@@ -513,6 +533,8 @@ async def findLogs(userID):
     
 async def main() -> None:
     await prisma.connect()
+    # await clear_user_history( '108238407115881872743')
+    await findIndexes('108238407115881872743')
     # await findBatches()
     # await findLogSummaries()
     # await findLogs('108238407115881872743')
@@ -520,10 +542,11 @@ async def main() -> None:
     # await findMessages('110327569930296986874')
     # await deleteMessages('108238407115881872743')
     # await deleteSummaries('108238407115881872743')
+    # await deleteCartridges( '108238407115881872743')
     # await findMessages_set_unsummarised('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
-    await deleteDuplicateCartridges('110327569930296986874')
+    # await deleteDuplicateCartridges('110327569930296986874')
     # await portIndexesFromCartridges('110327569930296986874')
 
     # await findCartridges()

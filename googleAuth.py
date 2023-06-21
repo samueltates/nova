@@ -150,6 +150,7 @@ async def getDocService(sessionID):
     credentials = None
     if 'credentials' in novaSession[sessionID]:
         credentials = novaSession[sessionID]['credentials'] 
+        print('credentials found')
     if not credentials or not novaSession[sessionID]['docsAuthed']:
         print('no credentials or docsAuthed')
         auth_url = await requestPermissions(['https://www.googleapis.com/auth/documents.readonly'])
@@ -164,6 +165,7 @@ async def getDocService(sessionID):
         credentials = novaSession[sessionID]['credentials']
     credentials = Credentials.from_authorized_user_info(json.loads(credentials))
     service = discovery.build('docs', 'v1', credentials=credentials)
+    print('service built')
     return service
 
 async def logout(sessionID):

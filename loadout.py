@@ -48,20 +48,17 @@ async def add_loadout(loadout: str, convoID):
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
   
 
-async def add_cartridge_to_loadout(convoID, cartridge):
+async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
     eZprint('add cartridge to loadout triggered')
     print(current_loadout)
 
-    if convoID not in current_loadout or not current_loadout[convoID]:
-        return
-    
-    loadout = await prisma.loadout.find_first(
+    remote_loadout = await prisma.loadout.find_first(
         where={ "key": current_loadout[convoID] },
     )
     print('loadout found')
-    print(loadout)
-    if loadout:
-        blob = json.loads(loadout.json())['blob']
+    print(remote_loadout)
+    if remote_loadout:
+        blob = json.loads(remote_loadout.json())['blob']
         for key, val in blob.items():
             val['cartridges'].append({
                 'key':cartridge, 
@@ -73,7 +70,7 @@ async def add_cartridge_to_loadout(convoID, cartridge):
 
         update = await prisma.loadout.update(
             where = {
-                'id' : loadout.id
+                'id' : remote_loadout.id
             },
             data={
                 "blob":Json(blob)
@@ -143,7 +140,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     availableCartridges[convoID] = {}
 
     for loadout_cartridge in loadout_cartridges:
-        # print(loadout_cartridge)
+        print(loadout_cartridge)
         print(loadout_cartridge['key'])
         cartKey = loadout_cartridge
         if 'key' in loadout_cartridge:

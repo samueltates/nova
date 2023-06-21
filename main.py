@@ -13,10 +13,10 @@ from random_word import RandomWords
 
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo,current_loadout
-from nova import initialise_conversation, initialiseCartridges, loadCartridges, handleIndexQuery, runCartridges
+from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat import handle_message, user_input
-from cartridges import addCartridgePrompt,updateCartridgeField, updateContentField,get_cartridge_list, addExistingCartridgeToLoadout
-from gptindex import indexDocument
+from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge
+from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
@@ -169,18 +169,17 @@ async def process_message(parsed_data):
         print(parsed_data['data'])
         await initialise_conversation(convoID, params)
         await initialiseCartridges(convoID)
-        await runCartridges(convoID)
 
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await user_input(parsed_data['data'])
     if(parsed_data['type']== 'updateCartridgeField'):
-        print(parsed_data['data']['fields'])
+        # print(parsed_data['data']['fields'])
         convoID = parsed_data['data']['convoID']
         loadout = None
         if convoID in current_loadout:
             loadout = current_loadout[convoID]
-        await updateCartridgeField(parsed_data['data'], loadout)
+        await update_cartridge_field(parsed_data['data'], loadout)
     if(parsed_data['type']== 'updateContentField'):
         await updateContentField(parsed_data['data'])
     if(parsed_data['type']== 'newPrompt'):
@@ -207,10 +206,18 @@ async def process_message(parsed_data):
                 'convoID': data['convoID'],
                 'userID': data['userID'],
             }
-            await asyncio.create_task(handleIndexQuery(queryPackage))
+            convoID = data['convoID']
+            loadout = None
+            if convoID in current_loadout:
+                loadout = current_loadout[convoID]
+            await asyncio.create_task(handleIndexQuery(queryPackage,loadout))
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
-        await asyncio.create_task(handleIndexQuery(data))
+        convoID = data['convoID']
+        loadout = None
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
+        await asyncio.create_task(handleIndexQuery(data,loadout))
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         await summariseChatBlocks(parsed_data['data'])
@@ -310,7 +317,10 @@ async def process_message(parsed_data):
         eZprint('addExistingCartridge route hit')
         convoID = parsed_data['data']['convoID']
         # cartridge = parsed_data['data']['cartridge']
-        await addExistingCartridgeToLoadout(parsed_data['data'])
+        loadout = None
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
+        await add_existing_cartridge(parsed_data['data'],loadout)
      
 
 file_chunks = {}
@@ -365,7 +375,11 @@ async def handle_indexdoc_end(data):
         'convoID': data['convoID'],
         'userID': data['userID'],
     }
-    await asyncio.create_task(handleIndexQuery(queryPackage))
+    convoID = data['convoID']
+    loadout = None
+    if convoID in current_loadout:
+        loadout = current_loadout[convoID]
+    await asyncio.create_task(handleIndexQuery(queryPackage,loadout))
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]
