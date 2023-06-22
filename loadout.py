@@ -123,7 +123,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     )
 
     current_loadout[convoID] = loadout_key
-    print(loadout)
+    # print(loadout)
     loadout_cartridges = []
     config = {}
     blob = json.loads(loadout.json())['blob']

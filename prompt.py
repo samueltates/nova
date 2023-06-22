@@ -2,10 +2,11 @@ import asyncio
 import json
 from debug import eZprint
 from sessionHandler import availableCartridges, chatlog, novaConvo
-from memory import get_sessions
+from memory import get_sessions, summarise_percent
 from commands import system_threads, command_loops
 from query import sendChat
 from datetime   import datetime
+from cartridges import update_cartridge_field
 
 current_prompt = {}
 simple_agents = {}
@@ -14,21 +15,17 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    # print(cartridges)
     main_string = await construct_string(cartridges, convoID)
-    # print(main_string)
-
     await construct_objects(convoID, main_string, cartridges)
     await construct_chat(convoID, thread)
-
+    truncuated = await handle_token_limit(convoID)
+    if truncuated == True:
+        print('truncuated')
+        return await construct_query(convoID, thread)
     
 
 async def unpack_cartridges(convoID):
-    # print('unpacking cartridges')
-    # print(convoID)
-    # print(availableCartridges[convoID])
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
-    ##IDEA - construct object out of type as field name, then loop to construct object
     cartridge_contents = {} 
     simple_agents[convoID] = {}
 
@@ -40,17 +37,22 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n"
-            # if 'blocks' in cartVal:
-            #     for block in cartVal['blocks']:
-            #         for key, value in block.items():
-            #             # print(key, value)
-            #             cartridge_contents[cartVal['type']]['string'] += value + "\n"
+            if 'minimised' in cartVal and cartVal['minimised'] == False:
+                if 'text' in cartVal:
+                    cartridge_contents[cartVal['type']]['string'] += cartVal['text'] + "\n"
+                if 'blocks' in cartVal:
+                    for key, value in cartVal['blocks'].items():
+                        for val in value:
+                            for key2, value2 in val.items():
+                                cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
+                        # cartridge_contents[cartVal['type']]['string'] += value + "\n"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
                 if convoID not in simple_agents:
                     simple_agents[convoID] = {}
-                simple_agents[convoID][cartVal['key']] = cartVal
+                if 'enabled' in cartVal and cartVal['enabled'] == True:
+                    simple_agents[convoID][cartVal['key']] = cartVal
     # print(cartridge_contents)
     return cartridge_contents
 
@@ -72,7 +74,7 @@ async def construct_string(prompt_objects, convoID):
     context = await construct_context(convoID)
     final_string += context
 
-    print('final_string')
+    # print('final_string')
     # print(final_string)
     return final_string
 
@@ -84,7 +86,7 @@ async def construct_chat(convoID, thread = 0):
             if 'muted' not in log or log['muted'] == False:
                 if 'thread' in log and thread > 0:
                     if log['thread'] == thread:
-                        print('thread indicator found so breaking main chat')
+                        # print('thread indicator found so breaking main chat')
                         break
                 if log['role'] == 'user':
                     log['body'] = log['body']
@@ -92,7 +94,7 @@ async def construct_chat(convoID, thread = 0):
                 
     if convoID in system_threads:
         if thread in system_threads[convoID]:
-            print('constructing chat for thread ' + str(thread) )
+            # print('constructing chat for thread ' + str(thread) )
             thread_system_preline = await get_system_preline_object()
             current_chat.append(thread_system_preline)
             if convoID in command_loops and thread in command_loops[convoID]:
@@ -114,7 +116,7 @@ async def construct_chat(convoID, thread = 0):
 
             if thread == 0:
                 current_chat.append(basic_system_endline)
-                print('thread is 0 so appending basic')
+                # print('thread is 0 so appending basic')
             else:
                 current_chat.append(thread_system_endline)
 
@@ -166,23 +168,23 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
 
-        print('command found' + str(prompt_objects['command']))
+        # print('command found' + str(prompt_objects['command']))
         if 'label' in prompt_objects['command']:
-            print('command label found')
-            print(prompt_objects['commands']['label'])
+            # print('command label found')
+            # print(prompt_objects['commands']['label'])
             final_command_string +=  prompt_objects['command']['label'] + "\n"
         if 'prompt' in prompt_objects['command']:
-            print('command prompt found')
-            print(prompt_objects['commands']['prompt'])
+            # print('command prompt found')
+            # print(prompt_objects['commands']['prompt'])
             final_command_string +=  prompt_objects['command']['prompt']
         return_format = await construct_commands(prompt_objects['command'], thread)
-        print('return format is: ' + str(return_format))
+        # print('return format is: ' + str(return_format))
         final_command_string += return_format
-        print('command string is: ' + str(final_command_string))
+        # print('command string is: ' + str(final_command_string))
         final_prompt_string += "\n"+final_command_string
         novaConvo[convoID]['command'] = True
 
-    print('final prompt string is: ' + str(final_prompt_string))
+    # print('final prompt string is: ' + str(final_prompt_string))
     list_to_send.append({"role": "system", 'content': final_prompt_string})
     # print('list to send is: ' + str(list_to_send))
     if convoID not in current_prompt:
@@ -191,8 +193,8 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
 
 
 async def construct_commands(command_object, thread = 0):
-    print('constructing commands')
-    print(command_object)
+    # print('constructing commands')
+    # print(command_object)
     response_format = {}
     response_format_before = ""
     response_format_after = ""
@@ -200,17 +202,17 @@ async def construct_commands(command_object, thread = 0):
 
     if 'values' in command_object:
         for values in command_object['values']:
-            print('values found')
-            print(values)
+            # print('values found')
+            # print(values)
             for value in values:
-                print('value found')
-                print(value)
+                # print('value found')
+                # print(value)
                 if 'format instructions' in value:
-                    print('instructions found')
-                    print(value['format instructions'])
+                    # print('instructions found')
+                    # print(value['format instructions'])
                     for instruct in value['format instructions']:
-                        print('instruct found')
-                        print(instruct)
+                        # print('instruct found')
+                        # print(instruct)
                         for key, val in instruct.items():
                             if key == 'before-format':
                                 response_format_before += val
@@ -244,17 +246,17 @@ async def construct_commands(command_object, thread = 0):
 
                             response_format[typeKey] =typeVal
                 if 'command' in value:
-                    print('commands found')
+                    # print('commands found')
                     command_string = ""
                     counter = 0
-                    print(value['command'])
+                    # print(value['command'])
                     for command in value['command']:
                         command_line = ""
-                        print('command is ')
-                        print(command)
+                        # print('command is ')
+                        # print(command)
                         ##TODO DEFINITELY MAKE THIS RECURSIVE
                         for element in command:
-                            print('element is '  + str(element))
+                            # print('element is '  + str(element))
                             for key, value in element.items():
                                 if key == 'name':
                                     command_line += str(counter) + ". " + value
@@ -263,17 +265,17 @@ async def construct_commands(command_object, thread = 0):
                                 if isinstance(value, list):
                                     if key == 'args' and value != []:
                                         command_line += ", args: "
-                                    print('value is list' + str(value))
+                                    # print('value is list' + str(value))
                                     for args in value:
                                         for elements in args:
-                                            print('sub element is ' + str(elements))
+                                            # print('sub element is ' + str(elements))
                                             for subKey, subVal in elements.items():
                                                 if subKey == 'name':
                                                     command_line += subVal + ": "
                                                 if subKey == 'example':
                                                     command_line += subVal + ", "
                                 if key == 'active':
-                                    print('active is ' + str(value))
+                                    # print('active is ' + str(value))
                                     if value == False:
                                         command_line = ""
                                         continue
@@ -288,25 +290,47 @@ async def construct_commands(command_object, thread = 0):
     }
     formatted_response_format = json.dumps(response_format, indent=4)
 
-    print(command_string)
+    # print(command_string)
     format_instruction = response_format_before + formatted_response_format + response_format_after
     command_string_instruction = command_string
 
     final_return = command_string_instruction + format_instruction
 
-    print('final return is: ' + str(final_return))
+    # print('final return is: ' + str(final_return))
     return final_return
     
                 
     
-            
+async def handle_token_limit(convoID):
+    print('handling token limit')
+    truncuate = False
+    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID)
+    chat_too_long = await get_token_warning(current_prompt[convoID]['chat'], .7, convoID)
+    if chat_too_long: 
+        await summarise_percent(convoID, .5)
+        truncuate = True
+    if prompt_too_long:
+        handle_prompt_context(convoID)
+        truncuate = True
+    return truncuate
+        
 
-                 
+async def handle_prompt_context(convoID):
+    sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
+    cartridge_contents = {} 
+    simple_agents[convoID] = {}
+    for cartVal in sorted_cartridges:
+        if cartVal.get('enabled', True):
+            if cartVal['type'] == 'note' or cartVal['type'] == 'summary' or cartVal['type'] == 'index':
+                cartVal['minimised'] = True
+                await update_cartridge_field(convoID, cartVal)
+    
 
 async def get_token_warning(string_to_check, limit, convoID):
     print('checking token limit')
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
+    print ('tokens are: ' + str(tokens) + ' limit is: ' + str(limit))
     if tokens > limit:
         return str(tokens) + " tokens used, " + str(limit) + " tokens remaining."
     else:
@@ -315,7 +339,7 @@ async def get_token_warning(string_to_check, limit, convoID):
 
 async def getPromptEstimate(convoID):
     prompt_token_count = estimateTokenSize(str(current_prompt[convoID]['chat'])+ str(current_prompt[convoID]['prompt']))
-    print('prompt token count is: ' + str(prompt_token_count))
+    # print('prompt token count is: ' + str(prompt_token_count))
     return prompt_token_count
 
 def estimateTokenSize(text):

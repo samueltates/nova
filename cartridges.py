@@ -18,13 +18,13 @@ async def get_cartridge_list(convoID):
         where={ "UserID": userID },
     )
     cartridge_list = []
+    if convoID not in whole_cartridge_list:
+        whole_cartridge_list[convoID] = {}
+
     for cartridge in cartridges:
         blob = json.loads(cartridge.json())['blob']
         for key, val in blob.items():
-            if convoID not in whole_cartridge_list:
-                whole_cartridge_list[convoID] = {}
             whole_cartridge_list[convoID][key] = val
-            # if 'key' not in availableCartridges[convoID]:
             val.update({'key':key})
             cartridge_list.append(val)
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
@@ -35,7 +35,7 @@ async def addCartridge(cartVal, convoID, loadout = None):
     userID = novaConvo[convoID]['userID']
     cartKey = generate_id()
     if 'blocks' not in cartVal:
-        cartVal.update({"blocks":[]})
+        cartVal.update({"blocks":{}})
     if 'enabled' not in cartVal:
         cartVal.update({"enabled":True})
     if 'softDelete' not in cartVal:
@@ -215,6 +215,8 @@ async def update_cartridge_field(input, loadout = None, system = False):
         },         
     )
 
+    availableCartridges[convoID][targetCartKey].update(input['fields'])
+
     if matchedCart:
         # print('matched cart' + str(matchedCart.id))
         matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
@@ -246,7 +248,7 @@ async def update_cartridge_field(input, loadout = None, system = False):
             }
         )
         if system:
-            payload = { 'key':targetCartKey,'fields': input['fields'],
+            payload = { 'key':targetCartKey,'fields': input['fields'], 
                             }
 
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))

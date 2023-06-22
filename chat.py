@@ -14,7 +14,7 @@ from prismaHandler import prisma
 from prompt import construct_query, construct_chat, current_prompt, simple_agents, get_token_warning
 from query import sendChat
 from commands import handle_commands, system_threads, command_loops
-from memory import get_sessions, summarise_from_range
+from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 agentName = 'nova'
 
@@ -48,20 +48,15 @@ async def user_input(sessionData):
     # print(availableCartridges[convoID])
     message = userName + ': ' + message
     await handle_message(convoID, message, 'user', userName, sessionData['ID'])
-    await construct_query(convoID),
+    await construct_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
 
-    
-    warning = await get_token_warning(query_object, .7, convoID)
-    if warning:
-        end_range = len(current_prompt[convoID]['chat']) //2
-        await summarise_from_range(convoID, 0, end_range)
     # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
     await send_to_GPT(convoID, query_object)
 
 
 
-    
+
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
     print('handling message on thread: ' + str(thread)) 
@@ -153,7 +148,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
         # print(copiedMessage)
-        if len(simple_agents) > 0 and role != 'system' and thread == 0:
+        if len(simple_agents) > 0 and thread == 0:
             asyncio.create_task(simple_agent_response(convoID))
 
     if meta == 'terminal':
@@ -174,7 +169,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
-    print(promptObject)
+    print( len(str(promptObject)))
 
     content = ''
     if thread == 0:
@@ -185,7 +180,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
-        print(response)
+        # print(response)
 
     except Exception as e:
         
@@ -232,7 +227,7 @@ async def command_interface(command, convoID, threadRequested):
         status_lower = status.lower()
         if 'return' in status_lower or 'success' in status_lower or 'Error' in status_lower:
 
-            return_string = '% ' + name + ' ' + status + ' : ' + message
+            return_string = 'system response : ' + name + ' - ' + status + ' : ' + message
             command_object = {'command':{
                     "name" : name, 
                     "status" : status, 
@@ -244,7 +239,7 @@ async def command_interface(command, convoID, threadRequested):
 
             meta = 'terminal'
 
-            await handle_message(convoID, return_string, 'user', 'system', None, 0, 'terminal')
+            await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
             return
   
         
@@ -262,7 +257,7 @@ async def command_interface(command, convoID, threadRequested):
             
             command_object = json.dumps(command_object)
 
-            await handle_message(convoID, command_object, 'system', 'system', None, 0)
+            await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
         
         else:
             thread = threadRequested
@@ -280,7 +275,7 @@ async def command_interface(command, convoID, threadRequested):
         command_object = json.dumps(command_object)
 
 
-        await handle_message(convoID, command_object, 'system', 'terminal', None, thread)
+        await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
 
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
@@ -329,7 +324,7 @@ async def simple_agent_response(convoID):
             simple_chat = []
             simple_chat.append(promptObject)
             simple_chat += deepcopy(current_prompt[convoID]['chat'])
-            print(simple_chat)
+            # print(simple_chat)
             for chat in simple_chat:
                 if 'role' in chat:
                     if chat['role'] == 'assistant':
@@ -343,9 +338,9 @@ async def simple_agent_response(convoID):
                     elif chat['role'] == 'user':
                         chat['role'] = 'assistant'
             try:
-                print('reconstructing the chat')
-                # print(simple_chat)
+                # print('reconstructing the chat')
                 print('sending simpleChat')
+                print(simple_chat)
                 response = await sendChat(simple_chat, 'gpt-3.5-turbo')
                 content = str(response["choices"][0]["message"]["content"])
 
@@ -364,14 +359,6 @@ async def simple_agent_response(convoID):
             await handle_message(convoID, content, 'user', str(val['label']), None, 0, 'simple')
             await construct_query(convoID),
             query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-            # if 'command' in novaConvo[convoID]:
-            #     if novaConvo[convoID]['command']:
-            #         query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
-            warning = await get_token_warning(query_object, .7, convoID)
-            if warning:
-                end_range = len(current_prompt[convoID]['chat']) //2
-                await summarise_from_range(convoID, 0, end_range)
-            # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
             await send_to_GPT(convoID, query_object)
 
 
@@ -468,14 +455,14 @@ async def parse_json_string(content):
     except ValueError as e:
         # the string is not valid JSON, try to remove unwanted characters
         print(f"Error parsing JSON: {e}")
-        print(content)
+        # print(content)
 
 
 ##########################REMOVE BRACKETS
 
     if json_object == None:
         
-        print('clearing anything before and after brackets')
+        # print('clearing anything before and after brackets')
         start_index = content.find('{')
         end_index = content.rfind('}')
         json_data = content[start_index:end_index+1]
@@ -486,13 +473,13 @@ async def parse_json_string(content):
     
     except ValueError as e:
         # the string is still not valid JSON, print the error message
-        print(f"Error parsing JSON: {e}")
+        # print(f"Error parsing JSON: {e}")
         error = e
 
 ##########################MANUALLY REMOVE COMMA
 
     if json_object == None:
-            print('trying manual parsing')
+            # print('trying manual parsing')
             json_data = remove_commas_after_property(content)
 
     try: 
@@ -570,24 +557,24 @@ def remove_commas_after_property(content):
         # print(char + ' | ')
         if not removal_candidate:
             if char == ',' and lastChar == '"':
-                print('found char for removal')
+                # print('found char for removal')
                 removal_candidate = counter
         elif removal_candidate :
             if (char == ',' or char == ' ' or char == '\n') and (lastChar == ',' or lastChar == ' ' or lastChar == '\n'):
-                print('current and last either apostrophe, space or enter')
+                # print('current and last either apostrophe, space or enter')
                 pass
             elif char == '}' and (lastChar == ' ' or lastChar == ','):
-                print('now on close bracked followed by either space or comma,')
+                # print('now on close bracked followed by either space or comma,')
                 removal_candidates.append(removal_candidate)
             else:
-                print('not on a space followed by comma or a space so not a candidate')
+                # print('not on a space followed by comma or a space so not a candidate')
                 removal_candidate = 0
         counter += 1
         lastChar = char
     removal_candidates.reverse()
     for candidate in removal_candidates:
         content = content[:candidate] + content[candidate+1:]
-    print (content)
+    # print (content)
     return content
 
 
@@ -611,7 +598,7 @@ Based on the above conversations, respond with a message that simulates a respon
 
 
 async def JSON_Parse_request_to_GPT(content, e):
-        print('trying to send back to gpt')
+        # print('trying to send back to gpt')
 
         system = [{"role": "user", "content": "As a JSON parser, your mission is to clean and reformat JSON strings that have raised exceptions. You'll receive a JSON string as input that doesn't pass validation and can't be loaded with json.loads(). Your goal is to properly format it according to the example schema below so it can be loaded and parsed without errors. Make sure the final output is valid JSON.\n\n" + JSON_SCHEMA}]
                 
@@ -620,7 +607,7 @@ async def JSON_Parse_request_to_GPT(content, e):
 
         response = await sendChat(user+system, 'gpt-3.5-turbo')
         json_data = str(response["choices"][0]["message"]["content"])
-        print(json_data)
+        # print(json_data)
         return json_data
 
 broken_json="""

@@ -127,7 +127,7 @@ async def handle_commands(command_object, convoID, thread = 0):
             
             cartVal = {
             'label' : args['filename'],
-            'prompt' : args['text'],
+            'text' : args['text'],
             'type' : 'note'
             }
             print(cartVal)
@@ -146,7 +146,7 @@ async def handle_commands(command_object, convoID, thread = 0):
                             'convoID': convoID,
                             'cartKey' : key,
                             'fields':
-                                    {'prompt': val['prompt']}
+                                    {'text': val['prompt']}
                                     }
                         await update_cartridge_field(payload)
                         command_return['status'] = "Success."
@@ -156,7 +156,7 @@ async def handle_commands(command_object, convoID, thread = 0):
                 
                 cartVal = {
                 'label' : args['filename'],
-                'prompt' :args['text'],
+                'text' :args['text'],
                 'type' : 'note'
                 }
 
@@ -177,13 +177,15 @@ async def handle_commands(command_object, convoID, thread = 0):
         if 'filename' in args:
             for key, val in availableCartridges[convoID].items():
                 if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
-                    val['prompt'] = args['text']
+                    current_text = val['text']
+                    current_text += '\n' + args['text']
+                    val['text'] = current_text
 
                     payload = {
                         'convoID': convoID,
                         'cartKey' : key,
                         'fields':
-                                {'prompt': val['prompt']}
+                                {'text': val['text']}
                                 }
                     await update_cartridge_field(payload, None, True)                    
                     command_return['status'] = "Success."
@@ -209,8 +211,10 @@ async def handle_commands(command_object, convoID, thread = 0):
                     if 'blocks' in val:
                         for block in val['blocks']:
                             preview_string +=  str(block) + '\n'
-                    if 'prompt' in val:
-                        preview_string += val['prompt'] + '\n'
+                    if 'text' in val:
+                        preview_string += val['text'] + '\n'
+
+                    preview_string = preview_string[0,200]
                     preview_string += '\n'
                     command_return['status'] = "Success."
                     command_return['message'] = preview_string
@@ -239,8 +243,10 @@ async def handle_commands(command_object, convoID, thread = 0):
                         val['enabled'] = True
                     if val['enabled'] == False:
                         val['enabled'] = True
+                        val['minimised'] = False
                         return_string += "File " + args['filename'] + " opened.\n"
                     else:
+                        val['minimised'] = False
                         return_string += "File " + args['filename'] + " already open.\n"
                     
                     payload = {

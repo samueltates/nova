@@ -313,7 +313,9 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
         cartVal['status'] = ''
         if 'blocks' not in cartVal:
             cartVal['blocks'] = []
-        cartVal['blocks'].append({'query':query, 'response':str(insert)})
+        if 'queries' not in cartVal:
+            cartVal['blocks']['queries'] = []
+        cartVal['blocks']['queries'].append({'query':query, 'response':str(insert)})
         payload = { 'key':cartKey,'fields': {
                             'status': cartVal['status'],
                             'blocks':cartVal['blocks'],

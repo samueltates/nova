@@ -23,8 +23,8 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
         # eZprint('running cartridge' + str(cartVal['label']))
         # print('running cartridge: ' + str(cartVal['label']))
         # print('loadout is ' + str(loadout))
-        
-        cartVal['blocks'] = []
+        if 'blocks' not in cartVal:
+            cartVal['blocks'] = {}
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
 
@@ -54,8 +54,10 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
     response = ''
     if loadout == current_loadout[convoID]:
         cartVal['state'] = 'loading'
+        cartVal['status'] = 'Getting overview'
         payload = { 'key': cartKey,'fields': {
                     'state': cartVal['state'],
+                    'status': cartVal['status'],
                     'blocks': cartVal['blocks']
                         },
         'loadout': loadout}
@@ -64,16 +66,23 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
         response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']))
         # print('response is ' + str(response))
     if response != '':
-        cartVal['blocks'] = []
-        cartVal['blocks'].append({'past-conversations' : response})
+        if 'overview' not in cartVal['blocks']:
+            cartVal['blocks']['notes'] = []
+        cartVal['blocks']['notes'].append({'overview':response})
         # print('getting overview of summary')
         if loadout == current_loadout[convoID]:
+
             cartVal['state'] = ''
-            payload = { 'key': cartKey,'fields': {
-                        'state': cartVal['state'],
-                        'blocks': cartVal['blocks']
-                            },
-            'loadout': loadout}
+            cartVal['status'] = ''
+            payload = { 
+                'key': cartKey,
+                'fields': {
+                    'state': cartVal['state'],
+                    'status': cartVal['status'],
+                    'blocks': cartVal['blocks']
+                },
+                'loadout': loadout
+            }
             ##TODO: make it so only happens once per session?
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
 
@@ -129,10 +138,9 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
     window_counter = 0
     # if 'blocks' not in cartVal:
     if loadout == current_loadout[convoID]:
-
-        cartVal['blocks'] = []
+        # if 'blocks' not in cartVal:
         cartVal['state'] = 'loading'
-        cartVal['status'] = ''
+        cartVal['status'] = 'Getting summaries'
         payload = { 'key': cartKey,
                 'fields': {
                     'state': cartVal['state'],
@@ -145,6 +153,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
     if userID+convoID not in windows:
         windows[userID+convoID] = []
 
+    cartVal['blocks']['summary'] = []
     for window in windows[userID+convoID]:
         window_counter += 1
         # eZprint('window no ' + str(window_counter))
@@ -170,13 +179,14 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
             if 'epoch' in summary:
                 epoch = summary['epoch']
             
-            cartVal['blocks'].append({'key':key, 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch)})
-
-
+            # if 'blocks' not in cartVal:
+                # if 'summary' not in cartVal['blocks']:
+            cartVal['blocks']['summary'].append({key:{ 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch)}})
 
     if loadout == current_loadout[convoID]:
         availableCartridges[convoID][cartKey] = cartVal
         cartVal['state'] = ''
+        cartVal['status'] = ''
         payload = { 
                     'key': cartKey,
                     'fields': {
@@ -328,17 +338,17 @@ async def summarise_batches(batches, userID, convoID, loadout = None):
             summary = await get_summary_with_prompt(batch_summary_prompt, str(batch['toSummarise']))
             # print(summary)
             summaryID = secrets.token_bytes(4).hex()
-            await create_summary_record(userID, batch['ids'], summaryID, epoch, summary, batch['meta'], convoID, loadout)
+            await create_summary_record(userID, batch['ids'], summaryID, summary, epoch, batch['meta'], convoID, loadout)
         except:
             print('error creating summary record')
             #sending summary state back to server
 
 
 
-async def create_summary_record(userID, sourceIDs, summaryID, epoch, summarDict, meta = {}, convoID = '', loadout =None):
+async def create_summary_record(userID, sourceIDs, summaryID, summary, epoch, meta = {}, convoID = '', loadout =None):
     # print(summary)
     # eZprint('creating summary record')
-    # summarDict = json.loads(str(summary))
+    summarDict = json.loads(summary)
     summarDict.update({'sourceIDs' : sourceIDs})
     summarDict.update({'meta': meta})
     summarDict.update({'epoch': epoch})
@@ -352,9 +362,9 @@ async def create_summary_record(userID, sourceIDs, summaryID, epoch, summarDict,
     summary = await prisma.summary.create(
         data={
             "key": summaryID,
+            'SessionID' : SessionID,
             "UserID": userID,
             "timestamp": datetime.now(),
-            'SessionID' : SessionID,
             "blob": Json({summaryID:summarDict})
 
         }
@@ -713,7 +723,6 @@ async def summarise_percent(convoID, percent):
         'summaryID': summaryID,
     }
 
-
     payload = {'summaryID':summaryID, 'messages': to_summarise}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
 
@@ -732,10 +741,10 @@ async def summarise_from_range(convoID, start, end):
     for log in chatlog[convoID]:
         if 'summarised' not in log:
         # print(log)
-        # if log['summarised'] == False:
-            if counter >= start and counter <= end:
-                # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
-                to_summarise.append(log['ID'])
+            if log['summarised'] == False:
+                if counter >= start and counter <= end:
+                    # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
+                    to_summarise.append(log['ID'])
         counter += 1
 
     summary_block = {
@@ -757,13 +766,28 @@ async def summariseChatBlocks(input,  loadout = None):
     messageIDs = input['messageIDs']
     summaryID = input['summaryID']
     userID = novaConvo[convoID]['userID']
+    messages_string = ''
     messagesToSummarise = []
+    start_message = None
     for messageID in messageIDs:
         for log in chatlog[convoID]:
             if messageID == log['ID']:
                 messagesToSummarise.append(log)
-    # print(messagesToSummarise)
-    print(len(messagesToSummarise))
+                if start_message == None:
+                    start_message = log
+                if 'name' in log:
+                    messages_string += str(log['name']) + ': '
+                if 'title' in log:
+                    messages_string += str(log['title']) + ': '
+                if 'body' in log:
+                    messages_string += str(log['body'])
+                if 'timestamp' in log:
+                    messages_string += ' ' + str(log['timestamp'])
+                messages_string += '\n'
+                
+                
+    print(messages_string)
+    print(len(messages_string))
     payload = []   
     summary= ""
     prompt = """
@@ -782,9 +806,9 @@ async def summariseChatBlocks(input,  loadout = None):
 
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
-    summary = await get_summary_with_prompt(prompt, str(messagesToSummarise))
+    summary = await get_summary_with_prompt(prompt, str(messages_string))
     #wait for 2 seconds
-    # print(summary)
+    print(summary)
     summarDict = json.loads(summary)
     # print(summarDict)
     fields = {}
@@ -794,19 +818,19 @@ async def summariseChatBlocks(input,  loadout = None):
     payload = {'ID':summaryID, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     date = datetime.now()
-    summarDict.update({'sources':messageIDs})
+    # summarDict.update({'sources':messageIDs})
     meta = {
         'overview': 'Conversation section from conversation ' + str(date),
 
     }    
     # print(summarDict)
 
-    await create_summary_record(userID, messagesToSummarise,summaryID, 0, summarDict, meta, convoID, loadout)
+    await create_summary_record(userID, messageIDs,summaryID, summary, 0, meta, convoID, loadout)
     # print(summary)
    #inject summary object into logs before messages it is summarising 
-    injectPosition = chatlog[convoID].index( messagesToSummarise[0]) 
-    chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'body':summarDict['title'], 'role':'system', 'timestamp':datetime.now(), 'summaryState':'SUMMARISED', 'muted':True, 'minimised':True, 'summaryID':summaryID})
-    print(chatlog[convoID])
+    injectPosition = chatlog[convoID].index(start_message) 
+    chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'title':summarDict['title'], 'role':'user', 'body': summarDict['body'],'timestamp':datetime.now(),'summaryID':summaryID})
+    # print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
             where={'key': log['ID']}
@@ -825,7 +849,7 @@ async def summariseChatBlocks(input,  loadout = None):
             log['minimised'] = True
             payload = {'ID':log['ID'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
-    print(chatlog[convoID])
+    # print(chatlog[convoID])
     return True
 
 
