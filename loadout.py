@@ -2,7 +2,7 @@ from prismaHandler import prisma
 from prisma import Json
 import json
 from appHandler import app, websocket
-from sessionHandler import availableCartridges, novaConvo, current_loadout, available_loadouts
+from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts
 from human_id import generate_id
 from debug import eZprint
 
@@ -26,7 +26,7 @@ async def get_loadouts(convoID):
 
 async def add_loadout(loadout: str, convoID):
     current_loadout[convoID] = loadout
-    availableCartridges[convoID] = {}
+    available_cartridges[convoID] = {}
 
     new_loadout = await prisma.loadout.create(
         data={
@@ -45,7 +45,7 @@ async def add_loadout(loadout: str, convoID):
         }
     )
     if loadout == current_loadout[convoID]:
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
   
 
 async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
@@ -137,7 +137,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         loadout_cartridges = val['cartridges']
 
     cartridges_to_add = []
-    availableCartridges[convoID] = {}
+    available_cartridges[convoID] = {}
 
     for loadout_cartridge in loadout_cartridges:
         print(loadout_cartridge)
@@ -155,7 +155,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         cartridges_to_add.append(remote_cartridge)
         blob = json.loads(remote_cartridge.json())
         for cartKey, cartVal in blob['blob'].items():
-                availableCartridges[convoID][cartKey] = cartVal
+                available_cartridges[convoID][cartKey] = cartVal
                 cartVal['softDelete'] = False
                 if 'settings' in loadout_cartridge:
                     print(loadout_cartridge['settings'])
@@ -169,7 +169,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                         cartVal['minimised'] = False
                     
     if loadout_key == current_loadout[convoID]:
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
 async def clear_loadout(convoID):
     current_loadout[convoID] = None

@@ -1,7 +1,7 @@
 import asyncio
 import json
 from debug import eZprint
-from sessionHandler import availableCartridges, chatlog, novaConvo
+from sessionHandler import available_cartridges, chatlog, novaConvo
 from memory import get_sessions, summarise_percent
 from commands import system_threads, command_loops
 from query import sendChat
@@ -25,7 +25,7 @@ async def construct_query(convoID, thread = 0):
     
 
 async def unpack_cartridges(convoID):
-    sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
+    sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
 
@@ -42,9 +42,18 @@ async def unpack_cartridges(convoID):
                     cartridge_contents[cartVal['type']]['string'] += cartVal['text'] + "\n"
                 if 'blocks' in cartVal:
                     for key, value in cartVal['blocks'].items():
-                        for val in value:
-                            for key2, value2 in val.items():
-                                cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
+                        if isinstance(value, str):
+                            cartridge_contents[cartVal['type']]['string'] += value + "\n"
+                        if isinstance(value, list):
+                            for val in value:
+                                for key2, value2 in val.items():
+                                    if isinstance(value2, str):
+                                        cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
+                                    if isinstance(value2, list):
+                                        for val2 in value2:
+                                            for key3, value3 in val2.items():
+                                                if isinstance(value3, str):
+                                                    cartridge_contents[cartVal['type']]['string'] += key3 + ": " + value3 + "\n"
                         # cartridge_contents[cartVal['type']]['string'] += value + "\n"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
@@ -75,7 +84,7 @@ async def construct_string(prompt_objects, convoID):
     final_string += context
 
     # print('final_string')
-    # print(final_string)
+    print(f'{final_string}')
     return final_string
 
 async def construct_chat(convoID, thread = 0):
@@ -316,7 +325,7 @@ async def handle_token_limit(convoID):
         
 
 async def handle_prompt_context(convoID):
-    sorted_cartridges = await asyncio.to_thread(lambda: sorted(availableCartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
+    sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     for cartVal in sorted_cartridges:

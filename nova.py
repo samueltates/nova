@@ -12,12 +12,12 @@ from prisma import Json
 from chat import agent_initiate_convo, construct_query
 #NOVA STUFF
 from appHandler import app, websocket
-from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup, novaSession, current_loadout
+from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout
 from prismaHandler import prisma
 from memory import run_summary_cartridges
 from cartridges import update_cartridge_field
 from query import get_summary_with_prompt
-from keywords import get_summary_keywords
+from keywords import get_keywords_from_summary
 from debug import fakeResponse, eZprint
 
 agentName = "nova"
@@ -76,12 +76,12 @@ async def loadCartridges(convoID, loadout = None):
         }
     )
     if len(cartridges) != 0:
-        availableCartridges[convoID] = {}
+        available_cartridges[convoID] = {}
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
-                    availableCartridges[convoID][cartKey] = cartVal
+                    available_cartridges[convoID][cartKey] = cartVal
                     cartdigeLookup.update({cartKey: cartridge.id}) 
                     # cartVal['key'] = cartKey
                     if cartVal['type'] == 'summary':
@@ -92,7 +92,7 @@ async def loadCartridges(convoID, loadout = None):
         print('loadout is ' + str(loadout))
         print('current loadout is ' + str(current_loadout[convoID]))
         if loadout == current_loadout[convoID]:
-            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': availableCartridges[convoID]}))
+            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
     eZprint('load cartridges complete')
 
 async def runCartridges(convoID, loadout = None):
@@ -102,8 +102,8 @@ async def runCartridges(convoID, loadout = None):
         await agent_initiate_convo(convoID)
     if loadout != current_loadout[convoID]:
         return
-    if convoID in availableCartridges:
-        for cartKey, cartVal in availableCartridges[convoID].items():
+    if convoID in available_cartridges:
+        for cartKey, cartVal in available_cartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
@@ -120,16 +120,16 @@ async def runCartridges(convoID, loadout = None):
                 'enabled': True,
             }
             await addNewUserCartridgeTrigger(convoID, cartKey, cartVal)
-        await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':availableCartridges[convoID]}))
+        await  websocket.send(json.dumps({'event':'sendCartridges', 'cartridges':available_cartridges[convoID]}))
         await runCartridges(convoID)
 
 
 async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
-    if convoID not in availableCartridges:
-        availableCartridges[convoID] = {}
-    availableCartridges[convoID][cartKey]= cartVal  
+    if convoID not in available_cartridges:
+        available_cartridges[convoID] = {}
+    available_cartridges[convoID][cartKey]= cartVal  
     print('adding new user cartridge')
     userID = novaConvo[convoID]['userID']
     newCart = await prisma.cartridge.create(

@@ -20,7 +20,8 @@ from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
-from memory import summariseChatBlocks
+from memory import summariseChatBlocks,get_summary_children_by_key
+from keywords import get_summary_from_keyword
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 
 app.session = session
@@ -321,7 +322,24 @@ async def process_message(parsed_data):
         if convoID in current_loadout:
             loadout = current_loadout[convoID]
         await add_existing_cartridge(parsed_data['data'],loadout)
-     
+
+    if(parsed_data['type']=='request_content_children'):
+        eZprint('request_summary_from_keyword route hit')
+        print(parsed_data['data'])
+        convoID = parsed_data['data']['convoID']
+        key = parsed_data['data']['key']
+        cartKey = parsed_data['data']['cartKey']
+        type = parsed_data['data']['type']
+
+        loadout = None
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
+
+        if type == 'summary':
+            await get_summary_children_by_key(key, convoID, cartKey, loadout)
+        elif type == 'keyword':
+            await get_summary_from_keyword(key, convoID, cartKey, loadout, True)
+
 
 file_chunks = {}
 

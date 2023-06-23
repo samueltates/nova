@@ -4,7 +4,7 @@ import asyncio
 from appHandler import app, websocket
 from prismaHandler import prisma
 from prisma import Json
-from sessionHandler import novaConvo, availableCartridges, chatlog, cartdigeLookup
+from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup
 from debug import eZprint
 from human_id import generate_id
 from loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
@@ -62,9 +62,9 @@ async def addCartridge(cartVal, convoID, loadout = None):
     eZprint('new cartridge added to [nova]')
     # print(newCart)
 
-    if convoID not in availableCartridges:
-        availableCartridges[convoID]  = {}
-    availableCartridges[convoID][cartKey] = cartVal
+    if convoID not in available_cartridges:
+        available_cartridges[convoID]  = {}
+    available_cartridges[convoID][cartKey] = cartVal
 
     if current_loadout[convoID] != None:
         if loadout == current_loadout[convoID]:
@@ -107,9 +107,9 @@ async def addCartridgePrompt(input, loadout = None):
         }
     )
     
-    if convoID not in availableCartridges:
-        availableCartridges[convoID]  = {}
-    availableCartridges[convoID][cartKey] = cartVal
+    if convoID not in available_cartridges:
+        available_cartridges[convoID]  = {}
+    available_cartridges[convoID][cartKey] = cartVal
     
     if current_loadout[convoID] != None:
         if loadout == current_loadout[convoID]:
@@ -139,7 +139,7 @@ async def add_existing_cartridge(input, loadout = None ):
     )
 
     cartVal = json.loads(cartridge.json())['blob'][cartKey]
-    availableCartridges[convoID][cartKey] = cartVal
+    available_cartridges[convoID][cartKey] = cartVal
 
     #as no lodout sets base layer settings
     if loadout == None:
@@ -196,9 +196,9 @@ async def addCartridgeTrigger(input):
     )
     eZprint('new index cartridge added to [nova]')
     cartdigeLookup.update({cartKey: newCart.id}) 
-    if convoID not in availableCartridges:
-        availableCartridges[convoID] = {}
-    availableCartridges[convoID][cartKey] = cartVal
+    if convoID not in available_cartridges:
+        available_cartridges[convoID] = {}
+    available_cartridges[convoID][cartKey] = cartVal
     await add_cartridge_to_loadout(convoID,cartKey)
 
     return newCart
@@ -215,7 +215,7 @@ async def update_cartridge_field(input, loadout = None, system = False):
         },         
     )
 
-    availableCartridges[convoID][targetCartKey].update(input['fields'])
+    available_cartridges[convoID][targetCartKey].update(input['fields'])
 
     if matchedCart:
         # print('matched cart' + str(matchedCart.id))

@@ -2,7 +2,7 @@ import asyncio
 import json
 from appHandler import websocket
 from prismaHandler import prisma
-from sessionHandler import novaConvo
+from sessionHandler import novaConvo, available_cartridges
 from debug import eZprint
 
 SKIP_KEYS = {'key', 'overview', 'timestamp', 'first-doc', 'last-doc', 'body', 'title', 'meta', 'epoch', 'sourceIDs', 'summarised', 'keywords', 'end', 'start', 'Participants', 'Session ID', 'sources', 'timeRange', 'end line', 'start line'}
@@ -11,7 +11,7 @@ summaries_available = {}
 keywords_available = {}
 notes_available = {}
 
-async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
+async def get_keywords_from_summary(convoID, cartKey, cartVal, loadout = None):
 
     eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaConvo[convoID]['userID']
@@ -71,7 +71,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
                 for keyword in keywords:
                     if keyword not in keywords_available:
                         keywords_available[userID+convoID+str(loadout)][keyword] = []
-                    keywords_available[userID+convoID+str(loadout)][keyword].append({'title':val['title'], 'body':val['body'],'summaryKey':summary.key, 'active': False})
+                    keywords_available[userID+convoID+str(loadout)][keyword].append({'title':val['title'], 'body':val['body'],'key':summary.key,'type': 'summary', 'active': False})
                 
                 # await sort_layers_by_key(val)
 
@@ -85,7 +85,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
                     if isinstance(val[key], str):
                         ## if its base then add it to the list
                         # print('adding line ' + val[key] + ' to ' + key + '\n')
-                        notes_available[userID+convoID+str(loadout)][key].append({'line':val[key], 'timestamp': val['timestamp'], 'summaryKey':summary.key, 'active': False} )
+                        notes_available[userID+convoID+str(loadout)][key].append({'line':val[key], 'timestamp': val['timestamp'], 'key':summary.key, 'active': False, 'type': 'summary'} )
                     elif isinstance(val[key], dict):
                         ## if its a dict then add all the sub keys
                         ## could this be 'recusirve'?
@@ -97,7 +97,7 @@ async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
                                 notes_available[userID+convoID+str(loadout)][subKey] = []
                             if isinstance(subVal, str):
                                 # print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
-                                notes_available[userID+convoID+str(loadout)][subKey].append({'line':subVal, 'summaryKey':summary.key,'active': False})
+                                notes_available[userID+convoID+str(loadout)][subKey].append({'line':subVal, 'key':summary.key,'active': False, 'type': 'summary'})
 
                                 # notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
                             elif isinstance(subVal, dict):
@@ -108,11 +108,11 @@ async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
                                         # print('creating record for ' + subSubKey + '\n')
                                         notes_available[userID+convoID+str(loadout)][subSubKey] = []
                                     if isinstance(subSubVal, str):
-                                        notes_available[userID+convoID+str(loadout)][subSubKey].append({'line':subSubVal, 'timestamp':val['timestamp'], 'summaryKey':summary.key, 'active': False})
+                                        notes_available[userID+convoID+str(loadout)][subSubKey].append({'line':subSubVal, 'timestamp':val['timestamp'], 'key':summary.key,'type': 'summary', 'active': False})
 
     cartVal['blocks']['keywords'] = []
     for keyword in keywords_available[userID+convoID+str(loadout)]:
-        cartVal['blocks']['keywords'].append({'keyword': keyword})
+        cartVal['blocks']['keywords'].append({'keyword': keyword, 'active': False, 'summaries': keywords_available[userID+convoID+str(loadout)][keyword]})
 
     cartVal['state'] = ''
     payload = { 'key': cartKey,
@@ -149,25 +149,47 @@ async def get_summary_keywords(convoID, cartKey, cartVal, loadout = None):
     await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
 
 
-async def get_summary_from_keywords(convoID, supplied_keywords, cartVal):
-    # eZprint('getting summary for ' + convoID + ' ' + supplied_keyword)
+async def get_summary_from_keyword(keyword, convoID, cartKey, loadout= None, user_requested = False):
 
-    keywords_array = supplied_keywords.split(',')
+    print('getting summary from keyword')
+    if convoID not in novaConvo:
+        return False
+
+    if convoID not in available_cartridges:
+        return False
+    
+    if cartKey in available_cartridges[convoID]:
+        cartVal = available_cartridges[convoID][cartKey]
+
     userID = novaConvo[convoID]['userID']
-    if userID+convoID not in summaries_available:
-        summaries_available[userID+convoID] = {}
-    for keyword in keywords_array:
-        for key, val in keywords_available[userID+convoID]:
+    if userID+convoID+str(loadout) not in summaries_available:
+        summaries_available[userID+convoID+str(loadout)] = {}
+    summaries_to_return = []
+    # print('keyword: ' + keyword + '\n')
+    # print(keywords_available[userID+convoID+str(loadout)])
+    if userID+convoID+str(loadout) in keywords_available:
+        for key, val in keywords_available[userID+convoID+str(loadout)].items():
+            print(key)
             if key == keyword:
                 for summary in val:
+                    print(summary['title'])
                     summary['active'] = True
-                    if 'blocks' not in cartVal:
-                        cartVal['blocks'] = {}
-                    cartVal['blocks'].append({'title':summary['title'], 'body':summary['body']})
-                    if userID+convoID in summaries_available:
-                        summaries_available[userID+convoID] = {}
-                    summaries_available[userID+convoID][summary['summaryKey']] = summary
-    return summaries_available[userID+convoID]
+                    if summary not in summaries_to_return:
+                        print('adding summary to return')
+                        summaries_to_return.append(summary)
+                        print('adding summary to summaries available')
+                        print(summary['key'])
+                        # if 'blocks' not in cartVal:
+                        #     cartVal['blocks'] = {}
+                        # cartVal['blocks'].append({'title':summary['title'], 'body':summary['body']})
+                        # if userID+convoID in summaries_available:
+                        #     summaries_available[userID+convoID+str(loadout)] = {}
+                        # summaries_available[userID+convoID+str(loadout)][summary['summaryKey']] = summary
+
+        if user_requested:
+            payload = { 'content': summaries_to_return, 'source': 'keyword'}    
+            await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))  
+        return summaries_available[userID+convoID+str(loadout)]
 
 
 

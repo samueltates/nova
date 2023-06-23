@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, chatlog, availableCartridges
+from sessionHandler import novaConvo, chatlog, available_cartridges
 from loadout import current_loadout
 from prismaHandler import prisma
 from prompt import construct_query, construct_chat, current_prompt, simple_agents, get_token_warning

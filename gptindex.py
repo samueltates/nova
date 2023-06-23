@@ -5,7 +5,7 @@ import json
 import base64
 import os
 from appHandler import app, websocket
-from sessionHandler import novaConvo, availableCartridges, cartdigeLookup
+from sessionHandler import novaConvo, available_cartridges, cartdigeLookup
 import asyncio
 from human_id import generate_id
 from cartridges import addCartridgeTrigger
@@ -244,7 +244,7 @@ async def handleIndexQuery(input, loadout = None):
     }
     await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
     eZprint('handling index query')
-    cartVal = availableCartridges[convoID][cartKey]
+    cartVal = available_cartridges[convoID][cartKey]
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index_key = cartVal['index']
         index = await get_index_json(index_key)

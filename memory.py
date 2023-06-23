@@ -7,9 +7,9 @@ import secrets
 from datetime import datetime
 from query import sendChat, get_summary_with_prompt
 from debug import eZprint, get_fake_messages, get_fake_summaries, debug
-from sessionHandler import novaConvo, availableCartridges, chatlog, current_loadout
+from sessionHandler import novaConvo, available_cartridges, chatlog, current_loadout
 from appHandler import websocket
-from keywords import get_summary_keywords
+from keywords import get_keywords_from_summary
 
 summaries = {}
 windows = {}
@@ -45,10 +45,87 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
                         await get_overview(convoID, cartKey, cartVal, loadout)
         
         await summarise_convos(convoID, cartKey, cartVal, loadout)
-        await get_summary_keywords(convoID, cartKey, cartVal, loadout)
+        await get_keywords_from_summary(convoID, cartKey, cartVal, loadout)
 
+async def get_summary_children_by_key(key, convoID, cartKey, loadout = None):
 
+    userID = novaConvo[convoID]['userID']   
+    if loadout == current_loadout[convoID]:
+        summary = await get_summary_by_key(key, convoID, loadout)
 
+        print('summary found')
+        print(summary)
+        content_to_return = None
+        if summary:
+            summary = json.loads(summary.json())['blob']
+            print(summary)
+            summary_elements = []
+            for key, val in summary.items():
+                if 'epoch' in val:
+                    print (val)
+                    if val['epoch'] > 1:
+                        print('epoch greater than')
+                        if 'sourceIDs' in val:
+                            for sourceID in val['sourceIDs']:
+                                print('sourceID found')
+                                print(sourceID)
+                                child_summary = await get_summary_by_key(sourceID, convoID, loadout)
+                                if child_summary:
+                                    print('child summary found')
+                                    print(child_summary)
+                                    child_summary = json.loads(child_summary.json())['blob']
+                                    print(child_summary)
+
+                                    for key, val in child_summary.items():
+                                        summary_elements.append(val)
+                                        print('content to return' + str(content_to_return)) 
+                            content_to_return = {'summary': summary_elements, 'source' : 'summaries'}
+
+                    elif 'meta' in val:
+                        print('meta found')
+                        if 'docID' in val['meta']:
+                            print('conversation found')
+
+                            messages = await prisma.message.find_many(
+                                where={
+                                'UserID': userID,
+                                }
+                            )
+                            return_messages = []
+                            if messages:
+                                print('messages found')
+
+                            for message in messages:
+                                
+                                if 'sourceIDs' in val:
+                                    print('sourceIDs found')
+                                    for sourceID in val['sourceIDs']:
+                                        print('sourceID found')
+                                        if message.id == sourceID:
+                                            print('message match ' + str(message))
+                                            message_json = json.loads(message.json())
+                                            return_messages.append(message_json)
+                                    content_to_return = {'content': return_messages, 'source' : 'messages' }
+                                    
+            if convoID in available_cartridges:
+                cartVal = available_cartridges[convoID][cartKey]
+
+            if 'blocks' not in cartVal:
+                cartVal['blocks'] = {}
+            cartVal['blocks']['summary'].append({key:content_to_return})
+
+            await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':content_to_return}))  
+
+async def get_summary_by_key(key, convoID, loadout = None):
+
+    if loadout == current_loadout[convoID]:
+        print('getting summary by key')
+        summary = await prisma.summary.find_first(
+            where={
+                'key': str(key)
+            }
+        )
+    return summary
 
 async def get_overview (convoID, cartKey, cartVal, loadout = None):
     response = ''
@@ -184,7 +261,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
             cartVal['blocks']['summary'].append({key:{ 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch)}})
 
     if loadout == current_loadout[convoID]:
-        availableCartridges[convoID][cartKey] = cartVal
+        available_cartridges[convoID][cartKey] = cartVal
         cartVal['state'] = ''
         cartVal['status'] = ''
         payload = { 
