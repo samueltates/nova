@@ -778,17 +778,17 @@ summary_batch_prompt = """
 Combine the below conversation summaries into one single summary in JSON format, including a title, time range, in-depth paragraph, top 3 keywords, and relevant notes. The summary should be organized as follows:
 
 {
-"title": "[Short unique overview of topics in this period]",
-"timestamp" : "[Time, Date, or Date Range]",
-"body": "[Synthesis of topics, decisions, and discoveries across conversations]", 
-"keywords": ["Keyword1", "Keyword2", "Keyword3"],
-"notes": {
-    "[Note Title1]": "[Note Body1]",
-    "[Note Title2]": "[Note Body2]"
-}
+    "title": "[Short unique overview of topics in this period]",
+    "timestamp" : "[Time, Date, or Date Range]",
+    "body": "[Synthesis of topics, decisions, and discoveries across conversations]", 
+    "keywords": ["Keyword1", "Keyword2", "Keyword3"],
+    "notes": {
+        "[Note Title1]": "[Note Body1]",
+        "[Note Title2]": "[Note Body2]"
+    }
 }
 
-Ensure that the summary captures the broad strokes of all conversations in one synthesis. Make sure that the above format is followed exactly, and can be read by json.dumps, ensuring all response is inside of the brackets. Ensure all conversation summaries are combined into one single summary.
+Ensure that the summary captures the broad strokes of all conversations in one synthesis. Make sure that the above format is followed exactly, and can be read by json.dumps, ensuring all response is inside of the brackets with only one root JSON object. Ensure all conversation summaries are combined into one single summary:
 """
 
 async def summarise_percent(convoID, percent):

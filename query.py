@@ -30,6 +30,9 @@ async def get_summary_with_prompt(prompt, textToSummarise):
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
     promptObject.append({'role' : 'user', 'content' : textToSummarise})
+    promptObject.append({"role": "user", "content": "Think about summary instructions and supplied content. Compose your answer and respond using the format specified above:"})
+
+    
     # print(textToSummarise)
     # model = app.session.get('model')
     # if model == None:

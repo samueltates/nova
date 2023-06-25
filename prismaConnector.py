@@ -546,6 +546,33 @@ async def find_messages(userID):
         print(message)
         print('\n')
     
+async def update_summaries_for_testing(userID):
+    summaries = await prisma.summary.find_many(
+        where = {
+            'UserID' : userID,
+            }
+    )
+    for summary in summaries:
+
+        print(summary)
+        blob = json.loads(summary.json())['blob']
+        print(blob)
+        for key, val in blob.items():
+            epoch = int(val['epoch'])
+            if epoch == 2:
+                val['summarised'] = False
+                update = await prisma.summary.update(
+                    where={'id': summary.id},
+                    data={'blob':Json({key: val})}
+                )
+                print(update)
+            if epoch > 2:
+                delete = await prisma.summary.delete(
+                    where={'id': summary.id},
+                )
+
+
+
 async def main() -> None:
     await prisma.connect()
     # await clear_user_history( '108238407115881872743')
@@ -556,9 +583,10 @@ async def main() -> None:
     # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
     # await deleteMessages('108238407115881872743')
-    await deleteSummaries('110327569930296986874')
+    # await deleteSummaries('110327569930296986874')
     # await deleteCartridges( '108238407115881872743')
-    await findMessages_set_unsummarised('110327569930296986874')
+    # await findMessages_set_unsummarised('110327569930296986874')
+    await update_summaries_for_testing('110327569930296986874')
     # await find_messages('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
