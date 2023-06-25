@@ -170,7 +170,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
     print( len(str(promptObject)))
-
+    print(promptObject)
     content = ''
     if thread == 0:
         await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))

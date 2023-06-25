@@ -22,18 +22,12 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
             cartVal['blocks'] = {}
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-        if 'values' not in cartVal:
-            cartVal['values'] = [{'initial_overview': True}, {'max_tokens': 500}]
-            
-        # for value in cartVal['values']:
-        #     if 'initial_overview' in value:
-        #         if value['initial_overview'] == True:
-        #             if cartVal['blocks']:
-        #                 await get_overview(convoID, cartKey, cartVal, loadout)
-
+        await get_overview(convoID, cartKey, cartVal, loadout)
         await summarise_convos(convoID, cartKey, cartVal, loadout)
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
+        await get_overview(convoID, cartKey, cartVal, loadout)
+
         # await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
 
 async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
@@ -317,28 +311,33 @@ async def summarise_messages(userID, convoID, loadout = None):
             'UserID': userID,
             }
     )
-    
+
+
+    # print(remote_messages)
     messages = []
     for message in remote_messages:
         splitID = message.SessionID.split('-')
+        # print(splitID)
         if len(splitID) >=3:
-            if splitID[2] == loadout:
+            # print(splitID[2])
+            if splitID[2] == str(loadout):
                 messages.append(message)
+                print('adding on loadout')
         elif loadout == None:
+            # print(splitID)
             messages.append(message)
+            print('adding on no loadout')
 
     normalised_convos = []
     meta = ' '
 
-
+    # print(messages)
     ids = []
     conversation_string = ''
     for conversation in conversations:
-        if conversation.id > 1600:
-            break
         for message in messages:
             if message.SessionID == conversation.SessionID:
-                # print('found message match')
+                print('found message match')
                 # print(message)
                 if meta == ' ':
                     format = '%Y-%m-%dT%H:%M:%S.%f%z'
@@ -349,11 +348,10 @@ async def summarise_messages(userID, convoID, loadout = None):
                         'type' : 'message',
                         'corpus' : 'loadout-conversations'
                     }
-                name = message.name.strip()
-                if name.lower() != 'sam':
-                    name = 'Nova'
-                conversation_string += name +': '+ message.body + '\n' + message.timestamp + '\n\n'
+
+                conversation_string += message.name +': '+ message.body + '\n' + message.timestamp + '\n\n'
                 ids.append(message.id)
+                print(str(len(conversation_string)))
 
                 if len(conversation_string) > 7000:
                     i = 0

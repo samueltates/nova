@@ -114,7 +114,7 @@ async def handle_commands(command_object, convoID, thread = 0):
                     'cartKey' : key,
                     'convoID' : convoID,
                     'fields' : {
-                        'prompt' : args['text'],
+                        'text' : args['text'],
                     }
                     }
                     
@@ -141,12 +141,12 @@ async def handle_commands(command_object, convoID, thread = 0):
         if 'filename' in args:
             for key, val in available_cartridges[convoID].items():
                 if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
-                        val['prompt'] = args['text']
+                        val['text'] = args['text']
                         payload = {
                             'convoID': convoID,
                             'cartKey' : key,
                             'fields':
-                                    {'text': val['prompt']}
+                                    {'text': val['text']}
                                     }
                         await update_cartridge_field(payload)
                         command_return['status'] = "Success."
@@ -391,8 +391,8 @@ async def list_files(name, convoID, thread = 0):
                     string += ' -- '+val['type']
                 if 'description' in val:
                     string +=  '\n' + val['description']
-                if 'prompt' in val:
-                    string += val['prompt'][0:20] + '...\n'
+                if 'text' in val:
+                    string += val['text'][0:20] + '...\n'
                 if 'enabled' in val and val['enabled'] == True:
                     string += ' -- open'
                 else:

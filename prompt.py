@@ -29,46 +29,47 @@ async def unpack_cartridges(convoID):
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
-
+    print('unpacking cartridges')
+    print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
             if 'label' in cartVal:
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
-                cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
-                cartridge_contents[cartVal['type']]['string'] += cartVal['label']
+                cartridge_contents[cartVal['type']]['string'] += "\n__________________________\n" + cartVal['label']
                 if cartVal['type'] == 'note' or cartVal['type'] == 'index' or cartVal['type'] == 'summary':
                     if 'minimised' in cartVal and cartVal['minimised']:
-                        cartridge_contents[cartVal['type']]['string'] += " - " + cartVal['type'] + " - Expand "
+                        cartridge_contents[cartVal['type']]['string'] += " | expand"
                     else:
-                        cartridge_contents[cartVal['type']]['string'] += " - " + cartVal['type'] + " - Minimise "
-                cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
-
-                cartridge_contents[cartVal['type']]['string'] += "\n"
+                        cartridge_contents[cartVal['type']]['string'] += " | minimise"
+                cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n \n"
-            if 'minimised' in cartVal and cartVal['minimised'] == False:
+            if 'blocks' in cartVal:
                 if 'text' in cartVal:
-                    cartridge_contents[cartVal['type']]['string'] += cartVal['text'] + "\n"
-                    cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
-                ##THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
-                ##THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
-                # if 'blocks' in cartVal:
-                #     for key, value in cartVal['blocks'].items():
-                #         if isinstance(value, str):
-                #             cartridge_contents[cartVal['type']]['string'] += value + "\n"
-                #         if isinstance(value, list):
-                #             for val in value:
-                #                 for key2, value2 in val.items():
-                #                     if isinstance(value2, str):
-                #                         cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
-                #                     if isinstance(value2, list):
-                #                         for val2 in value2:
-                #                             for key3, value3 in val2.items():
-                #                                 if isinstance(value3, str):
-                #                                     cartridge_contents[cartVal['type']]['string'] += key3 + ": " + value3 + "\n"
-                        # cartridge_contents[cartVal['type']]['string'] += value + "\n"
+                    cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
+                #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
+                #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
+                if 'blocks' in cartVal:
+                    if 'overview' in cartVal['blocks']:
+                        cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['blocks']['overview'] + "\n"
+                    if 'summaries' in cartVal['blocks']:
+                        cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
+                        for summary in cartVal['blocks']['summaries']:
+                            for key, value in summary.items():
+                                if 'title' in value:
+                                    cartridge_contents[cartVal['type']]['string'] += "\n--"+ str(value['title']) 
+                                    if 'minimised' in value:
+                                        if value['minimised']:
+                                            cartridge_contents[cartVal['type']]['string'] += " | expand"
+                                        else:
+                                            cartridge_contents[cartVal['type']]['string'] += " | expand"
+                                    else:
+                                        cartridge_contents[cartVal['type']]['string'] += " | expand"
+                                    cartridge_contents[cartVal['type']]['string'] += "\n"
+
+                        cartridge_contents[cartVal['type']]['string'] += "\n"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -87,17 +88,18 @@ async def construct_string(prompt_objects, convoID):
 
     if 'prompt' in prompt_objects:
         final_string += prompt_objects['prompt']['string']
-    final_string += "Files available: \n"
+    final_string += "\n__________________________\nFiles available:\n"
     if 'note' in prompt_objects:
-        final_string += prompt_objects['note']['string']
+        final_string += prompt_objects['note']['string'] + "\n__________________________\n"
     if 'index' in prompt_objects:
-        final_string += prompt_objects['index']['string']
-    if 'summary' in prompt_objects:
-        final_string += prompt_objects['summary']['string']
-
-
+        final_string += prompt_objects['index']['string']   + "\n__________________________\n"
     context = await construct_context(convoID)
     final_string += context
+    if 'summary' in prompt_objects:
+        final_string += prompt_objects['summary']['string'] + "\n__________________________\n"
+
+
+
 
     # print('final_string')
     print(f'{final_string}')

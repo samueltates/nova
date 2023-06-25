@@ -173,6 +173,8 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
 
 async def clear_loadout(convoID):
     current_loadout[convoID] = None
+    available_cartridges[convoID] = {}
+
     
         
 async def delete_loadout(loadout_key: str, convoID):

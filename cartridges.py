@@ -215,7 +215,8 @@ async def update_cartridge_field(input, loadout = None, system = False):
         },         
     )
 
-    available_cartridges[convoID][targetCartKey].update(input['fields'])
+    for key, val in input['fields'].items():
+        available_cartridges[convoID][targetCartKey][key] = val
 
     if matchedCart:
         # print('matched cart' + str(matchedCart.id))
