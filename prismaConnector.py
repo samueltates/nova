@@ -139,8 +139,10 @@ async def sort_summaries(userID, epoch = None):
 
 async def findMessages(userID):
     messages = await prisma.message.find_many(
-        where = {'UserID' : userID,}
-
+        where = {
+            'UserID' : userID,
+            'id': {'lt': 1000}     
+                 }
     )
     for message in messages:
         print('\n')
@@ -161,7 +163,9 @@ async def find_and_delete_messages():
 
 async def findMessages_set_unsummarised(userID):
     messages = await prisma.message.find_many(
-        where = {'UserID' : userID,}
+        where = {'UserID' : userID,
+                'id' :{'lt': 1500}
+                 }
 
     )
     # print(messages)
@@ -530,20 +534,32 @@ async def findLogs(userID):
     for log in logs:
         print(log)
         print('\n')
+
+async def find_messages(userID):
+    messages = await prisma.message.find_many(
+        where = {
+            'UserID' : userID,
+            'id': {'lt': 1000}     
+            }
+    )
+    for message in messages:
+        print(message)
+        print('\n')
     
 async def main() -> None:
     await prisma.connect()
     # await clear_user_history( '108238407115881872743')
-    await findIndexes('108238407115881872743')
+    # await findIndexes('108238407115881872743')
     # await findBatches()
     # await findLogSummaries()
     # await findLogs('108238407115881872743')
     # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')
     # await deleteMessages('108238407115881872743')
-    # await deleteSummaries('108238407115881872743')
+    await deleteSummaries('110327569930296986874')
     # await deleteCartridges( '108238407115881872743')
-    # await findMessages_set_unsummarised('110327569930296986874')
+    await findMessages_set_unsummarised('110327569930296986874')
+    # await find_messages('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')
     # await deleteDuplicateCartridges('110327569930296986874')

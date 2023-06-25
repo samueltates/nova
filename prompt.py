@@ -1,6 +1,7 @@
 import asyncio
 import json
 from debug import eZprint
+from appHandler import app, websocket
 from sessionHandler import available_cartridges, chatlog, novaConvo
 from memory import get_sessions, summarise_percent
 from commands import system_threads, command_loops
@@ -34,26 +35,39 @@ async def unpack_cartridges(convoID):
             if cartVal['type'] not in cartridge_contents:
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
             if 'label' in cartVal:
-                cartridge_contents[cartVal['type']]['string'] += cartVal['label'] + "\n"
+                ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
+                cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
+                cartridge_contents[cartVal['type']]['string'] += cartVal['label']
+                if cartVal['type'] == 'note' or cartVal['type'] == 'index' or cartVal['type'] == 'summary':
+                    if 'minimised' in cartVal and cartVal['minimised']:
+                        cartridge_contents[cartVal['type']]['string'] += " - " + cartVal['type'] + " - Expand "
+                    else:
+                        cartridge_contents[cartVal['type']]['string'] += " - " + cartVal['type'] + " - Minimise "
+                cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
+
+                cartridge_contents[cartVal['type']]['string'] += "\n"
             if 'prompt' in cartVal:
-                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n"
+                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n \n"
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += cartVal['text'] + "\n"
-                if 'blocks' in cartVal:
-                    for key, value in cartVal['blocks'].items():
-                        if isinstance(value, str):
-                            cartridge_contents[cartVal['type']]['string'] += value + "\n"
-                        if isinstance(value, list):
-                            for val in value:
-                                for key2, value2 in val.items():
-                                    if isinstance(value2, str):
-                                        cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
-                                    if isinstance(value2, list):
-                                        for val2 in value2:
-                                            for key3, value3 in val2.items():
-                                                if isinstance(value3, str):
-                                                    cartridge_contents[cartVal['type']]['string'] += key3 + ": " + value3 + "\n"
+                    cartridge_contents[cartVal['type']]['string'] += '\n__________________________\n'
+                ##THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
+                ##THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
+                # if 'blocks' in cartVal:
+                #     for key, value in cartVal['blocks'].items():
+                #         if isinstance(value, str):
+                #             cartridge_contents[cartVal['type']]['string'] += value + "\n"
+                #         if isinstance(value, list):
+                #             for val in value:
+                #                 for key2, value2 in val.items():
+                #                     if isinstance(value2, str):
+                #                         cartridge_contents[cartVal['type']]['string'] += key2 + ": " + value2 + "\n"
+                #                     if isinstance(value2, list):
+                #                         for val2 in value2:
+                #                             for key3, value3 in val2.items():
+                #                                 if isinstance(value3, str):
+                #                                     cartridge_contents[cartVal['type']]['string'] += key3 + ": " + value3 + "\n"
                         # cartridge_contents[cartVal['type']]['string'] += value + "\n"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
@@ -62,6 +76,7 @@ async def unpack_cartridges(convoID):
                     simple_agents[convoID] = {}
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     simple_agents[convoID][cartVal['key']] = cartVal
+
     # print(cartridge_contents)
     return cartridge_contents
 
@@ -72,6 +87,7 @@ async def construct_string(prompt_objects, convoID):
 
     if 'prompt' in prompt_objects:
         final_string += prompt_objects['prompt']['string']
+    final_string += "Files available: \n"
     if 'note' in prompt_objects:
         final_string += prompt_objects['note']['string']
     if 'index' in prompt_objects:
@@ -313,14 +329,14 @@ async def construct_commands(command_object, thread = 0):
 async def handle_token_limit(convoID):
     print('handling token limit')
     truncuate = False
-    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID)
-    chat_too_long = await get_token_warning(current_prompt[convoID]['chat'], .7, convoID)
+    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID, 'prompt')
+    chat_too_long = await get_token_warning(current_prompt[convoID]['chat'], .7, convoID, 'chat')
     if chat_too_long: 
         await summarise_percent(convoID, .5)
         truncuate = True
-    if prompt_too_long:
-        handle_prompt_context(convoID)
-        truncuate = True
+    # if prompt_too_long:
+    #     handle_prompt_context(convoID)
+    #     truncuate = True
     return truncuate
         
 
@@ -335,11 +351,30 @@ async def handle_prompt_context(convoID):
                 await update_cartridge_field(convoID, cartVal)
     
 
-async def get_token_warning(string_to_check, limit, convoID):
+token_usage = {}
+
+async def get_token_warning(string_to_check, limit, convoID, element = 'prompt'):
     print('checking token limit')
+    if convoID not in token_usage:
+        token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
+    token_usage[convoID][element] = tokens
+
+
     print ('tokens are: ' + str(tokens) + ' limit is: ' + str(limit))
+    payload = {'convoID':convoID, 'element':element, 'tokens':tokens, 'limit':limit}
+    await  websocket.send(json.dumps({'event':'update_token_usage', 'payload':payload}))  
+
+    ##get warning for total tokens
+    total_tokens = 0
+    for usage in token_usage[convoID]:
+        total_tokens += token_usage[convoID][usage]
+        
+    if total_tokens > novaConvo[convoID]['token_limit']:
+        payload = {'convoID':convoID, 'element':'combined', 'tokens':tokens, 'limit':limit}
+        await  websocket.send(json.dumps({'event':'update_token_usage', 'payload':payload}))  
+
     if tokens > limit:
         return str(tokens) + " tokens used, " + str(limit) + " tokens remaining."
     else:

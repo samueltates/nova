@@ -4,7 +4,6 @@ import json
 import asyncio
 from copy import copy
 from pathlib import Path
-import gptindex
 import openai
 from human_id import generate_id
 from datetime import datetime
@@ -17,7 +16,7 @@ from prismaHandler import prisma
 from memory import run_summary_cartridges
 from cartridges import update_cartridge_field
 from query import get_summary_with_prompt
-from keywords import get_keywords_from_summary
+from keywords import get_keywords_from_summaries
 from debug import fakeResponse, eZprint
 
 agentName = "nova"

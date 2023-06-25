@@ -4,7 +4,6 @@ import googleapiclient.discovery as discovery
 
 from typing import Any, List
 from googleAuth import getDocService
-import nova 
 
 
 class GoogleDocsReader(BaseReader):

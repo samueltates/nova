@@ -18,6 +18,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 from llama_index import (
+    Document,
     # GPTSimpleVectorIndex, 
     GPTListIndex,
     StringIterableReader,
@@ -27,9 +28,10 @@ from llama_index import (
     PromptHelper,
     StorageContext, load_index_from_storage,
     ServiceContext,
-    GPTVectorStoreIndex
+    GPTVectorStoreIndex,
+    
 )
-
+from llama_index.node_parser import SimpleNodeParser
 from llama_index.logger import LlamaLogger
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
@@ -203,6 +205,19 @@ async def queryIndex(queryString, index ):
     eZprint(response)
     return response 
 
+def quicker_query(text, query, meta = '' ):
+    document = Document(text, extra_info=meta)
+    logger = LlamaLogger()
+    logger.set_log_level(logging.DEBUG)
+    index = GPTVectorStoreIndex.from_documents([document])
+    nodes = index.docstore.get_nodes()
+    print(nodes)
+    query_engine = index.as_query_engine()
+    response = query_engine.query(query)
+    print(response)
+
+
+
 
 async def handle_nova_query(cartKey, cartVal, convoID, query):
     index_key = cartVal['index']
@@ -228,6 +243,10 @@ async def quick_query(text, query):
     return response
 
 
+
+# async def quicker_query(text, query):
+    
+#     Document(t) for t in text_list
 
 async def handleIndexQuery(input, loadout = None):
     cartKey = input['cartKey']
@@ -353,3 +372,35 @@ async def get_index_json(index_key):
     dbRecord = json.loads(matchedCart.json())
     return dbRecord
 
+
+
+def run_gpt_headless():
+    text = ''
+    query = ''
+    query_active = True
+    while query_active:
+        if text == '':
+            text = input('text: ')
+            print(text)
+        elif query == '':
+            query = input('query: ')
+            print(query)
+        else:
+            print('running query')
+            response = quicker_query(text, query)
+            print(response)
+            text = ''
+            query = ''
+        
+        print('done')
+            
+            
+
+
+
+def main() -> None:
+    run_gpt_headless()
+
+if __name__ == '__main__':
+    # asyncio.run(main())
+    main()

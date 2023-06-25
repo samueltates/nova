@@ -324,7 +324,7 @@ async def process_message(parsed_data):
         await add_existing_cartridge(parsed_data['data'],loadout)
 
     if(parsed_data['type']=='request_content_children'):
-        eZprint('request_summary_from_keyword route hit')
+        eZprint('request content route hit')
         print(parsed_data['data'])
         convoID = parsed_data['data']['convoID']
         key = parsed_data['data']['key']
