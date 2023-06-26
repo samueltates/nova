@@ -1,6 +1,7 @@
 import asyncio
 import json
 from appHandler import websocket
+from cartridges import update_cartridge_field
 from prismaHandler import prisma
 from sessionHandler import novaConvo, available_cartridges, current_loadout
 from debug import eZprint
@@ -17,14 +18,21 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
     userID = novaConvo[convoID]['userID']
     if 'blocks' not in cartVal:
         cartVal['blocks'] = {}
+
     cartVal['state'] = 'loading'
-    payload = { 'key': cartKey,
-               'fields': {
-                'state': cartVal['state']
-                    },
-            'loadout' : loadout 
-                    }
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
+    cartVal['status'] = 'getting keywords'
+
+    input = { 
+        'cartKey': cartKey,
+        'convoID': convoID,
+        'fields': {
+            'state': cartVal['state'],
+            'status': cartVal['status']
+            },
+        'loadout' : loadout 
+    }
+
+    await update_cartridge_field(input, loadout, system=True)
 
     if userID+convoID not in keywords_available:
         keywords_available[userID+convoID+str(loadout)] = {}
@@ -62,13 +70,14 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
         blob = json.loads(summary.json())['blob']
         epoch = 0
         for key, val in blob.items():
-            if 'summarised' not in val or val['summarised'] == False:
+            # if 'summarised' not in val or val['summarised'] == False:
                 # print(summary)
-                if userID+convoID not in summaries_available:
-                    summaries_available[userID+convoID+str(loadout)] = []
-                summaries_available[userID+convoID+str(loadout)].append({key:val})
+            if userID+convoID not in summaries_available:
+                summaries_available[userID+convoID+str(loadout)] = []
+            summaries_available[userID+convoID+str(loadout)].append({key:val})
+            if 'keywords' in val:
                 keywords = val['keywords']
-                ## creates list for keyword
+            ## creates list for keyword
                 for keyword in keywords:
                     if keyword not in keywords_available:
                         keywords_available[userID+convoID+str(loadout)][keyword] = []
@@ -76,8 +85,8 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
                         epoch = val['epoch']
                     
                     keywords_available[userID+convoID+str(loadout)][keyword].append({'title':val['title'], 'body':val['body'],'key':summary.key,'type': 'summary', 'active': False, 'epoch': epoch})
-                
-                # await sort_layers_by_key(val)
+            
+            # await sort_layers_by_key(val)
 
                 for key in val.keys():
                     if key in SKIP_KEYS: 
@@ -122,13 +131,6 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
     for keyword in keywords_available[userID+convoID+str(loadout)]:
         cartVal['blocks']['keywords'].append({'keyword': keyword, 'active': False, 'summaries': keywords_available[userID+convoID+str(loadout)][keyword]})
 
-    cartVal['state'] = ''
-    payload = { 'key': cartKey,
-               'fields': {
-                'state': cartVal['state'],
-                'blocks': cartVal['blocks']
-                        }}
-    # print('notes')
         
     cartVal['blocks']['insights'] = []
     for key, val in notes_available[userID+convoID+str(loadout)].items():
@@ -144,18 +146,20 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
         cartVal['blocks']['insights'].append({'title': key, 'text' : line})
         # cartVal['blocks']['keywords_object']['insights_object'] = notes_available[userID+convoID+str(loadout)]
 
+        cartVal['state'] = ''
+        cartVal['status'] = ''
 
-    cartVal['state'] = ''
-    payload = { 'key': cartKey,
-               'fields': {
+        input = { 
+            'cartKey': cartKey,
+            'convoID': convoID,
+            'fields': {
                 'state': cartVal['state'],
+                'status': cartVal['status'],
                 'blocks': cartVal['blocks']
-                        },
-                    'loadout' : loadout
-                        }
-    
-    await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload})) 
-
+                },
+            'loadout' : loadout 
+        }
+        await update_cartridge_field(input, loadout, system=True)
 
 async def get_summary_from_keyword(keyword, convoID, cartKey, loadout= None, user_requested = False):
 
@@ -202,43 +206,44 @@ async def get_summary_from_keyword(keyword, convoID, cartKey, loadout= None, use
                                             print(val)
                                             source_pointers.append({key: val['title']})
                                     elif 'meta' in val and 'docID' in val['meta']:
-                                        message_val = await get_message_by_key(source)
-                                        for key, val in message_val.items():
-                                            name = ''
-                                            if 'name' in val:
-                                                name = val['name']
-                                            body = ''
-                                            if 'body' in val:
-                                                body = val['body']
+                                        message_object = await get_message_by_key(source)
+                                        print(message_object)
+                                        name = ''
+                                        if 'name' in message_object:
+                                            name = message_object['name']
+                                        body = ''
+                                        if 'body' in message_object:
+                                            body = message_object['body']
                                             source_pointers.append({key: {name + ' : '+ body}})
                                     val['sourceIDs'] = source_pointers
-                                if val not in summaries_to_return:
                                     summaries_to_return.append(val)
-                            
                         print('adding summary to summaries available')
-                        # print(summary['key'])
-                        # if 'blocks' not in cartVal:
-                        #     cartVal['blocks'] = {}
-                        # cartVal['blocks'].append({'title':summary['title'], 'body':summary['body']})
-                        # if userID+convoID in summaries_available:
-                        #     summaries_available[userID+convoID+str(loadout)] = {}
-                        # summaries_available[userID+convoID+str(loadout)][summary['summaryKey']] = summary
+                        print(summaries_to_return)
 
         if user_requested:
+            print('sending preview content')
             payload = { 'content': summaries_to_return, 'source': 'keyword'}    
             await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))  
         return summaries_available[userID+convoID+str(loadout)]
 
 
 async def get_message_by_key(id):
+    print('getting message by key')
     message = await prisma.message.find_first(
         where={
         'id': id,
         }
     )
-    message_json = json.loads(message.json())
-    message_json.update({'type': 'message'})
-    return message_json
+    if message == None:
+        print('message not found')
+        return False
+    else :
+        print('message found')
+        print(message)
+        message_json = json.loads(message.json())
+        print(message_json)
+        message_json.update({'type': 'message'})
+        return message_json
 
 async def get_source_by_key(key, convoID, loadout = None):
 

@@ -25,6 +25,7 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
         await get_overview(convoID, cartKey, cartVal, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
+        await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
 
 
 async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
