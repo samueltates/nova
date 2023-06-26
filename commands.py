@@ -88,7 +88,7 @@ async def handle_commands(command_object, convoID, thread = 0):
 
                             if 'query' in args:
                                 if 'blocks' in val:
-                                    response = await quick_query(val['blocks'], str(args))
+                                    response = await quick_query(val['blocks'], str(args['query']))
 
                                 command_return['status'] = "Success."
                                 command_return['message'] = "From " + args['filename']  + ": "+ response
@@ -96,7 +96,8 @@ async def handle_commands(command_object, convoID, thread = 0):
                                 return command_return
                             
         print('all text query')
-        response = await quick_query(all_text, str(args))
+        print(all_text)
+        response = await quick_query(all_text, str(args['query']))
         print(response)
         command_return['status'] = "Success."
         command_return['message'] = "Results from all text search" + str(response)
@@ -354,18 +355,18 @@ async def handle_commands(command_object, convoID, thread = 0):
             print(command_return)
         return command_return
     
-    else :
+    # else :
 
-        query = name + ' ' + str(args)
-        await get_cartridge_list(convoID)
-        for key, val in whole_cartridge_list[convoID].items():
-            all_text += str(val)
-            response = await quick_query(all_text, str(query))
-            print(response)
-            command_return['status'] = "Success."
-            command_return['message'] = "Query not found, results from deep search" + str(response)
-            print(command_return)
-            return command_return
+    #     query = name + ' ' + str(args)
+    #     await get_cartridge_list(convoID)
+    #     for key, val in whole_cartridge_list[convoID].items():
+    #         all_text += str(val)
+    #         response = await quick_query(all_text, str(query))
+    #         print(response)
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "Query not found, results from deep search" + str(response)
+    #         print(command_return)
+    #         return command_return
         
 
 

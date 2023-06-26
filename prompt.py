@@ -53,7 +53,7 @@ async def unpack_cartridges(convoID):
                 #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
                 if 'blocks' in cartVal:
                     if 'overview' in cartVal['blocks']:
-                        cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['blocks']['overview'] + "\n"
+                            cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
                     if 'summaries' in cartVal['blocks']:
                         cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
                         for summary in cartVal['blocks']['summaries']:

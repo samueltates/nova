@@ -112,7 +112,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
                 }
         )
 
-        # print(update)
+        print(update)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
@@ -167,13 +167,14 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                         cartVal['minimised'] = loadout_cartridge['settings']['minimised']
                     else:
                         cartVal['minimised'] = False
-                    
+    # print(available_cartridges[convoID])
     if loadout_key == current_loadout[convoID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
 async def clear_loadout(convoID):
     current_loadout[convoID] = None
     available_cartridges[convoID] = {}
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
     
         

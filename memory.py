@@ -20,15 +20,12 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
     if loadout == current_loadout[convoID]:                
         if 'blocks' not in cartVal:
             cartVal['blocks'] = {}
-        await get_summaries(userID, convoID, loadout)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-        await get_overview(convoID, cartKey, cartVal, loadout)
         await summarise_convos(convoID, cartKey, cartVal, loadout)
         await get_summaries(userID, convoID, loadout)
         await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
         await get_overview(convoID, cartKey, cartVal, loadout)
+        await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
 
-        # await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
 
 async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
 
@@ -38,24 +35,19 @@ async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
     if novaConvo[convoID]['owner']:
         if loadout == current_loadout[convoID]:
             cartVal['state'] = 'loading'
-            payload = { 'key': 
-                       cartKey,'fields': {
-                        'state': cartVal['state'],
-                            },
-                        'loadout': loadout
-                        }
-            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))        
-        await summarise_messages(userID, convoID, loadout)
-        print('summarise messages finished')
-        await summarise_epochs(userID, convoID, loadout)
-
-        # for value in cartVal['values']:
-        #     if 'initial_overview' in value:
-        #         if value['initial_overview'] == True:
-        #             if cartVal['blocks']:
-        #                 await get_overview(convoID, cartKey, cartVal, loadout)
-    
-
+            cartVal['status'] = 'summarising convos'
+            input = {
+            'cartKey': cartKey,
+            'convoID': convoID,
+            'fields': {
+                'state': cartVal['state'],
+                'status': cartVal['status'],
+                },
+            }
+            await update_cartridge_field(input, loadout, system=True)
+            await summarise_messages(userID, convoID, loadout)
+            print('summarise messages finished')
+            await summarise_epochs(userID, convoID, loadout)
         
 async def get_summary_children_by_key(childKey, convoID, cartKey, loadout = None):
     print('get summary children by key triggered')
@@ -167,51 +159,39 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
     if loadout == current_loadout[convoID]:
         cartVal['state'] = 'loading'
         cartVal['status'] = 'Getting overview'
-        payload = { 'key': cartKey,'fields': {
-                    'state': cartVal['state'],
-                    'status': cartVal['status'],
-                        },
-        'loadout': loadout}
-        ##TODO: make it so only happens once per session?
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
+
+        input = {
+            'cartKey': cartKey,
+            'convoID': convoID,
+            'fields': {
+                'state': cartVal['state'],
+                'status': cartVal['status'],
+                },
+            }
+        await update_cartridge_field(input, loadout, system=True)
+
         response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
         cartVal['text'] = ''
-    if response != '':
-        if 'blocks' not in cartVal:
-            cartVal['blocks'] = {}
-        cartVal['blocks']['overview'] = response
-        # print('getting overview of summary')
-        if loadout == current_loadout[convoID]:
-            cartVal['state'] = ''
-            cartVal['status'] = ''
-            payload = { 
-                'key': cartKey,
-                'fields': {
-                    'state': cartVal['state'],
-                    'status': cartVal['status'],
-                    'text': cartVal['text']
-                },
-                'loadout': loadout
-            }
-            await update_remote_cartridge(cartKey, cartVal)
-            ##TODO: make it so only happens once per session?
-            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))  
-
-async def update_remote_cartridge(cartKey, cartVal):
-    matchedCart = await prisma.cartridge.find_first(
-        where={
-        'key':
-        {'equals': cartKey}
-        },         
-    )
-    if matchedCart:
-        updatedCart = await prisma.cartridge.update(
-            where={ 'id': matchedCart.id },
-            data={
-                'blob' : Json({cartKey:cartVal})
-            }
-        )
+        if response != '':
+            if 'blocks' not in cartVal:
+                cartVal['blocks'] = {}
+            cartVal['blocks']['overview'] = response
+            # print('getting overview of summary')
+            if loadout == current_loadout[convoID]:
+                cartVal['state'] = ''
+                cartVal['status'] = ''
+                input = { 
+                    'cartKey': cartKey,
+                    'convoID': convoID,
+                    'fields': {
+                        'state': cartVal['state'],
+                        'status': cartVal['status'],
+                        'blocks': cartVal['blocks']
+                    },
+                    'loadout': loadout
+                }
+            await update_cartridge_field(input, loadout, system=True)
 
 ##attempt at abstracting parts of flow, general idea is that there is 'corpus' which is broken into 'chunks' which are then batched together on token size, to be summarised
 ## after this, the next 'corpus' is the summaries, that are then 'chunked' based on their source (each convo)
@@ -229,68 +209,70 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
         # if 'blocks' not in cartVal:
         cartVal['state'] = 'loading'
         cartVal['status'] = 'Getting summaries'
-        payload = { 'key': cartKey,
-                'fields': {
-                    'state': cartVal['state'],
-                        },
-                    'loadout': loadout
-                    }
+        input = {
+            'cartKey': cartKey,
+            'convoID': convoID,
+            'fields': {
+                'state': cartVal['state'],
+                'status': cartVal['status'],
+                },
+            }
+        ##TODO: make it so only happens once per session?
 
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
+        await update_cartridge_field(input, loadout, system=True)
     
-    if userID+convoID not in windows:
-        windows[userID+convoID] = []
+        if userID+convoID not in windows:
+            windows[userID+convoID] = []
 
-    cartVal['blocks']['summaries'] = []
-    for window in windows[userID+convoID]:
-        window_counter += 1
-        # eZprint('window no ' + str(window_counter))
-        for summary in window:   
+        cartVal['blocks']['summaries'] = []
+        for window in windows[userID+convoID]:
+            window_counter += 1
+            # eZprint('window no ' + str(window_counter))
+            for summary in window:   
 
-            key = ''
-            title = ''
-            body = ''
-            timestamp = ''
-            epoch = ''
-            keywords = ''
-            if 'key' in summary:
-                key = summary['key']
-            if 'title' in summary:
-                title = summary['title']
-            if 'body' in summary:
-                body = summary['body']
-            if 'timestamp' in summary:
-                timestamp = summary['timestamp']
-            if 'epoch' in summary:
-                epoch = summary['epoch']
-            if 'keywords' in summary:
-                keywords = summary['keywords']
+                key = ''
+                title = ''
+                body = ''
+                timestamp = ''
+                epoch = ''
+                keywords = ''
+                if 'key' in summary:
+                    key = summary['key']
+                if 'title' in summary:
+                    title = summary['title']
+                if 'body' in summary:
+                    body = summary['body']
+                if 'timestamp' in summary:
+                    timestamp = summary['timestamp']
+                if 'epoch' in summary:
+                    epoch = summary['epoch']
+                if 'keywords' in summary:
+                    keywords = summary['keywords']
 
-            
-            if 'blocks' not in cartVal:
-                cartVal['blocks'] = {}
-                if 'summaries' not in cartVal['blocks']:
-                    cartVal['blocks']['summaries'] = []
-            cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body[0:280], 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
+                
+                if 'blocks' not in cartVal:
+                    cartVal['blocks'] = {}
+                    if 'summaries' not in cartVal['blocks']:
+                        cartVal['blocks']['summaries'] = []
+                cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body[0:280], 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
 
-    if loadout == current_loadout[convoID]:
-        available_cartridges[convoID][cartKey] = cartVal
-        cartVal['state'] = ''
-        cartVal['status'] = ''
-        payload = { 
-                    'key': cartKey,
-                    'fields': {
-                            'status': cartVal['status'],
-                            'blocks':cartVal['blocks'],
-                            'state': cartVal['state'],
-                            },
-                        'loadout': loadout
+        if loadout == current_loadout[convoID]:
+            available_cartridges[convoID][cartKey] = cartVal
+            cartVal['state'] = ''
+            cartVal['status'] = ''
+            fields = {  
+                'state': cartVal['state'],
+                'status': cartVal['status'],
+                'blocks': cartVal['blocks']
+            }
+            input = {
+                'cartKey': cartKey,
+                'convoID': convoID,
+                'fields': fields,
+            }
+            await update_cartridge_field(input, loadout, system=True)
 
-                    }
-
-        await update_remote_cartridge(cartKey, cartVal)
-
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
+        # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
   
 ##LOG SUMMARY FLOWS
@@ -854,9 +836,13 @@ async def summariseChatBlocks(input,  loadout = None):
     messages_string = ''
     messagesToSummarise = []
     start_message = None
+    sessionID = ''
+
     for messageID in messageIDs:
         for log in chatlog[convoID]:
             if messageID == log['ID']:
+                if sessionID == '':
+                    log['sessionID']
                 messagesToSummarise.append(log)
                 if start_message == None:
                     start_message = log
@@ -906,6 +892,11 @@ async def summariseChatBlocks(input,  loadout = None):
     # summarDict.update({'sources':messageIDs})
     meta = {
         'overview': 'Conversation section from conversation ' + str(date),
+        'docID': sessionID,
+        'timestamp': date,
+        'type' : 'message',
+        'corpus' : 'loadout-conversations',
+
 
     }    
     # print(summarDict)

@@ -87,7 +87,7 @@ async def loadCartridges(convoID, loadout = None):
                         cartVal.update({'state': 'loading'})
                         # cartVal['blocks'] = []
 
-        # print('available cartridge    s are ' + str(availableCartridges[convoID]))
+        print('available cartridge    s are ' + str(available_cartridges[convoID]))
         print('loadout is ' + str(loadout))
         print('current loadout is ' + str(current_loadout[convoID]))
         if loadout == current_loadout[convoID]:
@@ -105,6 +105,7 @@ async def runCartridges(convoID, loadout = None):
         for cartKey, cartVal in available_cartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
+                    print('running summary cartridge on loadout ' + str(loadout))
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
     else:
         eZprint('no cartridges found, loading default')
