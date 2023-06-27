@@ -247,7 +247,7 @@ async def command_interface(command, convoID, threadRequested):
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
-            print('no recognised return, shouldnt behere, but if we are then no thread requested so starting a new one')
+            print('no recognised return, so far in progress from command')
             if convoID not in system_threads:
                 system_threads[convoID] = {}
             
@@ -282,9 +282,9 @@ async def command_interface(command, convoID, threadRequested):
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
 
-        # await construct_query(convoID, thread)
-        # query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        # await send_to_GPT(convoID, query_object, thread)
+        await construct_query(convoID, thread)
+        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+        await send_to_GPT(convoID, query_object, thread)
 
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)

@@ -4,7 +4,7 @@ from debug import eZprint
 from cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list
 from sessionHandler import available_cartridges, current_loadout
 from cartridges import whole_cartridge_list
-from memory import summarise_from_range
+from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
 from Levenshtein import distance
 
@@ -62,66 +62,17 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     command_return = {"status": "", "name" : name, "message": ""}
     print( 'command name: ' + name + ' args: ' + str(args))
 
-    all_text = ''
     if 'query' in name or name in 'query' or 'search' in name or name in 'search':
-        # await get_cartridge_list(convoID)
-        if 'filename' in args:
-            filename = args['filename']
-
-            for key, val in available_cartridges[convoID].items():
-                all_text += str(val)
-                string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
-                if string_match < 3:
-                    if 'type' in val and val['type'] == 'index':
-                        print('index query')
-                        input = {
-                            'cartKey' : key,
-                            'convoID' : convoID,
-                            'query' : str(args)
-                        }
-                        response = await handleIndexQuery(input, loadout)
-                        response = str(response)
-
-                        command_return['status'] = "Success."
-                        command_return['message'] = "From " + args['filename']  + ": "+ response
-                        print(command_return)
-                        return command_return
-
-                    if 'type' in val and val['type'] == 'summary':
-
-                        if 'query' in args:
-                            if 'blocks' in val:
-                                if 'summaries' in val['blocks']:
-                                    text_to_query = str(val['blocks']['summaries'])
-                                    response = await quick_query(text_to_query, str(args['query']))
-                                    response = str(response)
-                            command_return['status'] = "Success."
-                            command_return['message'] = "From " + filename  + ": "+ response
-                            print(command_return)
-                            return command_return
-                    if 'type' in val and val['type'] == 'note':
-
-                        if 'query' in args:
-                            if 'text' in val:
-                                response = await quick_query(val['text'], str(args['query']))
-                            command_return['status'] = "Success."
-                            command_return['message'] = "From " + filename  + ": "+ str(response)
-                            print(command_return)
-                            return command_return
-                                
-        print('all text query')
-        print(all_text)
-        response = await quick_query(all_text, str(args['query']))
+        response = await broad_query(name, args, convoID, thread)
         print(response)
-        command_return['status'] = "Return."
-        command_return['message'] = "File name not found, results from all text search : " + str(response)
-        print(command_return)
-        return command_return
-       
+        return response
+    
 
+    if name in 'open' or 'open' in name :
+        response = await open_file(name, args, convoID, loadout)
+        print(response)
+        return response
+                
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
@@ -167,7 +118,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             filename = args['filename']
 
             for key, val in available_cartridges[convoID].items():
-                all_text += str(val)
                 string_match = distance(filename, str(val['label']))
                 print('distance: ' + str(string_match))
                 print('filename: ' + filename)
@@ -254,6 +204,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     if name in 'preview' or 'preview' in name:
         eZprint('previewing file')
+        all_text = ''
         if 'filename' in args:
             filename = args['filename']
 
@@ -266,12 +217,20 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 if string_match < 3:
                     preview_string = val['label'] + '\n'
                     if 'blocks' in val:
-                        for block in val['blocks']:
-                            preview_string +=  str(block) + '\n'
+                        preview_string += val['blocks'] + '\n'
+                        # if isinstance(val['blocks'], list):
+                        #     for block in val['blocks']:
+                        #         if isinstance(block, dict):
+                        #             for key, val in block.items():
+                        #                 preview_string += key + ': ' + str(val) + '\n'
+                        #         else:
+                        #             preview_string +=  str(block) + '\n'
+                        # for block in val['blocks']:
+                        #     preview_string +=  str(block) + '\n'
                     if 'text' in val:
                         preview_string += val['text'] + '\n'
 
-                    preview_string = preview_string[0:200]
+                    preview_string = preview_string[0:500]
                     preview_string += '\n'
                     command_return['status'] = "Success."
                     command_return['message'] = preview_string
@@ -287,54 +246,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             print(command_return)
             return command_return
                 
-    if name in 'open' or 'open' in name :
-        eZprint('reading file')            
-        if 'filename' in args:
-            filename = args['filename']
-            for key, val in available_cartridges[convoID].items():
-                all_text += str(val)
-                string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
-                if string_match < 3:
-                    print('found match' + str(val))
-            
-                    return_string = ''
-                    print('file found')
-                    if 'enabled' not in val:
-                        val['enabled'] = True
-                    if val['enabled'] == False:
-                        val['enabled'] = True
-                        val['minimised'] = False
-                        return_string += "File " + filename + " opened.\n"
-                    else:
-                        val['minimised'] = False
-                        return_string += "File " + filename + " already open.\n"
-                    
-                    payload = {
-                        'convoID': convoID,
-                        'cartKey' : key,
-                        'fields':
-                                {'enabled': val['enabled']}
-                                }
-                    loadout = current_loadout[convoID]
-                    await update_cartridge_field(payload, loadout, True)       
-                    command_return['status'] = "Success."
-                    command_return['message'] = return_string
-                    print(command_return)
-                    return command_return
-            command_return['status'] = "Error."
-            command_return['message'] = "File name not found.\n"
-            print(command_return)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'filename' missing"
-            print(command_return)
-            return command_return
 
-                
     if name in 'close' or 'close' in name :
         eZprint('closing file')
         if 'filename' in args:
@@ -381,7 +293,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if 'filename' in args:
             filename = args['filename']
             for key, val in available_cartridges[convoID].items():
-                all_text += str(val)
                 string_match = distance(filename, str(val['label']))
                 print('distance: ' + str(string_match))
                 print('filename: ' + filename)
@@ -440,6 +351,277 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     #         print(command_return)
     #         return command_return
         
+async def open_file(name, args, convoID, loadout):
+    command_return = {"status": "", "name" :name, "message": ""}
+    eZprint('reading file')            
+    if 'filename' in args:
+        filename = args['filename']
+        for cartKey, cartVal in available_cartridges[convoID].items():
+            string_match = distance(filename, str(cartVal['label']))
+            print('distance: ' + str(string_match))
+            print('filename: ' + filename)
+            print('label: ' + str(cartVal['label']))
+            if string_match < 3:
+                print('found match' + str(cartVal))
+        
+                return_string = ''
+                print('file found')
+                if 'enabled' not in cartVal:
+                    cartVal['enabled'] = True
+                if cartVal['enabled'] == False:
+                    cartVal['enabled'] = True
+                    cartVal['minimised'] = False
+                    return_string += "File " + filename + " opened.\n"
+                else:
+                    cartVal['minimised'] = False
+                    return_string += "File " + filename + " already open.\n"
+                
+                payload = {
+                    'convoID': convoID,
+                    'cartKey' : cartKey,
+                    'fields':
+                            {'enabled': cartVal['enabled']}
+                            }
+                loadout = current_loadout[convoID]
+                await update_cartridge_field(payload, loadout, True)       
+                command_return['status'] = "Success."
+                command_return['message'] = return_string
+                print(command_return)
+                return command_return
+            
+            if cartVal['type'] == 'summary':
+                print('checking summary')
+                if 'blocks' in cartVal:
+                    if 'summaries' in cartVal['blocks']:
+                        for summary in cartVal['blocks']['summaries']:
+                            for summaryKey, summaryVal in summary.items():
+                                if 'title' in summaryVal:
+                                    print('checking summary title' + str(summaryVal['title']))
+                                    similarity = distance(filename, summaryVal['title'])
+                                    if similarity < 3:
+                                        print('found match' + str(summaryVal))  
+                                        children = await get_summary_children_by_key(summaryKey, convoID, cartKey, loadout)
+                                        if children:
+                                            for child in children:
+                                                print('child' + str(child))
+                                                cartVal['blocks']['summaries'].append(child)
+
+                                            input = {
+                                                'convoID': convoID,
+                                                'cartKey' : cartKey,
+                                                'fields':
+                                                        {'blocks': cartVal['blocks']},
+                                                        'loadout': loadout
+                                                        }                                        
+                                            update_cartridge_field(input, loadout, True)
+                                            return_string = "File " + filename + " opened.\n"
+                                            command_return['status'] = "Success."
+                                            command_return['message'] = return_string
+                                            print(command_return)
+                                            return command_return
+        command_return['status'] = "Error."
+        command_return['message'] = "File not found.\n"
+        print(command_return)
+        return command_return
+    else:
+        command_return['status'] = "Error."
+        command_return['message'] = "Arg 'filename' missing"
+        print(command_return)
+        return command_return
+
+
+async def broad_query(name, args, convoID, loadout):
+         # await get_cartridge_list(convoID)
+    all_text = ''
+    command_return = {"status": "", "name" :name, "message": ""}
+
+    if 'filename' in args:
+        filename = args['filename']
+
+        for cartKey, cartVal in available_cartridges[convoID].items():
+            all_text += str(cartVal)
+            string_match = distance(filename, str(cartVal['label']))
+            print('distance: ' + str(string_match))
+            print('filename: ' + filename)
+            print('label: ' + str(cartVal['label']))
+            if string_match < 3:
+                print('found match' + str(cartVal['label']))
+                if 'type' in cartVal and cartVal['type'] == 'index':
+                    print('index query')
+                    if 'query' in args:
+
+                        input = {
+                            'cartKey' : cartKey,
+                            'convoID' : convoID,
+                            'query' : str(args['query'])
+                        }
+
+                        response = await handleIndexQuery(input, loadout)
+                        response = str(response)
+
+                        command_return['status'] = "Success."
+                        command_return['message'] = "From " + args['filename']  + ": "+ response
+                        print(command_return)
+                        return command_return
+                    
+                    else:
+                        command_return['status'] = "Error."
+                        command_return['message'] = "Arg 'query' missing"
+                        return command_return
+
+                if 'type' in cartVal and cartVal['type'] == 'summary':
+                    if 'query' in args:
+                        if 'blocks' in cartVal:
+                            if 'summaries' in cartVal['blocks']:
+                                response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
+                                command_return['status'] = "Success."
+                                command_return['message'] = "From " + filename  + ": "+ response
+                                print(command_return)
+                                return command_return
+                            
+                if 'type' in cartVal and cartVal['type'] == 'note':
+
+                    if 'query' in args:
+                        if 'text' in cartVal:
+                            response = await quick_query(cartVal['text'], str(args['query']))
+                        command_return['status'] = "Success."
+                        command_return['message'] = "From " + filename  + ": "+ str(response)
+                        print(command_return)
+                        return command_return
+                    
+        for cartKey, cartVal in available_cartridges[convoID].items():
+            if 'type' in cartVal and cartVal['type'] == 'summary':
+                print('searching summary for pointer')
+                if 'blocks' in cartVal:
+                    if 'summaries' in cartVal['blocks']:
+                        for summaries in cartVal['blocks']['summaries']:
+                            for summaryKey, summaryVal in summaries.items():
+                                if 'title' in summaryVal:
+                                    similarity = distance(filename, summaryVal['title'])
+                                    print('distance: ' + str(similarity))
+                                    print('filename: ' + filename)
+                                    print('label: ' + str(summaryVal['title']))
+                                    if similarity <3:
+                                        print('found match' + str(summaryVal))
+                                        response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
+                                        command_return['status'] = "Success."
+                                        command_return['message'] = "From " + filename  + ": "+ response
+                                        print(command_return)
+                                        return command_return
+                                    
+    print('all text query')
+    print(all_text)
+    response = await quick_query(all_text, str(args['query']))
+    print(response)
+    command_return['status'] = "Return."
+    command_return['message'] = "File not found, results from all text search : " + str(response)
+    print(command_return)
+    return command_return
+    
+
+async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
+    text_to_query = ''
+    to_open = ''
+    closest = 0
+    text_to_query += "\nSummaries: \n" 
+    if 'summaries' in blocks:
+        for summary in blocks['summaries']:   
+            for summaryKey, summaryVal in summary.items():
+                if 'title' in summaryVal:
+                    text_to_query += summaryVal['title'] + ": "
+                if 'body' in summaryVal:
+                    text_to_query += summaryVal['body'] + "\n"
+            print('text to query: ' + text_to_query)
+                    
+            similarity = distance(str(query), str(summary))
+            print('checking for matches ' + str(query) + ' ' + str(summary) + ' ' + str(similarity))
+            if similarity > closest:
+                print('found closer match')
+                closest = similarity
+                to_open = summaryKey
+        if to_open:
+            print('opening ' + str(to_open))
+            children = await get_summary_children_by_key(to_open, convoID, cartKey, loadout)
+            if children:
+                for child in children:
+                    print('child' + str(child))
+                    text_to_query += "\n Source: " + str(child['source']) + "\n"
+                    if 'title' in child:
+                        text_to_query += child['title'] + ": "
+                    if 'body' in child:
+                        text_to_query += child['body'] + "\n"
+                    else:
+                        text_to_query += str(child) + "\n"
+                    text_to_query += "\n"
+                    if child not in blocks['summaries']:
+                        print('optimistically adding child')
+                        blocks['summaries'].append(child)
+                        input = {
+                            'cartKey' : cartKey,
+                            'convoID' : convoID,
+                            'blocks' : blocks
+                        }
+                        update_cartridge_field(input, loadout)
+        print('text to query: ' + text_to_query)
+
+
+    # if 'insights' in blocks:
+    #     print('insights')
+    #     text_to_query += "Insights: \n"
+    #     closest = 0
+    #     to_open = ''
+    #     candidate_text = ''
+    #     print('insights: ' + str(blocks['insights']))
+    #     for key,val in blocks['insights'].items():
+    #         print('key: ' + str(key) + ' val: ' + str(val))
+    #         for element in val:
+    #             candidate_text = str(key) + " - " + str(element['line']) + "\n"
+    #             print(element)
+    #             similarity = distance(str(query), str(candidate_text))
+    #             if similarity > closest:
+    #                 closest = similarity
+    #                 to_open = element['key']
+    #             print('current text to query: ' + text_to_query)
+    #             text_to_query += candidate_text
+    #             # print('source to check is ' + str(element['source']))
+    #     if to_open:
+    #         print('opening ' + str(to_open))
+    #         children = await get_summary_children_by_key(to_open, convoID, cartKey, loadout)
+    #         if children:
+    #             for child in children:
+    #                 if 'title' in child:
+    #                     text_to_query += child['title'] + ": "
+    #                 if 'body' in child:
+    #                     text_to_query += child['body'] + "\n\n"
+    #                 else:
+    #                     text_to_query += str(child) + "\n"
+    #     print('text to query: ' + text_to_query)
+    if 'keywords' in blocks:
+        closest = 0
+        to_open = ''
+        for key, val in blocks['keywords'].items():
+            similarity = distance(str(query), str(key))
+            print('checking for matches ' + str(query) + ' ' + str(key) + ' ' + str(similarity))
+            if similarity > closest:
+                closest = similarity
+                for element in val:
+                    to_open = element['source']
+
+        if to_open:
+            children = await get_summary_children_by_key(to_open, convoID, key, loadout)
+            if children:
+                for child in children:
+                    if 'title' in child:
+                        text_to_query += child['title'] + ": "
+                    if 'body' in child:
+                        text_to_query += child['body'] + "\n"
+                    else:
+                        text_to_query += str(child) + "\n"
+        print('text to query: ' + text_to_query)
+        response = await quick_query(text_to_query, text_to_query)
+        response = str(response)
+        print(response)
+        return response
 
 
 async def list_files(name, convoID, thread = 0):
@@ -457,20 +639,33 @@ async def list_files(name, convoID, thread = 0):
     # await ava(convoID)
     if convoID in available_cartridges:
         for key, val in available_cartridges[convoID].items():
-            if 'type' in val and val['type'] == 'note' or val['type'] == 'index':
+            if 'type' in val and val['type'] == 'note' or val['type'] == 'index' or val['type'] == 'summary':
                 if 'label' in val:
-                    string += '\n -- ' + val['label']
-                if 'type' in val:
-                    string += ' -- '+val['type']
-                if 'description' in val:
-                    string +=  '\n' + val['description']
+                    string += '\n-' + val['label']
                 if 'text' in val:
-                    string += val['text'][0:20] + '...\n'
+                    string += val['text'][0:280] + '...\n'
                 if 'enabled' in val and val['enabled'] == True:
-                    string += ' -- open'
+                    if 'minimised' in val and val['minimised'] == True:
+                        string += ' | expand'
+                    else:
+                        string += ' | minimise'
+                    string += ' | close '
                 else:
-                    string += ' -- closed'
+                    string += ' | open'
                 string += '\n'
+
+                if val['type'] == 'summary':
+                    if 'blocks' in val:
+                        if 'summaries' in val['blocks']:
+                            for summary in val['blocks']['summaries']:
+                                for summaryKey, summaryVal in summary.items():
+                                    if 'title' in summaryVal:
+                                        string += "\n-"+summaryVal['title'] 
+                                    # if 'body' in summaryVal:
+                                    #     string += "\n"+summaryVal['body'][0:280] + '...\n'
+                                    string += ' | expand'
+                                    string += ' | close'
+                                    string += '\n'
 
     if string == '':
         string = 'no files available'
@@ -478,11 +673,11 @@ async def list_files(name, convoID, thread = 0):
         command_return['message'] = string
         return command_return
     
-    if len(string) > 1000:
+    if len(string) > 2000:
         command_return = await large_document_loop(string, name, convoID, thread)
         return command_return
 
-    string += '\nFiles available:\n' + string
+    string = '\nFiles available:\n' + string
     command_return['status'] = "Success."
     command_return['message'] = string
     print(command_return)

@@ -45,7 +45,7 @@ async def unpack_cartridges(convoID):
                         cartridge_contents[cartVal['type']]['string'] += " | minimise"
                 cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
-                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n \n"
+                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n\n"
 
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
@@ -72,6 +72,9 @@ async def unpack_cartridges(convoID):
                                     cartridge_contents[cartVal['type']]['string'] += "\n"
 
                         cartridge_contents[cartVal['type']]['string'] += "\n"
+                    if 'queries' in cartVal['blocks']:
+                        if 'minimised' in cartVal and not cartVal['minimised']:
+                            cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -97,9 +100,6 @@ async def construct_string(prompt_objects, convoID):
         final_string += prompt_objects['index']['string']   + "\n__________________________\n"
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string'] + "\n__________________________\n"
-
-
-
 
     # print('final_string')
     print(f'{final_string}')

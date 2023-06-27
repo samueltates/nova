@@ -338,7 +338,7 @@ async def process_message(parsed_data):
             loadout = current_loadout[convoID]
 
         if type == 'summary':
-            await get_summary_children_by_key(key, convoID, cartKey, client_loadout, target_loadout)
+            await get_summary_children_by_key(key, convoID, cartKey, client_loadout)
         elif type == 'keyword':
             await get_summary_from_keyword(key, convoID, cartKey, client_loadout, target_loadout, True)
         elif type == 'insight':

@@ -63,7 +63,7 @@ async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, targ
             print('summarise messages finished')
             await summarise_epochs(userID, convoID, target_loadout)
         
-async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout = None, target_loadout = None):
+async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout = None):
     print('get summary children by key triggered')
     userID = novaConvo[convoID]['userID']   
     if client_loadout == current_loadout[convoID]:
@@ -138,6 +138,8 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
 
 
             await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':content_to_return}))  
+            return content_to_return
+
 
 
 async def get_summary_by_key(key, convoID, client_loadout = None):
@@ -269,7 +271,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loa
                     cartVal['blocks'] = {}
                     if 'summaries' not in cartVal['blocks']:
                         cartVal['blocks']['summaries'] = []
-                cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body[0:280], 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
+                cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
 
         if client_loadout == current_loadout[convoID]:
             available_cartridges[convoID][cartKey] = cartVal
