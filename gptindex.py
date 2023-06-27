@@ -211,7 +211,21 @@ async def queryIndex(queryString, index ):
     eZprint(response)
     return response 
 
+
+
+async def quick_query(text, query):
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
+    temp_file.write(text.encode())
+    temp_file.seek(0)
+    unstructured_reader = UnstructuredReader()
+    document = unstructured_reader.load_data(temp_file.name)
+    index = GPTVectorStoreIndex.from_documents(document)
+    response = await queryIndex(query, index)
+    return response
+
+
 def quicker_query(text, query, meta = '' ):
+    print(text)
     document = Document(text, extra_info=meta)
     logger = LlamaLogger()
     logger.set_log_level(logging.DEBUG)
@@ -246,17 +260,6 @@ async def handle_nova_query(cartKey, cartVal, convoID, query, loadout = None):
         await update_cartridge_field(input, loadout, system=True)
     return insert
 
-
-
-async def quick_query(text, query):
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
-    temp_file.write(text.encode())
-    temp_file.seek(0)
-    unstructured_reader = UnstructuredReader()
-    document = unstructured_reader.load_data(temp_file.name)
-    index = GPTVectorStoreIndex.from_documents(document)
-    response = await queryIndex(query, index)
-    return response
 
 
 

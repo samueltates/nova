@@ -6,6 +6,7 @@ from sessionHandler import available_cartridges, current_loadout
 from cartridges import whole_cartridge_list
 from memory import summarise_from_range
 from gptindex import handleIndexQuery, quick_query
+from Levenshtein import distance
 
 import asyncio
 
@@ -64,19 +65,16 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     all_text = ''
     if 'query' in name or name in 'query' or 'search' in name or name in 'search':
         # await get_cartridge_list(convoID)
+        if 'filename' in args:
+            filename = args['filename']
 
-        for key, val in available_cartridges[convoID].items():
-            all_text += str(val)
-            if 'filename' in args:
-                filename = args['filename']
-                if '_' in filename or '.' in filename:
-                    filename = args['filename'].replace('_', ' ')
-                    filename = filename.replace('.txt', '')
-                    filename = filename.lower()
-
+            for key, val in available_cartridges[convoID].items():
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
                 print('filename: ' + filename)
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
-                    print('found match' + str(val))
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     if 'type' in val and val['type'] == 'index':
                         print('index query')
                         input = {
@@ -84,7 +82,9 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                             'convoID' : convoID,
                             'query' : str(args)
                         }
-                        response = await handleIndexQuery(input)
+                        response = await handleIndexQuery(input, loadout)
+                        response = str(response)
+
                         command_return['status'] = "Success."
                         command_return['message'] = "From " + args['filename']  + ": "+ response
                         print(command_return)
@@ -94,8 +94,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
                         if 'query' in args:
                             if 'blocks' in val:
-                                response = await quick_query(str(val['blocks']), str(args['query']))
-
+                                if 'summaries' in val['blocks']:
+                                    text_to_query = str(val['blocks']['summaries'])
+                                    response = await quick_query(text_to_query, str(args['query']))
+                                    response = str(response)
                             command_return['status'] = "Success."
                             command_return['message'] = "From " + filename  + ": "+ response
                             print(command_return)
@@ -105,12 +107,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         if 'query' in args:
                             if 'text' in val:
                                 response = await quick_query(val['text'], str(args['query']))
-
                             command_return['status'] = "Success."
-                            command_return['message'] = "From " + filename  + ": "+ response
+                            command_return['message'] = "From " + filename  + ": "+ str(response)
                             print(command_return)
                             return command_return
-                            
+                                
         print('all text query')
         print(all_text)
         response = await quick_query(all_text, str(args['query']))
@@ -119,17 +120,20 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "File name not found, results from all text search : " + str(response)
         print(command_return)
         return command_return
+       
 
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
+
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     payload = {
                     'cartKey' : key,
                     'convoID' : convoID,
@@ -161,26 +165,28 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('writing file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
+
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
-                        print('file exists so appending')
-                        val['text'] += "\n"+args['text']
-                        payload = {
-                            'convoID': convoID,
-                            'cartKey' : key,
-                            'fields':
-                                    {'text': val['text']}
-                                    }
-                        loadout = current_loadout[convoID]
-                        await update_cartridge_field(payload,loadout, True)
-                        command_return['status'] = "Success."
-                        command_return['message'] = "file '" +filename  + "' exists, so appending to file"
-                        print(command_return)
-                        return command_return
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
+                    print('file exists so appending')
+                    val['text'] += "\n"+args['text']
+                    payload = {
+                        'convoID': convoID,
+                        'cartKey' : key,
+                        'fields':
+                                {'text': val['text']}
+                                }
+                    loadout = current_loadout[convoID]
+                    await update_cartridge_field(payload,loadout, True)
+                    command_return['status'] = "Success."
+                    command_return['message'] = "file '" +filename  + "' exists, so appending to file"
+                    print(command_return)
+                    return command_return
                 
                 
             cartVal = {
@@ -207,12 +213,14 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('appending file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
+
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     current_text = val['text']
                     current_text += '\n' + args['text']
                     val['text'] = current_text
@@ -248,12 +256,14 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('previewing file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
+
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     preview_string = val['label'] + '\n'
                     if 'blocks' in val:
                         for block in val['blocks']:
@@ -278,15 +288,18 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             return command_return
                 
     if name in 'open' or 'open' in name :
-        eZprint('reading file')
+        eZprint('reading file')            
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
+                    print('found match' + str(val))
+            
                     return_string = ''
                     print('file found')
                     if 'enabled' not in val:
@@ -320,17 +333,19 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "Arg 'filename' missing"
             print(command_return)
             return command_return
+
                 
     if name in 'close' or 'close' in name :
         eZprint('closing file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     return_string = ''
                     if 'enabled' not in val:
                         val['enabled'] = False
@@ -365,12 +380,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('deleting file')
         if 'filename' in args:
             filename = args['filename']
-            if '_' in filename or '.' in filename:
-                filename = args['filename'].replace('_', ' ')
-                filename = filename.replace('.txt', '')
-                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                all_text += str(val)
+                string_match = distance(filename, str(val['label']))
+                print('distance: ' + str(string_match))
+                print('filename: ' + filename)
+                print('label: ' + str(val['label']))
+                if string_match < 3:
                     val['softDelete'] = True
                     return_string += "File " + args['filename'] + " deleted.\n"
 

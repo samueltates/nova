@@ -227,7 +227,7 @@ async def command_interface(command, convoID, threadRequested):
         
         ##if return, it'll send back to user and end thread
         status_lower = status.lower()
-        if 'return' in status_lower or 'success' in status_lower or 'Error' in status_lower:
+        if 'return' in status_lower or 'success' in status_lower or 'error' in status_lower:
             print('success returned')
             return_string = 'system response : ' + name + ' - ' + status + ' : ' + message
             command_object = {'command':{
