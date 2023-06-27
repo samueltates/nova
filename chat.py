@@ -169,8 +169,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
-    print( len(str(promptObject)))
-    print(promptObject)
+    # print( len(str(promptObject)))
+    # print(f'{promptObject}')
+
+
     content = ''
     if thread == 0:
         await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
@@ -226,7 +228,7 @@ async def command_interface(command, convoID, threadRequested):
         ##if return, it'll send back to user and end thread
         status_lower = status.lower()
         if 'return' in status_lower or 'success' in status_lower or 'Error' in status_lower:
-
+            print('success returned')
             return_string = 'system response : ' + name + ' - ' + status + ' : ' + message
             command_object = {'command':{
                     "name" : name, 
@@ -245,6 +247,7 @@ async def command_interface(command, convoID, threadRequested):
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
+            print('no recognised return, shouldnt behere, but if we are then no thread requested so starting a new one')
             if convoID not in system_threads:
                 system_threads[convoID] = {}
             
@@ -260,29 +263,28 @@ async def command_interface(command, convoID, threadRequested):
             await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
         
         else:
+            print('thread requested so same again but this time on a thread')
             thread = threadRequested
+            command_object = {'system':{
+                    "name" : name, 
+                    "status" : status, 
+                    "message" : message
+                    },
+
+                }
+            
+            command_object = json.dumps(command_object)
 
 
-        
-        command_object = {'system':{
-                "name" : name, 
-                "status" : status, 
-                "message" : message
-                },
+            await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
 
-            }
-        
-        command_object = json.dumps(command_object)
-
-
-        await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
-
+        print('got this far expexting to send to agent but commended out now')
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
 
-        await construct_query(convoID, thread)
-        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        await send_to_GPT(convoID, query_object, thread)
+        # await construct_query(convoID, thread)
+        # query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+        # await send_to_GPT(convoID, query_object, thread)
 
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)
@@ -339,8 +341,8 @@ async def simple_agent_response(convoID):
                         chat['role'] = 'assistant'
             try:
                 # print('reconstructing the chat')
-                print('sending simpleChat')
-                print(simple_chat)
+                # print('sending simpleChat')
+                # print(simple_chat)
                 response = await sendChat(simple_chat, 'gpt-3.5-turbo')
                 content = str(response["choices"][0]["message"]["content"])
 

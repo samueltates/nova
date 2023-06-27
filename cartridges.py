@@ -34,14 +34,6 @@ async def addCartridge(cartVal, convoID, loadout = None):
     eZprint('add cartridge triggered')
     userID = novaConvo[convoID]['userID']
     cartKey = generate_id()
-    if 'blocks' not in cartVal:
-        cartVal.update({"blocks":{}})
-    if 'enabled' not in cartVal:
-        cartVal.update({"enabled":True})
-    if 'softDelete' not in cartVal:
-        cartVal.update({"softDelete":False})
-    if convoID in current_loadout:
-        cartVal.update({'loadout':current_loadout[convoID] })
     if 'key' not in cartVal:
         cartVal.update({'key':cartKey})
 
@@ -65,18 +57,22 @@ async def addCartridge(cartVal, convoID, loadout = None):
     if current_loadout[convoID] != None:
         if loadout == current_loadout[convoID]:
             ##another stupid hack, this time to set it to avail as it isn't running the loadout change so setting it false for first load (or resetting)
-            if 'softDelete' not in cartVal:
-                cartVal["softDelete"] = False
-
+            print('setting to not soft delete for current session')
+            cartVal["softDelete"] = False
+    
     if convoID not in available_cartridges:
         available_cartridges[convoID]  = {}
+
     available_cartridges[convoID][cartKey] = cartVal
 
     payload = {
             'cartKey': cartKey,
             'cartVal': cartVal,
         }
-    if current_loadout[convoID] == loadout:
+    
+    print('sending add cartridge event' + str(payload) + ' supplied loadout ' + str(loadout) +  ' curent loadout :  ' + str(current_loadout[convoID]))
+    if loadout == current_loadout[convoID]:
+        print('sending to websocket')
         await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
 
     return True
@@ -206,8 +202,8 @@ async def addCartridgeTrigger(input):
 async def update_cartridge_field(input, loadout = None, system = False):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
-    print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
-    print(input['fields'])
+    # print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
+    # print(input['fields'])
     
     matchedCart = await prisma.cartridge.find_first(
         where={
@@ -220,14 +216,14 @@ async def update_cartridge_field(input, loadout = None, system = False):
         available_cartridges[convoID][targetCartKey][key] = val
 
     if matchedCart:
-        print('matched cart ' + str(matchedCart.id))
+        # print('matched cart ' + str(matchedCart.id))
         matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
         # print ('checking loadout ' + str(loadout))
         if loadout == current_loadout[convoID]:
-            print('loadout match')
+            # print('loadout match')
             if loadout:
                 #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
-                print('update settings in loadout')
+                # print('update settings in loadout')
                 await update_settings_in_loadout(convoID, targetCartKey, input['fields'], loadout)
                 for key, val in input['fields'].items():
                         if key == 'enabled':
@@ -240,7 +236,7 @@ async def update_cartridge_field(input, loadout = None, system = False):
                 
             elif loadout == None: 
                 #if not coming from loadout then applies to base
-                print('update base cartridge')
+                # print('update base cartridge')
 
                 for key, val in input['fields'].items():
                     matchedCartVal[key] = val
@@ -251,9 +247,9 @@ async def update_cartridge_field(input, loadout = None, system = False):
                     'blob' : Json({targetCartKey:matchedCartVal})
                 }
             )
-            print('updated cart' + str(updatedCart.id))
+            # print('updated cart' + str(updatedCart.id))
             if system:
-                print('system update')
+                # print('system update')
                 payload = { 'key':targetCartKey,
                            'fields': input['fields'], 
                            'loadout': loadout,

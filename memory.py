@@ -20,12 +20,14 @@ async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
     if loadout == current_loadout[convoID]:                
         if 'blocks' not in cartVal:
             cartVal['blocks'] = {}
-        await summarise_convos(convoID, cartKey, cartVal, loadout)
-        await get_summaries(userID, convoID, loadout)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-        await get_overview(convoID, cartKey, cartVal, loadout)
-        await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-        await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
+
+        if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
+            await summarise_convos(convoID, cartKey, cartVal, loadout)
+            await get_summaries(userID, convoID, loadout)
+            await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
+            await get_overview(convoID, cartKey, cartVal, loadout)
+            await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
+            await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
 
 
 async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
@@ -125,6 +127,7 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, loadout = None
 
 
             await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':content_to_return}))  
+
 
 async def get_summary_by_key(key, convoID, loadout = None):
     

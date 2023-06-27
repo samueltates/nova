@@ -87,9 +87,9 @@ async def loadCartridges(convoID, loadout = None):
                         cartVal.update({'state': 'loading'})
                         # cartVal['blocks'] = []
 
-        print('available cartridge    s are ' + str(available_cartridges[convoID]))
-        print('loadout is ' + str(loadout))
-        print('current loadout is ' + str(current_loadout[convoID]))
+        # print('available cartridges are ' + str(available_cartridges[convoID]))
+        # print('loadout is ' + str(loadout))
+        # print('current loadout is ' + str(current_loadout[convoID]))
         if loadout == current_loadout[convoID]:
             await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
     eZprint('load cartridges complete')

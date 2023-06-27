@@ -17,7 +17,7 @@ all_cartridges = {}
 
 command_loops = {}
 
-async def handle_commands(command_object, convoID, thread = 0):
+async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     eZprint('handling command')
     print(command_object)
     if command_object:
@@ -63,12 +63,13 @@ async def handle_commands(command_object, convoID, thread = 0):
 
     all_text = ''
     if 'query' in name or name in 'query' or 'search' in name or name in 'search':
-        await get_cartridge_list(convoID)
+        # await get_cartridge_list(convoID)
 
-        for key, val in whole_cartridge_list[convoID].items():
+        for key, val in available_cartridges[convoID].items():
             all_text += str(val)
             if 'filename' in args:
                 if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                    print('found match' + str(val))
                     if 'type' in val and val['type'] == 'index':
                         print('index query')
                         input = {
@@ -88,7 +89,19 @@ async def handle_commands(command_object, convoID, thread = 0):
 
                             if 'query' in args:
                                 if 'blocks' in val:
-                                    response = await quick_query(val['blocks'], str(args['query']))
+                                    response = await quick_query(str(val['blocks']), str(args['query']))
+
+                                command_return['status'] = "Success."
+                                command_return['message'] = "From " + args['filename']  + ": "+ response
+                                print(command_return)
+                                return command_return
+                    if 'type' in val and val['type'] == 'note':
+                        print('note query')
+                        if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+
+                            if 'query' in args:
+                                if 'text' in val:
+                                    response = await quick_query(val['text'], str(args['query']))
 
                                 command_return['status'] = "Success."
                                 command_return['message'] = "From " + args['filename']  + ": "+ response
@@ -99,8 +112,8 @@ async def handle_commands(command_object, convoID, thread = 0):
         print(all_text)
         response = await quick_query(all_text, str(args['query']))
         print(response)
-        command_return['status'] = "Success."
-        command_return['message'] = "Results from all text search" + str(response)
+        command_return['status'] = "Return."
+        command_return['message'] = "File name not found, results from all text search : " + str(response)
         print(command_return)
         return command_return
 
@@ -137,37 +150,43 @@ async def handle_commands(command_object, convoID, thread = 0):
             command_return['message'] = "file " +args['filename']  + " created"
             print(command_return)
             return command_return
+        
     if 'write' in name or name in 'write':
         eZprint('writing file')
         if 'filename' in args:
             for key, val in available_cartridges[convoID].items():
                 if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
-                        val['text'] = args['text']
+                        print('file exists so appending')
+                        val['text'] += "\n"+args['text']
                         payload = {
                             'convoID': convoID,
                             'cartKey' : key,
                             'fields':
                                     {'text': val['text']}
                                     }
-                        await update_cartridge_field(payload)
+                        loadout = current_loadout[convoID]
+                        await update_cartridge_field(payload,loadout, True)
                         command_return['status'] = "Success."
                         command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
                         print(command_return)
                         return command_return
                 
-                cartVal = {
-                'label' : args['filename'],
-                'text' :args['text'],
-                'type' : 'note'
-                }
+                
+            cartVal = {
+            'label' : args['filename'],
+            'text' :args['text'],
+            'type' : 'note',
+            'enabled' : True,
+            'minimised' : False,
+            }
 
-                print(cartVal)
-                await addCartridge(cartVal, convoID, current_loadout[convoID])
+            print(cartVal)
+            await addCartridge(cartVal, convoID, current_loadout[convoID])
 
-                command_return['status'] = "Success."
-                command_return['message'] = "file " +args['filename']  + " written"
-                print(command_return)
-                return command_return
+            command_return['status'] = "Success."
+            command_return['message'] = "file " +args['filename']  + " written"
+            print(command_return)
+            return command_return
             
         command_return['status'] = "Error."
         command_return['message'] = "Arg 'filename' missing"
@@ -188,9 +207,10 @@ async def handle_commands(command_object, convoID, thread = 0):
                         'fields':
                                 {'text': val['text']}
                                 }
-                    await update_cartridge_field(payload, None, True)                    
+                    loadout = current_loadout[convoID]
+                    await update_cartridge_field(payload, loadout, True)                    
                     command_return['status'] = "Success."
-                    command_return['message'] = "file " +args['filename']  + " appended"
+                    command_return['message'] = "file " +args['filename']  + " appended."
                     print(command_return)
                     return command_return
             cartVal = {
@@ -201,9 +221,8 @@ async def handle_commands(command_object, convoID, thread = 0):
 
             print(cartVal)
             await addCartridge(cartVal, convoID, current_loadout[convoID])
-
             command_return['status'] = "Success."
-            command_return['message'] = "file " +args['filename']  + " written"
+            command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
         command_return['status'] = "Error."
         command_return['message'] = "Arg 'filename' missing"
         print(command_return)
@@ -245,7 +264,7 @@ async def handle_commands(command_object, convoID, thread = 0):
                 print(val, args['filename'])
                 return_string = ''
                 if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
-                    print(val)
+                    print('file found')
                     if 'enabled' not in val:
                         val['enabled'] = True
                     if val['enabled'] == False:
@@ -262,7 +281,8 @@ async def handle_commands(command_object, convoID, thread = 0):
                         'fields':
                                 {'enabled': val['enabled']}
                                 }
-                    await update_cartridge_field(payload)                    
+                    loadout = current_loadout[convoID]
+                    await update_cartridge_field(payload, loadout, True)       
                     command_return['status'] = "Success."
                     command_return['message'] = return_string
                     print(command_return)
@@ -299,7 +319,9 @@ async def handle_commands(command_object, convoID, thread = 0):
                         'fields':
                                 {'enabled': val['enabled']}
                                 }
-                    await update_cartridge_field(payload)                    
+                    loadout = current_loadout[convoID]
+                    await update_cartridge_field(payload, loadout, True)       
+
                     command_return['status'] = "Success."
                     command_return['message'] = return_string
                     return command_return
@@ -325,7 +347,8 @@ async def handle_commands(command_object, convoID, thread = 0):
                         'fields':
                                 {'enabled': val['enabled']}
                                 }
-                    await update_cartridge_field(payload)                    
+                    loadout = current_loadout[convoID]
+                    await update_cartridge_field(payload, loadout, True)       
                     command_return['status'] = "Success."
                     command_return['message'] = return_string
                     return command_return

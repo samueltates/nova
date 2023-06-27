@@ -55,8 +55,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": current_loadout[convoID] },
     )
-    print('loadout found')
-    print(remote_loadout)
+    # print('loadout found')
+    # print(remote_loadout)
     if remote_loadout:
         blob = json.loads(remote_loadout.json())['blob']
         for key, val in blob.items():
@@ -76,12 +76,12 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
                 "blob":Json(blob)
                 }
         )
-        print('loadout updated')
-        print(update)
+        # print('loadout updated')
+        # print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
-    eZprint('update settings in loadout triggered')
+    # eZprint('update settings in loadout triggered')
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout) },
     )
@@ -112,7 +112,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
                 }
         )
 
-        print(update)
+        # print(update)
 
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
@@ -140,8 +140,8 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     available_cartridges[convoID] = {}
 
     for loadout_cartridge in loadout_cartridges:
-        print(loadout_cartridge)
-        print(loadout_cartridge['key'])
+        # print(loadout_cartridge)
+        # print(loadout_cartridge['key'])
         cartKey = loadout_cartridge
         if 'key' in loadout_cartridge:
             cartKey = loadout_cartridge['key']

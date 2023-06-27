@@ -21,7 +21,7 @@ from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
 from memory import summariseChatBlocks,get_summary_children_by_key
-from keywords import get_summary_from_keyword
+from keywords import get_summary_from_keyword, get_summary_from_insight
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 
 app.session = session
@@ -191,10 +191,14 @@ async def process_message(parsed_data):
         await addCartridgePrompt(parsed_data['data'], loadout)
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
+        convoID = data['convoID']
+        loadout = None
+        if convoID in current_loadout:
+            loadout = current_loadout[convoID]
         if 'gDocID' in data:
             eZprint('indexing gDoc')
             # print(data)
-            indexRecord = await asyncio.create_task(indexDocument(data))
+            indexRecord = await asyncio.create_task(indexDocument(data, loadout))
             if indexRecord:
                 request = {
                     'tempKey': data['tempKey'],
@@ -207,10 +211,6 @@ async def process_message(parsed_data):
                 'convoID': data['convoID'],
                 'userID': data['userID'],
             }
-            convoID = data['convoID']
-            loadout = None
-            if convoID in current_loadout:
-                loadout = current_loadout[convoID]
             await asyncio.create_task(handleIndexQuery(queryPackage,loadout))
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
@@ -339,6 +339,8 @@ async def process_message(parsed_data):
             await get_summary_children_by_key(key, convoID, cartKey, loadout)
         elif type == 'keyword':
             await get_summary_from_keyword(key, convoID, cartKey, loadout, True)
+        elif type == 'insight':
+            await get_summary_from_insight(key, convoID, cartKey, loadout, True)
 
 
 file_chunks = {}

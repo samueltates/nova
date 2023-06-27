@@ -30,7 +30,7 @@ async def unpack_cartridges(convoID):
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     print('unpacking cartridges')
-    print(sorted_cartridges)
+    # print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
@@ -46,9 +46,11 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n \n"
-            if 'blocks' in cartVal:
+
+            if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
+            if 'blocks' in cartVal:
                 #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
                 #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
                 if 'blocks' in cartVal:
@@ -93,8 +95,6 @@ async def construct_string(prompt_objects, convoID):
         final_string += prompt_objects['note']['string'] + "\n__________________________\n"
     if 'index' in prompt_objects:
         final_string += prompt_objects['index']['string']   + "\n__________________________\n"
-    context = await construct_context(convoID)
-    final_string += context
     if 'summary' in prompt_objects:
         final_string += prompt_objects['summary']['string'] + "\n__________________________\n"
 
@@ -173,24 +173,15 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     if 'system' in prompt_objects:
         if 'string' in prompt_objects['system']:
             final_prompt_string += "\n"+prompt_objects['system']['string']
-        # if 'values' in prompt_objects['system']:
-        #     for value in prompt_objects['system']['values']:
-        #         if 'auto-summarise' in value:
-        #             if value['auto-summarise'] == True:
-        #                 print('auto summarise found')
-
-        #         # if 'warn_token' in value:
-        #         #     summary = value['warn_start'] + summary + value['warn_end']
-        #         #     if summary:
-        #         #         list_to_send.append({"role": "system", "content": f"{summary}"})
-        #         #     if value['warn_token'] == True:
-        #         #         warning = await get_token_warning(list_to_send, value['warn_trigger'], convoID)
-        #         #         if warning:
-        #         #             warning = value['warn_start'] + warning + value['warn_end']
-        #         #             list_to_send.append({"role": "system", "content": f"{warning}"})
-        #         if 'give_context' in value:
-        #             if value['give_context'] == True:
-        #                 final_prompt_string += "\n"+context
+        if 'values' in prompt_objects['system']:
+            for value in prompt_objects['system']['values']:
+                if 'auto-summarise' in value:
+                    if value['auto-summarise'] == True:
+                        print('auto summarise found')
+                if 'give_context' in value:
+                    if value['give_context'] == True:
+                            context = await construct_context(convoID)
+                            final_command_string += context
     if 'command' in prompt_objects:
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']

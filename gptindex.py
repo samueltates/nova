@@ -8,7 +8,7 @@ from appHandler import app, websocket
 from sessionHandler import novaConvo, available_cartridges, cartdigeLookup
 import asyncio
 from human_id import generate_id
-from cartridges import addCartridgeTrigger
+from cartridges import addCartridgeTrigger, update_cartridge_field
 from debug import eZprint
 from prismaHandler import prisma
 from prisma import Json
@@ -43,7 +43,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-async def indexDocument(payload):
+async def indexDocument(payload, loadout = None):
     eZprint('indexDocument called')
     print(payload)
 
@@ -67,7 +67,16 @@ async def indexDocument(payload):
         except:
             print('document not found')
             payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
-            await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+            cartVal['status'] = 'doc not found'
+            input = {
+            'cartKey': tempKey,
+            'convoID': convoID,
+            'fields': {
+                'status': cartVal['status'],
+                },
+                'loadout' : loadout
+            }
+            await update_cartridge_field(input, loadout, system=True)
 
         print(document)
         
@@ -150,6 +159,7 @@ async def indexDocument(payload):
         'enabled': True,
         'blocks': [],
         'index': key,
+        'status': 'index created, getting summary'
     }
 
     cartUpdate = {
@@ -159,8 +169,16 @@ async def indexDocument(payload):
         }
 
     newCart = await addCartridgeTrigger(cartUpdate)
-    payload = { 'key':tempKey,'fields': {'label':documentTitle, 'status': 'index created, getting summary'}}
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+    input = {
+    'cartKey': tempKey,
+    'convoID': convoID,
+    'fields': {
+        'label':cartVal['label'],
+        'status': cartVal['status'],
+        },
+        'loadout' : loadout
+    }
+    await update_cartridge_field(input, loadout, system=True)
     eZprint('printing new cartridge')
     return newCart
 
@@ -172,12 +190,12 @@ async def reconstructIndex(indexJson):
     llama_logger = LlamaLogger()
     service_context = ServiceContext.from_defaults(llama_logger=llama_logger)
     # service_context.set_global_service_context(service_context)
-    print(indexJson)
+    # print(indexJson)
     for key, val in indexJson.items():
         if key == 'index_store' or key == 'vector_store' or key == 'docstore':
-            print(os.path.join(tmpDir, key))
-            eZprint("reconstructIndex: key={}".format(key))
-            print(val)
+            # print(os.path.join(tmpDir, key))
+            # eZprint("reconstructIndex: key={}".format(key))
+            # print(val)
             # GPTListIndex.service_context = service_context
             # index = GPTListIndex.build_index_from_nodes(val)
             # print(index)
@@ -219,15 +237,25 @@ def quicker_query(text, query, meta = '' ):
 
 
 
-async def handle_nova_query(cartKey, cartVal, convoID, query):
+async def handle_nova_query(cartKey, cartVal, convoID, query, loadout = None):
     index_key = cartVal['index']
     indexJson = await get_index_json(index_key)
     index = await reconstructIndex(indexJson)
     insert = await queryIndex(query, index)
     if insert:
         cartVal['blocks'].append(insert)
-        payload = { 'key': cartKey,'fields': {'blocks': cartVal['blocks'], 'status': 'index query complete'}}
-        await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+        cartVal['status'] = 'index query complete'
+        
+        input = {
+        'cartKey': cartKey,
+        'convoID': convoID,
+        'fields': {
+            'blocks': cartVal['blocks'],
+            'status': cartVal['status']
+            },
+            'loadout' : loadout
+        }
+        await update_cartridge_field(input, loadout, system=True)
     return insert
 
 
@@ -253,17 +281,24 @@ async def handleIndexQuery(input, loadout = None):
     convoID = input['convoID']
 
     query = input['query']
-    #TODO -  basically could comine with index query (or this is request, query is internal)
-    payload = { 'key': cartKey,
-               'fields': {
-            'status': 'querying Index',
-            'state': 'loading'
-            },
-            'loadout': loadout
-    }
-    await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-    eZprint('handling index query')
     cartVal = available_cartridges[convoID][cartKey]
+    #TODO -  basically could comine with index query (or this is request, query is internal)
+
+    cartVal['status'] = 'querying Index'
+    cartVal['state'] = 'loading'
+
+    input = {
+    'cartKey': cartKey,
+    'convoID': convoID,
+    'fields': {
+        'status': cartVal['status'],
+        'state': cartVal['state']
+        },
+        'loadout' : loadout
+    }
+    await update_cartridge_field(input, loadout, system=True)
+
+    eZprint('handling index query')
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index_key = cartVal['index']
         index = await get_index_json(index_key)
@@ -271,17 +306,20 @@ async def handleIndexQuery(input, loadout = None):
 
 
 async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_key, loadout = None):
-    userID = novaConvo[convoID]['userID']
     eZprint('triggering index query')
-    oldVal = cartVal
 
     cartVal['state'] = 'loading'
     cartVal['status'] = 'index Found'
-    payload = { 'key':cartKey,'fields': {
-                            'status': cartVal['status'],
-                            'state': cartVal['state']
-                                }}
-    
+    input = {
+    'cartKey': cartKey,
+    'convoID': convoID,
+    'fields': {
+        'status': cartVal['status'],
+        'state': cartVal['state']
+        },
+        'loadout' : loadout
+    }
+    await update_cartridge_field(input, loadout, system=True)
     index = await reconstructIndex(indexJson)
     insert = await queryIndex(query, index)
 
@@ -289,12 +327,12 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
 
     tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
     index.storage_context.persist(tmpDir)
-    print(tmpDir)
+    # print(tmpDir)
     indexJson = dict()
     for file in os.listdir(tmpDir):
         if file.endswith(".json"):
             content = json.load(open(os.path.join(tmpDir, file)))
-            print(content)
+            # print(content)
             indexJson.update({file:content})
 
 
@@ -330,9 +368,10 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
         #TODO - replace this ID lookup with a key lookup
         cartVal['state'] = ''
         cartVal['status'] = ''
+        print(cartVal)
         if 'blocks' not in cartVal:
-            cartVal['blocks'] = []
-        if 'queries' not in cartVal:
+            cartVal['blocks'] = {}
+        if 'queries' not in cartVal['blocks']:
             cartVal['blocks']['queries'] = []
         cartVal['blocks']['queries'].append({'query':query, 'response':str(insert)})
         payload = { 'key':cartKey,'fields': {
@@ -342,24 +381,17 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
                                 }, 
                                 'loadout':loadout
                                 }
-        id = cartdigeLookup[cartKey]
-
-        matchedCart = await prisma.cartridge.find_first(
-            where={
-                    'id': id                                    
-                      }
-        )
-
-        if matchedCart:
-            updatedCart = await prisma.cartridge.update(
-                where={ 'id': id },
-                data={
-                    'UserID': userID,
-                    'blob' : Json({cartKey:cartVal})
-                }
-            )
-
-        await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+        input = {
+        'cartKey': cartKey,
+        'convoID': convoID,
+        'fields': {
+            'status': cartVal['status'],
+            'state': cartVal['state'],
+            'blocks': cartVal['blocks']
+            },
+            'loadout' : loadout
+        }
+        await update_cartridge_field(input, loadout, system=True)
 
         
 async def get_index_json(index_key):
