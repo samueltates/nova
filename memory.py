@@ -81,7 +81,7 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
                             for sourceID in val['sourceIDs']:
                                 print('sourceID found')
                                 print(sourceID)
-                                child_summary = await get_summary_by_key(sourceID, convoID, target_loadout)
+                                child_summary = await get_summary_by_key(sourceID, convoID, client_loadout)
 
                                 if child_summary:
                                     print('child summary found')

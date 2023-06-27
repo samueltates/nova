@@ -73,6 +73,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     filename = args['filename'].replace('_', ' ')
                     filename = filename.replace('.txt', '')
                     filename = filename.lower()
+
+                print('filename: ' + filename)
                 if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     print('found match' + str(val))
                     if 'type' in val and val['type'] == 'index':

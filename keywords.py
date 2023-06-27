@@ -139,34 +139,36 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout 
 async def get_summary_from_keyword(key, convoID, cartKey, client_loadout = None, target_loadout= None, user_requested = False):
 
     sources_to_return = []
+    keyword =''
 
     if isinstance(key, dict):
         for keyword, sources in key.items():
+            keyword = keyword.lower()
             if isinstance(sources, list):
                 for meta in sources:
                     print(meta)
-                    source_val = await get_source_by_key(meta['source'], convoID, target_loadout)
+                    source_val = await get_source_by_key(meta['source'], convoID, client_loadout)
                     for key, val in source_val.items():
                         val.update({'type': 'summary'})
                         sources_to_return.append(val)
 
     if user_requested:
         print('sending preview content')
-        payload = { 'parent': {'title':key}, 'children': sources_to_return, 'source': 'keyword'}    
+        payload = { 'parent': {keyword:{'title':keyword}}, 'children': sources_to_return, 'source': 'keyword'}    
         await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))  
 
 async def get_summary_from_insight(object, convoID, cartKey,  client_loadout = None, target_loadout= None, user_requested = False):
     sources_to_return = []
 
     if 'key' in object:
-        source_val = await get_source_by_key(object['key'], convoID, target_loadout)
+        source_val = await get_source_by_key(object['key'], convoID, client_loadout)
         for key, val in source_val.items():
             val.update({'type': 'summary'})
             sources_to_return.append(val)
 
     if user_requested:
         print('sending preview content')
-        payload = { 'parent': {'title':object['line']}, 'children': sources_to_return, 'source': 'insight'}    
+        payload = { 'parent': {object['key']:{'title':object['line']}}, 'children': sources_to_return, 'source': 'insight'}    
         await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))
 
 
