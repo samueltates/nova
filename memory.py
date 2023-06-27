@@ -15,28 +15,39 @@ from keywords import get_keywords_from_summaries
 summaries = {}
 windows = {}
 
-async def run_summary_cartridges(convoID, cartKey, cartVal,  loadout = None):
+async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = None):
     userID = novaConvo[convoID]['userID']
-    if loadout == current_loadout[convoID]:                
-        if 'blocks' not in cartVal:
-            cartVal['blocks'] = {}
+    print('run summary cartridges triggered' )
+    print('current loadout' + str(client_loadout))
+    # print('current loadout convoID' + str(current_loadout[convoID]))
+    print(current_loadout[convoID])
+    if novaConvo[convoID]['owner']:
+        if client_loadout == current_loadout[convoID]:                
+            if 'blocks' not in cartVal:
+                cartVal['blocks'] = {}
 
-        if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
-            await summarise_convos(convoID, cartKey, cartVal, loadout)
-            await get_summaries(userID, convoID, loadout)
-            await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-            await get_overview(convoID, cartKey, cartVal, loadout)
-            await update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout)
-            await get_keywords_from_summaries(convoID, cartKey, cartVal, loadout)
+            if 'summary-target' in cartVal:
+                print('summary target found')
+                target_loadout = cartVal['summary-target']
+            else:
+                print('no summary target')
+                target_loadout = client_loadout
+            # if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
+            await summarise_convos(convoID, cartKey, cartVal, client_loadout, target_loadout)
+            await get_summaries(userID, convoID, target_loadout)
+            await update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loadout)
+            await get_overview(convoID, cartKey, cartVal, client_loadout)
+            await update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loadout)
+            await get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout, target_loadout)
 
 
-async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
+async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, target_loadout = None):
 
     eZprint('summarising convos')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             cartVal['state'] = 'loading'
             cartVal['status'] = 'summarising convos'
             input = {
@@ -47,16 +58,16 @@ async def summarise_convos(convoID, cartKey, cartVal, loadout= None):
                 'status': cartVal['status'],
                 },
             }
-            await update_cartridge_field(input, loadout, system=True)
-            await summarise_messages(userID, convoID, loadout)
+            await update_cartridge_field(input, client_loadout, system=True)
+            await summarise_messages(userID, convoID, target_loadout)
             print('summarise messages finished')
-            await summarise_epochs(userID, convoID, loadout)
+            await summarise_epochs(userID, convoID, target_loadout)
         
-async def get_summary_children_by_key(childKey, convoID, cartKey, loadout = None):
+async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout = None, target_loadout = None):
     print('get summary children by key triggered')
     userID = novaConvo[convoID]['userID']   
-    if loadout == current_loadout[convoID]:
-        summary = await get_summary_by_key(childKey, convoID, loadout)
+    if client_loadout == current_loadout[convoID]:
+        summary = await get_summary_by_key(childKey, convoID, client_loadout)
         content_to_return = None
         if summary:
             summary = json.loads(summary.json())['blob']
@@ -70,7 +81,7 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, loadout = None
                             for sourceID in val['sourceIDs']:
                                 print('sourceID found')
                                 print(sourceID)
-                                child_summary = await get_summary_by_key(sourceID, convoID, loadout)
+                                child_summary = await get_summary_by_key(sourceID, convoID, target_loadout)
 
                                 if child_summary:
                                     print('child summary found')
@@ -129,9 +140,9 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, loadout = None
             await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':content_to_return}))  
 
 
-async def get_summary_by_key(key, convoID, loadout = None):
+async def get_summary_by_key(key, convoID, client_loadout = None):
     
-    if loadout == current_loadout[convoID]:
+    if client_loadout == current_loadout[convoID]:
         print('getting summary by key')
         summary = None
 
@@ -158,9 +169,9 @@ async def get_summary_by_key(key, convoID, loadout = None):
             print('summary found')
     return summary
 
-async def get_overview (convoID, cartKey, cartVal, loadout = None):
+async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
     response = ''
-    if loadout == current_loadout[convoID]:
+    if client_loadout == current_loadout[convoID]:
         cartVal['state'] = 'loading'
         cartVal['status'] = 'Getting overview'
 
@@ -172,7 +183,7 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
                 'status': cartVal['status'],
                 },
             }
-        await update_cartridge_field(input, loadout, system=True)
+        await update_cartridge_field(input, client_loadout, system=True)
 
         response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
@@ -182,7 +193,7 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
                 cartVal['blocks'] = {}
             cartVal['blocks']['overview'] = response
             # print('getting overview of summary')
-            if loadout == current_loadout[convoID]:
+            if client_loadout == current_loadout[convoID]:
                 cartVal['state'] = ''
                 cartVal['status'] = ''
                 input = { 
@@ -193,15 +204,15 @@ async def get_overview (convoID, cartKey, cartVal, loadout = None):
                         'status': cartVal['status'],
                         'blocks': cartVal['blocks']
                     },
-                    'loadout': loadout
+                    'loadout': client_loadout
                 }
-            await update_cartridge_field(input, loadout, system=True)
+            await update_cartridge_field(input, client_loadout, system=True)
 
 ##attempt at abstracting parts of flow, general idea is that there is 'corpus' which is broken into 'chunks' which are then batched together on token size, to be summarised
 ## after this, the next 'corpus' is the summaries, that are then 'chunked' based on their source (each convo)
 ## content chunks ->normalised into candidates -> gropued into batches ->summarised, repeat
 
-async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= None):
+async def update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loadout= None):
     # print('update_cartridge_summary')
     window_counter = 0
     if 'blocks' not in cartVal:
@@ -209,7 +220,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
     if 'blocks' in cartVal:
         if isinstance(cartVal['blocks'], list):
             cartVal['blocks'] = {}
-    if loadout == current_loadout[convoID]:
+    if client_loadout == current_loadout[convoID]:
         # if 'blocks' not in cartVal:
         cartVal['state'] = 'loading'
         cartVal['status'] = 'Getting summaries'
@@ -223,7 +234,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
             }
         ##TODO: make it so only happens once per session?
 
-        await update_cartridge_field(input, loadout, system=True)
+        await update_cartridge_field(input, client_loadout, system=True)
     
         if userID+convoID not in windows:
             windows[userID+convoID] = []
@@ -260,7 +271,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
                         cartVal['blocks']['summaries'] = []
                 cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body[0:280], 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
 
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             available_cartridges[convoID][cartKey] = cartVal
             cartVal['state'] = ''
             cartVal['status'] = ''
@@ -274,14 +285,14 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, loadout= N
                 'convoID': convoID,
                 'fields': fields,
             }
-            await update_cartridge_field(input, loadout, system=True)
+            await update_cartridge_field(input, client_loadout, system=True)
 
         # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
 
   
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
-async def summarise_messages(userID, convoID, loadout = None):  
+async def summarise_messages(userID, convoID, target_loadout = None):  
     eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
@@ -306,10 +317,10 @@ async def summarise_messages(userID, convoID, loadout = None):
         # print(splitID)
         if len(splitID) >=3:
             # print(splitID[2])
-            if splitID[2] == str(loadout):
+            if splitID[2] == str(target_loadout):
                 messages.append(message)
                 print('adding on loadout')
-        elif loadout == None:
+        elif target_loadout == None:
             # print(splitID)
             messages.append(message)
             print('adding on no loadout')
@@ -376,7 +387,7 @@ async def summarise_messages(userID, convoID, loadout = None):
             })
 
 
-    await summarise_batches(normalised_convos, userID, convoID, loadout, conversation_summary_prompt)
+    await summarise_batches(normalised_convos, userID, convoID, target_loadout, conversation_summary_prompt)
 
 
 async def update_record(record_ID, record_type, convoID, loadout = None):
@@ -541,7 +552,7 @@ async def summary_into_candidate(summarDict ):
     
     return candidate
 
-async def summarise_epochs(userID, convoID, loadoutID = None):
+async def summarise_epochs(userID, convoID, target_loadout = None):
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
     eZprint('starting epoch summary')
 
@@ -565,10 +576,10 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
             splitID = candidate.SessionID.split('-')
             # print(splitID)
             if len(splitID) >= 2:
-                if splitID[2] == loadoutID:
+                if splitID[2] == target_loadout:
                     # print('found loadout candidate')
                     loadout_candidates.append(candidate)
-            elif loadoutID  == None:
+            elif target_loadout  == None:
                 # print('adding on a none loadout')
                 loadout_candidates.append(candidate)
 
@@ -626,7 +637,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                         'first-doc' : timestamp,
                         'type' : 'summary',
                         'corpus' : 'loadout-conversations',
-                        'docID' : loadoutID
+                        'docID' : target_loadout
                     }
                 toSummarise += str(summaryObj['content']) + '\n'
                 ids.append(summary['id'])
@@ -647,7 +658,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
                     meta = ''
             print('epoch summarised looped')
             if len(batches) > 0:
-                await summarise_batches(batches, userID, convoID, loadoutID, summary_batch_prompt)
+                await summarise_batches(batches, userID, convoID, target_loadout, summary_batch_prompt)
                 batches = []
                 print('summarising batches so setting to false to trigger reloop')
                 epoch_in_window = False
@@ -656,7 +667,7 @@ async def summarise_epochs(userID, convoID, loadoutID = None):
     
        
 
-async def get_summaries(userID, convoID, loadoutID):
+async def get_summaries(userID, convoID, target_loadout):
 
     eZprint('getting summaries')
     summaries = await prisma.summary.find_many(
@@ -674,10 +685,10 @@ async def get_summaries(userID, convoID, loadoutID):
         splitID = str(summary.SessionID).split('-')
         # print(splitID)
         if(len(splitID) >= 2):
-            if splitID[2] == loadoutID:
+            if splitID[2] == target_loadout:
                 # print('loadout ID found')
                 summary_candidates.append(summary)
-        elif loadoutID == None:
+        elif target_loadout == None:
             # print('adding on a none loadout')
             summary_candidates.append(summary)
 

@@ -12,7 +12,7 @@ summaries_available = {}
 keywords_available = {}
 notes_available = {}
 
-async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None):
+async def get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout = None, target_loadout = None):
 
     eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaConvo[convoID]['userID']
@@ -29,10 +29,10 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
             'state': cartVal['state'],
             'status': cartVal['status']
             },
-        'loadout' : loadout 
+        'loadout' : client_loadout 
     }
 
-    await update_cartridge_field(input, loadout, system=True)
+    await update_cartridge_field(input, client_loadout, system=True)
 
 
     summaries = await prisma.summary.find_many(
@@ -51,10 +51,10 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
         splitID = candidate.SessionID.split('-')
         # print(splitID)
         if len(splitID) >= 2:
-            if splitID[2] == loadout:
+            if splitID[2] == target_loadout:
                 # print('found loadout candidate')
                 loadout_candidates.append(candidate)
-        elif loadout  == None:
+        elif target_loadout  == None:
             # print('adding on a none loadout')
             loadout_candidates.append(candidate)
 
@@ -132,11 +132,11 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, loadout = None)
             'status': cartVal['status'],
             'blocks': cartVal['blocks']
             },
-        'loadout' : loadout 
+        'loadout' : client_loadout 
     }
-    await update_cartridge_field(input, loadout, system=True)
+    await update_cartridge_field(input, client_loadout, system=True)
 
-async def get_summary_from_keyword(key, convoID, cartKey, loadout= None, user_requested = False):
+async def get_summary_from_keyword(key, convoID, cartKey, client_loadout = None, target_loadout= None, user_requested = False):
 
     sources_to_return = []
 
@@ -145,7 +145,7 @@ async def get_summary_from_keyword(key, convoID, cartKey, loadout= None, user_re
             if isinstance(sources, list):
                 for meta in sources:
                     print(meta)
-                    source_val = await get_source_by_key(meta['source'], convoID, loadout)
+                    source_val = await get_source_by_key(meta['source'], convoID, target_loadout)
                     for key, val in source_val.items():
                         val.update({'type': 'summary'})
                         sources_to_return.append(val)
@@ -155,11 +155,11 @@ async def get_summary_from_keyword(key, convoID, cartKey, loadout= None, user_re
         payload = { 'parent': {'title':key}, 'children': sources_to_return, 'source': 'keyword'}    
         await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))  
 
-async def get_summary_from_insight(object, convoID, cartKey, loadout= None, user_requested = False):
+async def get_summary_from_insight(object, convoID, cartKey,  client_loadout = None, target_loadout= None, user_requested = False):
     sources_to_return = []
 
     if 'key' in object:
-        source_val = await get_source_by_key(object['key'], convoID, loadout)
+        source_val = await get_source_by_key(object['key'], convoID, target_loadout)
         for key, val in source_val.items():
             val.update({'type': 'summary'})
             sources_to_return.append(val)
@@ -188,10 +188,10 @@ async def get_message_by_key(id):
         message_json.update({'type': 'message'})
         return message_json
 
-async def get_source_by_key(key, convoID, loadout = None):
+async def get_source_by_key(key, convoID, client_loadout = None):
     print('getting source by key')
-    print('loadout: ' + str(loadout) + ' current loadout: ' + str(current_loadout[convoID]))
-    if loadout == current_loadout[convoID]:
+    print('loadout: ' + str(client_loadout) + ' current loadout: ' + str(current_loadout[convoID]))
+    if client_loadout == current_loadout[convoID]:
         print('getting summary by key')
         if isinstance(key, str):
             print('key is string')

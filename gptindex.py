@@ -8,7 +8,7 @@ from appHandler import app, websocket
 from sessionHandler import novaConvo, available_cartridges, cartdigeLookup
 import asyncio
 from human_id import generate_id
-from cartridges import addCartridgeTrigger, update_cartridge_field
+from cartridges import addCartridgeTrigger, update_cartridge_field, addCartridge, addCartridgePrompt
 from debug import eZprint
 from prismaHandler import prisma
 from prisma import Json
@@ -43,7 +43,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 #query Index
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
-async def indexDocument(payload, loadout = None):
+async def indexDocument(payload, client_loadout):
     eZprint('indexDocument called')
     print(payload)
 
@@ -66,18 +66,17 @@ async def indexDocument(payload, loadout = None):
             print(document)
         except:
             print('document not found')
-            payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
-            cartVal['status'] = 'doc not found'
-            input = {
-            'cartKey': tempKey,
-            'convoID': convoID,
-            'fields': {
-                'status': cartVal['status'],
-                },
-                'loadout' : loadout
-            }
-            await update_cartridge_field(input, loadout, system=True)
-
+            # payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
+            # cartVal['status'] = 'doc not found'
+            # input = {
+            # 'cartKey': tempKey,
+            # 'convoID': convoID,
+            # 'fields': {
+            #     'status': cartVal['status'],
+            #     },
+            #     'loadout' : client_loadout
+            # }
+            # await update_cartridge_field(input, client_loadout, system=True)
         print(document)
         
     elif payload['document_type'] == 'file':
@@ -157,29 +156,18 @@ async def indexDocument(payload, loadout = None):
         'type': 'index',
         'description': 'a document indexed to be queriable by NOVA',
         'enabled': True,
-        'blocks': [],
+        'blocks': {},
         'index': key,
         'status': 'index created, getting summary'
     }
 
-    cartUpdate = {
-        'userID' : userID,
-        'convoID' : convoID,
-        'cartVal': cartVal,
-        }
-
-    newCart = await addCartridgeTrigger(cartUpdate)
     input = {
-    'cartKey': tempKey,
     'convoID': convoID,
-    'fields': {
-        'label':cartVal['label'],
-        'status': cartVal['status'],
-        },
-        'loadout' : loadout
+    'tempKey': tempKey,
+    'newCart': {tempKey:cartVal}
     }
-    await update_cartridge_field(input, loadout, system=True)
-    eZprint('printing new cartridge')
+    newCart = await addCartridgePrompt(input, client_loadout)
+    
     return newCart
 
 async def reconstructIndex(indexJson):
@@ -368,7 +356,7 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
         #TODO - replace this ID lookup with a key lookup
         cartVal['state'] = ''
         cartVal['status'] = ''
-        print(cartVal)
+        # print(cartVal)
         if 'blocks' not in cartVal:
             cartVal['blocks'] = {}
         if 'queries' not in cartVal['blocks']:

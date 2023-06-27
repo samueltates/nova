@@ -330,17 +330,19 @@ async def process_message(parsed_data):
         key = parsed_data['data']['key']
         cartKey = parsed_data['data']['cartKey']
         type = parsed_data['data']['type']
+        client_loadout = parsed_data['data']['client-loadout']
+        target_loadout = parsed_data['data']['target-loadout']
 
         loadout = None
         if convoID in current_loadout:
             loadout = current_loadout[convoID]
 
         if type == 'summary':
-            await get_summary_children_by_key(key, convoID, cartKey, loadout)
+            await get_summary_children_by_key(key, convoID, cartKey, client_loadout, target_loadout)
         elif type == 'keyword':
-            await get_summary_from_keyword(key, convoID, cartKey, loadout, True)
+            await get_summary_from_keyword(key, convoID, cartKey, client_loadout, target_loadout, True)
         elif type == 'insight':
-            await get_summary_from_insight(key, convoID, cartKey, loadout, True)
+            await get_summary_from_insight(key, convoID, cartKey, client_loadout, target_loadout, True)
 
 
 file_chunks = {}
@@ -382,13 +384,17 @@ async def handle_indexdoc_end(data):
         'document_type': file_metadata['document_type'],
     }
 
-    indexRecord = await indexDocument(data)
-    if indexRecord:
-        payload = {
-            'tempKey': data['tempKey'],
-            'newCartridge': indexRecord.blob,
-        }
-    await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    convoID = data['convoID']
+    client_loadout = None
+    if convoID in current_loadout:
+        client_loadout = current_loadout[convoID]
+    indexRecord = await indexDocument(data, client_loadout)
+    # if indexRecord:
+    #     payload = {
+    #         'tempKey': data['tempKey'],
+    #         'newCartridge': indexRecord.blob,
+    #     }
+    # await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
     queryPackage = {
         'query': 'Give this document a short summary.',
         'cartKey': indexRecord.key,
@@ -396,10 +402,8 @@ async def handle_indexdoc_end(data):
         'userID': data['userID'],
     }
     convoID = data['convoID']
-    loadout = None
-    if convoID in current_loadout:
-        loadout = current_loadout[convoID]
-    await asyncio.create_task(handleIndexQuery(queryPackage,loadout))
+
+    await asyncio.create_task(handleIndexQuery(queryPackage, client_loadout))
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]

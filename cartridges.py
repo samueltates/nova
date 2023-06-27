@@ -30,7 +30,7 @@ async def get_cartridge_list(convoID):
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
 
 
-async def addCartridge(cartVal, convoID, loadout = None):
+async def addCartridge(cartVal, convoID, client_loadout = None):
     eZprint('add cartridge triggered')
     userID = novaConvo[convoID]['userID']
     cartKey = generate_id()
@@ -38,7 +38,7 @@ async def addCartridge(cartVal, convoID, loadout = None):
         cartVal.update({'key':cartKey})
 
     if current_loadout[convoID] != None:
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             await add_cartridge_to_loadout(convoID, cartKey)
             cartVal["softDelete"] = True
 
@@ -55,7 +55,7 @@ async def addCartridge(cartVal, convoID, loadout = None):
 
 
     if current_loadout[convoID] != None:
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             ##another stupid hack, this time to set it to avail as it isn't running the loadout change so setting it false for first load (or resetting)
             print('setting to not soft delete for current session')
             cartVal["softDelete"] = False
@@ -70,15 +70,15 @@ async def addCartridge(cartVal, convoID, loadout = None):
             'cartVal': cartVal,
         }
     
-    print('sending add cartridge event' + str(payload) + ' supplied loadout ' + str(loadout) +  ' curent loadout :  ' + str(current_loadout[convoID]))
-    if loadout == current_loadout[convoID]:
+    # print('sending add cartridge event' + str(payload) + ' supplied loadout ' + str(client_loadout) +  ' curent loadout :  ' + str(current_loadout[convoID]))
+    if client_loadout == current_loadout[convoID]:
         print('sending to websocket')
         await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
 
     return True
 
 
-async def addCartridgePrompt(input, loadout = None):
+async def addCartridgePrompt(input, client_loadout = None):
 
     eZprint('add cartridge prompt triggered')
     cartKey = generate_id()
@@ -89,7 +89,7 @@ async def addCartridgePrompt(input, loadout = None):
     userID = novaConvo[convoID]['userID']
 
     if current_loadout[convoID] != None:
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             print('adding to loadout so setting as deleted on main')
             await add_cartridge_to_loadout(convoID, cartKey)
             if 'softDelete' not in cartVal:
@@ -108,7 +108,7 @@ async def addCartridgePrompt(input, loadout = None):
     available_cartridges[convoID][cartKey] = cartVal
     
     if current_loadout[convoID] != None:
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             ##another stupid hack, this time to set it to avail as it isn't running the loadout change 
             print('in loadout at the moment so setting back to enabled as loadout mutate hasnt occured')
             cartVal["softDelete"] = False
@@ -118,8 +118,9 @@ async def addCartridgePrompt(input, loadout = None):
             'newCartridge': {cartKey:cartVal},
         }
         
-    if current_loadout[convoID] == loadout:
+    if current_loadout[convoID] == client_loadout:
         await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
+    return newCart
 
 async def add_existing_cartridge(input, loadout = None ):
 
@@ -168,7 +169,7 @@ async def add_existing_cartridge(input, loadout = None ):
 
 
 
-async def addCartridgeTrigger(input):
+async def addCartridgeTrigger(input, client_loadout = None):
     #TODO - very circular ' add index cartridge' triggered, goes to index, then back, then returns 
     #TODO - RENAME ADD CARTRIDGE INDEX
     cartKey = generate_id()
@@ -183,23 +184,29 @@ async def addCartridgeTrigger(input):
             'blob': Json({cartKey:{
                 'label': cartVal['label'],
                 'description': cartVal['description'],
-                # 'blocks':cartVal['blocks'],
                 'type': cartVal ['type'],   
                 'enabled': True,
                 'index':cartVal['index'],
             }})
         }
     )
-    eZprint('new index cartridge added to [nova]')
-    cartdigeLookup.update({cartKey: newCart.id}) 
+
     if convoID not in available_cartridges:
         available_cartridges[convoID] = {}
     available_cartridges[convoID][cartKey] = cartVal
-    await add_cartridge_to_loadout(convoID,cartKey)
+
+    if client_loadout:
+        await add_cartridge_to_loadout(convoID,cartKey)
+    if current_loadout[convoID] == client_loadout:
+        payload = {
+            'tempKey': input['tempKey'],
+            'newCartridge': {cartKey:cartVal},
+        }
+        await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
 
     return newCart
 
-async def update_cartridge_field(input, loadout = None, system = False):
+async def update_cartridge_field(input, client_loadout= None, system = False):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
     # print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
@@ -219,12 +226,12 @@ async def update_cartridge_field(input, loadout = None, system = False):
         # print('matched cart ' + str(matchedCart.id))
         matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
         # print ('checking loadout ' + str(loadout))
-        if loadout == current_loadout[convoID]:
+        if client_loadout == current_loadout[convoID]:
             # print('loadout match')
-            if loadout:
+            if client_loadout:
                 #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
                 # print('update settings in loadout')
-                await update_settings_in_loadout(convoID, targetCartKey, input['fields'], loadout)
+                await update_settings_in_loadout(convoID, targetCartKey, input['fields'], client_loadout)
                 for key, val in input['fields'].items():
                         if key == 'enabled':
                             continue
@@ -234,7 +241,7 @@ async def update_cartridge_field(input, loadout = None, system = False):
                             continue
                         matchedCartVal[key] = val
                 
-            elif loadout == None: 
+            elif client_loadout == None: 
                 #if not coming from loadout then applies to base
                 # print('update base cartridge')
 
@@ -252,7 +259,7 @@ async def update_cartridge_field(input, loadout = None, system = False):
                 # print('system update')
                 payload = { 'key':targetCartKey,
                            'fields': input['fields'], 
-                           'loadout': loadout,
+                           'loadout': client_loadout,
                                 }
 
                 await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))

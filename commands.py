@@ -68,7 +68,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         for key, val in available_cartridges[convoID].items():
             all_text += str(val)
             if 'filename' in args:
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                filename = args['filename']
+                if '_' in filename or '.' in filename:
+                    filename = args['filename'].replace('_', ' ')
+                    filename = filename.replace('.txt', '')
+                    filename = filename.lower()
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     print('found match' + str(val))
                     if 'type' in val and val['type'] == 'index':
                         print('index query')
@@ -84,29 +89,25 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         return command_return
 
                     if 'type' in val and val['type'] == 'summary':
-                        print('summary query')
-                        if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
 
-                            if 'query' in args:
-                                if 'blocks' in val:
-                                    response = await quick_query(str(val['blocks']), str(args['query']))
+                        if 'query' in args:
+                            if 'blocks' in val:
+                                response = await quick_query(str(val['blocks']), str(args['query']))
 
-                                command_return['status'] = "Success."
-                                command_return['message'] = "From " + args['filename']  + ": "+ response
-                                print(command_return)
-                                return command_return
+                            command_return['status'] = "Success."
+                            command_return['message'] = "From " + filename  + ": "+ response
+                            print(command_return)
+                            return command_return
                     if 'type' in val and val['type'] == 'note':
-                        print('note query')
-                        if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
 
-                            if 'query' in args:
-                                if 'text' in val:
-                                    response = await quick_query(val['text'], str(args['query']))
+                        if 'query' in args:
+                            if 'text' in val:
+                                response = await quick_query(val['text'], str(args['query']))
 
-                                command_return['status'] = "Success."
-                                command_return['message'] = "From " + args['filename']  + ": "+ response
-                                print(command_return)
-                                return command_return
+                            command_return['status'] = "Success."
+                            command_return['message'] = "From " + filename  + ": "+ response
+                            print(command_return)
+                            return command_return
                             
         print('all text query')
         print(all_text)
@@ -120,10 +121,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if 'create' in name or name in 'create':
         eZprint('create file')
         if 'filename' in args:
-            print(args['filename'])
-
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     payload = {
                     'cartKey' : key,
                     'convoID' : convoID,
@@ -134,28 +138,33 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     
                     update_cartridge_field(payload)
                     command_return['status'] = "Success."
-                    command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
+                    command_return['message'] = "file '" +filename  + "' exists, so appending to file"
                     print(command_return)
                     return command_return
-                
             
+        
             cartVal = {
-            'label' : args['filename'],
+            'label' : filename,
             'text' : args['text'],
             'type' : 'note'
             }
             print(cartVal)
             await addCartridge(cartVal, convoID, current_loadout[convoID])
             command_return['status'] = "Success."
-            command_return['message'] = "file " +args['filename']  + " created"
+            command_return['message'] = "file " +filename  + " created"
             print(command_return)
             return command_return
         
     if 'write' in name or name in 'write':
         eZprint('writing file')
         if 'filename' in args:
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                         print('file exists so appending')
                         val['text'] += "\n"+args['text']
                         payload = {
@@ -167,13 +176,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         loadout = current_loadout[convoID]
                         await update_cartridge_field(payload,loadout, True)
                         command_return['status'] = "Success."
-                        command_return['message'] = "file " +args['filename']  + " exists, so appending to file"
+                        command_return['message'] = "file '" +filename  + "' exists, so appending to file"
                         print(command_return)
                         return command_return
                 
                 
             cartVal = {
-            'label' : args['filename'],
+            'label' : filename,
             'text' :args['text'],
             'type' : 'note',
             'enabled' : True,
@@ -184,7 +193,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             await addCartridge(cartVal, convoID, current_loadout[convoID])
 
             command_return['status'] = "Success."
-            command_return['message'] = "file " +args['filename']  + " written"
+            command_return['message'] = "file '" + filename  + "' written"
             print(command_return)
             return command_return
             
@@ -195,8 +204,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if 'append' in name or name in 'append':
         eZprint('appending file')
         if 'filename' in args:
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'label' in val and args['filename'].lower() in val['label'].lower() or args['filename'].lower() in val['label'].lower():
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     current_text = val['text']
                     current_text += '\n' + args['text']
                     val['text'] = current_text
@@ -231,8 +245,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name in 'preview' or 'preview' in name:
         eZprint('previewing file')
         if 'filename' in args:
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     preview_string = val['label'] + '\n'
                     if 'blocks' in val:
                         for block in val['blocks']:
@@ -259,21 +278,24 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name in 'open' or 'open' in name :
         eZprint('reading file')
         if 'filename' in args:
-            print(available_cartridges[convoID])
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                print(val, args['filename'])
-                return_string = ''
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
+                    return_string = ''
                     print('file found')
                     if 'enabled' not in val:
                         val['enabled'] = True
                     if val['enabled'] == False:
                         val['enabled'] = True
                         val['minimised'] = False
-                        return_string += "File " + args['filename'] + " opened.\n"
+                        return_string += "File " + filename + " opened.\n"
                     else:
                         val['minimised'] = False
-                        return_string += "File " + args['filename'] + " already open.\n"
+                        return_string += "File " + filename + " already open.\n"
                     
                     payload = {
                         'convoID': convoID,
@@ -300,9 +322,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name in 'close' or 'close' in name :
         eZprint('closing file')
         if 'filename' in args:
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                print(args['filename'], val)
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     return_string = ''
                     if 'enabled' not in val:
                         val['enabled'] = False
@@ -336,8 +362,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name in 'delete' or 'delete' in name :
         eZprint('deleting file')
         if 'filename' in args:
+            filename = args['filename']
+            if '_' in filename or '.' in filename:
+                filename = args['filename'].replace('_', ' ')
+                filename = filename.replace('.txt', '')
+                filename = filename.lower()
             for key, val in available_cartridges[convoID].items():
-                if 'filename' in args and 'label' in val and ((val['label'].lower() in args['filename'].lower()) or (args['filename'].lower() in val['label'].lower())):
+                if 'label' in val and ((val['label'].lower() in filename) or (filename in val['label'].lower())):
                     val['softDelete'] = True
                     return_string += "File " + args['filename'] + " deleted.\n"
 
