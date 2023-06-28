@@ -562,9 +562,6 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
                             'blocks' : blocks
                         }
                         update_cartridge_field(input, loadout)
-        print('text to query: ' + text_to_query)
-
-
     # if 'insights' in blocks:
     #     print('insights')
     #     text_to_query += "Insights: \n"
@@ -618,7 +615,7 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
                     else:
                         text_to_query += str(child) + "\n"
         print('text to query: ' + text_to_query)
-        response = await quick_query(text_to_query, text_to_query)
+        response = await quick_query(text_to_query, str(query))
         response = str(response)
         print(response)
         return response

@@ -45,7 +45,7 @@ from llama_index.indices.query.query_transform.base import StepDecomposeQueryTra
 
 async def indexDocument(payload, client_loadout):
     eZprint('indexDocument called')
-    print(payload)
+    # print(payload)
 
     userID = payload['userID']
     indexType = payload['indexType']
@@ -58,12 +58,12 @@ async def indexDocument(payload, client_loadout):
         print('google doc triggered')
         gDocID = payload['gDocID']
         loader = GoogleDocsReader() 
-        print(loader)
+        # print(loader)
         try:
             print('loading data')
             document = await loader.load_data([gDocID], sessionID)
             documentTitle = await loader._get_title(str(gDocID), sessionID)
-            print(document)
+            # print(document)
         except:
             print('document not found')
             # payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
@@ -77,7 +77,7 @@ async def indexDocument(payload, client_loadout):
             #     'loadout' : client_loadout
             # }
             # await update_cartridge_field(input, client_loadout, system=True)
-        print(document)
+        # print(document)
         
     elif payload['document_type'] == 'file':
         file_content = payload['file_content']
@@ -87,7 +87,7 @@ async def indexDocument(payload, client_loadout):
         eZprint('reconstructing file')
         payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
         await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-        print(file_type)
+        # print(file_type)
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
         temp_file.write(file_content)
 
@@ -111,12 +111,12 @@ async def indexDocument(payload, client_loadout):
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
     tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
     index.storage_context.persist(tmpDir)
-    print(tmpDir)
+    # print(tmpDir)
     indexJson = dict()
     for file in os.listdir(tmpDir):
         if file.endswith(".json"):
             content = json.load(open(os.path.join(tmpDir, file)))
-            print(content)
+            # print(content)
             indexJson.update({file:content})
   
 
@@ -225,16 +225,16 @@ async def quick_query(text, query):
 
 
 def quicker_query(text, query, meta = '' ):
-    print(text)
+    # print(text)
     document = Document(text, extra_info=meta)
     logger = LlamaLogger()
     logger.set_log_level(logging.DEBUG)
     index = GPTVectorStoreIndex.from_documents([document])
     nodes = index.docstore.get_nodes()
-    print(nodes)
+    # print(nodes)
     query_engine = index.as_query_engine()
     response = query_engine.query(query)
-    print(response)
+    # print(response)
 
 
 
@@ -293,7 +293,8 @@ async def handleIndexQuery(input, loadout = None):
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index_key = cartVal['index']
         index = await get_index_json(index_key)
-        await triggerQueryIndex(convoID, cartKey, cartVal, query, index, index_key, loadout )
+        response = await triggerQueryIndex(convoID, cartKey, cartVal, query, index, index_key, loadout )
+        return response
 
 
 async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_key, loadout = None):
@@ -383,6 +384,7 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
             'loadout' : loadout
         }
         await update_cartridge_field(input, loadout, system=True)
+        return insert
 
         
 async def get_index_json(index_key):

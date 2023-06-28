@@ -46,7 +46,6 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n\n"
-
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
@@ -91,7 +90,8 @@ async def construct_string(prompt_objects, convoID):
     # print('constructing string')
     final_string = ''
 
-    if 'prompt' in prompt_objects:
+    if 'prompt' in prompt_objects:    
+        final_string += "\n__________________________\nPrompts:\n"
         final_string += prompt_objects['prompt']['string']
     final_string += "\n__________________________\nFiles available:\n"
     if 'note' in prompt_objects:
@@ -174,6 +174,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         if 'string' in prompt_objects['system']:
             final_prompt_string += "\n"+prompt_objects['system']['string']
         if 'values' in prompt_objects['system']:
+            print('values found')
             for value in prompt_objects['system']['values']:
                 if 'auto-summarise' in value:
                     if value['auto-summarise'] == True:
