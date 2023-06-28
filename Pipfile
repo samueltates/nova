@@ -40,5 +40,6 @@ quart-auth = "*"
 redis = "*"
 quart-redis = "*"
 random-word = "*"
+levenshtein = "*"
 
 [dev-packages]
