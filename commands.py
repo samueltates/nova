@@ -81,9 +81,9 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             for key, val in available_cartridges[convoID].items():
                 all_text += str(val)
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
+                # print('distance: ' + str(string_match))
+                # print('filename: ' + filename)
+                # print('label: ' + str(val['label']))
                 if string_match < 3:
                     payload = {
                     'cartKey' : key,
@@ -114,17 +114,20 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         
     if 'write' in name or name in 'write':
         eZprint('writing file')
+        text = ''
+        if 'text' in args:
+            text = args['text']
         if 'filename' in args:
             filename = args['filename']
 
             for key, val in available_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
+                # print('distance: ' + str(string_match))
+                # print('filename: ' + filename)
+                # print('label: ' + str(val['label']))
                 if string_match < 3:
                     print('file exists so appending')
-                    val['text'] += "\n"+args['text']
+                    val['text'] += "\n"+text
                     payload = {
                         'convoID': convoID,
                         'cartKey' : key,
@@ -138,10 +141,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     print(command_return)
                     return command_return
                 
-                
+
             cartVal = {
             'label' : filename,
-            'text' :args['text'],
+            'text' :text,
             'type' : 'note',
             'enabled' : True,
             'minimised' : False,
@@ -161,18 +164,17 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     if 'append' in name or name in 'append':
         eZprint('appending file')
+        if 'text' in args:
+            text = args['text']
         if 'filename' in args:
             filename = args['filename']
 
+
             for key, val in available_cartridges[convoID].items():
-                all_text += str(val)
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
                 if string_match < 3:
                     current_text = val['text']
-                    current_text += '\n' + args['text']
+                    current_text += '\n\n' + text
                     val['text'] = current_text
 
                     payload = {
@@ -189,7 +191,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     return command_return
             cartVal = {
             'label' : args['filename'],
-            'text' :args['text'],
+            'text' : text,
             'type' : 'note'
             }
 
@@ -211,13 +213,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             for key, val in available_cartridges[convoID].items():
                 all_text += str(val)
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
                 if string_match < 3:
                     preview_string = val['label'] + '\n'
                     if 'blocks' in val:
-                        preview_string += val['blocks'] + '\n'
+                        preview_string += str(val['blocks'] )+ '\n'
                         # if isinstance(val['blocks'], list):
                         #     for block in val['blocks']:
                         #         if isinstance(block, dict):
@@ -254,9 +253,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             for key, val in available_cartridges[convoID].items():
                 all_text += str(val)
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
                 if string_match < 3:
                     return_string = ''
                     if 'enabled' not in val:
@@ -294,9 +290,9 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             filename = args['filename']
             for key, val in available_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
-                print('distance: ' + str(string_match))
-                print('filename: ' + filename)
-                print('label: ' + str(val['label']))
+                # print('distance: ' + str(string_match))
+                # print('filename: ' + filename)
+                # print('label: ' + str(val['label']))
                 if string_match < 3:
                     val['softDelete'] = True
                     return_string += "File " + args['filename'] + " deleted.\n"
@@ -358,9 +354,9 @@ async def open_file(name, args, convoID, loadout):
         filename = args['filename']
         for cartKey, cartVal in available_cartridges[convoID].items():
             string_match = distance(filename, str(cartVal['label']))
-            print('distance: ' + str(string_match))
-            print('filename: ' + filename)
-            print('label: ' + str(cartVal['label']))
+            # print('distance: ' + str(string_match))
+            # print('filename: ' + filename)
+            # print('label: ' + str(cartVal['label']))
             if string_match < 3:
                 print('found match' + str(cartVal))
         
@@ -403,7 +399,7 @@ async def open_file(name, args, convoID, loadout):
                                         children = await get_summary_children_by_key(summaryKey, convoID, cartKey, loadout)
                                         if children:
                                             for child in children:
-                                                print('child' + str(child))
+                                                # print('child' + str(child))
                                                 cartVal['blocks']['summaries'].append(child)
 
                                             input = {
@@ -441,9 +437,9 @@ async def broad_query(name, args, convoID, loadout):
         for cartKey, cartVal in available_cartridges[convoID].items():
             all_text += str(cartVal)
             string_match = distance(filename, str(cartVal['label']))
-            print('distance: ' + str(string_match))
-            print('filename: ' + filename)
-            print('label: ' + str(cartVal['label']))
+            # print('distance: ' + str(string_match))
+            # print('filename: ' + filename)
+            # print('label: ' + str(cartVal['label']))
             if string_match < 3:
                 print('found match' + str(cartVal['label']))
                 if 'type' in cartVal and cartVal['type'] == 'index':
@@ -498,16 +494,17 @@ async def broad_query(name, args, convoID, loadout):
                             for summaryKey, summaryVal in summaries.items():
                                 if 'title' in summaryVal:
                                     similarity = distance(filename, summaryVal['title'])
-                                    print('distance: ' + str(similarity))
-                                    print('filename: ' + filename)
-                                    print('label: ' + str(summaryVal['title']))
+                                    # print('distance: ' + str(similarity))
+                                    # print('filename: ' + filename)
+                                    # print('label: ' + str(summaryVal['title']))
                                     if similarity <3:
                                         print('found match' + str(summaryVal))
-                                        response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
-                                        command_return['status'] = "Success."
-                                        command_return['message'] = "From " + filename  + ": "+ response
-                                        print(command_return)
-                                        return command_return
+                                        if 'query' in args:
+                                            response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
+                                            command_return['status'] = "Success."
+                                            command_return['message'] = "From " + filename  + ": "+ response
+                                            print(command_return)
+                                            return command_return
                                     
     print('all text query')
     print(all_text)
@@ -598,7 +595,7 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
         to_open = ''
         for key, val in blocks['keywords'].items():
             similarity = distance(str(query), str(key))
-            print('checking for matches ' + str(query) + ' ' + str(key) + ' ' + str(similarity))
+            # print('checking for matches ' + str(query) + ' ' + str(key) + ' ' + str(similarity))
             if similarity > closest:
                 closest = similarity
                 for element in val:

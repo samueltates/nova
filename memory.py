@@ -193,7 +193,7 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
         if response != '':
             if 'blocks' not in cartVal:
                 cartVal['blocks'] = {}
-            cartVal['blocks']['overview'] = response
+            cartVal['blocks']['overview'] = str(response)
             # print('getting overview of summary')
             if client_loadout == current_loadout[convoID]:
                 cartVal['state'] = ''
@@ -397,36 +397,45 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
 
     if record_type == 'message':
         # print('record type is message')
-        updated_message = await prisma.message.update(
+        remote_message = await prisma.message.find_first(
             where={
-                'id': record_ID,
-            },
-            data={
-                'summarised': True,
-                'minimised': True,
-                'muted': True,            
+            'key': record_ID,
             }
         )
+
+        if remote_message:
+
+            updated_message = await prisma.message.update(
+                where={
+                    'id': remote_message.id,
+                },
+                data={
+                    'summarised': True,
+                    'minimised': True,
+                    'muted': True,            
+                }
+            )
 
     if record_type == 'summary':
         # print('record type is summary')
         target_summary = await prisma.summary.find_first(
             where={
-            'id': record_ID,
+            'key': record_ID,
             }
         )
-        summary_blob = json.loads(target_summary.json())['blob']
-        for key, val in summary_blob.items():
-            val['summarised'] = True
-            val['minimised'] = True
-            val['muted'] = True
+        if target_summary:
+            summary_blob = json.loads(target_summary.json())['blob']
+            for key, val in summary_blob.items():
+                val['summarised'] = True
+                val['minimised'] = True
+                val['muted'] = True
 
-        updated_summary = await prisma.summary.update(
-            where={ 'id': record_ID },
-            data={
-                'blob': Json({key:val}),
-            }
-        )
+            updated_summary = await prisma.summary.update(
+                where={ 'id': target_summary.id },
+                data={
+                    'blob': Json({key:val}),
+                }
+            )
  
 ##GROUP SUMMARY FLOWS
 async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "Summarise this text."):
@@ -848,6 +857,7 @@ async def summariseChatBlocks(input,  loadout = None):
     eZprint('summarising chat blocks')
     convoID = input['convoID']
     messageIDs = input['messageIDs']
+
     summaryID = input['summaryID']
     userID = novaConvo[convoID]['userID']
     messages_string = ''
@@ -859,7 +869,8 @@ async def summariseChatBlocks(input,  loadout = None):
         for log in chatlog[convoID]:
             if messageID == log['ID']:
                 if sessionID == '':
-                    log['sessionID']
+                    if 'sessionID' in log:
+                        sessionID = log['sessionID']
                 messagesToSummarise.append(log)
                 if start_message == None:
                     start_message = log

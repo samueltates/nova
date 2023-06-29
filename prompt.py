@@ -323,8 +323,8 @@ async def construct_commands(command_object, thread = 0):
 async def handle_token_limit(convoID):
     print('handling token limit')
     truncuate = False
-    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID, 'prompt')
-    chat_too_long = await get_token_warning(current_prompt[convoID]['chat'], .7, convoID, 'chat')
+    # prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID, 'prompt')
+    chat_too_long = await get_token_warning(current_prompt[convoID]['prompt']+ current_prompt[convoID]['chat'], .6, convoID, 'chat')
     if chat_too_long: 
         await summarise_percent(convoID, .5)
         truncuate = True

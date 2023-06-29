@@ -335,7 +335,8 @@ async def simple_agent_response(convoID):
                             json_object = await parse_json_string(chat['content'])
                             if json_object != None:
                                 response = await get_json_val(json_object, 'speak')
-                                chat['content'] = response
+                                chat['content'] = str(response)
+                            chat['content'] = str(chat['content'])
 
                     elif chat['role'] == 'user':
                         chat['role'] = 'assistant'
