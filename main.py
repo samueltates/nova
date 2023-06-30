@@ -330,10 +330,15 @@ async def process_message(parsed_data):
         key = parsed_data['data']['key']
         cartKey = parsed_data['data']['cartKey']
         type = parsed_data['data']['type']
-        client_loadout = parsed_data['data']['client-loadout']
-        target_loadout = parsed_data['data']['target-loadout']
+        if 'client-loadout' in parsed_data['data']:
+            client_loadout = parsed_data['data']['client-loadout']
+        else:
+            client_loadout = None
+        if 'target-loadout' in parsed_data['data']:
+            target_loadout = parsed_data['data']['target-loadout']
+        else:
+            target_loadout = None
 
-        loadout = None
         if convoID in current_loadout:
             loadout = current_loadout[convoID]
 

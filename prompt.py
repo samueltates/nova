@@ -2,7 +2,7 @@ import asyncio
 import json
 from debug import eZprint
 from appHandler import app, websocket
-from sessionHandler import available_cartridges, chatlog, novaConvo
+from sessionHandler import available_cartridges, chatlog, novaConvo, current_loadout
 from memory import get_sessions, summarise_percent
 from commands import system_threads, command_loops
 from query import sendChat
@@ -109,8 +109,10 @@ async def construct_chat(convoID, thread = 0):
     current_chat = []
     # print('constructing chat for thread ' + str(thread))
     if convoID in chatlog:
+        print(chatlog[convoID])
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
+                print('log is: ' + str(log))
                 if 'thread' in log and thread > 0:
                     if log['thread'] == thread:
                         # print('thread indicator found so breaking main chat')
@@ -323,14 +325,15 @@ async def construct_commands(command_object, thread = 0):
 async def handle_token_limit(convoID):
     print('handling token limit')
     truncuate = False
-    # prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .2, convoID, 'prompt')
-    chat_too_long = await get_token_warning(current_prompt[convoID]['prompt']+ current_prompt[convoID]['chat'], .6, convoID, 'chat')
+    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'], .3, convoID, 'prompt')
+    # print(str(current_prompt[convoID]['chat'])+ str(current_prompt[convoID]['prompt']))
+    chat_too_long = await get_token_warning(current_prompt[convoID]['chat'], .6, convoID, 'chat')
     if chat_too_long: 
         await summarise_percent(convoID, .5)
         truncuate = True
-    # if prompt_too_long:
-    #     handle_prompt_context(convoID)
-    #     truncuate = True
+    if prompt_too_long:
+        await handle_prompt_context(convoID)
+        truncuate = True
     return truncuate
         
 
@@ -342,7 +345,15 @@ async def handle_prompt_context(convoID):
         if cartVal.get('enabled', True):
             if cartVal['type'] == 'note' or cartVal['type'] == 'summary' or cartVal['type'] == 'index':
                 cartVal['minimised'] = True
-                await update_cartridge_field(convoID, cartVal)
+                input = {
+                    'convoID':convoID,
+                    'cartKey':cartVal['key'],
+                    'fields':{
+                        'minimised':True
+                    }
+                }
+                loadout = current_loadout[convoID]
+                await update_cartridge_field(input,loadout, True )
     
 
 token_usage = {}

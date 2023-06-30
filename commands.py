@@ -508,7 +508,11 @@ async def broad_query(name, args, convoID, loadout):
                                     
     print('all text query')
     print(all_text)
-    response = await quick_query(all_text, str(args['query']))
+    query = ''
+    if 'query' in args:
+        query = args['query']
+
+    response = await quick_query(all_text, str(query))
     print(response)
     command_return['status'] = "Return."
     command_return['message'] = "File not found, results from all text search : " + str(response)

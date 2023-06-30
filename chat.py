@@ -16,6 +16,7 @@ from query import sendChat
 from commands import handle_commands, system_threads, command_loops
 from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
+from cartridges import updateContentField
 agentName = 'nova'
 
 
@@ -47,7 +48,7 @@ async def user_input(sessionData):
 
     # print(availableCartridges[convoID])
     message = userName + ': ' + message
-    await handle_message(convoID, message, 'user', userName, sessionData['ID'])
+    await handle_message(convoID, message, 'user', userName, sessionData['key'])
     await construct_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
 
@@ -81,7 +82,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     
     messageObject = {
         "sessionID": sessionID,
-        "ID": key, ##actually sending what is stored as key
+        "key": key,
         "userName": userName,
         "userID": str(userID),
         "body": message,
@@ -90,6 +91,20 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "order": order,
         "thread": thread,
     }
+
+    id = await logMessage(messageObject)
+    # print('message logged' + str(id)    )
+    # input = {
+    #     'convoID':convoID,
+    #     'key':key,
+    #     'fields': {'id' : id}
+    # }
+    # updateContentField(input)
+    messageObject['id'] = id
+    copiedMessage = deepcopy(messageObject)
+    # print(copiedMessage)
+    
+    command = None
 
     if thread:
         ##TODO : command returns can give those deeper functions, and include 'close' to close loop
@@ -120,11 +135,6 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     else:     
         chatlog[convoID].append(messageObject)
 
-    await logMessage(messageObject)
-    copiedMessage = deepcopy(messageObject)
-    # print(copiedMessage)
-    
-    command = None
     simple_response = None
 
     if role == 'assistant' :
@@ -399,7 +409,7 @@ async def logMessage(messageObject):
     # print(messageObject)
     message = await prisma.message.create(
         data={
-            "key": messageObject['ID'],
+            "key": messageObject['key'],
             "UserID": str(messageObject['userID']),
             "SessionID": str(messageObject['sessionID']),
             "name": str(messageObject['userName']),
@@ -407,6 +417,8 @@ async def logMessage(messageObject):
             "body": str(messageObject['body']),
         }
     )
+    # print('message record is : ' + str(message))
+    return message.id
 
 
 

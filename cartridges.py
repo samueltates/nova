@@ -270,7 +270,7 @@ async def updateContentField(input):
     convoID = input['convoID']
     # print('update chatlog field')
     for log in chatlog[convoID]:
-        if log['ID'] == input['ID']:
-            for key, val in input['fields'].items():
-                log[key] = val
+        if log['key'] == input['key']:
+            for fieldKey, fieldVal in input['fields'].items():
+                log[fieldKey] = fieldVal
     # await getChatEstimate(convoID)

@@ -337,7 +337,7 @@ async def summarise_messages(userID, convoID, target_loadout = None):
         for message in messages:
             if message.SessionID == conversation.SessionID:
                 print('found message match')
-                # print(message)
+                print(message)
                 if meta == ' ':
                     format = '%Y-%m-%dT%H:%M:%S.%f%z'
                     date = datetime.strptime(message.timestamp, format)
@@ -399,7 +399,7 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
         # print('record type is message')
         remote_message = await prisma.message.find_first(
             where={
-            'key': record_ID,
+            'id': record_ID,
             }
         )
 
@@ -420,7 +420,7 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
         # print('record type is summary')
         target_summary = await prisma.summary.find_first(
             where={
-            'key': record_ID,
+            'id': record_ID,
             }
         )
         if target_summary:
@@ -448,10 +448,10 @@ async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "
         counter += 1
         epoch = batch['epoch'] +1
         summary = await get_summary_with_prompt(prompt, str(batch['toSummarise']))
-        summaryID = secrets.token_bytes(4).hex()
+        summaryKey = secrets.token_bytes(4).hex()
         eZprint('summary complete')
         # print(summary)
-        await create_summary_record(userID, batch['ids'], summaryID, summary, epoch, batch['meta'], convoID, loadout)
+        await create_summary_record(userID, batch['ids'], summaryKey, summary, epoch, batch['meta'], convoID, loadout)
 
 
         # except:
@@ -459,7 +459,7 @@ async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "
 
 
 
-async def create_summary_record(userID, sourceIDs, summaryID, summary, epoch, meta = {}, convoID = '', loadout =None):
+async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, meta = {}, convoID = '', loadout =None):
     # print(summary)
     eZprint('creating summary record')
     print(summary)
@@ -476,7 +476,7 @@ async def create_summary_record(userID, sourceIDs, summaryID, summary, epoch, me
         summarDict.update({'meta': meta})
         summarDict.update({'epoch': epoch})
         summarDict.update({'summarised': False})
-        summarDict.update({'key': summaryID})
+        summarDict.update({'key': summaryKey})
         
         SessionID = convoID
         if loadout:
@@ -484,18 +484,20 @@ async def create_summary_record(userID, sourceIDs, summaryID, summary, epoch, me
 
         summary = await prisma.summary.create(
             data={
-                "key": summaryID,
+                "key": summaryKey,
                 'SessionID' : SessionID,
                 "UserID": userID,
                 "timestamp": datetime.now(),
-                "blob": Json({summaryID:summarDict})
+                "blob": Json({summaryKey:summarDict})
 
             }
         )
 
+    summaryID = summary.id
     # if success:
     for id in sourceIDs:
         await update_record(id, meta['type'], convoID, loadout)    
+    return summaryID
 
 ##MOST GENERIC SUMMARY FUNCTIONS
 
@@ -799,35 +801,43 @@ Ensure that the summary captures the broad strokes of all conversations in one s
 
 async def summarise_percent(convoID, percent):
     eZprint('summarising percent')
-    summaryID = secrets.token_bytes(4).hex()
-    to_summarise = []
+    summaryKey = secrets.token_bytes(4).hex()
+    message_IDs = []
     counter = 0
+    message_keys = []
     max = len(chatlog[convoID]) * percent
+    print(chatlog[convoID])
     for log in chatlog[convoID]:
+        # print(log)
         if 'summarised' not in log:
             if counter <= max:
-                # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
-                to_summarise.append(log['ID'])
+                print(log)
+                eZprint('adding to summarise' + str(log))
+                message_IDs.append(log['id'])
+                message_keys.append(log['key'])
                 counter += 1
 
     summary_block = {
         'convoID': convoID,
-        'messageIDs': to_summarise,
-        'summaryID': summaryID,
+        'messageIDs': message_IDs,
+        'summaryKey': summaryKey,
     }
 
-    payload = {'summaryID':summaryID, 'messages': to_summarise}
+    payload = {'summaryKey':summaryKey, 'messages': message_keys}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
 
-    await summariseChatBlocks(summary_block)
+    summary_result = await summariseChatBlocks(summary_block)
+    return summary_result
 
 async def summarise_from_range(convoID, start, end):
 
     start = int(start)
     end = int(end)
     eZprint('summarising from range')
-    summaryID = secrets.token_bytes(4).hex()
-    to_summarise = []
+    summaryKey = secrets.token_bytes(4).hex()
+    message_IDs = []
+    message_keys = []
+
     print(chatlog[convoID])
 
     counter = 0
@@ -837,16 +847,17 @@ async def summarise_from_range(convoID, start, end):
             if log['summarised'] == False:
                 if counter >= start and counter <= end:
                     # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
-                    to_summarise.append(log['ID'])
+                    message_IDs.append(log['id'])
+                    message_keys.append(log['key'])
         counter += 1
 
     summary_block = {
         'convoID': convoID,
-        'messageIDs': to_summarise,
-        'summaryID': summaryID,
+        'messageIDs': message_IDs,
+        'summaryKey': summaryKey,
     }
 
-    payload = {'summaryID':summaryID, 'messages': to_summarise}
+    payload = {'summaryKey':summaryKey, 'messages': message_keys}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
     summary_result = await summariseChatBlocks(summary_block)
     return summary_result
@@ -856,18 +867,33 @@ async def summarise_from_range(convoID, start, end):
 async def summariseChatBlocks(input,  loadout = None):
     eZprint('summarising chat blocks')
     convoID = input['convoID']
-    messageIDs = input['messageIDs']
+    if 'messageIDs' in input:
+        messageIDs = input['messageIDs']
+    else:
+        messageIDs = []
+        if 'messageKeys' in input:
+            ##if coming from client doesn't have id, so using key to find ID
+            for key in input['messageKeys']:
+                for log in chatlog[convoID]:
+                    if key == log['key']:
+                        if 'summarised' not in log:
+                            messageIDs.append(log['id'])
+                            messageIDs.append(log['id'])
 
-    summaryID = input['summaryID']
+
+    summaryKey = input['summaryKey']
     userID = novaConvo[convoID]['userID']
     messages_string = ''
     messagesToSummarise = []
     start_message = None
     sessionID = ''
 
+    print('checking message ID list for messages to summarise' + str(messageIDs))
     for messageID in messageIDs:
         for log in chatlog[convoID]:
-            if messageID == log['ID']:
+            # print(str(log['id']) + ' ' + str(messageID))
+            if messageID == log['id']:
+                # print('found message to summarise' + str(log))
                 if sessionID == '':
                     if 'sessionID' in log:
                         sessionID = log['sessionID']
@@ -875,7 +901,7 @@ async def summariseChatBlocks(input,  loadout = None):
                 if start_message == None:
                     start_message = log
                 if 'name' in log:
-                    messages_string += str(log['name']) + ': '
+                    messages_string += str(log['userName']) + ': '
                 if 'title' in log:
                     messages_string += str(log['title']) + ': '
                 if 'body' in log:
@@ -883,10 +909,12 @@ async def summariseChatBlocks(input,  loadout = None):
                 if 'timestamp' in log:
                     messages_string += ' ' + str(log['timestamp'])
                 messages_string += '\n'
+
+                # print('running message string is ' + str(messages_string)) 
                 
                 
-    print(messages_string)
-    print(len(messages_string))
+    # print(messages_string)
+    # print(len(messages_string))
     payload = []   
     summary= ""
     prompt = """
@@ -914,7 +942,7 @@ async def summariseChatBlocks(input,  loadout = None):
     for key, value in summarDict.items():
       fields[key] = value
     fields['state'] = ''
-    payload = {'ID':summaryID, 'fields':fields}
+    payload = {'key':summaryKey, 'fields':fields}
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     date = datetime.now()
     # summarDict.update({'sources':messageIDs})
@@ -928,16 +956,16 @@ async def summariseChatBlocks(input,  loadout = None):
 
     }    
     # print(summarDict)
-
-    await create_summary_record(userID, messageIDs,summaryID, summary, 0, meta, convoID, loadout)
+    summaryID = None
+    summaryID = await create_summary_record(userID, messageIDs, summaryKey, summary, 0, meta, convoID, loadout)
     # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index(start_message) 
-    chatlog[convoID].insert(injectPosition, {'ID':summaryID, 'name': 'summary', 'title':summarDict['title'], 'role':'user', 'body': summarDict['body'],'timestamp':datetime.now(),'summaryID':summaryID})
+    chatlog[convoID].insert(injectPosition, {'id':summaryID, 'userName': 'summary', 'title':summarDict['title'], 'role':'user', 'body': summarDict['body'],'timestamp':datetime.now(),'key':summaryKey})
     # print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
-            where={'key': log['ID']}
+            where={'id': log['id']}
         )
         if remoteMessage:
             updatedMessage = await prisma.message.update(
@@ -948,11 +976,13 @@ async def summariseChatBlocks(input,  loadout = None):
                     'minimised': True,
                  }
             )
-            log['summarised'] = True
-            log['muted'] = True
-            log['minimised'] = True
-            payload = {'ID':log['ID'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
+            payload = {'key':log['key'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
             await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+        # print('updated message' + str(log))
+        log['summarised'] = True
+        log['muted'] = True
+        log['minimised'] = True
+    print('summary update complete')
     # print(chatlog[convoID])
     return True
 
