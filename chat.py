@@ -47,7 +47,8 @@ async def user_input(sessionData):
     userName = novaConvo[convoID]['userName']
 
     # print(availableCartridges[convoID])
-    message = userName + ': ' + message
+    if 'command' in novaConvo[convoID]:
+        message = userName + ': ' + message
     await handle_message(convoID, message, 'user', userName, sessionData['key'])
     await construct_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
@@ -153,8 +154,17 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 # if command:
                 # print('command', command)
                 copiedMessage['body'] = json_object
+                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
-            # print('json object', json_object)
+        else:
+            message = copiedMessage['body']
+            # json_wrapped = '{"thoughts": { "speak " : "' + message + '"} }'
+            # json_object = await parse_json_string(json_wrapped)
+            # print('wrapping in json for return object')
+            # print (json_object)
+            # if json_object != None:
+            #     copiedMessage['body'] = json_object
+            #     print('copied message')
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
         # print(copiedMessage)

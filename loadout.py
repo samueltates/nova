@@ -13,15 +13,29 @@ async def get_loadouts(convoID):
         where={ "UserID": userID },
     )
 
-
     # del current_loadout[convoID]
     available_loadouts[convoID] = {}
     for loadout in loadouts:
-        # print(loadout)
+        print(loadout)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             available_loadouts[convoID][key] = val
-    
+
+    user_details = await prisma.user.find_first(
+        where={ "UserID": userID },
+    )
+
+    if user_details:
+        userBlob = json.loads(user_details.json())['blob']
+        print(userBlob)
+        if 'current_loadout' not in userBlob:
+            current_loadout[convoID] = None
+        else:
+            if userBlob['current_loadout']:
+                current_loadout[convoID] = userBlob['current_loadout']
+                await set_loadout(current_loadout[convoID], convoID)
+                await websocket.send(json.dumps({'event': 'set_loadout', 'payload': current_loadout[convoID]}))
+
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[convoID]}))
 
 async def add_loadout(loadout: str, convoID):
@@ -55,8 +69,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": current_loadout[convoID] },
     )
-    # print('loadout found')
-    # print(remote_loadout)
+
     if remote_loadout:
         blob = json.loads(remote_loadout.json())['blob']
         for key, val in blob.items():
@@ -112,28 +125,45 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
                 }
         )
 
-        # print(update)
-
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
     eZprint('set_loadout')
-    # print(loadout_key)
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
     )
 
     current_loadout[convoID] = loadout_key
-    # print(loadout)
+
     loadout_cartridges = []
     config = {}
-    blob = json.loads(loadout.json())['blob']
-    owner = not referal
 
-    novaConvo[convoID]['owner'] = owner
+    blob = json.loads(loadout.json())['blob']
+    novaConvo[convoID]['owner'] = False
+    if novaConvo[convoID]['userID']:
+
+        if loadout.UserID == novaConvo[convoID]['userID']:
+            novaConvo[convoID]['owner'] = True
+
+        
+        user_details = await prisma.user.find_first(
+            where={ "UserID": novaConvo[convoID]['userID'] },
+        )
+
+        if user_details:
+            update_user = await prisma.user.update(
+                where = {
+                    'id' : user_details.id
+                },
+                data = {
+                    'blob': Json({"current_loadout":loadout_key})
+                    }
+            )
+
+            print(update_user)
 
     for key, val in blob.items():
         config = val['config']
-        await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': owner}}))
+        await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaConvo[convoID]['owner']}}))
         loadout_cartridges = val['cartridges']
 
     cartridges_to_add = []
@@ -174,9 +204,42 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
 async def clear_loadout(convoID):
     current_loadout[convoID] = None
     available_cartridges[convoID] = {}
+
+    if novaConvo[convoID]['userID']:
+        user_details = await prisma.user.find_first(
+            where={ "UserID": novaConvo[convoID]['userID'] },
+        )
+
+        if user_details:
+            update_user = await prisma.user.update(
+                where = {
+                    'id' : user_details.id
+                },
+                data = {
+                    'blob': Json({"current_loadout":None})
+                    }
+            )
+
+            print(update_user)
+
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
-    
+
+async def add_loadout_to_session(loadout_key: str, convoID):
+
+    loadout = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key)}
+    )
+
+    blob = json.loads(loadout.json())['blob']
+    available_loadouts[convoID] = {}
+    for key, val in blob.items():
+        available_loadouts[convoID][key] = val
+
+    print('available_loadouts')
+    print(available_loadouts[convoID])
+
+    await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[convoID]}))
         
 async def delete_loadout(loadout_key: str, convoID):
     loadout = await prisma.loadout.find_first(

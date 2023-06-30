@@ -22,7 +22,7 @@ from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
 from memory import summariseChatBlocks,get_summary_children_by_key
 from keywords import get_summary_from_keyword, get_summary_from_insight
-from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
+from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
 
 app.session = session
 Session(app)
@@ -161,6 +161,18 @@ async def ws():
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
+
+    if(parsed_data['type'] == 'request_loadouts'):
+        eZprint('request_loadouts route hit')
+        convoID = parsed_data['data']['convoID']
+        await get_loadouts(convoID)
+        params = {}
+        if 'params' in parsed_data['data']:
+            params = parsed_data['data']['params']
+        print(parsed_data['data'])
+        await initialise_conversation(convoID, params)
+        await initialiseCartridges(convoID)
+        
     if(parsed_data['type'] == 'requestCartridges'):
         convoID = parsed_data['data']['convoID']
         eZprint('requestCartridges route hit')
@@ -244,6 +256,7 @@ async def process_message(parsed_data):
         print('authCompletePing called by html template.')
         print(parsed_data['payload'])
         app.session['requesting'] = False
+
     if(parsed_data['type'] == 'add_loadout'):
         eZprint('add_loadout route hit')
         print(parsed_data['data'])
@@ -251,10 +264,6 @@ async def process_message(parsed_data):
         loadout = parsed_data['data']['loadout']
         await add_loadout(loadout, convoID)
 
-    if(parsed_data['type'] == 'request_loadouts'):
-        eZprint('request_loadouts route hit')
-        convoID = parsed_data['data']['convoID']
-        await get_loadouts(convoID)
 
     if(parsed_data['type'] == 'set_loadout'):
         eZprint('set_loadout route hit')
@@ -271,6 +280,7 @@ async def process_message(parsed_data):
         params = parsed_data['data']['params']
         await initialise_conversation(convoID, params)
         await set_loadout(loadout, convoID, True)
+        await add_loadout_to_session(loadout, convoID)
         await runCartridges(convoID, loadout)
         
     if(parsed_data['type']=='delete_loadout'):

@@ -212,6 +212,8 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
     # print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
     # print(input['fields'])
     
+    if client_loadout != current_loadout[convoID]:
+        return False
     matchedCart = await prisma.cartridge.find_first(
         where={
         'key':

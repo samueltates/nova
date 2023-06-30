@@ -65,58 +65,58 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout 
         blob = json.loads(summary.json())['blob']
         epoch = 0
         for key, val in blob.items():
-            # if 'summarised' not in val or val['summarised'] == False:
-                # print(summary)
-            if 'keywords' in val:
-                keywords = val['keywords']
-            ## creates list for keyword
-                for keyword in keywords:
-                    keyword = keyword.lower()
-                    if keyword not in keywords_available:
-                        keywords_available[keyword] = []
-                    if 'epoch' in val:
-                        epoch = val['epoch']
-                    
-                    keywords_available[keyword].append({'source':val['key'], 'epoch': epoch, 'summarised' : val['summarised']})
-            
-                for key in val.keys():
-                    if key in SKIP_KEYS: 
-                        continue
-                    #creates list for  note
-                    if key not in notes_available:
-                        # print('creating record for ' + key+ '\n')
-                        notes_available[key] = []
-                    if isinstance(val[key], str):
-                        ## if its base then add it to the list
-                        # print('adding line ' + val[key] + ' to ' + key + '\n')
+            if 'summarised' not in val or val['summarised'] == False:
+                print(summary)
+                if 'keywords' in val:
+                    keywords = val['keywords']
+                ## creates list for keyword
+                    for keyword in keywords:
+                        keyword = keyword.lower()
+                        if keyword not in keywords_available:
+                            keywords_available[keyword] = []
                         if 'epoch' in val:
                             epoch = val['epoch']
-                        notes_available[key].append({'line':val[key], 'timestamp': val['timestamp'], 'key':summary.key, 'active': False, 'type': 'summary', 'epoch': epoch} )
-                    elif isinstance(val[key], dict):
-                        ## if its a dict then add all the sub keys
-                        ## could this be 'recusirve'?
-                        for subKey, subVal in val[key].items():
-                            if subKey in SKIP_KEYS:
-                                continue
-                            if subKey not in notes_available:
-                                # print('creating record for ' + subKey + '\n')
-                                notes_available[subKey] = []
-                            if isinstance(subVal, str):
-                                # print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
-                                notes_available[subKey].append({'line':subVal, 'key':summary.key,'active': False, 'type': 'summary'})
+                        
+                        keywords_available[keyword].append({'source':val['key'], 'epoch': epoch, 'summarised' : val['summarised']})
+                
+                    for key in val.keys():
+                        if key in SKIP_KEYS: 
+                            continue
+                        #creates list for  note
+                        if key not in notes_available:
+                            # print('creating record for ' + key+ '\n')
+                            notes_available[key] = []
+                        if isinstance(val[key], str):
+                            ## if its base then add it to the list
+                            # print('adding line ' + val[key] + ' to ' + key + '\n')
+                            if 'epoch' in val:
+                                epoch = val['epoch']
+                            notes_available[key].append({'line':val[key], 'timestamp': val['timestamp'], 'key':summary.key, 'active': False, 'type': 'summary', 'epoch': epoch} )
+                        elif isinstance(val[key], dict):
+                            ## if its a dict then add all the sub keys
+                            ## could this be 'recusirve'?
+                            for subKey, subVal in val[key].items():
+                                if subKey in SKIP_KEYS:
+                                    continue
+                                if subKey not in notes_available:
+                                    # print('creating record for ' + subKey + '\n')
+                                    notes_available[subKey] = []
+                                if isinstance(subVal, str):
+                                    # print('adding sub line ' + subVal + ' to ' + subKey+ '\n' )
+                                    notes_available[subKey].append({'line':subVal, 'key':summary.key,'active': False, 'type': 'summary'})
 
-                                # notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
-                            elif isinstance(subVal, dict):
-                                for subSubKey, subSubVal in subVal[key].items():
-                                    if subSubKey in SKIP_KEYS:
-                                        continue
-                                    if subSubKey not in notes_available:
-                                        # print('creating record for ' + subSubKey + '\n')
-                                        notes_available[subSubKey] = []
-                                    if isinstance(subSubVal, str):
-                                        if 'epoch' in val:
-                                            epoch = val['epoch']
-                                        notes_available[subSubKey].append({'line':subSubVal, 'timestamp':val['timestamp'], 'key':summary.key,'type': 'summary', 'active': False, 'epoch': epoch})
+                                    # notes_available[userID+convoID][subKey].append({'line':subVal, 'timestamp':val['timestamp'],'summaryKey':summary.key,'active': False})
+                                elif isinstance(subVal, dict):
+                                    for subSubKey, subSubVal in subVal[key].items():
+                                        if subSubKey in SKIP_KEYS:
+                                            continue
+                                        if subSubKey not in notes_available:
+                                            # print('creating record for ' + subSubKey + '\n')
+                                            notes_available[subSubKey] = []
+                                        if isinstance(subSubVal, str):
+                                            if 'epoch' in val:
+                                                epoch = val['epoch']
+                                            notes_available[subSubKey].append({'line':subSubVal, 'timestamp':val['timestamp'], 'key':summary.key,'type': 'summary', 'active': False, 'epoch': epoch})
 
     cartVal['blocks']['keywords'] = keywords_available
     cartVal['blocks']['insights'] = notes_available
