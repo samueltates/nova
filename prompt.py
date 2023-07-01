@@ -49,7 +49,6 @@ async def unpack_cartridges(convoID):
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
-            
                 if 'blocks' in cartVal:
                     #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
                     #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
@@ -82,6 +81,8 @@ async def unpack_cartridges(convoID):
                     simple_agents[convoID] = {}
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     simple_agents[convoID][cartVal['key']] = cartVal
+                else:
+                    simple_agents[convoID][cartVal['key']] = None
 
     # print(cartridge_contents)
     return cartridge_contents
@@ -103,7 +104,7 @@ async def construct_string(prompt_objects, convoID):
         final_string += prompt_objects['summary']['string'] + "\n__________________________\n"
 
     # print('final_string')
-    print(f'{final_string}')
+    # print(f'{final_string}')
     return final_string
 
 async def construct_chat(convoID, thread = 0):
@@ -302,8 +303,8 @@ async def construct_commands(command_object, thread = 0):
                                         command_line = ""
                                         continue
                                     counter += 1
-                            if command_line != "":
-                                command_string += command_line + "\n"
+                        if command_line != "":
+                            command_string += command_line + "\n"
                     
     # print(response_format)
     response_format = {

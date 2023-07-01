@@ -470,7 +470,7 @@ async def broad_query(name, args, convoID, loadout):
                             if 'summaries' in cartVal['blocks']:
                                 response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
                                 command_return['status'] = "Success."
-                                command_return['message'] = "From " + filename  + ": "+ response
+                                command_return['message'] = "From " + filename  + ": "+ str(response)
                                 print(command_return)
                                 return command_return
                             
@@ -501,22 +501,22 @@ async def broad_query(name, args, convoID, loadout):
                                         if 'query' in args:
                                             response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
                                             command_return['status'] = "Success."
-                                            command_return['message'] = "From " + filename  + ": "+ response
+                                            command_return['message'] = "From " + filename  + ": "+ str(response)
                                             print(command_return)
                                             return command_return
                                     
     print('all text query')
-    print(all_text)
     query = ''
     if 'query' in args:
         query = args['query']
-
-    response = await quick_query(all_text, str(query))
-    print(response)
-    command_return['status'] = "Return."
-    command_return['message'] = "File not found, results from all text search : " + str(response)
-    print(command_return)
-    return command_return
+        response = await quick_query(all_text, str(query))
+        command_return['status'] = "Return."
+        command_return['message'] = "File not found, results from all text search : " + str(response)
+        return command_return
+    else:
+        command_return['status'] = "Error."
+        command_return['message'] = "Arg 'query' missing"
+        return command_return
     
 
 async def traverse_blocks(query, blocks, convoID, cartKey, loadout):

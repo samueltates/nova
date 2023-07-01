@@ -36,6 +36,9 @@ async def agent_initiate_convo(convoID):
     if 'command' in novaConvo[convoID]:
         if novaConvo[convoID]['command']:
             query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+    else :
+        query_object.append({"role": "user", "content": "Based on the prompts and content available, begin the conversation with a short response:"})
+
     await send_to_GPT(convoID, query_object)
 
 
@@ -137,6 +140,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID].append(messageObject)
 
     simple_response = None
+    print('json return is ' + str(json_return)) 
 
     if role == 'assistant' :
         # print('role not user')
@@ -155,6 +159,9 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 # print('command', command)
                 copiedMessage['body'] = json_object
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+            else: 
+                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+
 
         else:
             message = copiedMessage['body']
@@ -182,27 +189,28 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
         
     # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
-    await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': ''}}))
 
 
 async def send_to_GPT(convoID, promptObject, thread = 0):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
-    # print( len(str(promptObject)))
-    # print(f'{promptObject}')
+    print( len(str(promptObject)))
+    print(promptObject)
+    # for object in promptObject:
+    #     print(f'{object["role"]}')
+    #     print(f'{object["content"]}')
 
 
     content = ''
     if thread == 0:
-        await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'typing'}}))
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
     else:
-        await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': agentName, 'state': 'terminal', 'thread':thread}}))
-
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
-        # print(response)
+        print(response)
 
     except Exception as e:
         
@@ -219,11 +227,15 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 
     eZprint('response recieved')
 
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': ''}}))
+
     asyncio.create_task(handle_message(convoID, content, 'assistant', 'Nova', None, thread))
         
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
+
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
     command_response = await handle_commands(command, convoID, threadRequested)
     eZprint('command response recieved from command')
@@ -260,6 +272,7 @@ async def command_interface(command, convoID, threadRequested):
             command_object = json.dumps(command_object)
 
             meta = 'terminal'
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
             return
@@ -279,6 +292,7 @@ async def command_interface(command, convoID, threadRequested):
                 }
             
             command_object = json.dumps(command_object)
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
         
@@ -295,6 +309,7 @@ async def command_interface(command, convoID, threadRequested):
             
             command_object = json.dumps(command_object)
 
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
 
@@ -345,14 +360,18 @@ async def simple_agent_response(convoID):
         simple_agent_counter[convoID]['counter'] = 0
     simple_agent_counter[convoID]['counter'] += 1
 
-    if simple_agent_counter[convoID]['counter'] > 5:
-        simple_agent_counter[convoID]['counter'] = 0
+    if simple_agent_counter[convoID]['counter'] > 10:
+        # simple_agent_counter[convoID]['counter'] = 0
         return
+    
+    print('simple agentcounter is: ' + str(simple_agent_counter[convoID]['counter']))
 
     if convoID in simple_agents:
 
         for key, val in simple_agents[convoID].items():
-            # print(val)
+            
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': 'typing'}}))
+
             promptObject = {'role': "system", "content": val['label']+'\n'+val['prompt']}
             await construct_chat(convoID)
             simple_chat = []
@@ -389,7 +408,9 @@ async def simple_agent_response(convoID):
                 except Exception as e:
                     print(e)
                     content = e
-
+            # await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': val['label'], 'state': 'typing'}}))
+            ##to do, make this an array so handling multiple agent states.
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': ''}}))
             eZprint('response recieved')
             await handle_message(convoID, content, 'user', str(val['label']), None, 0, 'simple')
             await construct_query(convoID),
@@ -481,7 +502,7 @@ async def get_json_val(json_object, key_requested):
 
 async def parse_json_string(content):
 
-    # eZprint('parsing json string')
+    eZprint('parsing json string')
     # print(content)
     json_object = None
     error = None

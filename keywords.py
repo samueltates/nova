@@ -14,7 +14,7 @@ notes_available = {}
 
 async def get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout = None, target_loadout = None):
 
-    eZprint('getting keywords for ' + convoID + ' ' + cartKey)
+    # eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaConvo[convoID]['userID']
     if 'blocks' not in cartVal:
         cartVal['blocks'] = {}
@@ -66,7 +66,7 @@ async def get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout 
         epoch = 0
         for key, val in blob.items():
             if 'summarised' not in val or val['summarised'] == False:
-                print(summary)
+                # print(summary)
                 if 'keywords' in val:
                     keywords = val['keywords']
                 ## creates list for keyword
@@ -146,7 +146,7 @@ async def get_summary_from_keyword(key, convoID, cartKey, client_loadout = None,
             keyword = keyword.lower()
             if isinstance(sources, list):
                 for meta in sources:
-                    print(meta)
+                    # print(meta)
                     source_val = await get_source_by_key(meta['source'], convoID, client_loadout)
                     for key, val in source_val.items():
                         val.update({'type': 'summary'})

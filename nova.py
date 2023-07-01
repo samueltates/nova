@@ -97,8 +97,9 @@ async def loadCartridges(convoID, loadout = None):
 async def runCartridges(convoID, loadout = None):
     # await construct_query(convoID)
     print('running cartridges')
-    print(current_config[convoID])
+
     if convoID in current_config:
+        print(current_config[convoID])
         if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
             await agent_initiate_convo(convoID)
     # if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:

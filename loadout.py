@@ -242,8 +242,8 @@ async def add_loadout_to_session(loadout_key: str, convoID):
     for key, val in blob.items():
         available_loadouts[convoID][key] = val
 
-    print('available_loadouts')
-    print(available_loadouts[convoID])
+    # print('available_loadouts')
+    # print(available_loadouts[convoID])
 
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[convoID]}))
         

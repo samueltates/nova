@@ -321,11 +321,11 @@ async def summarise_messages(userID, convoID, target_loadout = None):
             # print(splitID[2])
             if splitID[2] == str(target_loadout):
                 messages.append(message)
-                print('adding on loadout')
+                # print('adding on loadout')
         elif target_loadout == None:
             # print(splitID)
             messages.append(message)
-            print('adding on no loadout')
+            # print('adding on no loadout')
 
     normalised_convos = []
     meta = ' '
@@ -336,8 +336,8 @@ async def summarise_messages(userID, convoID, target_loadout = None):
     for conversation in conversations:
         for message in messages:
             if message.SessionID == conversation.SessionID:
-                print('found message match')
-                print(message)
+                # print('found message match')
+                # print(message)
                 if meta == ' ':
                     format = '%Y-%m-%dT%H:%M:%S.%f%z'
                     date = datetime.strptime(message.timestamp, format)
@@ -801,6 +801,8 @@ Ensure that the summary captures the broad strokes of all conversations in one s
 
 async def summarise_percent(convoID, percent):
     eZprint('summarising percent')
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'summarising'}}))
+
     summaryKey = secrets.token_bytes(4).hex()
     message_IDs = []
     counter = 0
@@ -984,6 +986,8 @@ async def summariseChatBlocks(input,  loadout = None):
         log['minimised'] = True
     print('summary update complete')
     # print(chatlog[convoID])
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
+
     return True
 
 
