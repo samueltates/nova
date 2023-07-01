@@ -1034,7 +1034,7 @@ async def get_sessions(convoID):
 # if __name__ == '__main__':
 #     asyncio.run(main())
 
-past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and return your notes."""
+past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and respond with a short succinct summary."""
 
 
 

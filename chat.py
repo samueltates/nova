@@ -35,7 +35,7 @@ async def agent_initiate_convo(convoID):
 
     if 'command' in novaConvo[convoID]:
         if novaConvo[convoID]['command']:
-            query_object.append({"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"})
+            query_object.append({"role": "user", "content": "Based on the prompts, and files available, assess best approach for the conversation, then begin the conversatin with a casual greeting, and complete any actions in parallel:"})
     else :
         query_object.append({"role": "user", "content": "Based on the prompts and content available, begin the conversation with a short response:"})
 
@@ -203,10 +203,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 
 
     content = ''
-    if thread == 0:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
-    else:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
+    # if thread == 0:
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
+    # else:
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
@@ -235,7 +235,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
 
-    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
+    # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
     command_response = await handle_commands(command, convoID, threadRequested)
     eZprint('command response recieved from command')
@@ -272,7 +272,7 @@ async def command_interface(command, convoID, threadRequested):
             command_object = json.dumps(command_object)
 
             meta = 'terminal'
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
+            # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
             return
@@ -292,7 +292,7 @@ async def command_interface(command, convoID, threadRequested):
                 }
             
             command_object = json.dumps(command_object)
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
+            # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
         
@@ -309,7 +309,7 @@ async def command_interface(command, convoID, threadRequested):
             
             command_object = json.dumps(command_object)
 
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
+            # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
 

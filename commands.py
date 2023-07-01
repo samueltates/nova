@@ -127,7 +127,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 # print('label: ' + str(val['label']))
                 if string_match < 3:
                     print('file exists so appending')
-                    val['text'] += "\n"+text
+                    if 'text' in val:
+                        val['text'] += "\n"+text
+                    else:
+                        val['text'] = text
                     payload = {
                         'convoID': convoID,
                         'cartKey' : key,

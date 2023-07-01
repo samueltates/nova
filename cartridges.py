@@ -276,3 +276,38 @@ async def updateContentField(input):
             for fieldKey, fieldVal in input['fields'].items():
                 log[fieldKey] = fieldVal
     # await getChatEstimate(convoID)
+
+
+async def copy_cartridges_from_loadout(loadout: str, convoID):
+    remote_loadout = await prisma.loadout.find_first(
+        where={ "key": str(loadout) },
+    )
+    print('copy cartridges from loadout ' + str(loadout))
+    print('remote loadout ' + str(remote_loadout))
+
+    cartridge_copies = []
+    if convoID not in available_cartridges:
+        available_cartridges[convoID] = {}
+        
+    if remote_loadout:
+        blob = json.loads(remote_loadout.json())['blob']
+        for key, val in blob.items():
+            for cartridge in val['cartridges']:
+                print('copy cartridge ' + str(cartridge))
+                cartridge_copies.append(cartridge)
+    
+    for cartridge in cartridge_copies:
+        remote_cartridge = await prisma.cartridge.find_first(
+            where={ "key": cartridge['key'] },
+        )
+
+        if remote_cartridge:
+            print('copy cartridge ' + str(remote_cartridge.key))
+            cartBlob = json.loads(remote_cartridge.json())['blob']
+            for key, val in cartBlob.items():
+                print('copy cartridge ' + str(key))
+                val['enabled'] = True
+                val['softDelete'] = False
+                val['minimised'] = False
+                await addCartridge(val, convoID, current_loadout[convoID])
+

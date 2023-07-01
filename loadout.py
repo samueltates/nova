@@ -3,7 +3,6 @@ from prisma import Json
 import json
 from appHandler import app, websocket
 from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts,current_config
-from human_id import generate_id
 from debug import eZprint
 
 async def get_loadouts(convoID):
@@ -16,7 +15,7 @@ async def get_loadouts(convoID):
     # del current_loadout[convoID]
     available_loadouts[convoID] = {}
     for loadout in loadouts:
-        print(loadout)
+        # print(loadout)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             available_loadouts[convoID][key] = val
@@ -27,7 +26,7 @@ async def get_loadouts(convoID):
 
     if user_details:
         userBlob = json.loads(user_details.json())['blob']
-        print(userBlob)
+        # print(userBlob)
         if 'current_loadout' not in userBlob:
             current_loadout[convoID] = None
         else:
@@ -61,7 +60,6 @@ async def add_loadout(loadout: str, convoID):
     if loadout == current_loadout[convoID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
   
-
 async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
     eZprint('add cartridge to loadout triggered')
     print(current_loadout)
@@ -297,7 +295,7 @@ async def set_loadout_title(loadout_key, title):
         )
 
 async def update_loadout_field(loadout_key, field, value):
-    print(loadout_key, field, value)
+    # print(loadout_key, field, value)
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
@@ -314,4 +312,4 @@ async def update_loadout_field(loadout_key, field, value):
                 "blob":Json({key:val})
                 }
         )
-        print(update)
+        # print(update)
