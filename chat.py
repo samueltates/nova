@@ -203,10 +203,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
 
 
     content = ''
-    # if thread == 0:
-    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
+    if thread == 0:
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
     # else:
-    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
+        # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
     try:
         response = await sendChat(promptObject, 'gpt-3.5-turbo')
         content = str(response["choices"][0]["message"]["content"])
@@ -274,7 +274,7 @@ async def command_interface(command, convoID, threadRequested):
             meta = 'terminal'
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
+            await handle_message(convoID, return_string, 'user', 'terminal', None, 1, 'terminal')
             return
   
         

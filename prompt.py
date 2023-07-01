@@ -155,6 +155,7 @@ async def construct_chat(convoID, thread = 0):
     # print(current_chat)
 
 async def construct_context(convoID):
+    print('constructing context')
     await get_sessions(convoID)
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
     session_string += f"""todays date is {datetime.now()}.\n"""
@@ -180,11 +181,12 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         if 'values' in prompt_objects['system']:
             print('values found')
             for value in prompt_objects['system']['values']:
+                print('value is: ' + str(value))
                 if 'auto-summarise' in value:
                     if value['auto-summarise'] == True:
                         print('auto summarise found')
-                if 'give_context' in value:
-                    if value['give_context'] == True:
+                if 'give-context' in value:
+                    if value['give-context'] == True:
                             context = await construct_context(convoID)
                             final_command_string += context
     if 'command' in prompt_objects:

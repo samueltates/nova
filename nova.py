@@ -99,14 +99,16 @@ async def runCartridges(convoID, loadout = None):
     print('running cartridges')
     if loadout != current_loadout[convoID]:
         return
-    if convoID in current_config:
-        print(current_config[convoID])
-        if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
-            await agent_initiate_convo(convoID)
     if available_cartridges[convoID] == {}:
         await copy_cartridges_from_loadout('e8b0d808235f9aa4', convoID)
         await runCartridges(convoID)
         return
+    
+        
+    if convoID in current_config:
+        print(current_config[convoID])
+        if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
+            await agent_initiate_convo(convoID)
 
     if current_loadout[convoID] == None:
         await agent_initiate_convo(convoID)
@@ -117,7 +119,8 @@ async def runCartridges(convoID, loadout = None):
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     print('running summary cartridge on loadout ' + str(loadout))
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
-
+    
+    
 
 async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
