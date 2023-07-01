@@ -362,21 +362,20 @@ async def open_file(name, args, convoID, loadout):
         
                 return_string = ''
                 print('file found')
-                if 'enabled' not in cartVal:
-                    cartVal['enabled'] = True
-                if cartVal['enabled'] == False:
+                if 'enabled' not in cartVal or cartVal['enabled'] == False or cartVal['minimised']:
                     cartVal['enabled'] = True
                     cartVal['minimised'] = False
                     return_string += "File " + filename + " opened.\n"
                 else:
-                    cartVal['minimised'] = False
                     return_string += "File " + filename + " already open.\n"
-                
+
                 payload = {
                     'convoID': convoID,
                     'cartKey' : cartKey,
                     'fields':
-                            {'enabled': cartVal['enabled']}
+                            {'enabled': cartVal['enabled'],
+                             'minimised': cartVal['minimised']
+                             }
                             }
                 loadout = current_loadout[convoID]
                 await update_cartridge_field(payload, loadout, True)       

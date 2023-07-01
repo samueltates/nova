@@ -333,10 +333,22 @@ async def get_thread_summary(convoID, thread ):
                 content = e
     return content
 
+
+simple_agent_counter = {}
 async def simple_agent_response(convoID):
     eZprint('simple agent response')
     #wait 
     await asyncio.sleep(3)
+    if convoID not in simple_agent_counter:
+        simple_agent_counter[convoID] = {}
+    if 'counter' not in simple_agent_counter[convoID]:
+        simple_agent_counter[convoID]['counter'] = 0
+    simple_agent_counter[convoID]['counter'] += 1
+
+    if simple_agent_counter[convoID]['counter'] > 5:
+        simple_agent_counter[convoID]['counter'] = 0
+        return
+
     if convoID in simple_agents:
 
         for key, val in simple_agents[convoID].items():

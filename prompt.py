@@ -49,31 +49,32 @@ async def unpack_cartridges(convoID):
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
-            if 'blocks' in cartVal:
-                #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
-                #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
+            
                 if 'blocks' in cartVal:
-                    if 'overview' in cartVal['blocks']:
-                            cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
-                    if 'summaries' in cartVal['blocks']:
-                        cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
-                        for summary in cartVal['blocks']['summaries']:
-                            for key, value in summary.items():
-                                if 'title' in value:
-                                    cartridge_contents[cartVal['type']]['string'] += "\n--"+ str(value['title']) 
-                                    if 'minimised' in value:
-                                        if value['minimised']:
-                                            cartridge_contents[cartVal['type']]['string'] += " | expand"
+                    #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
+                    #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
+                    if 'blocks' in cartVal:
+                        if 'overview' in cartVal['blocks']:
+                                cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
+                        if 'summaries' in cartVal['blocks']:
+                            cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
+                            for summary in cartVal['blocks']['summaries']:
+                                for key, value in summary.items():
+                                    if 'title' in value:
+                                        cartridge_contents[cartVal['type']]['string'] += "\n--"+ str(value['title']) 
+                                        if 'minimised' in value:
+                                            if value['minimised']:
+                                                cartridge_contents[cartVal['type']]['string'] += " | expand"
+                                            else:
+                                                cartridge_contents[cartVal['type']]['string'] += " | expand"
                                         else:
                                             cartridge_contents[cartVal['type']]['string'] += " | expand"
-                                    else:
-                                        cartridge_contents[cartVal['type']]['string'] += " | expand"
-                                    cartridge_contents[cartVal['type']]['string'] += "\n"
+                                        cartridge_contents[cartVal['type']]['string'] += "\n"
 
-                        cartridge_contents[cartVal['type']]['string'] += "\n"
-                    if 'queries' in cartVal['blocks']:
-                        if 'minimised' in cartVal and not cartVal['minimised']:
-                            cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+                            cartridge_contents[cartVal['type']]['string'] += "\n"
+                        if 'queries' in cartVal['blocks']:
+                            if 'minimised' in cartVal and not cartVal['minimised']:
+                                cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -109,10 +110,10 @@ async def construct_chat(convoID, thread = 0):
     current_chat = []
     # print('constructing chat for thread ' + str(thread))
     if convoID in chatlog:
-        print(chatlog[convoID])
+        # print(chatlog[convoID])
         for log in chatlog[convoID]:
             if 'muted' not in log or log['muted'] == False:
-                print('log is: ' + str(log))
+                # print('log is: ' + str(log))
                 if 'thread' in log and thread > 0:
                     if log['thread'] == thread:
                         # print('thread indicator found so breaking main chat')
@@ -365,7 +366,6 @@ async def get_token_warning(string_to_check, limit, convoID, element = 'prompt')
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
-
 
     print ('tokens are: ' + str(tokens) + ' limit is: ' + str(limit))
     payload = {'convoID':convoID, 'element':element, 'tokens':tokens, 'limit':limit}

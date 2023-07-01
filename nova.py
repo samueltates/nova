@@ -11,7 +11,7 @@ from prisma import Json
 from chat import agent_initiate_convo, construct_query
 #NOVA STUFF
 from appHandler import app, websocket
-from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout
+from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
 from prismaHandler import prisma
 from memory import run_summary_cartridges
 from cartridges import update_cartridge_field
@@ -97,8 +97,12 @@ async def loadCartridges(convoID, loadout = None):
 async def runCartridges(convoID, loadout = None):
     # await construct_query(convoID)
     print('running cartridges')
-    if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
-        await agent_initiate_convo(convoID)
+    print(current_config[convoID])
+    if convoID in current_config:
+        if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
+            await agent_initiate_convo(convoID)
+    # if 'agent_initiated' in novaConvo[convoID] and novaConvo[convoID]['agent_initiated'] == True:
+    #     await agent_initiate_convo(convoID)
     if loadout != current_loadout[convoID]:
         return
     if convoID in available_cartridges:

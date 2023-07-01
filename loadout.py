@@ -2,7 +2,7 @@ from prismaHandler import prisma
 from prisma import Json
 import json
 from appHandler import app, websocket
-from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts
+from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts,current_config
 from human_id import generate_id
 from debug import eZprint
 
@@ -132,6 +132,8 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         where={ "key": str(loadout_key)}
     )
 
+    if convoID not in current_loadout:
+        current_loadout[convoID] = None
     current_loadout[convoID] = loadout_key
 
     loadout_cartridges = []
@@ -163,11 +165,15 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
 
     for key, val in blob.items():
         config = val['config']
+        if convoID not in current_config:
+            current_config[convoID] = {}
+        current_config[convoID] = config
         await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaConvo[convoID]['owner']}}))
         loadout_cartridges = val['cartridges']
 
     cartridges_to_add = []
     available_cartridges[convoID] = {}
+
 
     for loadout_cartridge in loadout_cartridges:
         # print(loadout_cartridge)

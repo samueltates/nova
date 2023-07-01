@@ -806,13 +806,13 @@ async def summarise_percent(convoID, percent):
     counter = 0
     message_keys = []
     max = len(chatlog[convoID]) * percent
-    print(chatlog[convoID])
+    # print(chatlog[convoID])
     for log in chatlog[convoID]:
         # print(log)
         if 'summarised' not in log:
             if counter <= max:
-                print(log)
-                eZprint('adding to summarise' + str(log))
+                # print(log)
+                # eZprint('adding to summarise' + str(log))
                 message_IDs.append(log['id'])
                 message_keys.append(log['key'])
                 counter += 1
@@ -838,7 +838,7 @@ async def summarise_from_range(convoID, start, end):
     message_IDs = []
     message_keys = []
 
-    print(chatlog[convoID])
+    # print(chatlog[convoID])
 
     counter = 0
     for log in chatlog[convoID]:
@@ -935,7 +935,7 @@ async def summariseChatBlocks(input,  loadout = None):
     """
     summary = await get_summary_with_prompt(prompt, str(messages_string))
     #wait for 2 seconds
-    print(summary)
+    # print(summary)
     summarDict = json.loads(summary)
     # print(summarDict)
     fields = {}

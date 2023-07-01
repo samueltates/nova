@@ -3,6 +3,7 @@ novaConvo = {}
 available_loadouts = {}
 loadout_cartridges = {}
 current_loadout = {}
+current_config = {}
 available_cartridges = {}
 chatlog = {}
 cartdigeLookup = {}
