@@ -331,9 +331,9 @@ async def handle_token_limit(convoID):
     if chat_too_long: 
         await summarise_percent(convoID, .5)
         truncuate = True
-    if prompt_too_long:
-        await handle_prompt_context(convoID)
-        truncuate = True
+    # if prompt_too_long:
+    #     await handle_prompt_context(convoID)
+    #     truncuate = True
     return truncuate
         
 
