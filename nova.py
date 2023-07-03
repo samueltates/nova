@@ -51,6 +51,10 @@ async def initialise_conversation(convoID, params = None):
         novaConvo[convoID]['message'] = params['message']
         print(params['message'])
         
+    if 'model' in params:
+        novaConvo[convoID]['model'] = params['model']
+        print(params['model'])
+    
     novaConvo[convoID]['agent_name'] = agentName
     novaConvo[convoID]['token_limit'] = 4000
     sessionID = novaConvo[convoID]['sessionID'] 

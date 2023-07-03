@@ -39,7 +39,11 @@ async def agent_initiate_convo(convoID):
     else :
         query_object.append({"role": "user", "content": "Based on the prompts and content available, begin the conversation with a short response:"})
 
-    await send_to_GPT(convoID, query_object)
+    model = 'gpt-3.5-turbo'
+    if 'model' in novaConvo[convoID]:
+        model = novaConvo[convoID]['model']
+        print ('model: ' + model)
+    await send_to_GPT(convoID, query_object, 0, model)
 
 
 async def user_input(sessionData):
@@ -57,7 +61,11 @@ async def user_input(sessionData):
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
 
     # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
-    await send_to_GPT(convoID, query_object)
+    model = 'gpt-3.5-turbo'
+    if 'model' in novaConvo[convoID]:
+        model = novaConvo[convoID]['model']
+        print ('model: ' + model)
+    await send_to_GPT(convoID, query_object, 0, model)
 
 
 
@@ -191,7 +199,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
 
 
-async def send_to_GPT(convoID, promptObject, thread = 0):
+async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'):
     
     ## sends prompt object to GPT and handles response
     eZprint('sending to GPT')
@@ -208,7 +216,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
     # else:
         # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
     try:
-        response = await sendChat(promptObject, 'gpt-3.5-turbo')
+        response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
         print(response)
 
@@ -218,7 +226,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0):
         print('trying again')
 
         try: 
-            response = await sendChat(promptObject, 'gpt-3.5-turbo')
+            response = await sendChat(promptObject, model)
             content = str(response["choices"][0]["message"]["content"])
 
         except Exception as e:
@@ -274,7 +282,7 @@ async def command_interface(command, convoID, threadRequested):
             meta = 'terminal'
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, return_string, 'user', 'terminal', None, 1, 'terminal')
+            await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
             return
   
         

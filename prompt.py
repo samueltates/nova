@@ -46,6 +46,10 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n\n"
+            if 'blocks' in cartVal:
+                if 'overview' in cartVal['blocks']:
+                        cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
+                
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
                     cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
@@ -53,8 +57,6 @@ async def unpack_cartridges(convoID):
                     #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
                     #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
                     if 'blocks' in cartVal:
-                        if 'overview' in cartVal['blocks']:
-                                cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
                         if 'summaries' in cartVal['blocks']:
                             cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
                             for summary in cartVal['blocks']['summaries']:
@@ -69,7 +71,6 @@ async def unpack_cartridges(convoID):
                                         else:
                                             cartridge_contents[cartVal['type']]['string'] += " | expand"
                                         cartridge_contents[cartVal['type']]['string'] += "\n"
-
                             cartridge_contents[cartVal['type']]['string'] += "\n"
                         if 'queries' in cartVal['blocks']:
                             if 'minimised' in cartVal and not cartVal['minimised']:
@@ -187,12 +188,13 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         print('auto summarise found')
                 if 'give-context' in value:
                     if value['give-context'] == True:
-                            context = await construct_context(convoID)
-                            final_command_string += context
+                        context = await construct_context(convoID)
+                        final_command_string += context
+                if 'model' in value:
+                    novaConvo[convoID]['model'] = value['model']
     if 'command' in prompt_objects:
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
-
         # print('command found' + str(prompt_objects['command']))
         if 'label' in prompt_objects['command']:
             # print('command label found')
