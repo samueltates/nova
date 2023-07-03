@@ -267,23 +267,24 @@ async def command_interface(command, convoID, threadRequested):
         
         ##if return, it'll send back to user and end thread
         status_lower = status.lower()
-        if 'return' in status_lower or 'success' in status_lower or 'error' in status_lower:
-            print('success returned')
-            return_string = 'system response : ' + name + ' - ' + status + ' : ' + message
-            command_object = {'command':{
-                    "name" : name, 
-                    "status" : status, 
-                    "message" : message
-                    },
-                }
-        
-            command_object = json.dumps(command_object)
+        ## TODO : FINALISE THE THREAD ETC STRUCTURE< FOR NOW EVERYTHING STAYS ON MAIN AND IS GATED BY CHAT
+        # if 'return' in status_lower or 'success' in status_lower or 'error' in status_lower:
+            # print('success returned')
+        return_string = 'system response : ' + name + ' - ' + status + ' : ' + message
+        command_object = {'command':{
+                "name" : name, 
+                "status" : status, 
+                "message" : message
+                },
+            }
+    
+        command_object = json.dumps(command_object)
 
-            meta = 'terminal'
-            # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
+        meta = 'terminal'
+        # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
-            return
+        await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
+        return
   
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
@@ -321,13 +322,17 @@ async def command_interface(command, convoID, threadRequested):
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
 
-        print('got this far expexting to send to agent but commended out now')
+        # print('got this far expexting to send to agent but commended out now')
         ##sends back - will this make an infinite loop? I don't think so
         ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
 
         await construct_query(convoID, thread)
+        model = 'gpt-3.5-turbo'
+        if 'model' in novaConvo[convoID]:
+            model = novaConvo[convoID]['model']
+            print ('model: ' + model)
         query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        await send_to_GPT(convoID, query_object, thread)
+        await send_to_GPT(convoID, query_object, thread, model)
 
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)

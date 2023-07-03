@@ -17,20 +17,20 @@ windows = {}
 
 async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = None):
     userID = novaConvo[convoID]['userID']
-    print('run summary cartridges triggered' )
-    print('current loadout' + str(client_loadout))
+    # print('run summary cartridges triggered' )
+    # print('current loadout' + str(client_loadout))
     # print('current loadout convoID' + str(current_loadout[convoID]))
-    print(current_loadout[convoID])
+    # print(current_loadout[convoID])
     if novaConvo[convoID]['owner']:
         if client_loadout == current_loadout[convoID]:                
             if 'blocks' not in cartVal:
                 cartVal['blocks'] = {}
 
             if 'summary-target' in cartVal:
-                print('summary target found')
+                # print('summary target found')
                 target_loadout = cartVal['summary-target']
             else:
-                print('no summary target')
+                # print('no summary target')
                 target_loadout = client_loadout
             # if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
             await summarise_convos(convoID, cartKey, cartVal, client_loadout, target_loadout)
@@ -60,11 +60,11 @@ async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, targ
             }
             await update_cartridge_field(input, client_loadout, system=True)
             await summarise_messages(userID, convoID, target_loadout)
-            print('summarise messages finished')
+            # print('summarise messages finished')
             await summarise_epochs(userID, convoID, target_loadout)
         
 async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout = None):
-    print('get summary children by key triggered')
+    # print('get summary children by key triggered')
     userID = novaConvo[convoID]['userID']   
     if client_loadout == current_loadout[convoID]:
         summary = await get_summary_by_key(childKey, convoID, client_loadout)
@@ -74,17 +74,17 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
             summary_elements = []
             for key, val in summary.items():
                 if 'epoch' in val:
-                    print (val)
+                    # print (val)
                     if val['epoch'] > 1:
-                        print('epoch greater than')
+                        # print('epoch greater than')
                         if 'sourceIDs' in val:
                             for sourceID in val['sourceIDs']:
-                                print('sourceID found')
-                                print(sourceID)
+                                # print('sourceID found')
+                                # print(sourceID)
                                 child_summary = await get_summary_by_key(sourceID, convoID, client_loadout)
 
                                 if child_summary:
-                                    print('child summary found')
+                                    # print('child summary found')
                                     # print(child_summary)
                                     child_summary = json.loads(child_summary.json())['blob']
                                     # print(child_summary)
@@ -93,11 +93,11 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
                                         childVal.update({'type': 'summary'})
                                         # if val not in summary_elements:
                                         summary_elements.append(childVal)
-                                        print('content to return' + str(summary_elements)) 
+                                        # print('content to return' + str(summary_elements)) 
                         content_to_return = {'parent':summary,'children': summary_elements, 'source' : 'summaries'}
 
                     elif 'meta' in val:
-                        print('meta found')
+                        # print('meta found')
                         # if 'docID' in val['meta']:
                         #     print('conversation found')
                         return_messages = []
@@ -121,7 +121,7 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
                                             }
                                         )
 
-                                print('message match ' + str(message))
+                                # print('message match ' + str(message))
                                 message_json = json.loads(message.json())
                                 message_json.update({'type': 'message'})
                                 return_messages.append(message_json)
@@ -145,10 +145,10 @@ async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout
 async def get_summary_by_key(key, convoID, client_loadout = None):
     
     if client_loadout == current_loadout[convoID]:
-        print('getting summary by key')
+        # print('getting summary by key')
         summary = None
 
-        print('trying string key')
+        # print('trying string key')
 
         summary = await prisma.summary.find_first(
             where={
@@ -158,17 +158,13 @@ async def get_summary_by_key(key, convoID, client_loadout = None):
 
         if summary == None:
 
-            print('trying int key')
+            # print('trying int key')
             summary = await prisma.summary.find_first(
                 where={
                     'id': int(key)
                 }   
             )
-        if summary == None:
-            print('summary not found')
-        else:
-            print(summary)
-            print('summary found')
+
     return summary
 
 async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
@@ -350,7 +346,7 @@ async def summarise_messages(userID, convoID, target_loadout = None):
 
                 conversation_string += message.name +': '+ message.body + '\n' + message.timestamp + '\n\n'
                 ids.append(message.id)
-                print(str(len(conversation_string)))
+                # print(str(len(conversation_string)))
 
                 if len(conversation_string) > 7000:
                     i = 0
@@ -378,8 +374,8 @@ async def summarise_messages(userID, convoID, target_loadout = None):
                     ids = []
     if conversation_string != '':
         # eZprint('logging conversation with unsumarised messages\n' + f'{conversation_string}')
-            print('adding on last bit of convo')
-            print(str(len(conversation_string)))
+            # print('adding on last bit of convo')
+            # print(str(len(conversation_string)))
             normalised_convos.append({
                 'ids': ids,
                 'toSummarise': conversation_string,
@@ -439,17 +435,17 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
  
 ##GROUP SUMMARY FLOWS
 async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "Summarise this text."):
-    eZprint('summarising batches, number of batches ' + str(len(batches)))
+    # eZprint('summarising batches, number of batches ' + str(len(batches)))
     ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
     
     counter = 0
     for batch in batches:
-        print('batch number ' + str(counter))
+        # print('batch number ' + str(counter))
         counter += 1
         epoch = batch['epoch'] +1
         summary = await get_summary_with_prompt(prompt, str(batch['toSummarise']))
         summaryKey = secrets.token_bytes(4).hex()
-        eZprint('summary complete')
+        # eZprint('summary complete')
         # print(summary)
         await create_summary_record(userID, batch['ids'], summaryKey, summary, epoch, batch['meta'], convoID, loadout)
 
@@ -461,8 +457,8 @@ async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "
 
 async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, meta = {}, convoID = '', loadout =None):
     # print(summary)
-    eZprint('creating summary record')
-    print(summary)
+    # eZprint('creating summary record')
+    # print(summary)
     summarDict = await parse_json_string(summary)
     success = True
     if summarDict == None:
@@ -567,7 +563,7 @@ async def summary_into_candidate(summarDict ):
 
 async def summarise_epochs(userID, convoID, target_loadout = None):
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    eZprint('starting epoch summary')
+    # eZprint('starting epoch summary')
 
 
 
@@ -596,7 +592,7 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
                 # print('adding on a none loadout')
                 loadout_candidates.append(candidate)
 
-        print('setting epoch_in_window to true')
+        # print('setting epoch_in_window to true')
         epoch_in_window = True
         for candidate in loadout_candidates:
             summary = json.loads(candidate.json())['blob']
@@ -625,7 +621,7 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
 
         for key, val in epochs.items():
             epoch = val
-            eZprint('epoch is ' + key) 
+            # eZprint('epoch is ' + key) 
             # print(epoch)
             #checks if epoch is 70% over resolution
             
@@ -636,11 +632,11 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
             ids = []
             x = 0
             meta = ''
-            print('epoch len ' + str(len(epoch)))
+            # print('epoch len ' + str(len(epoch)))
             for summary in epoch:
                 x += 1
                 ##goes through and creates batches in reverse
-                eZprint('creating candidate  ' + str(x) + ' of epoch ' + str(key))
+                # eZprint('creating candidate  ' + str(x) + ' of epoch ' + str(key))
                 summaryObj = await summary_into_candidate(summary)
                 timestamp = ''
                 if 'timestamp' in summaryObj:
@@ -656,7 +652,7 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
                 ids.append(summary['id'])
 
                 if len(toSummarise) > 7000:
-                    print('adding to batch')
+                    # print('adding to batch')
                     meta['last-doc'] = timestamp
                     batches.append({
                         'toSummarise' : toSummarise,
@@ -669,20 +665,20 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
                     toSummarise = ''
                     ids = []
                     meta = ''
-            print('epoch summarised looped')
+            # print('epoch summarised looped')
             if len(batches) > 0:
                 await summarise_batches(batches, userID, convoID, target_loadout, summary_batch_prompt)
                 batches = []
-                print('summarising batches so setting to false to trigger reloop')
+                # print('summarising batches so setting to false to trigger reloop')
                 epoch_in_window = False
 
-    print('epoch summarised outside while should be past while loop')
+    # print('epoch summarised outside while should be past while loop')
     
        
 
 async def get_summaries(userID, convoID, target_loadout):
 
-    eZprint('getting summaries')
+    # eZprint('getting summaries')
     summaries = await prisma.summary.find_many(
         where={
         'UserID': userID,
@@ -890,7 +886,7 @@ async def summariseChatBlocks(input,  loadout = None):
     start_message = None
     sessionID = ''
 
-    print('checking message ID list for messages to summarise' + str(messageIDs))
+    # print('checking message ID list for messages to summarise' + str(messageIDs))
     for messageID in messageIDs:
         for log in chatlog[convoID]:
             # print(str(log['id']) + ' ' + str(messageID))
@@ -984,7 +980,7 @@ async def summariseChatBlocks(input,  loadout = None):
         log['summarised'] = True
         log['muted'] = True
         log['minimised'] = True
-    print('summary update complete')
+    # print('summary update complete')
     # print(chatlog[convoID])
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
@@ -993,7 +989,7 @@ async def summariseChatBlocks(input,  loadout = None):
 
 async def get_sessions(convoID):
     
-    print('getting sessions')
+    # print('getting sessions')
     logs = await prisma.log.find_many(
     where = {
         "UserID": novaConvo[convoID]['userID'],
@@ -1002,7 +998,7 @@ async def get_sessions(convoID):
     sessions = 0
     
     if logs:
-        print('logs found')
+        # print('logs found')
         sessions = len(logs)
     first_date = ''
     last_date = ''

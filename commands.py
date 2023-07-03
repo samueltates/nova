@@ -471,9 +471,9 @@ async def broad_query(name, args, convoID, loadout):
                     if 'query' in args:
                         if 'blocks' in cartVal:
                             if 'summaries' in cartVal['blocks']:
-                                response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
+                                query_response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
                                 command_return['status'] = "Success."
-                                command_return['message'] = "From " + filename  + ": "+ str(response)
+                                command_return['message'] = "From " + filename  + ": "+ str(query_response)
                                 print(command_return)
                                 return command_return
                             
@@ -481,11 +481,11 @@ async def broad_query(name, args, convoID, loadout):
 
                     if 'query' in args:
                         if 'text' in cartVal:
-                            response = await quick_query(cartVal['text'], str(args['query']))
-                        command_return['status'] = "Success."
-                        command_return['message'] = "From " + filename  + ": "+ str(response)
-                        print(command_return)
-                        return command_return
+                            query_response = await quick_query(cartVal['text'], str(args['query']))
+                            command_return['status'] = "Success."
+                            command_return['message'] = "From " + filename  + ": "+ str(query_response)
+                            print(command_return)
+                            return command_return
                     
         for cartKey, cartVal in available_cartridges[convoID].items():
             if 'type' in cartVal and cartVal['type'] == 'summary':
@@ -502,9 +502,9 @@ async def broad_query(name, args, convoID, loadout):
                                     if similarity <3:
                                         print('found match' + str(summaryVal))
                                         if 'query' in args:
-                                            response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
+                                            query_response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
                                             command_return['status'] = "Success."
-                                            command_return['message'] = "From " + filename  + ": "+ str(response)
+                                            command_return['message'] = "From " + filename  + ": "+ str(query_response)
                                             print(command_return)
                                             return command_return
                                     
@@ -512,9 +512,9 @@ async def broad_query(name, args, convoID, loadout):
     query = ''
     if 'query' in args:
         query = args['query']
-        response = await quick_query(all_text, str(query))
+        query_response = await quick_query(all_text, str(query))
         command_return['status'] = "Return."
-        command_return['message'] = "File not found, results from all text search : " + str(response)
+        command_return['message'] = "File not found, results from all text search : " + str(query_response)
         return command_return
     else:
         command_return['status'] = "Error."

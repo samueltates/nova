@@ -270,7 +270,6 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         await set_loadout(loadout, convoID)
-        novaConvo[convoID]['owner'] = True
         await runCartridges(convoID, loadout)
 
     if(parsed_data['type'] == 'loadout_referal'):

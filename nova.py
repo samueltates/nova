@@ -53,10 +53,14 @@ async def initialise_conversation(convoID, params = None):
         
     if 'model' in params:
         novaConvo[convoID]['model'] = params['model']
+        if novaConvo[convoID]['model'] == 'gpt-4':
+            novaConvo[convoID]['token_limit'] = 8000
+        else:
+            novaConvo[convoID]['token_limit'] = 4000
+
         print(params['model'])
     
     novaConvo[convoID]['agent_name'] = agentName
-    novaConvo[convoID]['token_limit'] = 4000
     sessionID = novaConvo[convoID]['sessionID'] 
     novaSession[sessionID]['latestConvo']= convoID
 
@@ -123,8 +127,17 @@ async def runCartridges(convoID, loadout = None):
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     print('running summary cartridge on loadout ' + str(loadout))
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
-    
-    
+
+            if cartVal['type'] == 'system':
+                if 'values' in cartVal:
+                    for values in cartVal['values']:
+                        if 'model' in values:
+                            novaConvo[convoID]['model'] = values['model']
+                            print('model set to ' + str(values['model']))
+                            if novaConvo[convoID]['model'] == 'gpt-4':
+                                novaConvo[convoID]['token_limit'] = 8000
+                            else:
+                                novaConvo[convoID]['token_limit'] = 4000
 
 async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
