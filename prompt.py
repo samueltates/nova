@@ -192,6 +192,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         if value['give-context'] == True:
                             context = await construct_context(convoID)
                             final_prompt_string += context
+                    novaConvo[convoID]['token_limit'] = 4000
                     if 'model' in value:
                         novaConvo[convoID]['model'] = value['model']
                         if novaConvo[convoID]['model'] == 'gpt-4':

@@ -51,6 +51,7 @@ async def initialise_conversation(convoID, params = None):
         novaConvo[convoID]['message'] = params['message']
         print(params['message'])
         
+    novaConvo[convoID]['token_limit'] = 4000
     if 'model' in params:
         novaConvo[convoID]['model'] = params['model']
         if novaConvo[convoID]['model'] == 'gpt-4':
@@ -129,6 +130,8 @@ async def runCartridges(convoID, loadout = None):
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
 
             if cartVal['type'] == 'system':
+                novaConvo[convoID]['token_limit'] = 4000
+
                 if 'values' in cartVal:
                     for values in cartVal['values']:
                         if 'model' in values:
