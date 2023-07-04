@@ -931,7 +931,12 @@ async def summariseChatBlocks(input,  loadout = None):
 
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
-    summary = await get_summary_with_prompt(prompt, str(messages_string))
+
+    model = 'gpt-3.5-turbo'
+    if 'model' in novaConvo[convoID]:
+        model = novaConvo[convoID]['model']
+        print ('model: ' + model)
+    summary = await get_summary_with_prompt(prompt, str(messages_string), model)
     #wait for 2 seconds
     # print(summary)
     summarDict = json.loads(summary)

@@ -25,7 +25,7 @@ async def sendChat(promptObj, model):
 
 
 
-async def get_summary_with_prompt(prompt, textToSummarise):
+async def get_summary_with_prompt(prompt, textToSummarise, model = 'gpt-3.5-turbo'):
 
     promptObject = []
     promptObject.append({'role' : 'system', 'content' : prompt})
@@ -37,7 +37,7 @@ async def get_summary_with_prompt(prompt, textToSummarise):
     # model = app.session.get('model')
     # if model == None:
     #     model = 'gpt-3.5-turbo'
-    response = await sendChat(promptObject, 'gpt-3.5-turbo')
+    response = await sendChat(promptObject, model)
     # print(response)
     content = response["choices"][0]["message"]["content"]
     # print(content)

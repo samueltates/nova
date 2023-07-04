@@ -52,7 +52,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
     # print('shouldnt be going past here')
     if 'continue' in name or 'next' in name :
-        response = await continue_command(args, convoID, thread)
+        response = await continue_command(convoID, thread)
         return response
     
     if 'return' in name:
@@ -176,8 +176,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             for key, val in available_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
                 if string_match < 3:
-                    current_text = val['text']
-                    current_text += '\n\n' + text
+                    current_text = ''
+                    if 'text' in val:
+                        current_text = val['text']
+                        current_text += '\n\n' + text
                     val['text'] = current_text
 
                     payload = {
@@ -699,7 +701,7 @@ async def continue_command(convoID, thread, loop):
     eZprint('continuing command' + str(loop))
     if convoID in command_loops:
         if thread in command_loops[convoID]:
-            command_return = large_document_loop(convoID, thread, loop)
+            command_return = large_document_loop(convoID, thread)
             return command_return
 
 async def large_document_loop(string, command = '', convoID= '', thread = 0):
@@ -741,6 +743,7 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0):
         command = command_loops[convoID][thread]['command']
 
     sections = command_loops[convoID][thread]['sections']
+    command_loops[convoID][thread]['loop'] += 1
     # print(sections)
     # print(len(sections))
     # print(loop)
@@ -766,5 +769,5 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0):
 
 # ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
 
-ongoing_return_string = """\n Enter 'next' for next page, or 'return' for home."""
+ongoing_return_string = """\n Enter 'continue' for next page."""
 
