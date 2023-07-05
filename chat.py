@@ -17,6 +17,7 @@ from commands import handle_commands, system_threads, command_loops
 from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 from cartridges import updateContentField
+from tokens import handle_token_use, get_tokens_left
 agentName = 'nova'
 
 
@@ -234,6 +235,11 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
             content = e
 
     eZprint('response recieved')
+    
+    userID = novaConvo[convoID]['userID']
+    completion_tokens = response["usage"]['completion_tokens']
+    prompt_tokens = response["usage"]['prompt_tokens']
+    await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': ''}}))
 
@@ -423,6 +429,10 @@ async def simple_agent_response(convoID):
                     content = e
             # await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': val['label'], 'state': 'typing'}}))
             ##to do, make this an array so handling multiple agent states.
+            userID = novaConvo[convoID]['userID']
+            completion_tokens = response["usage"]['completion_tokens']
+            prompt_tokens = response["usage"]['prompt_tokens']
+            await handle_token_use(userID, 'gpt-3.5-turbo', completion_tokens, prompt_tokens)
             await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': ''}}))
             eZprint('response recieved')
             await handle_message(convoID, content, 'user', str(val['label']), None, 0, 'simple')

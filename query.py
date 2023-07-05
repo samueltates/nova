@@ -3,11 +3,13 @@ import os
 import json
 import asyncio
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+from tokens import get_tokens_left, handle_token_use
 
 async def sendChat(promptObj, model):
     loop = asyncio.get_event_loop()
     try:
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+
     except:
         try:
             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
@@ -38,6 +40,7 @@ async def get_summary_with_prompt(prompt, textToSummarise, model = 'gpt-3.5-turb
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, model)
+
     # print(response)
     content = response["choices"][0]["message"]["content"]
     # print(content)

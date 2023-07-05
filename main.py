@@ -3,11 +3,11 @@ import asyncio
 import json
 import base64
 
-from quart import request, jsonify, url_for, session
+from quart import request, jsonify, url_for, session, render_template
 from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
-
+import stripe
 import secrets
 from random_word import RandomWords
 
@@ -23,7 +23,7 @@ from debug import eZprint
 from memory import summariseChatBlocks,get_summary_children_by_key
 from keywords import get_summary_from_keyword, get_summary_from_insight
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
-
+from tokens import update_coin_count, get_tokens_left
 app.session = session
 Session(app)
 r = RandomWords()
@@ -52,6 +52,7 @@ def make_session_permanent():
     app.session.permanent = True
     eZprint("Make session permanent")
 
+
 @app.route("/startsession", methods=['POST'])
 async def startsession():
 
@@ -75,6 +76,7 @@ async def startsession():
     sessionID = app.session.get('sessionID')    
     convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
+    
     novaConvo[convoID] = {}
     novaConvo[convoID]['userName'] = novaSession[sessionID]['userName']
     novaConvo[convoID]['userID'] = novaSession[sessionID]['userID']
@@ -153,6 +155,62 @@ async def requestLogout():
     app.session.modified = True
     return jsonify({'logout': logoutStatus})
 
+stripe.api_key = os.getenv('STRIPE_API')
+endpoint_secret = 'whsec_...'
+
+payment_requests = {}
+
+@app.route('/createCheckoutSession', methods=['GET'])
+def createCheckoutSession():
+    print('create-checkout-session route hit')
+    # quantity = request.form.get('quantity', 1)
+    domain_url = os.getenv('NOVA_SERVER')
+
+    try:
+        # Create new Checkout Session for the order
+        # Other optional params include:
+        # [billing_address_collection] - to display billing address details on the page
+        # [customer] - if you have an existing Stripe Customer ID
+        # [payment_intent_data] - lets capture the payment later
+        # [customer_email] - lets you prefill the email input in the form
+        # [automatic_tax] - to automatically calculate sales tax, VAT and GST in the checkout page
+        # For full details see https://stripe.com/docs/api/checkout/sessions/create
+
+        # ?session_id={CHECKOUT_SESSION_ID} means the redirect will have the session ID set as a query param
+        checkout_session = stripe.checkout.Session.create(
+            success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
+            # cancel_url=domain_url + '/canceled.html',
+            mode='payment',
+            # automatic_tax={'enabled': True},
+            line_items=[{
+                'price': os.getenv('250_NOVA'),
+                'quantity': 1,
+            }]
+        )
+        print(checkout_session)
+        sessionID = app.session.get('sessionID')    
+        userID = novaSession[sessionID]['userID']
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID}
+
+        # return redirect(checkout_session.url, code=303)
+        print(checkout_session.url)
+
+        return jsonify({'checkout_url': checkout_session.url})
+    
+    except Exception as e:
+        return jsonify(error=str(e)), 403
+
+@app.route('/paymentSuccess', methods=['GET'])
+async def paymentSuccess():
+    print('paymentSuccess route hit')
+    sessionID = app.session.get('sessionID')    
+    userID = novaSession[sessionID]['userID']
+    payment_request = payment_requests[request.args.get('session_id')]
+    payment_request['status'] = 'success'
+    app.session.modified = True
+    return await render_template('close_complete.html')
+
+
 @app.websocket('/ws')
 async def ws():
     while True:
@@ -162,6 +220,32 @@ async def ws():
 
 async def process_message(parsed_data):
 
+    if(parsed_data['type']=='createCheckoutSession'):
+        domain_url = os.getenv('NOVA_SERVER')
+        checkout_session = stripe.checkout.Session.create(
+            success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
+            # cancel_url=domain_url + '/canceled.html',
+            mode='payment',
+            # automatic_tax={'enabled': True},
+            line_items=[{
+                'price': os.getenv('250_NOVA'),
+                'quantity': 1,
+            }]
+        )
+        print(checkout_session)
+        sessionID = app.session.get('sessionID')    
+        userID = novaSession[sessionID]['userID']
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID}
+
+        # return redirect(checkout_session.url, code=303)
+        print(checkout_session.url)
+        await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
+        while payment_requests[checkout_session.id]['status'] == 'pending':
+            await asyncio.sleep(1)
+        await websocket.send(json.dumps({'event':'paymentSuccess', 'payload': True}))
+        await update_coin_count(userID, -250)
+        await get_tokens_left(userID)
+
     if(parsed_data['type'] == 'request_loadouts'):
         eZprint('request_loadouts route hit')
         convoID = parsed_data['data']['convoID']
@@ -170,6 +254,7 @@ async def process_message(parsed_data):
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
         print(parsed_data['data'])
+
         await initialise_conversation(convoID, params)
         await initialiseCartridges(convoID)
         

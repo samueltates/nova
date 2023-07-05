@@ -41,5 +41,6 @@ redis = "*"
 quart-redis = "*"
 random-word = "*"
 levenshtein = "*"
+stripe = "*"
 
 [dev-packages]

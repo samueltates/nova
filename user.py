@@ -1,6 +1,8 @@
 from prismaHandler import prisma
 from prisma import Json
+import json
 
+import datetime
 async def GoogleSignOn(userInfo, token):
     userRecord = await prisma.user.find_first(
         where={
@@ -8,12 +10,14 @@ async def GoogleSignOn(userInfo, token):
         }
     )
     if(userRecord):
+        blob = json.loads(userRecord.json())['blob']
+        blob['credentials'] = token.to_json()
         foundUser = await prisma.user.update(
             where={
                 'id': userRecord.id
             },
             data= {
-                'blob': Json({'credentials': token.to_json()})
+                'blob': Json(blob)
             }
         )
         return foundUser
@@ -72,3 +76,4 @@ async def updateAuth(userID, credentials):
             }
         )
         return user
+

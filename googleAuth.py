@@ -17,7 +17,7 @@ from appHandler import app, websocket
 from sessionHandler import novaSession
 from user import GoogleSignOn
 from debug import eZprint
-
+from tokens import get_tokens_left
 
 
 async def check_credentials(sessionID):
@@ -143,6 +143,7 @@ async def getUserInfo(sessionID):
     await GoogleSignOn(userInfo, credentials)
     novaSession[sessionID]['userID'] =  userInfo['id']
     novaSession[sessionID]['userName'] =  userInfo['name']
+    
     return True
 
 async def getDocService(sessionID):

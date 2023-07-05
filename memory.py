@@ -43,7 +43,7 @@ async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = Non
 
 async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, target_loadout = None):
 
-    eZprint('summarising convos')
+    # eZprint('summarising convos')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
@@ -291,7 +291,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loa
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID, convoID, target_loadout = None):  
-    eZprint('getting messages to summarise')
+    # eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
     remote_messages = await prisma.message.find_many(

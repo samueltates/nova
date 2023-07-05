@@ -14,10 +14,9 @@ from appHandler import app, websocket
 from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
 from prismaHandler import prisma
 from memory import run_summary_cartridges
-from cartridges import update_cartridge_field, copy_cartridges_from_loadout
-from query import get_summary_with_prompt
-from keywords import get_keywords_from_summaries
+from cartridges import copy_cartridges_from_loadout
 from debug import fakeResponse, eZprint
+from tokens import get_tokens_left
 
 agentName = "nova"
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
@@ -51,6 +50,7 @@ async def initialise_conversation(convoID, params = None):
         novaConvo[convoID]['message'] = params['message']
         print(params['message'])
         
+
     novaConvo[convoID]['token_limit'] = 4000
     if 'model' in params:
         novaConvo[convoID]['model'] = params['model']
@@ -78,6 +78,7 @@ async def initialiseCartridges(convoID):
 async def loadCartridges(convoID, loadout = None):
     eZprint('load cartridges called')
     userID = novaConvo[convoID]['userID']
+    await get_tokens_left(userID)
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": userID,
@@ -119,8 +120,8 @@ async def runCartridges(convoID, loadout = None):
         if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
             await agent_initiate_convo(convoID)
 
-    if current_loadout[convoID] == None:
-        await agent_initiate_convo(convoID)
+    # if current_loadout[convoID] == None:
+    #     await agent_initiate_convo(convoID)
 
     if convoID in available_cartridges:
         for cartKey, cartVal in available_cartridges[convoID].items():
