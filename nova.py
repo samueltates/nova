@@ -109,7 +109,8 @@ async def runCartridges(convoID, loadout = None):
     print('running cartridges')
     if loadout != current_loadout[convoID]:
         return
-    if available_cartridges[convoID] == {}:
+    
+    if convoID not in available_cartridges or available_cartridges[convoID] == {}:
         await copy_cartridges_from_loadout('e8b0d808235f9aa4', convoID)
         await runCartridges(convoID)
         return
