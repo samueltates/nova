@@ -91,10 +91,10 @@ async def loadCartridges(convoID, loadout = None):
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                     available_cartridges[convoID][cartKey] = cartVal
-                    cartdigeLookup.update({cartKey: cartridge.id}) 
+                    # cartdigeLookup.update({cartKey: cartridge.id}) 
                     # cartVal['key'] = cartKey
-                    if cartVal['type'] == 'summary':
-                        cartVal.update({'state': 'loading'})
+                    # if cartVal['type'] == 'summary':
+                    #     cartVal.update({'state': 'loading'})
                         # cartVal['blocks'] = []
 
         # print('available cartridges are ' + str(available_cartridges[convoID]))

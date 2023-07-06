@@ -17,7 +17,7 @@ from commands import handle_commands, system_threads, command_loops
 from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 from cartridges import updateContentField
-from tokens import handle_token_use, get_tokens_left
+from tokens import handle_token_use, get_tokens_left, check_tokens
 agentName = 'nova'
 
 
@@ -209,8 +209,11 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     # for object in promptObject:
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
-
-
+    userID = novaConvo[convoID]['userID']
+    tokens = await check_tokens(userID)
+    if not tokens:
+        return
+    
     content = ''
     if thread == 0:
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))

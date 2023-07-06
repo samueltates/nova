@@ -17,10 +17,12 @@ windows = {}
 
 async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = None):
     userID = novaConvo[convoID]['userID']
-    # print('run summary cartridges triggered' )
+    print('run summary cartridges triggered' )
     # print('current loadout' + str(client_loadout))
     # print('current loadout convoID' + str(current_loadout[convoID]))
     # print(current_loadout[convoID])
+    # if cartVal['state'] == 'loading':
+    #     return
     if novaConvo[convoID]['owner']:
         if client_loadout == current_loadout[convoID]:                
             if 'blocks' not in cartVal:
@@ -43,7 +45,7 @@ async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = Non
 
 async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, target_loadout = None):
 
-    # eZprint('summarising convos')
+    eZprint('summarising convos')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
@@ -62,6 +64,7 @@ async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, targ
             await summarise_messages(userID, convoID, target_loadout)
             # print('summarise messages finished')
             await summarise_epochs(userID, convoID, target_loadout)
+            # await collapse_epochs(userID, convoID, target_loadout)
         
 async def get_summary_children_by_key(childKey, convoID, cartKey, client_loadout = None):
     # print('get summary children by key triggered')
@@ -183,7 +186,27 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
             }
         await update_cartridge_field(input, client_loadout, system=True)
 
-        response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
+        texts = []
+        textString = ''
+        if 'blocks' in cartVal:
+            if 'summaries' in cartVal['blocks']:
+                for summary in cartVal['blocks']['summaries']:
+                    for key, val in summary.items():
+                        if 'title' in val:
+                            textString += val['title'] + '\n'
+                        if 'body' in val:
+                            textString += val['body'] + '\n'
+                        if 'timestamp' in val:
+                            textString += val['timestamp'] + '\n'
+                        if len(textString) > 7000:
+                            texts.append(textString)
+                            textString = ''
+        
+        for text in texts:
+            print('getting summary with prompt')
+            response += await get_summary_with_prompt(past_convo_prompts, text)
+
+        # response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
         cartVal['text'] = ''
         if response != '':
@@ -291,7 +314,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loa
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID, convoID, target_loadout = None):  
-    # eZprint('getting messages to summarise')
+    eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
     remote_messages = await prisma.message.find_many(
@@ -413,7 +436,7 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
             )
 
     if record_type == 'summary':
-        # print('record type is summary')
+        print('record type is summary')
         target_summary = await prisma.summary.find_first(
             where={
             'id': record_ID,
@@ -432,6 +455,8 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
                     'blob': Json({key:val}),
                 }
             )
+            print('summary updated')
+            # print(updated_summary)
  
 ##GROUP SUMMARY FLOWS
 async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "Summarise this text."):
@@ -458,7 +483,7 @@ async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "
 async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, meta = {}, convoID = '', loadout =None):
     # print(summary)
     # eZprint('creating summary record')
-    # print(summary)
+    print(summary)
     summarDict = await parse_json_string(summary)
     success = True
     if summarDict == None:
@@ -513,32 +538,32 @@ async def summary_into_candidate(summarDict ):
 
     summaryString = title + ' - ' + timestamp + '\n' + body + '\n'
 
-    if 'keywords' in summarDict:
-        summaryString += '\nKeywords: '
-        for keyword in summarDict['keywords']:
-            summaryString += keyword + ', '
-        summaryString += '\n'
+    # if 'keywords' in summarDict:
+    #     summaryString += '\nKeywords: '
+    #     for keyword in summarDict['keywords']:
+    #         summaryString += keyword + ', '
+    #     summaryString += '\n'
         
-    notes = ''
-    if 'notes' in summarDict:
-        for key, val in summarDict['notes'].items():
-            notes += '-'+str(key) + ': ' + str(val) + '\n'
+    # notes = ''
+    # if 'notes' in summarDict:
+    #     for key, val in summarDict['notes'].items():
+    #         notes += '-'+str(key) + ': ' + str(val) + '\n'
 
-    if notes != '':
-        # print('notes found adding title')
-        summaryString += '\nNotes:\n' + notes
+    # if notes != '':
+    #     # print('notes found adding title')
+    #     summaryString += '\nNotes:\n' + notes
 
-    insights = ''
-    if 'insights' in summarDict:
-        for key, val in summarDict['insights'].items():
-            if isinstance(val, dict):
-                for key2, val2 in val.items():
-                    summaryString += '-'+str(key2) + ': ' + str(val2) + '\n'
+    # insights = ''
+    # if 'insights' in summarDict:
+    #     for key, val in summarDict['insights'].items():
+    #         if isinstance(val, dict):
+    #             for key2, val2 in val.items():
+    #                 summaryString += '-'+str(key2) + ': ' + str(val2) + '\n'
 
 
-    if insights != '':
-        # print('insights found adding title')
-        summaryString += '\nInsights:\n' + insights 
+    # if insights != '':
+    #     # print('insights found adding title')
+    #     summaryString += '\nInsights:\n' + insights 
 
 
     if 'epoch' not in summarDict:
@@ -563,15 +588,15 @@ async def summary_into_candidate(summarDict ):
 
 async def summarise_epochs(userID, convoID, target_loadout = None):
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    # eZprint('starting epoch summary')
+    eZprint('starting epoch summary')
 
 
 
     epoch_in_window = False
 
+    epochs = {}
     while epoch_in_window == False:
 
-        epochs = {}
 
         candidates = await prisma.summary.find_many(
             where={
@@ -621,7 +646,7 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
 
         for key, val in epochs.items():
             epoch = val
-            # eZprint('epoch is ' + key) 
+            eZprint('epoch is ' + key) 
             # print(epoch)
             #checks if epoch is 70% over resolution
             
@@ -650,9 +675,10 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
                     }
                 toSummarise += str(summaryObj['content']) + '\n'
                 ids.append(summary['id'])
+                print(summary)
 
                 if len(toSummarise) > 7000:
-                    # print('adding to batch')
+                    print('adding to batch')
                     meta['last-doc'] = timestamp
                     batches.append({
                         'toSummarise' : toSummarise,
@@ -665,16 +691,23 @@ async def summarise_epochs(userID, convoID, target_loadout = None):
                     toSummarise = ''
                     ids = []
                     meta = ''
-            # print('epoch summarised looped')
+            print('epoch summarised looped')
             if len(batches) > 0:
                 await summarise_batches(batches, userID, convoID, target_loadout, summary_batch_prompt)
                 batches = []
-                # print('summarising batches so setting to false to trigger reloop')
+                print('summarising batches so setting to false to trigger reloop')
                 epoch_in_window = False
+                break
+
+    in_window = len(epochs)/3
+
+    # for key, val in epochs.items():
+    #     epoch = val
+    #     for summary in epoch:
+
 
     # print('epoch summarised outside while should be past while loop')
     
-       
 
 async def get_summaries(userID, convoID, target_loadout):
 
@@ -743,6 +776,9 @@ async def get_summaries(userID, convoID, target_loadout):
         windows[userID+convoID].append(window)
 
             #TODO - set summary 
+
+
+
 
 conversation_summary_prompt = """
 Generate a concise summary of this conversation in JSON format, including a title, time range, in-depth paragraph, top 3 keywords, and relevant notes. The summary should be organized as follows:

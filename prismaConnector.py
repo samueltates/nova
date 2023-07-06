@@ -43,6 +43,7 @@ async def findSummaries(userID, epoch = None, summarised = None):
 
     latest_summaries = []
     summary_by_id = {}
+    counter = 0
     for summary in summaries:
         id = summary.id
         blob = json.loads(summary.json())['blob']
@@ -50,9 +51,13 @@ async def findSummaries(userID, epoch = None, summarised = None):
         for key, val in blob.items():
             if 'summarised' in val :
                 if not val['summarised']:
+                    counter += 1
                     print(summary)
                     print('\n')
-        
+    print(counter)
+
+    
+
                 
 async def sort_summaries(userID, epoch = None):
     summaries = await prisma.summary.find_many(
@@ -152,12 +157,14 @@ async def findMessages(userID):
     messages = await prisma.message.find_many(
         where = {
             'UserID' : userID,
-            'id': {'lt': 1000}     
+            # 'id': {'lt': 1000}     
                  }
     )
     for message in messages:
-        print('\n')
-        print(message)
+        # print('\n')
+        if message.summarised == False:
+            print(message)
+            # print('not summarised')
 
 
 async def find_and_delete_messages():
@@ -175,7 +182,7 @@ async def find_and_delete_messages():
 async def findMessages_set_unsummarised(userID):
     messages = await prisma.message.find_many(
         where = {'UserID' : userID,
-                'id' :{'lt': 1500}
+                # 'id' :{'lt': 1500}
                  }
 
     )
@@ -187,7 +194,7 @@ async def findMessages_set_unsummarised(userID):
             where={'id': message.id},
             data={'summarised': False}
         )
-        print(updatedMessage)
+        # print(updatedMessage)
         # message_counter += 1
         # if message_counter > 500:
         #     break
@@ -565,22 +572,22 @@ async def update_summaries_for_testing(userID):
     )
     for summary in summaries:
 
-        print(summary)
+        # print(summary)
         blob = json.loads(summary.json())['blob']
-        print(blob)
+        # print(blob)
         for key, val in blob.items():
-            epoch = int(val['epoch'])
-            if epoch == 2:
-                val['summarised'] = False
-                update = await prisma.summary.update(
-                    where={'id': summary.id},
-                    data={'blob':Json({key: val})}
-                )
-                print(update)
-            if epoch > 2:
-                delete = await prisma.summary.delete(
-                    where={'id': summary.id},
-                )
+            # epoch = int(val['epoch'])
+            # if epoch == 2:
+            #     val['summarised'] = False
+            #     update = await prisma.summary.update(
+            #         where={'id': summary.id},
+            #         data={'blob':Json({key: val})}
+            #     )
+            #     print(update)
+            # if epoch > 2:
+            delete = await prisma.summary.delete(
+                where={'id': summary.id},
+            )
 
 async def find_users():
     users = await prisma.user.find_many(
@@ -604,9 +611,54 @@ async def find_messages_after(gt):
         print(message)
         print('\n')
 
+async def delete_summaries_in_range():
+    summaries = await prisma.summary.find_many(
+        where = {
+                'id': {'gt': 14000, 'lt': 14100
+                       } 
+
+
+                }
+    )
+    for summary in summaries:
+        delete = await prisma.summary.delete(
+            where={'id': summary.id}
+        )
+        print(delete)
+
+async def delete_summary_with_content():
+    summaries = await prisma.summary.find_many(
+    )
+
+    for summary in summaries:
+        blob = json.loads(summary.json())['blob']
+        for key, val in blob.items():
+            # print(val)
+            if 'body' in val:
+                if 'B-roll' in val['body']:
+                    # print(summary)
+                    delete = await prisma.summary.delete(
+                        where={'id': summary.id}
+                    )
+            if 'Keywords' in val:
+                if 'B-roll' in val['Keywords']:
+                    # print(summary)
+                    delete = await prisma.summary.delete(
+                        where={'id': summary.id}
+                    )
+            if 'title' in val:
+                if 'B-roll' in val['title']:
+                    # print(summary)
+                    delete = await prisma.summary.delete(
+                        where={'id': summary.id}
+                    )
+
+
 async def main() -> None:
     await prisma.connect()
-    await find_users()
+    # await delete_summary_with_content()
+    # await delete_summaries_in_range()
+    # await find_users()
     # await clear_user_history( '108238407115881872743')
     # await findIndexes('108238407115881872743')
     # await findBatches()
@@ -618,8 +670,8 @@ async def main() -> None:
     # await deleteMessages('108238407115881872743')
     # await deleteSummaries('110327569930296986874')
     # await deleteCartridges( '108238407115881872743')
-    # await findMessages_set_unsummarised('110327569930296986874')
-    # await update_summaries_for_testing('110327569930296986874')
+    await findMessages_set_unsummarised('110327569930296986874')
+    await update_summaries_for_testing('110327569930296986874')
     # await find_messages('110327569930296986874')
     # await findLogs('110327569930296986874')
     # await findCartridges()
