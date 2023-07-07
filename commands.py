@@ -197,7 +197,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             cartVal = {
             'label' : args['filename'],
             'text' : text,
-            'type' : 'note'
+            'type' : 'note',
+            'enabled' : True,
             }
 
             print(cartVal)

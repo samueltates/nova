@@ -120,7 +120,7 @@ async def runCartridges(convoID, loadout = None):
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     print('running summary cartridge on loadout ' + str(loadout))
-                    if cartVal['state'] is not 'loading':
+                    if cartVal['state'] != 'loading':
                         asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
                     else:
                         cartVal['state'] = ''

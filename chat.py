@@ -223,6 +223,11 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
         print(response)
+        userID = novaConvo[convoID]['userID']
+        completion_tokens = response["usage"]['completion_tokens']
+        prompt_tokens = response["usage"]['prompt_tokens']
+        await handle_token_use(userID, model, completion_tokens, prompt_tokens)
+
 
     except Exception as e:
         
@@ -232,6 +237,11 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         try: 
             response = await sendChat(promptObject, model)
             content = str(response["choices"][0]["message"]["content"])
+            userID = novaConvo[convoID]['userID']
+            completion_tokens = response["usage"]['completion_tokens']
+            prompt_tokens = response["usage"]['prompt_tokens']
+            await handle_token_use(userID, model, completion_tokens, prompt_tokens)
+
 
         except Exception as e:
             print(e)
@@ -239,11 +249,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
     eZprint('response recieved')
     
-    userID = novaConvo[convoID]['userID']
-    completion_tokens = response["usage"]['completion_tokens']
-    prompt_tokens = response["usage"]['prompt_tokens']
-    await handle_token_use(userID, model, completion_tokens, prompt_tokens)
-
+  
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': ''}}))
 
     asyncio.create_task(handle_message(convoID, content, 'assistant', 'Nova', None, thread))

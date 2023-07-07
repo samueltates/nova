@@ -221,6 +221,7 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
         },         
     )
 
+    # print(available_cartridges[convoID])
     for key, val in input['fields'].items():
         available_cartridges[convoID][targetCartKey][key] = val
 
