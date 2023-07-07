@@ -14,7 +14,7 @@ from appHandler import app, websocket
 from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
 from prismaHandler import prisma
 from memory import run_summary_cartridges
-from cartridges import copy_cartridges_from_loadout
+from cartridges import copy_cartridges_from_loadout, update_cartridge_field
 from debug import fakeResponse, eZprint
 from tokens import update_coin_count
 
@@ -91,15 +91,6 @@ async def loadCartridges(convoID, loadout = None):
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                     available_cartridges[convoID][cartKey] = cartVal
-                    # cartdigeLookup.update({cartKey: cartridge.id}) 
-                    # cartVal['key'] = cartKey
-                    # if cartVal['type'] == 'summary':
-                    #     cartVal.update({'state': 'loading'})
-                        # cartVal['blocks'] = []
-
-        # print('available cartridges are ' + str(available_cartridges[convoID]))
-        # print('loadout is ' + str(loadout))
-        # print('current loadout is ' + str(current_loadout[convoID]))
         if loadout == current_loadout[convoID]:
             await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
     eZprint('load cartridges complete')
@@ -129,7 +120,20 @@ async def runCartridges(convoID, loadout = None):
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     print('running summary cartridge on loadout ' + str(loadout))
-                    asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
+                    if cartVal['state'] is not 'loading':
+                        asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
+                    else:
+                        cartVal['state'] = ''
+                        cartVal['status'] = ''
+                        input = {
+                        'cartKey': cartKey,
+                        'convoID': convoID,
+                        'fields': {
+                            'state': cartVal['state'],
+                            'status': cartVal['status'],
+                            },
+                        }
+                        update_cartridge_field(input, loadout)
 
             if cartVal['type'] == 'system':
                 novaConvo[convoID]['token_limit'] = 4000

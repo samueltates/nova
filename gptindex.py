@@ -209,6 +209,7 @@ async def queryIndex(queryString, index ):
     query_engine = index.as_query_engine()
     response = await loop.run_in_executor(None, lambda: query_engine.query(queryString))
     eZprint(response)
+    
     return response 
 
 

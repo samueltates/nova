@@ -31,11 +31,13 @@ async def check_tokens(userID):
         print(blob)
        
         if 'tokens_available' in blob:
-            print('tokens available found')
+            # print('tokens available found')
             if blob['tokens_available'] > 0:
                 return True
             else:
                 return False
+    else:
+        return True
             
     # await websocket.send(json.dumps({'event':'tokens_left', 'tokens_left': 0}))
             
