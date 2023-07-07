@@ -40,29 +40,6 @@ async def check_tokens(userID):
     # await websocket.send(json.dumps({'event':'tokens_left', 'tokens_left': 0}))
             
 
-async def get_tokens_left(userID):
-    eZprint('get tokens left called')
-    user = await prisma.user.find_first(
-        where={
-            'UserID': userID
-        }
-    )
-
-    tokens_left = 0
-    if user:
-        blob = json.loads(user.json())['blob']
-        print(blob)
-        if 'tokens_available' in blob:
-            print('tokens available found')
-            tokens_left = blob['tokens_available'] - blob['tokensUsed']
-        else:
-            print('tokens available not found')
-            tokens_left = 250
-    
-    await  websocket.send(json.dumps({'event':'tokens_left', 'tokens_left': tokens_left}))
-
-    return tokens_left
-
 async def update_coin_count(userID, coins_used):
     user = await prisma.user.find_first(
         where={
@@ -73,8 +50,7 @@ async def update_coin_count(userID, coins_used):
     tokens_left = 0
     if user:
         blob = json.loads(user.json())['blob']
-
-        month_year = datetime.datetime.now().strftime("%B-%Y")
+        print(blob)
         if 'tokensUsed' in blob:
             blob['tokensUsed'] += coins_used
         else:
@@ -86,6 +62,7 @@ async def update_coin_count(userID, coins_used):
         else:
             print('tokens available not found')
             blob['tokens_available'] = 250 
+            tokens_left = 250
 
         foundUser = await prisma.user.update(
             where={

@@ -204,7 +204,8 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
         
         for text in texts:
             print('getting summary with prompt')
-            response += await get_summary_with_prompt(past_convo_prompts, text)
+            userID = novaConvo[convoID]['userID']
+            response += await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID)
 
         # response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
@@ -468,7 +469,8 @@ async def summarise_batches(batches, userID, convoID, loadout = None, prompt = "
         # print('batch number ' + str(counter))
         counter += 1
         epoch = batch['epoch'] +1
-        summary = await get_summary_with_prompt(prompt, str(batch['toSummarise']))
+        userID = novaConvo[convoID]['userID']
+        summary = await get_summary_with_prompt(prompt, str(batch['toSummarise']), 'gpt-3.5-turbo', userID)
         summaryKey = secrets.token_bytes(4).hex()
         # eZprint('summary complete')
         # print(summary)
@@ -972,7 +974,9 @@ async def summariseChatBlocks(input,  loadout = None):
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         print ('model: ' + model)
-    summary = await get_summary_with_prompt(prompt, str(messages_string), model)
+    userID = novaConvo[convoID]['userID']
+
+    summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
     #wait for 2 seconds
     # print(summary)
     summarDict = json.loads(summary)

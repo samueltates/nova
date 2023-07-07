@@ -17,8 +17,6 @@ from appHandler import app, websocket
 from sessionHandler import novaSession
 from user import GoogleSignOn
 from debug import eZprint
-from tokens import get_tokens_left
-
 
 async def check_credentials(sessionID):
     credentials = None

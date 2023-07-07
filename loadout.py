@@ -214,13 +214,15 @@ async def clear_loadout(convoID):
             where={ "UserID": novaConvo[convoID]['userID'] },
         )
 
+        blob = json.loads(user_details.json())['blob']
+        blob['current_loadout'] = None
         if user_details:
             update_user = await prisma.user.update(
                 where = {
                     'id' : user_details.id
                 },
                 data = {
-                    'blob': Json({"current_loadout":None})
+                    'blob': Json(blob)
                     }
             )
 

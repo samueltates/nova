@@ -16,7 +16,7 @@ from prismaHandler import prisma
 from memory import run_summary_cartridges
 from cartridges import copy_cartridges_from_loadout
 from debug import fakeResponse, eZprint
-from tokens import get_tokens_left
+from tokens import update_coin_count
 
 agentName = "nova"
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
@@ -78,7 +78,7 @@ async def initialiseCartridges(convoID):
 async def loadCartridges(convoID, loadout = None):
     eZprint('load cartridges called')
     userID = novaConvo[convoID]['userID']
-    await get_tokens_left(userID)
+    await update_coin_count(userID,0)
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": userID,

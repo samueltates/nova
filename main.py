@@ -23,7 +23,7 @@ from debug import eZprint
 from memory import summariseChatBlocks,get_summary_children_by_key
 from keywords import get_summary_from_keyword, get_summary_from_insight
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
-from tokens import update_coin_count, get_tokens_left
+from tokens import update_coin_count
 app.session = session
 Session(app)
 r = RandomWords()
@@ -244,7 +244,6 @@ async def process_message(parsed_data):
             await asyncio.sleep(1)
         await websocket.send(json.dumps({'event':'paymentSuccess', 'payload': True}))
         await update_coin_count(userID, -250)
-        await get_tokens_left(userID)
 
     if(parsed_data['type'] == 'request_loadouts'):
         eZprint('request_loadouts route hit')
