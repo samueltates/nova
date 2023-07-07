@@ -533,7 +533,7 @@ async def parse_json_string(content):
     json_object = None
     error = None
     try:
-        json_object = json.loads(content)
+        json_object = json.loads(content, strict=False)
         return json_object
 
     except ValueError as e:
@@ -552,7 +552,7 @@ async def parse_json_string(content):
         json_data = content[start_index:end_index+1]
         # print(json_data)
     try: 
-        json_object = json.loads(json_data)
+        json_object = json.loads(json_data, strict=False)
         return json_object
     
     except ValueError as e:
@@ -567,7 +567,7 @@ async def parse_json_string(content):
             json_data = remove_commas_after_property(content)
 
     try: 
-        json_object = json.loads(json_data)
+        json_object = json.loads(json_data, strict=False)
         return json_object
     
     except ValueError as e:

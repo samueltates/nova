@@ -610,8 +610,8 @@ async def summarise_epochs(userID, convoID, client_loadout = None, target_loadou
 
     epoch_in_window = False
 
-    epochs = {}
     while epoch_in_window == False:
+        epochs = {}
 
 
         candidates = await prisma.summary.find_many(
@@ -717,7 +717,6 @@ async def summarise_epochs(userID, convoID, client_loadout = None, target_loadou
                 epoch_in_window = False
                 break
 
-    in_window = len(epochs)/3
 
     # for key, val in epochs.items():
     #     epoch = val
@@ -995,7 +994,7 @@ async def summariseChatBlocks(input,  loadout = None):
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
     #wait for 2 seconds
     # print(summary)
-    summarDict = json.loads(summary)
+    summarDict = json.loads(summary, strict=False)
     # print(summarDict)
     fields = {}
     for key, value in summarDict.items():
