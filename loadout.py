@@ -209,10 +209,11 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     if loadout_key == current_loadout[convoID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
+
 async def clear_loadout(convoID):
     current_loadout[convoID] = None
     available_cartridges[convoID] = {}
-
+    current_config[convoID] = {}
     if novaConvo[convoID]['userID']:
         user_details = await prisma.user.find_first(
             where={ "UserID": novaConvo[convoID]['userID'] },
@@ -231,7 +232,7 @@ async def clear_loadout(convoID):
             )
 
             print(update_user)
-
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[convoID], 'owner': True}}))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 
 
