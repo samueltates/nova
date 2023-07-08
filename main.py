@@ -146,14 +146,14 @@ async def awaitCredentialRequest():
     }
     return jsonify(credentialState)
 
-@app.route('/requestLogout', methods=['GET'])
-async def requestLogout():
-    eZprint('requestLogout route hit')
-    sessionID = app.session.get('sessionID')    
+# @app.route('/requestLogout', methods=['GET'])
+# async def requestLogout():
+#     eZprint('requestLogout route hit')
+#     sessionID = app.session.get('sessionID')    
 
-    logoutStatus = await logout(sessionID)    
-    app.session.modified = True
-    return jsonify({'logout': logoutStatus})
+#     logoutStatus = await logout(sessionID)    
+#     app.session.modified = True
+#     return jsonify({'logout': logoutStatus})
 
 stripe.api_key = os.getenv('STRIPE_API')
 endpoint_secret = 'whsec_...'
@@ -190,7 +190,7 @@ def createCheckoutSession():
         print(checkout_session)
         sessionID = app.session.get('sessionID')    
         userID = novaSession[sessionID]['userID']
-        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID}
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID,}
 
         # return redirect(checkout_session.url, code=303)
         print(checkout_session.url)
@@ -203,8 +203,8 @@ def createCheckoutSession():
 @app.route('/paymentSuccess', methods=['GET'])
 async def paymentSuccess():
     print('paymentSuccess route hit')
-    sessionID = app.session.get('sessionID')    
-    userID = novaSession[sessionID]['userID']
+    checkout_session = request.args.get('session_id')
+    sessionID = payment_requests[checkout_session]['sessionID']
     payment_request = payment_requests[request.args.get('session_id')]
     payment_request['status'] = 'success'
     app.session.modified = True
@@ -235,6 +235,33 @@ async def process_message(parsed_data):
         authUrl = await requestPermissions( ['https://www.googleapis.com/auth/documents.readonly'], sessionID )
         await websocket.send(json.dumps({'event':'open_doc_url', 'loginURL': authUrl}))
 
+    if(parsed_data['type'] == 'awaitCredentialRequest'):
+
+        app.session.modified = True
+        sessionID = parsed_data['sessionID']    
+        requesting = novaSession[sessionID]['requesting']
+        while requesting:
+            print('awaiting credential request status ' + str(requesting))
+            await asyncio.sleep(1)
+            requesting = novaSession[sessionID]['requesting']
+            credentialState = {
+                'requesting': requesting,
+            }
+        else:
+            credentialState = {
+            'requesting': requesting,
+            'docsAuthed': novaSession[sessionID]['docsAuthed'],
+            'profileAuthed': novaSession[sessionID]['profileAuthed'],
+        }
+        await websocket.send(json.dumps({'event':'credentialState', 'payload': credentialState}))
+
+    if(parsed_data['type']== 'requestLogout'):
+        eZprint('requestLogout route hit')
+        sessionID = parsed_data['sessionID']    
+
+        logoutStatus = await logout(sessionID)    
+        app.session.modified = True
+        await websocket.send(json.dumps({'event':'logout', 'payload': logoutStatus}))
 
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
@@ -249,10 +276,9 @@ async def process_message(parsed_data):
             }]
         )
         print(checkout_session)
-        sessionID = app.session.get('sessionID')    
+        sessionID = parsed_data['sessionID']
         userID = novaSession[sessionID]['userID']
-        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID}
-
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
         # return redirect(checkout_session.url, code=303)
         print(checkout_session.url)
         await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
