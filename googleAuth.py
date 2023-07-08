@@ -76,6 +76,8 @@ async def requestPermissions(scopes, sessionID):
     )
     
     novaSession[sessionID]['state'] =  state
+    novaSession[state] = {}
+    novaSession[state]['sessionID'] = sessionID 
     redir = redirect(authorization_url)
     eZprint('got redirect URL')
 
@@ -83,11 +85,10 @@ async def requestPermissions(scopes, sessionID):
 
 @app.route('/authoriseRequest')
 async def authoriseRequest():
-    eZprint('authorise request route hit')
-    print(app.session)
-    sessionID = app.session.get('sessionID')
-    if sessionID in novaSession:
-        state = novaSession[sessionID]['state'] 
+    state = request.args.get('state')
+    sessionID = ''
+    if state in novaSession:
+        sessionID = novaSession[state]['sessionID'] 
         scopes = novaSession[sessionID]['scopes'] 
         
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
@@ -111,17 +112,19 @@ async def authoriseRequest():
 
 @app.route('/requestComplete')
 async def requestComplete():
-    eZprint('requestComplete route hit')
-    print(app.session)
-    sessionID = app.session.get('sessionID')
+    state = request.args.get('state')
+    sessionID = ''
+    if state in novaSession:
+        print(state)
+        sessionID = novaSession[state]['sessionID'] 
     if sessionID in novaSession:
         novaSession[sessionID]['requesting'] = False
-        if novaSession[sessionID]['profileAuthed']:
-            eZprint('profileAuthed')
-            return redirect(os.environ.get('NOVAHOME'))
-        if novaSession[sessionID]['docsAuthed']:
-            eZprint('docsAuthed')
-            return redirect(os.environ.get('NOVAHOME'))
+    return redirect(os.environ.get('NOVAHOME'))
+        # if novaSession[sessionID]['profileAuthed']:
+        #     eZprint('profileAuthed')
+        # if novaSession[sessionID]['docsAuthed']:
+        #     eZprint('docsAuthed')
+        #     return redirect(os.environ.get('NOVAHOME'))
 
 async def getUserInfo(sessionID):
     eZprint('getUserInfo route hit')

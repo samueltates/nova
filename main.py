@@ -229,6 +229,13 @@ async def process_message(parsed_data):
         loginURL = await requestPermissions( requestedScopes, sessionID )
         await websocket.send(json.dumps({'event':'open_auth_url', 'loginURL': loginURL}))
 
+    if(parsed_data['type'] == 'docAuthRequest'):
+        eZprint('googleAuth')
+        sessionID = parsed_data['sessionID']    
+        authUrl = await requestPermissions( ['https://www.googleapis.com/auth/documents.readonly'], sessionID )
+        await websocket.send(json.dumps({'event':'open_doc_url', 'loginURL': authUrl}))
+
+
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
         checkout_session = stripe.checkout.Session.create(
