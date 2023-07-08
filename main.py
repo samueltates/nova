@@ -224,7 +224,7 @@ async def process_message(parsed_data):
         eZprint('login route hit')
         print(app.session)
         
-        sessionID = parsed_data['data']['sessionID']
+        sessionID = parsed_data['sessionID']
         requestedScopes = ['https://www.googleapis.com/auth/userinfo.profile']
         loginURL = await requestPermissions( requestedScopes, sessionID )
         await websocket.send(json.dumps({'event':'open_auth_url', 'loginURL': loginURL}))
