@@ -52,7 +52,7 @@ async def check_credentials(sessionID):
 async def requestPermissions(scopes, sessionID):
     eZprint('requestPermission route hit')
     credentials = None
-    if 'credentials' in novaSession[sessionID]:
+    if sessionID in novaSession and 'credentials' in novaSession[sessionID]:
         credentials = novaSession[sessionID]['credentials']    
     novaSession[sessionID]['requesting'] = True
     if credentials:
