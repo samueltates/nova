@@ -206,9 +206,9 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
         if textString != '':
             texts.append(textString)
 
-        print('text string length ' + str(len(textString)))
+        # print('text string length ' + str(len(textString)))
         for text in texts:
-            print('getting summary with prompt')
+            # print('getting summary with prompt')
             userID = novaConvo[convoID]['userID']
             response += await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID)
 
@@ -599,7 +599,7 @@ async def summary_into_candidate(summarDict ):
 
 async def summarise_epochs(userID, convoID, client_loadout = None, target_loadout = None):
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    eZprint('starting epoch summary')
+    # eZprint('starting epoch summary')
 
 
 
@@ -657,7 +657,7 @@ async def summarise_epochs(userID, convoID, client_loadout = None, target_loadou
 
         for key, val in epochs.items():
             epoch = val
-            eZprint('epoch is ' + key) 
+            # eZprint('epoch is ' + key) 
             # print(epoch)
             #checks if epoch is 70% over resolution
             if client_loadout != current_loadout[convoID]:
@@ -704,11 +704,11 @@ async def summarise_epochs(userID, convoID, client_loadout = None, target_loadou
                     toSummarise = ''
                     ids = []
                     meta = ''
-            print('epoch summarised looped')
+            # print('epoch summarised looped')
             if len(batches) > 0:
                 await summarise_batches(batches, userID, convoID, client_loadout, target_loadout, summary_batch_prompt)
                 batches = []
-                print('summarising batches so setting to false to trigger reloop')
+                # print('summarising batches so setting to false to trigger reloop')
                 epoch_in_window = False
                 break
 

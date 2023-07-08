@@ -210,8 +210,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
     userID = novaConvo[convoID]['userID']
+    print('checking tokens')
     tokens = await check_tokens(userID)
     if not tokens:
+        asyncio.create_task(handle_message(convoID, 'Not enough NovaCoin to continue', 'assistant', 'system', None, thread))
         return
     
     content = ''

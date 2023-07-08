@@ -29,12 +29,14 @@ async def check_tokens(userID):
     if user:
         blob = json.loads(user.json())['blob']
         # print(blob)
-       
-        if 'tokens_available' in blob:
+
+        if 'tokens_available' in blob and 'tokensUsed' in blob:
             # print('tokens available found')
-            if blob['tokens_available'] > 0:
+            if blob['tokens_available'] - blob['tokensUsed'] > 0:
+
                 return True
             else:
+                await websocket.send(json.dumps({'event':'tokens_left', 'tokens_left':  blob['tokens_available'] - blob['tokensUsed']}))
                 return False
     else:
         return True

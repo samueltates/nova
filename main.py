@@ -187,13 +187,13 @@ def createCheckoutSession():
                 'quantity': 1,
             }]
         )
-        print(checkout_session)
+        # print(checkout_session)
         sessionID = app.session.get('sessionID')    
         userID = novaSession[sessionID]['userID']
         payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID,}
 
         # return redirect(checkout_session.url, code=303)
-        print(checkout_session.url)
+        # print(checkout_session.url)
 
         return jsonify({'checkout_url': checkout_session.url})
     

@@ -49,7 +49,9 @@ async def initialise_conversation(convoID, params = None):
     if 'message' in params:
         novaConvo[convoID]['message'] = params['message']
         print(params['message'])
-        
+
+    userID = novaConvo[convoID]['userID']
+    await update_coin_count(userID,0)
 
     novaConvo[convoID]['token_limit'] = 4000
     if 'model' in params:
@@ -79,7 +81,7 @@ async def initialiseCartridges(convoID):
 async def loadCartridges(convoID, loadout = None):
     eZprint('load cartridges called')
     userID = novaConvo[convoID]['userID']
-    await update_coin_count(userID,0)
+
     cartridges = await prisma.cartridge.find_many(
         where = {  
         "UserID": userID,
