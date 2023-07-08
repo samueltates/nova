@@ -37,17 +37,9 @@ async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = Non
             # if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
             await summarise_convos(convoID, cartKey, cartVal, client_loadout, target_loadout)
             await get_summaries(userID, convoID, target_loadout)
-            if client_loadout != current_loadout[convoID]:
-                return
             await update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loadout)
-            if client_loadout != current_loadout[convoID]:
-                return
             await get_overview(convoID, cartKey, cartVal, client_loadout)
-            if client_loadout != current_loadout[convoID]:
-                return
             await update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loadout)
-            if client_loadout != current_loadout[convoID]:
-                return
             await get_keywords_from_summaries(convoID, cartKey, cartVal, client_loadout,
              target_loadout)
 
@@ -211,7 +203,10 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
                         if len(textString) > 7000:
                             texts.append(textString)
                             textString = ''
-        
+        if textString != '':
+            texts.append(textString)
+
+        print('text string length ' + str(len(textString)))
         for text in texts:
             print('getting summary with prompt')
             userID = novaConvo[convoID]['userID']

@@ -26,12 +26,12 @@ async def construct_query(convoID, thread = 0):
     
 
 async def unpack_cartridges(convoID):
-    # sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
+    sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     print('unpacking cartridges')
-    # print(sorted_cartridges)
-    for cartKey, cartVal in available_cartridges[convoID].items():
+    print(sorted_cartridges)
+    for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}

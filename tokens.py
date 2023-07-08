@@ -28,7 +28,7 @@ async def check_tokens(userID):
 
     if user:
         blob = json.loads(user.json())['blob']
-        print(blob)
+        # print(blob)
        
         if 'tokens_available' in blob:
             # print('tokens available found')
@@ -52,7 +52,7 @@ async def update_coin_count(userID, coins_used):
     tokens_left = 0
     if user:
         blob = json.loads(user.json())['blob']
-        print(blob)
+        # print(blob)
         if 'tokensUsed' in blob:
             blob['tokensUsed'] += coins_used
         else:

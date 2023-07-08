@@ -71,8 +71,9 @@ async def initialiseCartridges(convoID):
     if convoID not in current_loadout:
         current_loadout[convoID] = None
     novaConvo[convoID]['owner'] = True
-    await loadCartridges(convoID)
-    await runCartridges(convoID)
+    if convoID not in current_loadout or current_loadout[convoID] == None:
+        await loadCartridges(convoID)
+    await runCartridges(convoID, current_loadout[convoID])
 
 
 async def loadCartridges(convoID, loadout = None):
@@ -120,20 +121,20 @@ async def runCartridges(convoID, loadout = None):
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     print('running summary cartridge on loadout ' + str(loadout))
-                    if cartVal['state'] != 'loading':
-                        asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
-                    else:
-                        cartVal['state'] = ''
-                        cartVal['status'] = ''
-                        input = {
-                        'cartKey': cartKey,
-                        'convoID': convoID,
-                        'fields': {
-                            'state': cartVal['state'],
-                            'status': cartVal['status'],
-                            },
-                        }
-                        update_cartridge_field(input, loadout)
+                    # if cartVal['state'] != 'loading':
+                    asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
+                    # else:
+                    #     cartVal['state'] = ''
+                    #     cartVal['status'] = ''
+                    #     input = {
+                    #     'cartKey': cartKey,
+                    #     'convoID': convoID,
+                    #     'fields': {
+                    #         'state': cartVal['state'],
+                    #         'status': cartVal['status'],
+                    #         },
+                    #     }
+                    #     update_cartridge_field(input, loadout)
 
             if cartVal['type'] == 'system':
                 novaConvo[convoID]['token_limit'] = 4000

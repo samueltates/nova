@@ -39,7 +39,7 @@ async def addCartridge(cartVal, convoID, client_loadout = None):
 
     if current_loadout[convoID] != None:
         if client_loadout == current_loadout[convoID]:
-            await add_cartridge_to_loadout(convoID, cartKey)
+            await add_cartridge_to_loadout(convoID, cartKey, client_loadout)
             cartVal["softDelete"] = True
 
     newCart = await prisma.cartridge.create(
@@ -91,7 +91,7 @@ async def addCartridgePrompt(input, client_loadout = None):
     if current_loadout[convoID] != None:
         if client_loadout == current_loadout[convoID]:
             print('adding to loadout so setting as deleted on main')
-            await add_cartridge_to_loadout(convoID, cartKey)
+            await add_cartridge_to_loadout(convoID, cartKey, client_loadout)
             if 'softDelete' not in cartVal:
                 cartVal["softDelete"] = True
 
@@ -162,7 +162,11 @@ async def add_existing_cartridge(input, loadout = None ):
             'cartVal': cartVal,
         }
     
-    print('cartVal' , cartVal)    
+    # print('cartVal' , cartVal) 
+    # 
+    print('updated avail')   
+    print(available_cartridges[convoID])
+
     ##if still on the right loadout then sends new cartridge.
     # if current_loadout[convoID] == loadout:
     await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
@@ -196,7 +200,7 @@ async def addCartridgeTrigger(input, client_loadout = None):
     available_cartridges[convoID][cartKey] = cartVal
 
     if client_loadout:
-        await add_cartridge_to_loadout(convoID,cartKey)
+        await add_cartridge_to_loadout(convoID,cartKey, client_loadout)
     if current_loadout[convoID] == client_loadout:
         payload = {
             'tempKey': input['tempKey'],
