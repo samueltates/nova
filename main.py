@@ -220,6 +220,15 @@ async def ws():
 
 async def process_message(parsed_data):
 
+    if(parsed_data['type'] == 'login'):
+        eZprint('login route hit')
+        print(app.session)
+        
+        sessionID = parsed_data['data']['sessionID']
+        requestedScopes = ['https://www.googleapis.com/auth/userinfo.profile']
+        loginURL = await requestPermissions( requestedScopes, sessionID )
+        await websocket.send(json.dumps({'event':'open_auth_url', 'loginURL': loginURL}))
+
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
         checkout_session = stripe.checkout.Session.create(
