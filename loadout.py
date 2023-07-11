@@ -6,6 +6,9 @@ from sessionHandler import available_cartridges, novaConvo, current_loadout, ava
 from debug import eZprint
 
 async def get_loadouts(convoID):
+
+    if convoID not in novaConvo:
+        return
     userID = novaConvo[convoID]['userID']
 
     loadouts = await prisma.loadout.find_many(

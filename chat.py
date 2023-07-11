@@ -65,7 +65,7 @@ async def user_input(sessionData):
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
-        print ('model: ' + model)
+        # print ('model: ' + model)
     await send_to_GPT(convoID, query_object, 0, model)
 
 
@@ -212,6 +212,9 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     #     print(f'{object["content"]}')
     userID = novaConvo[convoID]['userID']
     # print('checking tokens')
+
+    await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': promptObject}))
+
     tokens = await check_tokens(userID)
     if not tokens:
         asyncio.create_task(handle_message(convoID, 'Not enough NovaCoin to continue', 'assistant', 'system', None, thread))

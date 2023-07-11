@@ -202,15 +202,17 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
                             textString += val['timestamp'] + '\n'
                         if len(textString) > 7000:
                             texts.append(textString)
+                            # print(textString)
                             textString = ''
         if textString != '':
+            # print(textString)
             texts.append(textString)
 
         # print('text string length ' + str(len(textString)))
         for text in texts:
             # print('getting summary with prompt')
             userID = novaConvo[convoID]['userID']
-            response += str(await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID))
+            response += str(await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID)) + '\n\n'
 
         # response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
@@ -1085,7 +1087,7 @@ async def get_sessions(convoID):
 # if __name__ == '__main__':
 #     asyncio.run(main())
 
-past_convo_prompts = """This is an overview of previous conversations. Review for any key information, actions or points of interest for this conversation and respond with a short succinct summary."""
+past_convo_prompts = """These are summaries of past conversations, return a short concise summary of topics, outcomes, and insights."""
 
 
 

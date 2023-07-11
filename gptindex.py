@@ -313,13 +313,13 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
         'loadout' : loadout
     }
     await update_cartridge_field(input, loadout, system=True)
-    index = await reconstructIndex(indexJson)
-    insert = await queryIndex(query, index)
+    localIndex = await reconstructIndex(indexJson)
+    insert = await queryIndex(query, localIndex)
 
     indexJson = dict()  
 
     tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
-    index.storage_context.persist(tmpDir)
+    localIndex.storage_context.persist(tmpDir)
     # print(tmpDir)
     indexJson = dict()
     for file in os.listdir(tmpDir):
@@ -340,18 +340,25 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
     if 'docstore.json' in indexJson:
         docstore = indexJson['docstore.json']   
 
-    index = await prisma.index.find_first(where={'key':index_key})
-
-    update_index = await prisma.index.update(
+    print(index_key)
+    remote_index = await prisma.index.find_first(
         where={
-                'id': index.id
-        },
-        data = {
-                'docstore': Json(docstore),
-                'index_store': Json(index_store),
-                'vector_store': Json(vector_store),
-        }
+                'key': index_key
+                }
     )
+    print('remote found')
+    # print(remote_index)
+    # if remote_index :
+    #     update_index = await prisma.index.update(
+    #         where={
+    #                 'id': remote_index.id
+    #         },
+    #         data = {
+    #                 # 'docstore': Json(docstore),
+    #                 # 'index_store': Json(index_store),
+    #                 'vector_store': Json(vector_store),
+    #         }
+    #     )
 
     
     eZprint('index query complete')
@@ -390,12 +397,15 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
         
 async def get_index_json(index_key):
     eZprint('getting cartridge detail')
+    print(index_key)
     matchedCart = await prisma.index.find_first(
         where={
                 'key': index_key
                 }
     )
+    # print(matchedCart)
     dbRecord = json.loads(matchedCart.json())
+
     return dbRecord
 
 

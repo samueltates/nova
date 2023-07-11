@@ -16,8 +16,8 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     # print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    main_string = await construct_string(cartridges, convoID)
-    await construct_objects(convoID, main_string, cartridges)
+    prompt_string = await construct_prompt_string(cartridges, convoID)
+    await construct_objects(convoID, prompt_string, cartridges)
     await construct_chat(convoID, thread)
     truncuated = await handle_token_limit(convoID)
     if truncuated == True:
@@ -35,46 +35,57 @@ async def unpack_cartridges(convoID):
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
-            if 'label' in cartVal:
+            if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
-                cartridge_contents[cartVal['type']]['string'] += "\n__________________________\n" + cartVal['label']
-                if cartVal['type'] == 'note' or cartVal['type'] == 'index' or cartVal['type'] == 'summary':
+                cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
+                if cartVal['type'] == 'note' or cartVal['type'] == 'index':
                     if 'minimised' in cartVal and cartVal['minimised']:
-                        cartridge_contents[cartVal['type']]['string'] += " | expand"
+                        cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
                     else:
-                        cartridge_contents[cartVal['type']]['string'] += " | minimise"
-                cartridge_contents[cartVal['type']]['string'] +=  "\n"
+                        cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+                if cartVal['type']=='summary' or cartVal['type']=='index':
+                    cartridge_contents[cartVal['type']]['string'] += " [QUERIABLE] \n"
+                # cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
-                cartridge_contents[cartVal['type']]['string'] += cartVal['prompt'] + "\n\n"
+                cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
             if 'blocks' in cartVal:
                 if 'overview' in cartVal['blocks']:
                         cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
-                
             if 'minimised' in cartVal and cartVal['minimised'] == False:
                 if 'text' in cartVal:
-                    cartridge_contents[cartVal['type']]['string'] += "\n"+ cartVal['text'] + "\n"
+                    cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['text'] + "\n--\n"
                 if 'blocks' in cartVal:
                     #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
                     #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
                     if 'blocks' in cartVal:
                         if 'summaries' in cartVal['blocks']:
-                            cartridge_contents[cartVal['type']]['string'] += "\n__________________________\nSummaries available:\n"
                             for summary in cartVal['blocks']['summaries']:
                                 for key, value in summary.items():
                                     if 'title' in value:
-                                        cartridge_contents[cartVal['type']]['string'] += "\n--"+ str(value['title']) 
-                                        if 'minimised' in value:
-                                            if value['minimised']:
-                                                cartridge_contents[cartVal['type']]['string'] += " | expand"
-                                            else:
-                                                cartridge_contents[cartVal['type']]['string'] += " | expand"
-                                        else:
-                                            cartridge_contents[cartVal['type']]['string'] += " | expand"
+                                        cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['title']) 
+                                        if 'timestamp' in value:
+                                            cartridge_contents[cartVal['type']]['string'] += " - " + str(value['timestamp'])
+                                        if 'epoch' in value:
+                                            cartridge_contents[cartVal['type']]['string'] += " - layer " + str(value['epoch'])
+                                        # if 'minimised' in value:
+                                        #     if value['minimised']:
+                                        #         cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
+                                        #     else:
+                                        #         cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+                                        #         # if 'body' in value:
+                                        #         #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
+                                        # else:
+                                        #     cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+                                            # if 'body' in value:
+                                            #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
                                         cartridge_contents[cartVal['type']]['string'] += "\n"
-                            cartridge_contents[cartVal['type']]['string'] += "\n"
                         if 'queries' in cartVal['blocks']:
                             if 'minimised' in cartVal and not cartVal['minimised']:
-                                cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+                                if 'query' in cartVal['blocks']['queries']:
+                                    cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
+                                if 'response' in cartVal['blocks']['queries']:
+                                    cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
+                                # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -89,24 +100,28 @@ async def unpack_cartridges(convoID):
     return cartridge_contents
 
 
-async def construct_string(prompt_objects, convoID):
+async def construct_prompt_string(prompt_objects, convoID):
     # print('constructing string')
     final_string = ''
 
     if 'prompt' in prompt_objects:    
-        final_string += "\n__________________________\nPrompts:\n"
+        final_string += "\n--Instructions--"
         final_string += prompt_objects['prompt']['string']
-    final_string += "\n__________________________\nFiles available:\n"
-    if 'note' in prompt_objects:
-        final_string += prompt_objects['note']['string'] + "\n__________________________\n"
-    if 'index' in prompt_objects:
-        final_string += prompt_objects['index']['string']   + "\n__________________________\n"
     if 'summary' in prompt_objects:
-        final_string += prompt_objects['summary']['string'] + "\n__________________________\n"
-
-    # print('final_string')
-    # print(f'{final_string}')
+        final_string += "\n--Past conversations--"
+        final_string += prompt_objects['summary']['string'] 
+        final_string += '\n[Past conversations can be queried for more detail.]\n'
+    if 'index' in prompt_objects:
+        final_string += "\n--Embedded documents--"
+        final_string += prompt_objects['index']['string'] 
+        final_string += '\n[Embedded documents can be queried, opened or closed.]\n'
+    if 'note' in prompt_objects:
+        final_string += "\n--Notes--\n"
+        final_string += prompt_objects['note']['string']
+        final_string += '\n[Notes can be written, appended, opened or closed.]\n'
     return final_string
+
+
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
@@ -141,7 +156,6 @@ async def construct_chat(convoID, thread = 0):
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
 
-
     if 'command' in novaConvo[convoID]:
         # print('command found appending sys')
         if novaConvo[convoID]['command']:
@@ -159,13 +173,12 @@ async def construct_context(convoID):
     # print('constructing context')
     await get_sessions(convoID)
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
-    session_string += f"""todays date is {datetime.now()}.\n"""
+    session_string += f"""Today's date is {datetime.now()}.\n"""
     if 'sessions' in novaConvo[convoID]:
         if novaConvo[convoID]['sessions'] > 0:
             session_string += "You have spoken " + str(novaConvo[convoID]['sessions']) + "times.\n"
-    if 'first-date' in novaConvo[convoID]:
-        session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
-
+    # if 'first-date' in novaConvo[convoID]:
+    #     session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
     return session_string
 
 
@@ -175,10 +188,10 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     # print('chat objects are: ' + str(chat_objects))
     final_prompt_string = ''
     if main_string:
-        final_prompt_string += "\n"+ main_string
+        final_prompt_string += main_string
     if 'system' in prompt_objects:
-        if 'string' in prompt_objects['system']:
-            final_prompt_string += "\n"+prompt_objects['system']['string']
+        # if 'string' in prompt_objects['system']:
+        #     final_prompt_string += "\n"+prompt_objects['system']['string']
         if 'values' in prompt_objects['system']:
             # print('values found')
             for values in prompt_objects['system']['values']:

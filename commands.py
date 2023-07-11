@@ -368,7 +368,7 @@ async def open_file(name, args, convoID, loadout):
         
                 return_string = ''
                 print('file found')
-                if 'enabled' not in cartVal or cartVal['enabled'] == False or cartVal['minimised']:
+                if 'enabled' not in cartVal or cartVal['enabled'] == False or 'minimised' not in cartVal or cartVal['minimised']:
                     cartVal['enabled'] = True
                     cartVal['minimised'] = False
                     return_string += "File " + filename + " opened.\n"
