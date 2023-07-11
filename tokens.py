@@ -7,16 +7,19 @@ from debug import eZprint
 
 async def handle_token_use(userID, model, input_tokens, output_tokens):
     total_tokens = input_tokens + (2 * output_tokens)
-
+    dollars_per_NovaCoin = 0.04 # As 250 Nova Coin equals to $10
     if model.lower() == 'gpt-4':
-        coin_cost = (total_tokens / 1000) * 2.5
-    elif model.lower() == 'gpt-3.5':
-        coin_cost = (total_tokens / 1000) * 0.125
+        coin_cost = ((total_tokens / 1000) * 0.06) / dollars_per_NovaCoin
+    elif model.lower() == 'gpt-4-32k':
+        coin_cost = ((total_tokens / 1000) * 0.12) / dollars_per_NovaCoin
     elif model.lower() == 'gpt-3.5-turbo':
-        coin_cost = (total_tokens / 1000) * 0.125
+        coin_cost = ((total_tokens / 1000) * 0.006) / dollars_per_NovaCoin
+    elif model.lower() == 'gpt-3.5-turbo-16k':
+        coin_cost = ((total_tokens / 1000) * 0.004) / dollars_per_NovaCoin
     else:
+        coin_cost = ((total_tokens / 1000) * .06) / dollars_per_NovaCoin
         raise ValueError('Invalid model name')
-
+    
     await update_coin_count(userID, coin_cost)
 
 async def check_tokens(userID):
@@ -45,6 +48,7 @@ async def check_tokens(userID):
             
 
 async def update_coin_count(userID, coins_used):
+    # print('update coin count called')
     user = await prisma.user.find_first(
         where={
             'UserID': userID
@@ -61,7 +65,7 @@ async def update_coin_count(userID, coins_used):
             blob['tokensUsed'] = coins_used
 
         if 'tokens_available' in blob:
-            print('tokens available found')
+            # print('tokens available found')
             tokens_left = blob['tokens_available'] - blob['tokensUsed']
         else:
             print('tokens available not found')

@@ -22,9 +22,9 @@ agentName = 'nova'
 
 
 async def agent_initiate_convo(convoID):
-    print('agent initiate convo')
+    # print('agent initiate convo')
     if 'message' in novaConvo[convoID]:       
-        print('message in nova convo' + novaConvo[convoID]['message'])  
+        # print('message in nova convo' + novaConvo[convoID]['message'])  
         await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaConvo[convoID]['userName'])
     
     await construct_query(convoID),
@@ -43,7 +43,7 @@ async def agent_initiate_convo(convoID):
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
-        print ('model: ' + model)
+        # print ('model: ' + model)
     await send_to_GPT(convoID, query_object, 0, model)
 
 
@@ -104,6 +104,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "order": order,
         "thread": thread,
     }
+    print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
     # print('message logged' + str(id)    )
@@ -149,7 +150,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID].append(messageObject)
 
     simple_response = None
-    print('json return is ' + str(json_return)) 
+    # print('json return is ' + str(json_return)) 
 
     if role == 'assistant' :
         # print('role not user')
@@ -203,14 +204,14 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'):
     
     ## sends prompt object to GPT and handles response
-    eZprint('sending to GPT')
-    print( len(str(promptObject)))
-    print(promptObject)
+    # eZprint('sending to GPT')
+    # print( len(str(promptObject)))
+    # print(promptObject)
     # for object in promptObject:
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
     userID = novaConvo[convoID]['userID']
-    print('checking tokens')
+    # print('checking tokens')
     tokens = await check_tokens(userID)
     if not tokens:
         asyncio.create_task(handle_message(convoID, 'Not enough NovaCoin to continue', 'assistant', 'system', None, thread))
@@ -224,7 +225,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     try:
         response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
-        print(response)
+        # print(response)
         userID = novaConvo[convoID]['userID']
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
@@ -249,7 +250,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
             print(e)
             content = e
 
-    eZprint('response recieved')
+    # eZprint('response recieved')
     
   
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': ''}}))
@@ -381,7 +382,7 @@ async def get_thread_summary(convoID, thread ):
 
 simple_agent_counter = {}
 async def simple_agent_response(convoID):
-    eZprint('simple agent response')
+    # eZprint('simple agent response')
     #wait 
     await asyncio.sleep(3)
     if convoID not in simple_agent_counter:
@@ -394,7 +395,7 @@ async def simple_agent_response(convoID):
         # simple_agent_counter[convoID]['counter'] = 0
         return
     
-    print('simple agentcounter is: ' + str(simple_agent_counter[convoID]['counter']))
+    # print('simple agentcounter is: ' + str(simple_agent_counter[convoID]['counter']))
 
     if convoID in simple_agents:
 

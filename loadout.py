@@ -162,7 +162,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                     }
             )
 
-            print(update_user)
+            # print(update_user)
 
     for key, val in blob.items():
         config = val['config']
@@ -195,7 +195,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
             available_cartridges[convoID][cartKey] = cartVal
             cartVal['softDelete'] = False
             if 'settings' in loadout_cartridge:
-                print(loadout_cartridge['settings'])
+                # print(loadout_cartridge['settings'])
                 if 'enabled' in loadout_cartridge['settings']:
                     cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
                 else:
@@ -204,8 +204,8 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
                     cartVal['minimised'] = loadout_cartridge['settings']['minimised']
                 else:
                     cartVal['minimised'] = False
-    print('updated available cartridges')
-    print(available_cartridges[convoID])
+    # print('updated available cartridges')
+    # print(available_cartridges[convoID])
     if loadout_key == current_loadout[convoID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
 

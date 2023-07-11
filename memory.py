@@ -17,7 +17,7 @@ windows = {}
 
 async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = None):
     userID = novaConvo[convoID]['userID']
-    print('run summary cartridges triggered' )
+    # print('run summary cartridges triggered' )
     # print('current loadout' + str(client_loadout))
     # print('current loadout convoID' + str(current_loadout[convoID]))
     # print(current_loadout[convoID])
@@ -47,7 +47,7 @@ async def run_summary_cartridges(convoID, cartKey, cartVal, client_loadout = Non
 
 async def summarise_convos(convoID, cartKey, cartVal, client_loadout= None, target_loadout = None):
 
-    eZprint('summarising convos')
+    # eZprint('summarising convos')
     userID = novaConvo[convoID]['userID']
 
     if novaConvo[convoID]['owner']:
@@ -210,7 +210,7 @@ async def get_overview (convoID, cartKey, cartVal, client_loadout = None):
         for text in texts:
             # print('getting summary with prompt')
             userID = novaConvo[convoID]['userID']
-            response += await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID)
+            response += str(await get_summary_with_prompt(past_convo_prompts, text, 'gpt-3.5-turbo', userID))
 
         # response = await get_summary_with_prompt(past_convo_prompts, str(cartVal['blocks']['summaries']))
         # print('response is ' + str(response))
@@ -320,7 +320,7 @@ async def update_cartridge_summary(userID, cartKey, cartVal, convoID, client_loa
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID, convoID, client_loadout = None, target_loadout = None):  
-    eZprint('getting messages to summarise')
+    # eZprint('getting messages to summarise')
     ##takes any group of candidates and turns them into summaries
     messages = []
     remote_messages = await prisma.message.find_many(
@@ -463,7 +463,7 @@ async def update_record(record_ID, record_type, convoID, loadout = None):
                     'blob': Json({key:val}),
                 }
             )
-            print('summary updated')
+            # print('summary updated')
             # print(updated_summary)
  
 ##GROUP SUMMARY FLOWS
@@ -983,7 +983,7 @@ async def summariseChatBlocks(input,  loadout = None):
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
-        print ('model: ' + model)
+        # print ('model: ' + model)
     userID = novaConvo[convoID]['userID']
 
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)

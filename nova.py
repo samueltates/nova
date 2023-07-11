@@ -69,7 +69,7 @@ async def initialise_conversation(convoID, params = None):
 
 async def initialiseCartridges(convoID):
     
-    eZprint('intialising cartridges')
+    # eZprint('intialising cartridges')
     if convoID not in current_loadout:
         current_loadout[convoID] = None
     novaConvo[convoID]['owner'] = True
@@ -79,7 +79,7 @@ async def initialiseCartridges(convoID):
 
 
 async def loadCartridges(convoID, loadout = None):
-    eZprint('load cartridges called')
+    # eZprint('load cartridges called')
     userID = novaConvo[convoID]['userID']
 
     cartridges = await prisma.cartridge.find_many(
@@ -96,11 +96,11 @@ async def loadCartridges(convoID, loadout = None):
                     available_cartridges[convoID][cartKey] = cartVal
         if loadout == current_loadout[convoID]:
             await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
-    eZprint('load cartridges complete')
+    # eZprint('load cartridges complete')
 
 async def runCartridges(convoID, loadout = None):
     # await construct_query(convoID)
-    print('running cartridges')
+    # print('running cartridges')
     if loadout != current_loadout[convoID]:
         return
     
@@ -111,7 +111,7 @@ async def runCartridges(convoID, loadout = None):
     
         
     if convoID in current_config:
-        print(current_config[convoID])
+        # print(current_config[convoID])
         if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
             await agent_initiate_convo(convoID)
 
@@ -122,7 +122,7 @@ async def runCartridges(convoID, loadout = None):
         for cartKey, cartVal in available_cartridges[convoID].items():
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
-                    print('running summary cartridge on loadout ' + str(loadout))
+                    # print('running summary cartridge on loadout ' + str(loadout))
                     # if cartVal['state'] != 'loading':
                     asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
                     # else:
@@ -145,7 +145,7 @@ async def runCartridges(convoID, loadout = None):
                     for values in cartVal['values']:
                         if 'model' in values:
                             novaConvo[convoID]['model'] = values['model']
-                            print('model set to ' + str(values['model']))
+                            # print('model set to ' + str(values['model']))
                             if novaConvo[convoID]['model'] == 'gpt-4':
                                 novaConvo[convoID]['token_limit'] = 8000
                             else:

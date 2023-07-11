@@ -14,14 +14,14 @@ simple_agents = {}
 
 
 async def construct_query(convoID, thread = 0):
-    print('constructing query')
+    # print('constructing query')
     cartridges = await unpack_cartridges(convoID)
     main_string = await construct_string(cartridges, convoID)
     await construct_objects(convoID, main_string, cartridges)
     await construct_chat(convoID, thread)
     truncuated = await handle_token_limit(convoID)
     if truncuated == True:
-        print('truncuated')
+        # print('truncuated')
         return await construct_query(convoID, thread)
     
 
@@ -29,8 +29,8 @@ async def unpack_cartridges(convoID):
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
-    print('unpacking cartridges')
-    print(sorted_cartridges)
+    # print('unpacking cartridges')
+    # print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
@@ -156,7 +156,7 @@ async def construct_chat(convoID, thread = 0):
     # print(current_chat)
 
 async def construct_context(convoID):
-    print('constructing context')
+    # print('constructing context')
     await get_sessions(convoID)
     session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
     session_string += f"""todays date is {datetime.now()}.\n"""
@@ -180,14 +180,14 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         if 'string' in prompt_objects['system']:
             final_prompt_string += "\n"+prompt_objects['system']['string']
         if 'values' in prompt_objects['system']:
-            print('values found')
+            # print('values found')
             for values in prompt_objects['system']['values']:
-                print('value is: ' + str(values))
+                # print('value is: ' + str(values))
                 for value in values:
-                    print(value)
-                    if 'auto-summarise' in value:
-                        if value['auto-summarise'] == True:
-                            print('auto summarise found')
+                    # print(value)
+                    # if 'auto-summarise' in value:
+                    #     if value['auto-summarise'] == True:
+                    #         # print('auto summarise found')
                     if 'give-context' in value:
                         if value['give-context'] == True:
                             context = await construct_context(convoID)
@@ -336,7 +336,7 @@ async def construct_commands(command_object, thread = 0):
                 
     
 async def handle_token_limit(convoID):
-    print('handling token limit')
+    # print('handling token limit')
     truncuate = False
     await get_token_warning(current_prompt[convoID]['prompt'], .25, convoID, 'prompt')
     await get_token_warning(current_prompt[convoID]['chat'], .75, convoID, 'chat')
@@ -372,14 +372,14 @@ async def handle_prompt_context(convoID):
 token_usage = {}
 
 async def get_token_warning(string_to_check, limit, convoID, element = 'prompt'):
-    print('checking token limit')
+    # print('checking token limit')
     if convoID not in token_usage:
         token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 
-    print ('tokens are: ' + str(tokens) + ' limit is: ' + str(limit))
+    # print ('tokens are: ' + str(tokens) + ' limit is: ' + str(limit))
     payload = {'convoID':convoID, 'element':element, 'tokens':tokens, 'limit':limit}
     await  websocket.send(json.dumps({'event':'update_token_usage', 'payload':payload}))  
 

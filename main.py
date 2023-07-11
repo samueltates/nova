@@ -50,7 +50,7 @@ async def shutdown():
 def make_session_permanent():
 
     app.session.permanent = True
-    eZprint("Make session permanent")
+    # eZprint("Make session permanent")
 
 
 @app.route("/startsession", methods=['POST'])
@@ -60,7 +60,7 @@ async def startsession():
     print(app.session)
 
     payload = await request.get_json()
-
+    show_onboarding = False
     if app.session.get('sessionID') is None:
         
         eZprint('sessionID not found, creating new session')
@@ -72,7 +72,9 @@ async def startsession():
         novaSession[sessionID]['docsAuthed'] = False
         novaSession[sessionID]['userName'] = 'Guest'
         novaSession[sessionID]['userID'] = 'guest-'+sessionID    
-
+        novaSession[sessionID]['new_login'] = True
+        show_onboarding = True
+        
     sessionID = app.session.get('sessionID')    
     convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
@@ -88,6 +90,10 @@ async def startsession():
     novaConvo[convoID]['sessionID'] = sessionID
 
     await check_credentials(sessionID)
+    if novaSession[sessionID]['profileAuthed']:
+        if novaSession[sessionID]['new_login'] == True:
+            novaSession[sessionID]['new_login'] = False
+            show_onboarding = True
 
     payload = {
         'sessionID': sessionID,
@@ -96,11 +102,12 @@ async def startsession():
         'docsAuthed' : novaSession[sessionID]['docsAuthed'],
         'userID': novaSession[sessionID]['userID'],
         'userName': novaSession[sessionID]['userName'],
+        'show_onboarding': show_onboarding,
     }
 
-    eZprint('Payload and session updated')
+    # eZprint('Payload and session updated')
     print(payload)
-    print(app.session)
+    # print(app.session)
 
     app.session.modified = True
     return jsonify(payload)
@@ -222,7 +229,7 @@ async def process_message(parsed_data):
 
     if(parsed_data['type'] == 'login'):
         eZprint('login route hit')
-        print(app.session)
+        # print(app.session)
         
         sessionID = parsed_data['sessionID']
         requestedScopes = ['https://www.googleapis.com/auth/userinfo.profile']
@@ -275,12 +282,12 @@ async def process_message(parsed_data):
                 'quantity': 1,
             }]
         )
-        print(checkout_session)
+        # print(checkout_session)
         sessionID = parsed_data['sessionID']
         userID = novaSession[sessionID]['userID']
         payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
         # return redirect(checkout_session.url, code=303)
-        print(checkout_session.url)
+        # print(checkout_session.url)
         await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
         while payment_requests[checkout_session.id]['status'] == 'pending':
             await asyncio.sleep(1)

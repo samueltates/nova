@@ -15,7 +15,7 @@ async def sendChat(promptObj, model):
             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
         except Exception as e:
             print(e)
-            print(promptObj)
+            # print(promptObj)
             response = None
             response = {}
             response["choices"] = []
