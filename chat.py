@@ -49,7 +49,7 @@ async def agent_initiate_convo(convoID):
 
 async def user_input(sessionData):
     #takes user iput and runs message cycle
-    print('user input')
+    # print('user input')
     convoID = sessionData['convoID']
     message = sessionData['body']
     userName = novaConvo[convoID]['userName']
@@ -73,7 +73,7 @@ async def user_input(sessionData):
 
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
-    print('handling message on thread: ' + str(thread)) 
+    # print('handling message on thread: ' + str(thread)) 
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     userID = novaConvo[convoID]['userID']
@@ -267,8 +267,8 @@ async def command_interface(command, convoID, threadRequested):
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
     command_response = await handle_commands(command, convoID, threadRequested)
-    eZprint('command response recieved from command')
-    eZprint(command_response)
+    # eZprint('command response recieved from command')
+    # eZprint(command_response)
 
     thread = 0
 
@@ -540,7 +540,7 @@ async def get_json_val(json_object, key_requested):
 
 async def parse_json_string(content):
 
-    eZprint('parsing json string')
+    # eZprint('parsing json string')
     # print(content)
     json_object = None
     error = None
