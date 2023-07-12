@@ -90,8 +90,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, client_loadout = None):
                 "blob":Json(blob)
                 }
         )
-        print('loadout updated')
-        print(update)
+        # print('loadout updated')
+        # print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
@@ -129,10 +129,11 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
 async def set_loadout(loadout_key: str, convoID, referal = False):
 
     eZprint('set_loadout')
-    loadout = await prisma.loadout.find_first(
+    remote_loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
     )
 
+    print(remote_loadout)
     if convoID not in current_loadout:
         current_loadout[convoID] = None
     current_loadout[convoID] = loadout_key
@@ -140,11 +141,11 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
     loadout_cartridges = []
     config = {}
 
-    blob = json.loads(loadout.json())['blob']
+    blob = json.loads(remote_loadout.json())['blob']
     novaConvo[convoID]['owner'] = False
     if novaConvo[convoID]['userID']:
 
-        if loadout.UserID == novaConvo[convoID]['userID']:
+        if remote_loadout.UserID == novaConvo[convoID]['userID']:
             novaConvo[convoID]['owner'] = True
 
         

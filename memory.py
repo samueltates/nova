@@ -991,7 +991,8 @@ async def summariseChatBlocks(input,  loadout = None):
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
     #wait for 2 seconds
     # print(summary)
-    summarDict = json.loads(summary, strict=False)
+    if summary:
+        summarDict = json.loads(summary, strict=False)
     # print(summarDict)
     fields = {}
     for key, value in summarDict.items():

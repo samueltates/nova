@@ -124,7 +124,9 @@ async def addCartridgePrompt(input, client_loadout = None):
 
 async def add_existing_cartridge(input, loadout = None ):
 
+    eZprint('add existing cartridge triggered')
     print(input)
+    print(loadout)
     convoID = input['convoID']
     cartKey = input['cartridge']
 
@@ -164,8 +166,8 @@ async def add_existing_cartridge(input, loadout = None ):
     
     # print('cartVal' , cartVal) 
     # 
-    print('updated avail')   
-    print(available_cartridges[convoID])
+    # print('updated avail')   
+    # print(available_cartridges[convoID])
 
     ##if still on the right loadout then sends new cartridge.
     # if current_loadout[convoID] == loadout:

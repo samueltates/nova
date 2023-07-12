@@ -6,18 +6,22 @@ from appHandler import app, websocket
 from debug import eZprint
 
 async def handle_token_use(userID, model, input_tokens, output_tokens):
-    total_tokens = input_tokens + (2 * output_tokens)
     dollars_per_NovaCoin = 0.04 # As 250 Nova Coin equals to $10
+
+
     if model.lower() == 'gpt-4':
-        coin_cost = ((total_tokens / 1000) * 0.06) / dollars_per_NovaCoin
+        coin_cost = ((input_tokens / 1000) * 0.03) / dollars_per_NovaCoin
+        coin_cost += ((output_tokens / 1000) * 0.06) / dollars_per_NovaCoin
     elif model.lower() == 'gpt-4-32k':
-        coin_cost = ((total_tokens / 1000) * 0.12) / dollars_per_NovaCoin
+        coin_cost = ((input_tokens / 1000) * 0.06) / dollars_per_NovaCoin
+        coin_cost += ((output_tokens / 1000) * 0.12) / dollars_per_NovaCoin
     elif model.lower() == 'gpt-3.5-turbo':
-        coin_cost = ((total_tokens / 1000) * 0.006) / dollars_per_NovaCoin
+        coin_cost = ((input_tokens / 1000) * 0.0015) / dollars_per_NovaCoin
+        coin_cost += ((output_tokens / 1000) * 0.002) / dollars_per_NovaCoin
     elif model.lower() == 'gpt-3.5-turbo-16k':
-        coin_cost = ((total_tokens / 1000) * 0.004) / dollars_per_NovaCoin
+        coin_cost = ((input_tokens / 1000) * 0.003) / dollars_per_NovaCoin
+        coin_cost += ((output_tokens / 1000) * 0.004) / dollars_per_NovaCoin
     else:
-        coin_cost = ((total_tokens / 1000) * .06) / dollars_per_NovaCoin
         raise ValueError('Invalid model name')
     
     await update_coin_count(userID, coin_cost)
