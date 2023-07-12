@@ -59,21 +59,69 @@ async def getAuth(userID):
     else:
         return None
 
-async def updateAuth(userID, credentials):
+# async def updateAuth(userID, credentials):
+#     user = await prisma.user.find_first(
+#         where={
+#             'UserID': userID
+#         }
+#     )
+#     print(user)
+#     if(user):
+#         foundUser = await prisma.user.update(
+#             where={
+#                 'id': user.id
+#             },
+#             data= {
+#                 'blob': Json({'credentials': credentials.to_json()})
+#             }
+#         )
+#         return user
+
+async def set_subscribed(userID, subscribed):
     user = await prisma.user.find_first(
         where={
             'UserID': userID
         }
     )
-    print(user)
+    blob = json.loads(user.json())['blob']
+    blob['subscribed'] = subscribed
     if(user):
         foundUser = await prisma.user.update(
             where={
                 'id': user.id
             },
             data= {
-                'blob': Json({'credentials': credentials.to_json()})
+                'blob': Json(blob)
             }
         )
         return user
-
+    
+async def set_unsubscribed(userID):
+    user = await prisma.user.find_first(
+        where={
+            'UserID': userID
+        }
+    )
+    blob = json.loads(user.json())['blob']
+    blob['subscribed'] = False
+    if(user):
+        foundUser = await prisma.user.update(
+            where={
+                'id': user.id
+            },
+            data= {
+                'blob': Json(blob)
+            }
+        )
+        return user
+    
+async def get_subscribed(userID):
+    user = await prisma.user.find_first(
+        where={
+            'UserID': userID
+        }
+    )
+    if(user):
+        blob = json.loads(user.json())['blob']
+        if 'subscribed' in blob:
+            return blob['subscribed']

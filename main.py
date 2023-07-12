@@ -3,7 +3,7 @@ import asyncio
 import json
 import base64
 
-from quart import request, jsonify, url_for, session, render_template
+from quart import request, jsonify, url_for, session, render_template, redirect
 from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
@@ -20,6 +20,7 @@ from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
 from debug import eZprint
+from user import set_subscribed, get_subscribed
 from memory import summariseChatBlocks,get_summary_children_by_key
 from keywords import get_summary_from_keyword, get_summary_from_insight
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
@@ -73,6 +74,8 @@ async def startsession():
         novaSession[sessionID]['userName'] = 'Guest'
         novaSession[sessionID]['userID'] = 'guest-'+sessionID    
         novaSession[sessionID]['new_login'] = True
+        novaSession[sessionID]['subscribed'] = False
+
         show_onboarding = True
         
     sessionID = app.session.get('sessionID')    
@@ -94,6 +97,7 @@ async def startsession():
         if novaSession[sessionID]['new_login'] == True:
             novaSession[sessionID]['new_login'] = False
             show_onboarding = True
+        novaSession[sessionID]['subscribed'] = await get_subscribed(novaSession[sessionID]['userID'])
 
     payload = {
         'sessionID': sessionID,
@@ -103,6 +107,7 @@ async def startsession():
         'userID': novaSession[sessionID]['userID'],
         'userName': novaSession[sessionID]['userName'],
         'show_onboarding': show_onboarding,
+        'subscribed': novaSession[sessionID]['subscribed'],
     }
 
     # eZprint('Payload and session updated')
@@ -167,45 +172,6 @@ endpoint_secret = 'whsec_...'
 
 payment_requests = {}
 
-@app.route('/createCheckoutSession', methods=['GET'])
-def createCheckoutSession():
-    print('create-checkout-session route hit')
-    # quantity = request.form.get('quantity', 1)
-    domain_url = os.getenv('NOVA_SERVER')
-
-    try:
-        # Create new Checkout Session for the order
-        # Other optional params include:
-        # [billing_address_collection] - to display billing address details on the page
-        # [customer] - if you have an existing Stripe Customer ID
-        # [payment_intent_data] - lets capture the payment later
-        # [customer_email] - lets you prefill the email input in the form
-        # [automatic_tax] - to automatically calculate sales tax, VAT and GST in the checkout page
-        # For full details see https://stripe.com/docs/api/checkout/sessions/create
-
-        # ?session_id={CHECKOUT_SESSION_ID} means the redirect will have the session ID set as a query param
-        checkout_session = stripe.checkout.Session.create(
-            success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
-            # cancel_url=domain_url + '/canceled.html',
-            mode='payment',
-            # automatic_tax={'enabled': True},
-            line_items=[{
-                'price': os.getenv('250_NOVA'),
-                'quantity': 1,
-            }]
-        )
-        # print(checkout_session)
-        sessionID = app.session.get('sessionID')    
-        userID = novaSession[sessionID]['userID']
-        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID,}
-
-        # return redirect(checkout_session.url, code=303)
-        # print(checkout_session.url)
-
-        return jsonify({'checkout_url': checkout_session.url})
-    
-    except Exception as e:
-        return jsonify(error=str(e)), 403
 
 @app.route('/paymentSuccess', methods=['GET'])
 async def paymentSuccess():
@@ -215,7 +181,7 @@ async def paymentSuccess():
     payment_request = payment_requests[request.args.get('session_id')]
     payment_request['status'] = 'success'
     app.session.modified = True
-    return await render_template('close_complete.html')
+    return redirect(os.environ.get('NOVAHOME'))
 
 
 @app.websocket('/ws')
@@ -272,17 +238,33 @@ async def process_message(parsed_data):
 
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
-        checkout_session = stripe.checkout.Session.create(
-            success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
-            # cancel_url=domain_url + '/canceled.html',
-            mode='payment',
-            # automatic_tax={'enabled': True},
-            line_items=[{
-                'price': os.getenv('250_NOVA'),
-                'quantity': 1,
-            }]
-        )
-        # print(checkout_session)
+        amount = parsed_data['amount']
+        if 'subscribe' in parsed_data and parsed_data['subscribe']:
+            print(parsed_data)
+
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
+                # cancel_url=domain_url + '/canceled.html',
+                mode='subscription',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': os.getenv('NC_SUB'+str(amount)),
+                    'quantity': 1,
+                }]
+            )
+        else:
+                
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
+                # cancel_url=domain_url + '/canceled.html',
+                mode='payment',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': os.getenv('NC'+str(amount)),
+                    'quantity': 1,
+                }]
+            )
+            # print(checkout_session)
         sessionID = parsed_data['sessionID']
         userID = novaSession[sessionID]['userID']
         payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
@@ -292,7 +274,8 @@ async def process_message(parsed_data):
         while payment_requests[checkout_session.id]['status'] == 'pending':
             await asyncio.sleep(1)
         await websocket.send(json.dumps({'event':'paymentSuccess', 'payload': True}))
-        await update_coin_count(userID, -250)
+        await update_coin_count(userID, -amount)
+        await set_subscribed(userID, True)
 
     if(parsed_data['type'] == 'request_loadouts'):
         eZprint('request_loadouts route hit')
