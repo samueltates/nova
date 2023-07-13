@@ -73,8 +73,8 @@ async def update_coin_count(userID, coins_used):
             tokens_left = blob['tokens_available'] - blob['tokensUsed']
         else:
             print('tokens available not found')
-            blob['tokens_available'] = 250 
-            tokens_left = 250
+            blob['tokens_available'] = 100 
+            tokens_left = 100
 
         foundUser = await prisma.user.update(
             where={

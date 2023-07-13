@@ -90,8 +90,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, client_loadout = None):
                 "blob":Json(blob)
                 }
         )
-        # print('loadout updated')
-        # print(update)
+        print('loadout updated')
+        print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
