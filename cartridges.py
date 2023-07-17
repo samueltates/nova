@@ -8,6 +8,9 @@ from sessionHandler import novaConvo, available_cartridges, chatlog, cartdigeLoo
 from debug import eZprint
 from human_id import generate_id
 from loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
+from Levenshtein import distance
+from datetime import datetime
+
 
 whole_cartridge_list = {}
 
@@ -24,6 +27,8 @@ async def get_cartridge_list(convoID):
     for cartridge in cartridges:
         blob = json.loads(cartridge.json())['blob']
         for key, val in blob.items():
+            if 'supersoftdelete' in val and 'supersoftdelete' == True:
+                continue
             whole_cartridge_list[convoID][key] = val
             val.update({'key':key})
             cartridge_list.append(val)
@@ -42,6 +47,7 @@ async def addCartridge(cartVal, convoID, client_loadout = None):
             await add_cartridge_to_loadout(convoID, cartKey, client_loadout)
             cartVal["softDelete"] = True
 
+    cartVal['dateAdded'] = str(datetime.now())
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
@@ -87,6 +93,7 @@ async def addCartridgePrompt(input, client_loadout = None):
     cartVal.update({'state': ''})
     cartVal.update({'key': cartKey})
     userID = novaConvo[convoID]['userID']
+    cartVal['dateAdded'] = str(datetime.now())
 
     if current_loadout[convoID] != None:
         if client_loadout == current_loadout[convoID]:
@@ -174,7 +181,6 @@ async def add_existing_cartridge(input, loadout = None ):
     await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
 
 
-
 async def addCartridgeTrigger(input, client_loadout = None):
     #TODO - very circular ' add index cartridge' triggered, goes to index, then back, then returns 
     #TODO - RENAME ADD CARTRIDGE INDEX
@@ -257,6 +263,8 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
                 for key, val in input['fields'].items():
                     matchedCartVal[key] = val
 
+            matchedCartVal['lastUpdated'] = str(datetime.now())
+
             updatedCart = await prisma.cartridge.update(
                 where={ 'id': matchedCart.id },
                 data={
@@ -283,6 +291,26 @@ async def updateContentField(input):
             for fieldKey, fieldVal in input['fields'].items():
                 log[fieldKey] = fieldVal
     # await getChatEstimate(convoID)
+
+async def handle_super_soft_delete(input):
+    convoID = input['convoID']
+    cartKey = input['cartKey']
+    remoteCart = await prisma.cartridge.find_first(
+        where={
+            "key": cartKey
+            },
+    )
+    if remoteCart:
+
+        blob = json.loads(remoteCart.json())['blob']
+        blob['supersoftdelete'] = True
+        updatedCart = await prisma.cartridge.update(
+            where={ 'id': remoteCart.id },
+            data={
+                'blob' : Json(blob)
+            }
+        )
+        
 
 
 async def copy_cartridges_from_loadout(loadout: str, convoID):
@@ -318,3 +346,22 @@ async def copy_cartridges_from_loadout(loadout: str, convoID):
                 val['minimised'] = False
                 await addCartridge(val, convoID, current_loadout[convoID])
 
+async def search_cartridges(search_query, convoID):
+    matching_objects = []
+    for key, val in whole_cartridge_list[convoID].items():
+            # print(val)
+            for field, value in val.items():
+                print(value)
+                # if len(value) <0:
+                if len(str(value)) and search_query in str(value):
+                    matching_objects.append(val)
+                    break
+
+    print (matching_objects)
+    if len(matching_objects) > 0:
+        await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': matching_objects}))
+    # else:
+        # await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': whole_cartridge_list[convoID]}))
+
+    
+   

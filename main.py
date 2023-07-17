@@ -15,7 +15,7 @@ from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo,current_loadout
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat import handle_message, user_input
-from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge
+from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges
 from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
@@ -448,6 +448,12 @@ async def process_message(parsed_data):
             loadout = current_loadout[convoID]
         await add_existing_cartridge(parsed_data['data'],loadout)
 
+    if(parsed_data['type']=='search_cartridges'):
+        eZprint('search_cartridges route hit')
+        print(parsed_data['data'])
+        convoID = parsed_data['data']['convoID']
+        query = parsed_data['data']['query']
+        await search_cartridges(query, convoID)
     if(parsed_data['type']=='request_content_children'):
         eZprint('request content route hit')
         print(parsed_data['data'])
