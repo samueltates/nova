@@ -34,7 +34,7 @@ class GoogleDocsReader(BaseReader):
             results.append(Document(doc, extra_info={"document_id": document_id, "document_title": docTitle}))
         return results
 
-    # async def _get_title(self, document_id:str, sessionID):
+    async def _get_title(self, document_id:str, sessionID):
         docs_service = await getDocService(sessionID)
         doc = docs_service.documents().get(documentId=document_id).execute()
         doc_title = doc.get("title")

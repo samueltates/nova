@@ -59,23 +59,23 @@ async def indexDocument(payload, client_loadout):
         gDocID = payload['gDocID']
         loader = GoogleDocsReader() 
         # print(loader)
-        try:
-            print('loading data')
-            document = await loader.load_data([gDocID], sessionID)
-            documentTitle = await loader._get_title(str(gDocID), sessionID)
+        # try:
+        print('loading data')
+        document = await loader.load_data([gDocID], sessionID)
+        documentTitle = await loader._get_title(str(gDocID), sessionID)
             # print(document)
-        except:
-            print('document not found')
-            # payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
-            # cartVal['status'] = 'doc not found'
-            # input = {
-            # 'cartKey': tempKey,
-            # 'convoID': convoID,
-            # 'fields': {
-            #     'status': cartVal['status'],
-            #     },
-            #     'loadout' : client_loadout
-            # }
+        # except:
+        #     print('document not found')
+        #     # payload = { 'key':tempKey,'fields': {'status': 'doc not found'}}
+        #     # cartVal['status'] = 'doc not found'
+        #     # input = {
+        #     # 'cartKey': tempKey,
+        #     # 'convoID': convoID,
+        #     # 'fields': {
+        #     #     'status': cartVal['status'],
+        #     #     },
+        #     #     'loadout' : client_loadout
+        #     # }
             # await update_cartridge_field(input, client_loadout, system=True)
         # print(document)
         
@@ -158,7 +158,8 @@ async def indexDocument(payload, client_loadout):
         'enabled': True,
         'blocks': {},
         'index': key,
-        'status': 'index created, getting summary'
+        'status': 'index created, getting summary',
+        'position' : 99
     }
 
     input = {
