@@ -169,8 +169,8 @@ async def construct_context(convoID):
     # print('constructing context')
     await get_sessions(convoID)
     # print(novaConvo[convoID])
-    # if 'agent-name' not in novaConvo[convoID]:
-    #     novaConvo[convoID]['agent-name'] = 'Nova'
+    if 'agent-name' not in novaConvo[convoID]:
+        novaConvo[convoID]['agent-name'] = 'Nova'
     session_string = f"""Your name is {novaConvo[convoID]['agent-name']}.\n"""
     session_string += f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
     session_string += f"""Today's date is {datetime.now()}.\n"""
