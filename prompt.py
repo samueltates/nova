@@ -241,6 +241,10 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
             for value in values:
                 if 'emphasise' in value and value['emphasise'] != '':
                     emphasise_string += " " + value['emphasise']
+                if 'steps-allowed' in value:
+                    novaConvo[convoID]['steps-allowed'] = value['steps-allowed']
+                else:
+                    novaConvo[convoID]['steps-allowed'] = 3
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
         # print('command found' + str(prompt_objects['command']))

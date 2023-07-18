@@ -275,7 +275,7 @@ async def command_interface(command, convoID, threadRequested):
     command_response = await handle_commands(command, convoID, threadRequested)
     # eZprint('command response recieved from command')
     # eZprint(command_response)
-
+    
     thread = 0
 
     if command_response:
@@ -310,8 +310,8 @@ async def command_interface(command, convoID, threadRequested):
         meta = 'terminal'
         # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-        await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
-        return
+        # await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
+        # return
   
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
@@ -330,7 +330,7 @@ async def command_interface(command, convoID, threadRequested):
             command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
+            await handle_message(convoID, command_object, 'user', 'terminal', None, 0, 'terminal')
         
         else:
             print('thread requested so same again but this time on a thread')
@@ -347,7 +347,7 @@ async def command_interface(command, convoID, threadRequested):
 
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
+            await handle_message(convoID, command_object, 'user', 'terminal', None, thread, 'terminal')
 
         # print('got this far expexting to send to agent but commended out now')
         ##sends back - will this make an infinite loop? I don't think so
