@@ -63,7 +63,7 @@ async def initialise_conversation(convoID, params = None):
 
         print(params['model'])
     
-    novaConvo[convoID]['agent_name'] = agentName
+    # novaConvo[convoID]['agent-name'] = agentName
     sessionID = novaConvo[convoID]['sessionID'] 
     novaSession[sessionID]['latestConvo']= convoID
 

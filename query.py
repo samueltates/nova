@@ -21,7 +21,7 @@ async def sendChat(promptObj, model):
             response["choices"] = []
             response["choices"].append({})
             response["choices"][0]["message"] = {}
-            response["choices"][0]["message"]["content"] = e
+            response["choices"][0]["message"]["content"] = str(e)
 
     return response
 

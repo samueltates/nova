@@ -19,11 +19,7 @@ async def construct_query(convoID, thread = 0):
     prompt_string = await construct_prompt_string(cartridges, convoID)
     await construct_objects(convoID, prompt_string, cartridges)
     await construct_chat(convoID, thread)
-    truncuated = await handle_token_limit(convoID)
-    if truncuated == True:
-        # print('truncuated')
-        return await construct_query(convoID, thread)
-    
+    await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
@@ -156,15 +152,15 @@ async def construct_chat(convoID, thread = 0):
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
 
-    if 'command' in novaConvo[convoID]:
-        # print('command found appending sys')
-        if novaConvo[convoID]['command']:
+    # if 'command' in novaConvo[convoID]:
+    #     # print('command found appending sys')
+    #     if novaConvo[convoID]['command']:
 
-            if thread == 0:
-                current_chat.append(basic_system_endline)
-                # print('thread is 0 so appending basic')
-            else:
-                current_chat.append(thread_system_endline)
+    #         if thread == 0:
+    #             current_chat.append(basic_system_endline)
+    #             # print('thread is 0 so appending basic')
+    #         else:
+    #             current_chat.append(thread_system_endline)
 
     current_prompt[convoID]['chat'] = current_chat
     # print(current_chat)
@@ -172,21 +168,28 @@ async def construct_chat(convoID, thread = 0):
 async def construct_context(convoID):
     # print('constructing context')
     await get_sessions(convoID)
-    session_string = f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
+    # print(novaConvo[convoID])
+    # if 'agent-name' not in novaConvo[convoID]:
+    #     novaConvo[convoID]['agent-name'] = 'Nova'
+    session_string = f"""Your name is {novaConvo[convoID]['agent-name']}.\n"""
+    session_string += f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
     session_string += f"""Today's date is {datetime.now()}.\n"""
     if 'sessions' in novaConvo[convoID]:
         if novaConvo[convoID]['sessions'] > 0:
             session_string += "You have spoken " + str(novaConvo[convoID]['sessions']) + "times.\n"
-    # if 'first-date' in novaConvo[convoID]:
-    #     session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
+    if 'first-date' in novaConvo[convoID]:
+        session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
     return session_string
 
 
 async def construct_objects(convoID, main_string = None, prompt_objects = None, thread = 0 ):
     list_to_send = []
+    emphasis_to_send = []
     # print('main string is: ' + str(main_string))
     # print('chat objects are: ' + str(chat_objects))
+    emphasise_string = ''
     final_prompt_string = ''
+    give_context = False
     if main_string:
         final_prompt_string += main_string
     if 'system' in prompt_objects:
@@ -197,14 +200,31 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
             for values in prompt_objects['system']['values']:
                 # print('value is: ' + str(values))
                 for value in values:
+                    if 'system-starter' in value and value['system-starter']!= '':
+                        # print('starter found' + str(value['system-starter']))
+                        if convoID not in current_prompt or 'chat' not in current_prompt[convoID] or current_prompt[convoID]['chat'] == []:
+                            emphasise_string += value['system-starter']
+                    if 'emphasise' in value and value['emphasise'] != '':
+                            emphasise_string += " " + value['emphasise']
                     # print(value)
-                    # if 'auto-summarise' in value:
-                    #     if value['auto-summarise'] == True:
-                    #         # print('auto summarise found')
+                    if 'auto-summarise' in value:
+                        # print(value)
+                        if value['auto-summarise'] == True:
+                            # print('auto summarise found')
+                            novaConvo[convoID]['auto-summarise'] = True
+                            if 'summarise-at' in value:
+                                # print(value['summarise-at'] + ' found')
+                                novaConvo[convoID]['summarise-at'] = value['summarise-at']
+                            else:
+                                novaConvo[convoID]['summarise-at'] = .8
+                        if value['auto-summarise'] == False:
+                            novaConvo[convoID]['auto-summarise'] = False
+                    if 'agent-name' in value:
+                        novaConvo[convoID]['agent-name'] = value['agent-name']
                     if 'give-context' in value:
                         if value['give-context'] == True:
-                            context = await construct_context(convoID)
-                            final_prompt_string += context
+                            give_context = True
+       
                     novaConvo[convoID]['token_limit'] = 4000
                     if 'model' in value:
                         novaConvo[convoID]['model'] = value['model']
@@ -212,7 +232,15 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                             novaConvo[convoID]['token_limit'] = 8000
                         else:
                             novaConvo[convoID]['token_limit'] = 4000
+        if give_context:
+            context = await construct_context(convoID)
+            final_prompt_string += context
     if 'command' in prompt_objects:
+        for values in prompt_objects['command']['values']:
+            # print('command value is: ' + str(values))
+            for value in values:
+                if 'emphasise' in value and value['emphasise'] != '':
+                    emphasise_string += " " + value['emphasise']
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
         # print('command found' + str(prompt_objects['command']))
@@ -230,14 +258,15 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         # print('command string is: ' + str(final_command_string))
         final_prompt_string += "\n"+final_command_string
         novaConvo[convoID]['command'] = True
-
+    emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
     # print('final prompt string is: ' + str(final_prompt_string))
     list_to_send.append({"role": "system", 'content': final_prompt_string})
     # print('list to send is: ' + str(list_to_send))
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['prompt'] = list_to_send
-
+    current_prompt[convoID]['emphasise'] = emphasis_to_send
+    
 
 async def construct_commands(command_object, thread = 0):
     # print('constructing commands')
@@ -350,17 +379,17 @@ async def construct_commands(command_object, thread = 0):
     
 async def handle_token_limit(convoID):
     # print('handling token limit')
-    truncuate = False
-    await get_token_warning(current_prompt[convoID]['prompt'], .25, convoID, 'prompt')
-    await get_token_warning(current_prompt[convoID]['chat'], .75, convoID, 'chat')
-    prompt_too_long = await get_token_warning(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'], .75, convoID, 'combined')
-    if prompt_too_long: 
-        await summarise_percent(convoID, .5)
-        truncuate = True
-    # if prompt_too_long:
-    #     await handle_prompt_context(convoID)
-    #     truncuate = True
-    return truncuate
+    # print(novaConvo[convoID])
+    await summarise_at_limit(current_prompt[convoID]['prompt'], .25, convoID, 'prompt')
+    await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
+    # print (novaConvo[convoID]['auto-summarise'])
+    if convoID in novaConvo and 'auto-summarise' in novaConvo[convoID] and novaConvo[convoID]['auto-summarise']:
+        summarise_at = .8
+        if 'summarise-at' in novaConvo[convoID]:
+            summarise_at = novaConvo[convoID]['summarise-at']
+        prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
+        if prompt_too_long: 
+            await summarise_percent(convoID, .5)
         
 
 async def handle_prompt_context(convoID):
@@ -384,7 +413,7 @@ async def handle_prompt_context(convoID):
 
 token_usage = {}
 
-async def get_token_warning(string_to_check, limit, convoID, element = 'prompt'):
+async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'):
     # print('checking token limit')
     if convoID not in token_usage:
         token_usage[convoID] = {}

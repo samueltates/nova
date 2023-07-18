@@ -8,17 +8,17 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, chatlog, available_cartridges
+from sessionHandler import novaConvo, chatlog, available_cartridges, agentName
 from loadout import current_loadout
 from prismaHandler import prisma
-from prompt import construct_query, construct_chat, current_prompt, simple_agents, get_token_warning
+from prompt import construct_query, construct_chat, current_prompt, simple_agents, summarise_at_limit
 from query import sendChat
 from commands import handle_commands, system_threads, command_loops
 from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 from cartridges import updateContentField
 from tokens import handle_token_use, check_tokens
-agentName = 'nova'
+
 
 
 async def agent_initiate_convo(convoID):
@@ -34,11 +34,14 @@ async def agent_initiate_convo(convoID):
     else:
         query_object = current_prompt[convoID]['prompt']
 
-    if 'command' in novaConvo[convoID]:
-        if novaConvo[convoID]['command']:
-            query_object.append({"role": "user", "content": "Based on the prompts, and files available, assess best approach for the conversation, then begin the conversatin with a casual greeting, and complete any actions in parallel:"})
-    else :
-        query_object.append({"role": "user", "content": "Based on the prompts and content available, begin the conversation with a short response:"})
+    if 'emphasise' in current_prompt[convoID]:
+        query_object += current_prompt[convoID]['emphasise']
+
+    # if 'command' in novaConvo[convoID]:
+    #     if novaConvo[convoID]['command']:
+    #         query_object.append({"role": "user", "content": "Based on the prompts, and files available, assess best approach for the conversation, then begin the conversatin with a casual greeting, and complete any actions in parallel:"})
+    # else :
+    #     query_object.append({"role": "user", "content": "Based on the prompts and content available, begin the conversation with a short response:"})
 
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
@@ -59,7 +62,10 @@ async def user_input(sessionData):
         message = userName + ': ' + message
     await handle_message(convoID, message, 'user', userName, sessionData['key'])
     await construct_query(convoID)
-    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] 
+
+    if 'emphasise' in current_prompt[convoID]:
+        query_object += current_prompt[convoID]['emphasise']
 
     # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
     model = 'gpt-3.5-turbo'
@@ -67,10 +73,6 @@ async def user_input(sessionData):
         model = novaConvo[convoID]['model']
         # print ('model: ' + model)
     await send_to_GPT(convoID, query_object, 0, model)
-
-
-
-
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
     # print('handling message on thread: ' + str(thread)) 
@@ -211,6 +213,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
     userID = novaConvo[convoID]['userID']
+    if 'agent-name' not in novaConvo[convoID]:
+        print('setting name to default in chat')
+        novaConvo[convoID]['agent-name'] = 'nova'
+
     # print('checking tokens')
 
     await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': promptObject}))
@@ -222,9 +228,8 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     
     content = ''
     if thread == 0:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': 'typing'}}))
-    # else:
-        # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'processing', 'thread':thread}}))
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing'}}))
+    agent_name = novaConvo[convoID]['agent-name']
     try:
         response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
@@ -251,14 +256,15 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
         except Exception as e:
             print(e)
-            content = e
+            content = str(e)
+            agent_name = 'system'
 
     # eZprint('response recieved')
     
   
-    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agentName, 'state': ''}}))
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}}))
 
-    asyncio.create_task(handle_message(convoID, content, 'assistant', 'Nova', None, thread))
+    asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread))
         
 
 async def command_interface(command, convoID, threadRequested):
@@ -567,10 +573,8 @@ async def parse_json_string(content):
         json_object = json.loads(json_data, strict=False)
         return json_object
     
-    except ValueError as e:
-        # the string is still not valid JSON, print the error message
-        # print(f"Error parsing JSON: {e}")
-        error = e
+    except:
+        print('ehh')
 
 ##########################MANUALLY REMOVE COMMA
 
@@ -582,9 +586,9 @@ async def parse_json_string(content):
         json_object = json.loads(json_data, strict=False)
         return json_object
     
-    except ValueError as e:
-        # the string is still not valid JSON, print the error message
-        print(f"Error parsing JSON: {e}")
+    except:
+        print('ehh')
+
     return
 ##########################AUTOGPT
     if json_object == None:

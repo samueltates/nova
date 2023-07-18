@@ -7,3 +7,4 @@ current_config = {}
 available_cartridges = {}
 chatlog = {}
 cartdigeLookup = {}
+agentName = {}

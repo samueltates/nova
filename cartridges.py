@@ -253,15 +253,20 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
                         if key == 'minimised':
                             continue
                         if key == 'softDelete':
+                            del available_cartridges[convoID][targetCartKey][key]
                             continue
                         matchedCartVal[key] = val
-                
+                    
             elif client_loadout == None: 
                 #if not coming from loadout then applies to base
                 # print('update base cartridge')
 
                 for key, val in input['fields'].items():
                     matchedCartVal[key] = val
+                    if key == 'softDelete':
+                            del available_cartridges[convoID][targetCartKey][key]
+
+                    
 
             matchedCartVal['lastUpdated'] = str(datetime.now())
 

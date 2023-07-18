@@ -69,7 +69,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, client_loadout = None):
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": client_loadout },
     )
-    print(remote_loadout)
+    # print(remote_loadout)
 
     if remote_loadout:
         blob = json.loads(remote_loadout.json())['blob']
@@ -90,8 +90,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, client_loadout = None):
                 "blob":Json(blob)
                 }
         )
-        print('loadout updated')
-        print(update)
+        # print('loadout updated')
+        # print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
@@ -133,7 +133,7 @@ async def set_loadout(loadout_key: str, convoID, referal = False):
         where={ "key": str(loadout_key)}
     )
 
-    print(remote_loadout)
+    # print(remote_loadout)
     if convoID not in current_loadout:
         current_loadout[convoID] = None
     current_loadout[convoID] = loadout_key
