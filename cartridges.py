@@ -222,7 +222,6 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
     targetCartKey = input['cartKey']
     convoID = input['convoID']
     # print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
-    # print(input['fields'])
     
     if client_loadout != current_loadout[convoID]:
         return False
@@ -252,8 +251,9 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
                             continue
                         if key == 'minimised':
                             continue
-                        if key == 'softDelete':
-                            del available_cartridges[convoID][targetCartKey][key]
+                        if key == 'softDelete' and val == True:
+                            print('soft delete')
+                            del available_cartridges[convoID][targetCartKey]
                             continue
                         matchedCartVal[key] = val
                     
@@ -263,10 +263,12 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
 
                 for key, val in input['fields'].items():
                     matchedCartVal[key] = val
-                    if key == 'softDelete':
-                            del available_cartridges[convoID][targetCartKey][key]
+                    if key == 'softDelete' and val == True:
+                        print('soft delete')
+                        del available_cartridges[convoID][targetCartKey]
 
                     
+            # print(available_cartridges[convoID])
 
             matchedCartVal['lastUpdated'] = str(datetime.now())
 

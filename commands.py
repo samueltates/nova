@@ -40,9 +40,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     if name == '':
         command_return = {"status": "Error", "name" : '', "message": "No command supplied"}
-        return 
-
-
+        return False
 
     if  name in 'list_files':
         response = await list_files(name, convoID)
@@ -201,7 +199,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             'enabled' : True,
             }
 
-            print(cartVal)
+            # print(cartVal)
             await addCartridge(cartVal, convoID, current_loadout[convoID])
             command_return['status'] = "Success."
             command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
@@ -400,7 +398,7 @@ async def open_file(name, args, convoID, loadout):
                                     print('checking summary title' + str(summaryVal['title']))
                                     similarity = distance(filename, summaryVal['title'])
                                     if similarity < 3:
-                                        print('found match' + str(summaryVal))  
+                                        # print('found match' + str(summaryVal))  
                                         children = await get_summary_children_by_key(summaryKey, convoID, cartKey, loadout)
                                         if children:
                                             for child in children:
@@ -435,6 +433,12 @@ async def broad_query(name, args, convoID, loadout):
          # await get_cartridge_list(convoID)
     all_text = ''
     command_return = {"status": "", "name" :name, "message": ""}
+    if 'query' not in args or args['query']=='':
+        command_return['status'] = "Error."
+        command_return['message'] = "Arg 'query' missing"
+        return command_return
+    
+
 
     if 'filename' in args:
         filename = args['filename']
@@ -492,7 +496,7 @@ async def broad_query(name, args, convoID, loadout):
                     
         for cartKey, cartVal in available_cartridges[convoID].items():
             if 'type' in cartVal and cartVal['type'] == 'summary':
-                print('searching summary for pointer')
+                # print('searching summary for pointer')
                 if 'blocks' in cartVal:
                     if 'summaries' in cartVal['blocks']:
                         for summaries in cartVal['blocks']['summaries']:
@@ -503,7 +507,7 @@ async def broad_query(name, args, convoID, loadout):
                                     # print('filename: ' + filename)
                                     # print('label: ' + str(summaryVal['title']))
                                     if similarity <3:
-                                        print('found match' + str(summaryVal))
+                                        # print('found match' + str(summaryVal))
                                         if 'query' in args:
                                             query_response = await traverse_blocks(args['query'], cartVal['blocks'], convoID,cartKey, loadout)
                                             command_return['status'] = "Success."
@@ -537,20 +541,20 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
                     text_to_query += summaryVal['title'] + ": "
                 if 'body' in summaryVal:
                     text_to_query += summaryVal['body'] + "\n"
-            print('text to query: ' + text_to_query)
+            # print('text to query: ' + text_to_query)
                     
             similarity = distance(str(query), str(summary))
-            print('checking for matches ' + str(query) + ' ' + str(summary) + ' ' + str(similarity))
+            # print('checking for matches ' + str(query) + ' ' + str(summary) + ' ' + str(similarity))
             if similarity > closest:
-                print('found closer match')
+                # print('found closer match')
                 closest = similarity
                 to_open = summaryKey
         if to_open:
-            print('opening ' + str(to_open))
+            # print('opening ' + str(to_open))
             children = await get_summary_children_by_key(to_open, convoID, cartKey, loadout)
             if children:
                 for child in children:
-                    print('child' + str(child))
+                    # print('child' + str(child))
                     text_to_query += "\n Source: " + str(child['source']) + "\n"
                     if 'title' in child:
                         text_to_query += child['title'] + ": "
@@ -560,7 +564,7 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
                         text_to_query += str(child) + "\n"
                     text_to_query += "\n"
                     if child not in blocks['summaries']:
-                        print('optimistically adding child')
+                        # print('optimistically adding child')
                         blocks['summaries'].append(child)
                         input = {
                             'cartKey' : cartKey,

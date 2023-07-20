@@ -66,7 +66,10 @@ async def user_input(sessionData):
 
     if 'emphasise' in current_prompt[convoID]:
         query_object += current_prompt[convoID]['emphasise']
-
+    
+    if 'command-loop' in novaConvo[convoID] and novaConvo[convoID]['command-loop']:
+        print('setting user interupt to true')
+        novaConvo[convoID]['user-interupt'] = True
     # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
@@ -188,17 +191,25 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
         # print(copiedMessage)
         if len(simple_agents) > 0 and thread == 0:
-            asyncio.create_task(simple_agent_response(convoID))
+            if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
+                asyncio.create_task(simple_agent_response(convoID))
+        if command:
+            print('comand found')
+            asyncio.create_task(command_interface(command, convoID, thread))
+        else:
+            print('no command, resetting')
+            novaConvo[convoID]['command-loop']= False
+            novaConvo[convoID]['steps-taken'] = 0
+
+
 
     if meta == 'terminal':
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
     if meta == 'simple':
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
-
-    if command:
-        await command_interface(command, convoID, thread)
-
+    
+    
         
     # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
 
@@ -271,11 +282,19 @@ async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
 
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
-
+    novaConvo[convoID]['command-loop'] = True
+    if 'steps-taken' not in novaConvo[convoID]:
+        print('no steps taken')
+        novaConvo[convoID]['steps-taken'] = 0
+    novaConvo[convoID]['steps-taken'] += 1 
+    print(novaConvo[convoID]['steps-taken'])
     command_response = await handle_commands(command, convoID, threadRequested)
+    if not command_response:
+        novaConvo[convoID]['command-loop']= False
+        novaConvo[convoID]['steps-taken'] = 0
     # eZprint('command response recieved from command')
     # eZprint(command_response)
-
+    
     thread = 0
 
     if command_response:
@@ -310,8 +329,8 @@ async def command_interface(command, convoID, threadRequested):
         meta = 'terminal'
         # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-        await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
-        return
+        # await handle_message(convoID, return_string, 'user', 'terminal', None, 0, 'terminal')
+        # return
   
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
@@ -330,7 +349,7 @@ async def command_interface(command, convoID, threadRequested):
             command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'user', 'terminal', None, 0)
+            await handle_message(convoID, command_object, 'user', 'terminal', None, 0, 'terminal')
         
         else:
             print('thread requested so same again but this time on a thread')
@@ -347,7 +366,7 @@ async def command_interface(command, convoID, threadRequested):
 
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'user', 'terminal', None, thread)
+            await handle_message(convoID, command_object, 'user', 'terminal', None, thread, 'terminal')
 
         # print('got this far expexting to send to agent but commended out now')
         ##sends back - will this make an infinite loop? I don't think so
@@ -359,7 +378,22 @@ async def command_interface(command, convoID, threadRequested):
             model = novaConvo[convoID]['model']
             print ('model: ' + model)
         query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
-        await send_to_GPT(convoID, query_object, thread, model)
+        
+        print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
+
+        if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
+            print('sending to GPT')
+            await send_to_GPT(convoID, query_object, thread, model)
+        else:
+            await handle_message(convoID, 'maximum steps taken, input to agent with feedback - change steps allowed in command cartridge', 'user', 'terminal', None, 0, 'terminal')
+            novaConvo[convoID]['command-loop'] =  False
+            novaConvo[convoID]['steps-taken'] = 0
+            novaConvo[convoID]['user-interupt'] = False
+
+        
+        if 'user-interupt' in novaConvo[convoID]:
+            novaConvo[convoID]['user-interupt'] = False
+
 
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)

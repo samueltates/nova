@@ -26,7 +26,7 @@ async def unpack_cartridges(convoID):
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     # print('unpacking cartridges')
-    # print(sorted_cartridges)
+    print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
@@ -36,11 +36,11 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
                 if cartVal['type'] == 'note' or cartVal['type'] == 'index':
                     if 'minimised' in cartVal and cartVal['minimised']:
-                        cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
+                        cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
                     else:
-                        cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+                        cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
                 if cartVal['type']=='summary' or cartVal['type']=='index':
-                    cartridge_contents[cartVal['type']]['string'] += " [QUERIABLE] \n"
+                    cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
                 # cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
@@ -116,8 +116,6 @@ async def construct_prompt_string(prompt_objects, convoID):
         final_string += prompt_objects['note']['string']
         final_string += '\n[Notes can be written, appended, opened or closed.]\n'
     return final_string
-
-
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
@@ -214,7 +212,7 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                             novaConvo[convoID]['auto-summarise'] = True
                             if 'summarise-at' in value:
                                 # print(value['summarise-at'] + ' found')
-                                novaConvo[convoID]['summarise-at'] = value['summarise-at']
+                                novaConvo[convoID]['summarise-at'] = int(value['summarise-at'])
                             else:
                                 novaConvo[convoID]['summarise-at'] = .8
                         if value['auto-summarise'] == False:
@@ -224,7 +222,6 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                     if 'give-context' in value:
                         if value['give-context'] == True:
                             give_context = True
-       
                     novaConvo[convoID]['token_limit'] = 4000
                     if 'model' in value:
                         novaConvo[convoID]['model'] = value['model']
@@ -239,8 +236,14 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         for values in prompt_objects['command']['values']:
             # print('command value is: ' + str(values))
             for value in values:
+                # print(value)
                 if 'emphasise' in value and value['emphasise'] != '':
                     emphasise_string += " " + value['emphasise']
+                if 'steps-allowed' in value:
+                    # print('steps allowed found and is ' + str(value['steps-allowed']))
+                    novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
+                else:
+                    novaConvo[convoID]['steps-allowed'] = 3
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
         # print('command found' + str(prompt_objects['command']))
