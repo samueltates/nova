@@ -26,7 +26,7 @@ async def unpack_cartridges(convoID):
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     # print('unpacking cartridges')
-    print(sorted_cartridges)
+    # print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
@@ -236,14 +236,18 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         for values in prompt_objects['command']['values']:
             # print('command value is: ' + str(values))
             for value in values:
-                # print(value)
+                print(value)
                 if 'emphasise' in value and value['emphasise'] != '':
                     emphasise_string += " " + value['emphasise']
                 if 'steps-allowed' in value:
-                    # print('steps allowed found and is ' + str(value['steps-allowed']))
+                    print('steps allowed found and is ' + str(value['steps-allowed']))
+                    print(novaConvo[convoID]['steps-allowed'])
                     novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
-                else:
+                elif 'steps-allowed' not in novaConvo[convoID]:
                     novaConvo[convoID]['steps-allowed'] = 3
+
+                print(novaConvo[convoID]['steps-allowed'])
+
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
         # print('command found' + str(prompt_objects['command']))

@@ -395,7 +395,7 @@ async def open_file(name, args, convoID, loadout):
                         for summary in cartVal['blocks']['summaries']:
                             for summaryKey, summaryVal in summary.items():
                                 if 'title' in summaryVal:
-                                    print('checking summary title' + str(summaryVal['title']))
+                                    # print('checking summary title' + str(summaryVal['title']))
                                     similarity = distance(filename, summaryVal['title'])
                                     if similarity < 3:
                                         # print('found match' + str(summaryVal))  
@@ -624,7 +624,7 @@ async def traverse_blocks(query, blocks, convoID, cartKey, loadout):
                         text_to_query += child['body'] + "\n"
                     else:
                         text_to_query += str(child) + "\n"
-        print('text to query: ' + text_to_query)
+        # print('text to query: ' + text_to_query)
         response = await quick_query(text_to_query, str(query))
         response = str(response)
         print(response)
@@ -702,8 +702,8 @@ async def return_from_thread(args, convoID, thread):
 
 
 
-async def continue_command(convoID, thread, loop):
-    eZprint('continuing command' + str(loop))
+async def continue_command(convoID, thread):
+    # eZprint('continuing command' + str(loop))
     if convoID in command_loops:
         if thread in command_loops[convoID]:
             command_return = large_document_loop(convoID, thread)
