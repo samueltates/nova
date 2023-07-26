@@ -2,7 +2,7 @@ import asyncio
 import json
 from debug import eZprint
 from appHandler import app, websocket
-from sessionHandler import available_cartridges, chatlog, novaConvo, current_loadout
+from sessionHandler import available_cartridges, chatlog, novaConvo, current_loadout, novaSession
 from memory import get_sessions, summarise_percent
 from commands import system_threads, command_loops
 from query import sendChat
@@ -22,7 +22,8 @@ async def construct_query(convoID, thread = 0):
     await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
-    sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
+    sessionID = novaConvo[convoID]['sessionID']
+    sorted_cartridges = await asyncio.to_thread(lambda: sorted(available_cartridges[sessionID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     # print('unpacking cartridges')
@@ -120,17 +121,20 @@ async def construct_prompt_string(prompt_objects, convoID):
 async def construct_chat(convoID, thread = 0):
     current_chat = []
     # print('constructing chat for thread ' + str(thread))
+    eZprint('chatlog is ')
+    # print(chatlog[convoID])
     if convoID in chatlog:
-        # print(chatlog[convoID])
         for log in chatlog[convoID]:
+            eZprint('log is: ' + str(log))    
             if 'muted' not in log or log['muted'] == False:
-                # print('log is: ' + str(log))
                 # if 'thread' in log and thread > 0:
                 #     if log['thread'] == thread:
                 #         # print('thread indicator found so breaking main chat')
                 #         break
                 # if log['role'] == 'user':
-                #     log['body'] = log['body']
+                #     log['body'] = log['body']if
+                if 'role' not in log:
+                    log['role'] = 'user'
                 current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
                 
     if convoID in system_threads:
@@ -166,17 +170,18 @@ async def construct_chat(convoID, thread = 0):
 async def construct_context(convoID):
     # print('constructing context')
     await get_sessions(convoID)
+    sessionID = novaConvo[convoID]['sessionID']
     # print(novaConvo[convoID])
     if 'agent-name' not in novaConvo[convoID]:
         novaConvo[convoID]['agent-name'] = 'Nova'
     session_string = f"""Your name is {novaConvo[convoID]['agent-name']}.\n"""
-    session_string += f"""You are speaking with {novaConvo[convoID]['userName']}.\n"""
+    session_string += f"""You are speaking with {novaSession[sessionID]['userName']}.\n"""
     session_string += f"""Today's date is {datetime.now()}.\n"""
-    if 'sessions' in novaConvo[convoID]:
-        if novaConvo[convoID]['sessions'] > 0:
-            session_string += "You have spoken " + str(novaConvo[convoID]['sessions']) + "times.\n"
-    if 'first-date' in novaConvo[convoID]:
-        session_string +=  "from " + novaConvo[convoID]['first-date'] + " to " + novaConvo[convoID]['last-date']
+    if 'sessions' in novaSession[sessionID]:
+        if novaSession[sessionID]['sessions'] > 0:
+            session_string += "You have spoken " + str(novaSession[sessionID]['sessions']) + "times.\n"
+    if 'first-date' in novaSession[sessionID]:
+        session_string +=  "from " + novaSession[sessionID]['first-date'] + " to " + novaSession[sessionID]['last-date']
     return session_string
 
 
@@ -236,17 +241,17 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         for values in prompt_objects['command']['values']:
             # print('command value is: ' + str(values))
             for value in values:
-                print(value)
+                # print(value)
                 if 'emphasise' in value and value['emphasise'] != '':
                     emphasise_string += " " + value['emphasise']
                 if 'steps-allowed' in value:
-                    print('steps allowed found and is ' + str(value['steps-allowed']))
-                    print(novaConvo[convoID]['steps-allowed'])
+                    # print('steps allowed found and is ' + str(value['steps-allowed']))
+                    # print(novaConvo[convoID]['steps-allowed'])
                     novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
                 elif 'steps-allowed' not in novaConvo[convoID]:
                     novaConvo[convoID]['steps-allowed'] = 3
 
-                print(novaConvo[convoID]['steps-allowed'])
+                # print(novaConvo[convoID]['steps-allowed'])
 
         final_command_string = ''
         final_command_string += "\n"+prompt_objects['command']['string']
@@ -425,6 +430,8 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
     if convoID not in token_usage:
         token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
+    print('nova convo')
+    print(novaConvo[convoID])
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 

@@ -8,8 +8,8 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, chatlog, available_cartridges, agentName
-from loadout import current_loadout
+from sessionHandler import novaConvo, novaSession, chatlog, available_cartridges, agentName
+from loadout import current_loadout, update_loadout_field
 from prismaHandler import prisma
 from prompt import construct_query, construct_chat, current_prompt, simple_agents, summarise_at_limit
 from query import sendChat
@@ -21,11 +21,12 @@ from tokens import handle_token_use, check_tokens
 
 
 
-async def agent_initiate_convo(convoID):
+async def agent_initiate_convo(sessionID):
     # print('agent initiate convo')
+    convoID = novaSession[sessionID]['convoID']
     if 'message' in novaConvo[convoID]:       
         # print('message in nova convo' + novaConvo[convoID]['message'])  
-        await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaConvo[convoID]['userName'])
+        await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaSession[sessionID]['userName'])
     
     await construct_query(convoID),
 
@@ -55,7 +56,8 @@ async def user_input(sessionData):
     # print('user input')
     convoID = sessionData['convoID']
     message = sessionData['body']
-    userName = novaConvo[convoID]['userName']
+    sessionID = sessionData['sessionID']
+    userName = novaSession[sessionID]['userName']
 
     # print(availableCartridges[convoID])
     if 'command' in novaConvo[convoID]:
@@ -81,15 +83,16 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     # print('handling message on thread: ' + str(thread)) 
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
-    userID = novaConvo[convoID]['userID']
-    sessionID = novaConvo[convoID]['sessionID'] +"-"+convoID
+    sessionID = novaConvo[convoID]['sessionID']
+    userID = novaSession[sessionID]['userID']
+    sessionID = sessionID  +"-"+convoID
     if 'command' in novaConvo[convoID]:
         json_return = novaConvo[convoID]['command']
     else:
         json_return = False
 
-    if convoID in current_loadout:
-        sessionID += "-"+str(current_loadout[convoID])
+    if sessionID in current_loadout:
+        sessionID += "-"+str(current_loadout[sessionID])
 
     if key == None:
         key = secrets.token_bytes(4).hex()
@@ -99,7 +102,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     
     
     messageObject = {
-        "sessionID": sessionID,
+        "sessionID": convoID,
         "key": key,
         "userName": userName,
         "userID": str(userID),
@@ -219,11 +222,12 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     ## sends prompt object to GPT and handles response
     # eZprint('sending to GPT')
     # print( len(str(promptObject)))
-    # print(promptObject)
+    print(promptObject)
     # for object in promptObject:
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
-    userID = novaConvo[convoID]['userID']
+    sessionID = novaConvo[convoID]['sessionID']
+    userID = novaSession[sessionID]['userID']
     if 'agent-name' not in novaConvo[convoID]:
         print('setting name to default in chat')
         novaConvo[convoID]['agent-name'] = 'nova'
@@ -244,8 +248,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     try:
         response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
-        # print(response)
-        userID = novaConvo[convoID]['userID']
+        print(response)
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -259,7 +262,6 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         try: 
             response = await sendChat(promptObject, model)
             content = str(response["choices"][0]["message"]["content"])
-            userID = novaConvo[convoID]['userID']
             completion_tokens = response["usage"]['completion_tokens']
             prompt_tokens = response["usage"]['prompt_tokens']
             await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -272,10 +274,12 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
     # eZprint('response recieved')
     
-  
+    
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}}))
 
     asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread))
+
+    # if len(chatlog[convoID]) == 4:
         
 
 async def command_interface(command, convoID, threadRequested):
@@ -394,7 +398,82 @@ async def command_interface(command, convoID, threadRequested):
         if 'user-interupt' in novaConvo[convoID]:
             novaConvo[convoID]['user-interupt'] = False
 
+async def set_convo(requested_convoID, sessionID):
+    
+    userID = novaSession[sessionID]['userID']
+    print(requested_convoID)
+    splitConvoID = requested_convoID.split('-')
+    if len(splitConvoID) > 1:
+        splitConvoID = splitConvoID[1]
 
+    remote_summaries_from_convo = await prisma.summary.find_many(
+        where = {
+            'UserID' : userID,
+            'SessionID' : splitConvoID
+            }
+    )
+
+    remote_messages_from_convo = await prisma.message.find_many(
+        where = {
+            'UserID' : userID,
+            'SessionID' : requested_convoID
+            }
+    )
+    chatlog[requested_convoID] = []
+    # summaries_found = False
+    summaries = []
+    messages = []
+    if remote_summaries_from_convo:
+        print('remote summaries found')
+        # print(remote_summaries_from_convo)
+        for summary in remote_summaries_from_convo:
+            json_summary = json.loads(summary.json())['blob']
+            for key, val in json_summary.items():
+                if val['epoch']<1:
+                    summaries_found = True
+                    val['role'] = 'user'
+                    val['userName']= 'summary'
+                    val['muted'] = False
+                    val['minimised'] = False
+                    val['contentType'] = 'summary'
+                    val['sources'] = val['sourceIDs']
+                    summaries.append(val)
+
+    if remote_messages_from_convo:
+        print('remote messages found')
+        for message in remote_messages_from_convo:
+            json_message = json.loads(message.json())
+            messages.append(json_message)
+
+    for summary in summaries:
+        chatlog[requested_convoID].append(summary)
+        messages_added = False
+        for sources in summary['sources']:
+            for message in messages:
+                if message['id'] == sources:
+                    messages_added = True
+                    chatlog[requested_convoID].append(message)
+                    messages.remove(message)
+        if not messages_added:
+            chatlog[requested_convoID].remove(summary)
+    for message in messages:
+        message['muted'] = False
+        message['minimised'] = False
+        message['summarised'] = False
+        chatlog[requested_convoID].append(message)
+        
+    await websocket.send(json.dumps({'event':'set_convo', 'payload':{'messages': chatlog[requested_convoID], 'convoID' : requested_convoID}}))
+        # print(chatlog[requested_convoID])
+    
+    loadout = current_loadout[sessionID]
+    if loadout:
+        print('updating loadout field' + str(loadout))
+        await update_loadout_field(loadout, 'convoID', requested_convoID)
+    novaSession[sessionID]['convoID'] = requested_convoID
+    novaConvo[requested_convoID] = {}
+    novaConvo[requested_convoID]['sessionID'] = sessionID
+
+           
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)
     to_summarise = ''
@@ -484,7 +563,8 @@ async def simple_agent_response(convoID):
                     content = e
             # await  websocket.send(json.dumps({'event':'agentState', 'payload':{'agent': val['label'], 'state': 'typing'}}))
             ##to do, make this an array so handling multiple agent states.
-            userID = novaConvo[convoID]['userID']
+            sessionID = novaConvo[convoID]['sessionID']
+            userID = novaSession[sessionID]['userID']
             completion_tokens = response["usage"]['completion_tokens']
             prompt_tokens = response["usage"]['prompt_tokens']
             await handle_token_use(userID, 'gpt-3.5-turbo', completion_tokens, prompt_tokens)
@@ -507,7 +587,7 @@ async def sendChat(promptObj, model):
 
 
 async def logMessage(messageObject):
-    # print('logging message')
+    print('logging message')
 
     log = await prisma.log.find_first(
         where={'SessionID': messageObject['sessionID']}

@@ -50,8 +50,8 @@ async def indexDocument(payload, client_loadout):
     userID = payload['userID']
     indexType = payload['indexType']
     tempKey = payload['tempKey']
-    convoID = payload['convoID']
     sessionID = payload['sessionID']
+    # sessionID = payload['sessionID']
     document = None
     documentTitle = None
     if payload['document_type'] == 'googleDoc':
@@ -109,7 +109,7 @@ async def indexDocument(payload, client_loadout):
     #     eZprint('list index created')
 
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
-    tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
+    tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
     index.storage_context.persist(tmpDir)
     # print(tmpDir)
     indexJson = dict()
@@ -163,7 +163,7 @@ async def indexDocument(payload, client_loadout):
     }
 
     input = {
-    'convoID': convoID,
+    'sessionID': sessionID,
     'tempKey': tempKey,
     'newCart': {tempKey:cartVal}
     }
@@ -241,7 +241,7 @@ def quicker_query(text, query, meta = '' ):
 
 
 
-async def handle_nova_query(cartKey, cartVal, convoID, query, loadout = None):
+async def handle_nova_query(cartKey, cartVal, sessionID, query, loadout = None):
     index_key = cartVal['index']
     indexJson = await get_index_json(index_key)
     index = await reconstructIndex(indexJson)
@@ -252,7 +252,7 @@ async def handle_nova_query(cartKey, cartVal, convoID, query, loadout = None):
         
         input = {
         'cartKey': cartKey,
-        'convoID': convoID,
+        'sessionID': sessionID,
         'fields': {
             'blocks': cartVal['blocks'],
             'status': cartVal['status']
@@ -271,10 +271,10 @@ async def handle_nova_query(cartKey, cartVal, convoID, query, loadout = None):
 
 async def handleIndexQuery(input, loadout = None):
     cartKey = input['cartKey']
-    convoID = input['convoID']
+    sessionID = input['sessionID']
 
     query = input['query']
-    cartVal = available_cartridges[convoID][cartKey]
+    cartVal = available_cartridges[sessionID][cartKey]
     #TODO -  basically could comine with index query (or this is request, query is internal)
 
     cartVal['status'] = 'querying Index'
@@ -282,7 +282,7 @@ async def handleIndexQuery(input, loadout = None):
 
     input = {
     'cartKey': cartKey,
-    'convoID': convoID,
+    'sessionID': sessionID,
     'fields': {
         'status': cartVal['status'],
         'state': cartVal['state']
@@ -295,18 +295,18 @@ async def handleIndexQuery(input, loadout = None):
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index_key = cartVal['index']
         index = await get_index_json(index_key)
-        response = await triggerQueryIndex(convoID, cartKey, cartVal, query, index, index_key, loadout )
+        response = await triggerQueryIndex(sessionID, cartKey, cartVal, query, index, index_key, loadout )
         return response
 
 
-async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_key, loadout = None):
+async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index_key, loadout = None):
     eZprint('triggering index query')
 
     cartVal['state'] = 'loading'
     cartVal['status'] = 'index Found'
     input = {
     'cartKey': cartKey,
-    'convoID': convoID,
+    'sessionID': sessionID,
     'fields': {
         'status': cartVal['status'],
         'state': cartVal['state']
@@ -319,7 +319,7 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
 
     indexJson = dict()  
 
-    tmpDir = tempfile.mkdtemp()+"/"+convoID+"/storage"
+    tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
     localIndex.storage_context.persist(tmpDir)
     # print(tmpDir)
     indexJson = dict()
@@ -384,7 +384,7 @@ async def triggerQueryIndex(convoID, cartKey, cartVal, query, indexJson, index_k
                                 }
         input = {
         'cartKey': cartKey,
-        'convoID': convoID,
+        'sessionID': sessionID,
         'fields': {
             'status': cartVal['status'],
             'state': cartVal['state'],

@@ -27,60 +27,68 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
 
-async def initialise_conversation(convoID, params = None):
+async def initialise_conversation(sessionID,convoID, params = None):
     ##session setup stuff should be somewhere else
     eZprint('initialising conversation')
     print(params)
-    if 'fake_user' in params and params['fake_user'] == 'True':
-        eZprint('fake user detected')
-        novaConvo[convoID]['fake_user'] = True 
-        novaConvo[convoID]['userName'] = "Archer"
-
-    if 'agent_initiated' in params and params['agent_initiated'] == 'True':
-        eZprint('agent initiated convo')
-        novaConvo[convoID]['agent_initiated'] = True
-
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
+    if params:
+        if 'fake_user' in params and params['fake_user'] == 'True':
+            eZprint('fake user detected')
+            novaSession[sessionID]['fake_user'] = True 
+            novaSession[sessionID]['userName'] = "Archer"
 
-    if 'name' in params:
-        novaConvo[convoID]['userName'] = params['name']
+        if 'agent_initiated' in params and params['agent_initiated'] == 'True':
+            eZprint('agent initiated convo')
+            novaSession[sessionID]['agent_initiated'] = True
+        if 'name' in params:
+            novaSession[sessionID]['userName'] = params['name']
+        if 'message' in params:
+            novaConvo[convoID]['message'] = params['message']
+            print(params['message'])
 
-    if 'message' in params:
-        novaConvo[convoID]['message'] = params['message']
-        print(params['message'])
+        if 'model' in params:
+            novaConvo[convoID]['model'] = params['model']
+            if novaConvo[convoID]['model'] == 'gpt-4':
+                novaConvo[convoID]['token_limit'] = 8000
+            else:
+                novaConvo[convoID]['token_limit'] = 4000
+        else: 
+            novaConvo[convoID]['token_limit'] = 4000
+    if 'token_limit' not in novaConvo[convoID]:
+        novaConvo[convoID]['token_limit'] = 4000
+    print('nova convo')
+    print(novaConvo[convoID])
+        # print(params['model'])
 
-    userID = novaConvo[convoID]['userID']
+
+
+    userID = novaSession[sessionID]['userID']
+
     await update_coin_count(userID,0)
 
     novaConvo[convoID]['token_limit'] = 4000
-    if 'model' in params:
-        novaConvo[convoID]['model'] = params['model']
-        if novaConvo[convoID]['model'] == 'gpt-4':
-            novaConvo[convoID]['token_limit'] = 8000
-        else:
-            novaConvo[convoID]['token_limit'] = 4000
-
-        print(params['model'])
     
     # novaConvo[convoID]['agent-name'] = agentName
-    sessionID = novaConvo[convoID]['sessionID'] 
-    novaSession[sessionID]['latestConvo']= convoID
+    # sessionID = novaConvo[convoID]['sessionID'] 
+    novaSession[sessionID]['latestConvo'] = convoID
 
-async def initialiseCartridges(convoID):
+async def initialiseCartridges(sessionID):
     
-    # eZprint('intialising cartridges')
-    if convoID not in current_loadout:
-        current_loadout[convoID] = None
-    novaConvo[convoID]['owner'] = True
-    if convoID not in current_loadout or current_loadout[convoID] == None:
-        await loadCartridges(convoID)
-    await runCartridges(convoID, current_loadout[convoID])
+    eZprint('intialising cartridges')
+    if sessionID not in current_loadout:
+        current_loadout[sessionID] = None
+    novaSession[sessionID]['owner'] = True
+    print(current_loadout[sessionID])
+    if sessionID not in current_loadout or current_loadout[sessionID] == None:
+        await loadCartridges(sessionID)
+    await runCartridges(sessionID, current_loadout[sessionID])
 
 
-async def loadCartridges(convoID, loadout = None):
-    # eZprint('load cartridges called')
-    userID = novaConvo[convoID]['userID']
+async def loadCartridges(sessionID, loadout = None):
+    eZprint('load cartridges called')
+    userID = novaSession[sessionID]['userID']
 
     cartridges = await prisma.cartridge.find_many(
         where = {  
@@ -88,43 +96,43 @@ async def loadCartridges(convoID, loadout = None):
         }
     )
     if len(cartridges) != 0:
-        available_cartridges[convoID] = {}
+        available_cartridges[sessionID] = {}
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
-                    available_cartridges[convoID][cartKey] = cartVal
-        if loadout == current_loadout[convoID]:
-            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[convoID]}))
+                    available_cartridges[sessionID][cartKey] = cartVal
+        if loadout == current_loadout[sessionID]:
+            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))
     # eZprint('load cartridges complete')
 
-async def runCartridges(convoID, loadout = None):
+async def runCartridges(sessionID, loadout = None):
     # await construct_query(convoID)
     # print('running cartridges')
-    if loadout != current_loadout[convoID]:
+    if loadout != current_loadout[sessionID]:
         return
     
-    if convoID not in available_cartridges or available_cartridges[convoID] == {}:
-        await copy_cartridges_from_loadout('e8b0d808235f9aa4', convoID)
-        await runCartridges(convoID)
+    if sessionID not in available_cartridges or available_cartridges[sessionID] == {}:
+        await copy_cartridges_from_loadout('e8b0d808235f9aa4', sessionID)
+        await runCartridges(sessionID)
         return
     
         
-    if convoID in current_config:
+    if sessionID in current_config:
         # print(current_config[convoID])
-        if 'agent_initiated' in current_config[convoID] and current_config[convoID]['agent_initiated'] == True:
-            await agent_initiate_convo(convoID)
+        if 'agent_initiated' in current_config[sessionID] and current_config[sessionID]['agent_initiated'] == True:
+            await agent_initiate_convo(sessionID)
 
     # if current_loadout[convoID] == None:
     #     await agent_initiate_convo(convoID)
 
-    if convoID in available_cartridges:
-        for cartKey, cartVal in available_cartridges[convoID].items():
-            if cartVal['type'] == 'summary':
-                if 'enabled' in cartVal and cartVal['enabled'] == True:
-                    # print('running summary cartridge on loadout ' + str(loadout))
-                    # if cartVal['state'] != 'loading':
-                    asyncio.create_task(run_summary_cartridges(convoID, cartKey, cartVal, loadout))
+    if sessionID in available_cartridges:
+        for cartKey, cartVal in available_cartridges[sessionID].items():
+            # if cartVal['type'] == 'summary':
+            #     if 'enabled' in cartVal and cartVal['enabled'] == True:
+            #         # print('running summary cartridge on loadout ' + str(loadout))
+            #         # if cartVal['state'] != 'loading':
+            #         asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
                     # else:
                     #     cartVal['state'] = ''
                     #     cartVal['status'] = ''
@@ -137,7 +145,7 @@ async def runCartridges(convoID, loadout = None):
                     #         },
                     #     }
                     #     update_cartridge_field(input, loadout)
-
+            convoID = novaSession[sessionID]['convoID']
             if cartVal['type'] == 'system':
                 novaConvo[convoID]['token_limit'] = 4000
 
@@ -151,14 +159,14 @@ async def runCartridges(convoID, loadout = None):
                             else:
                                 novaConvo[convoID]['token_limit'] = 4000
 
-async def addNewUserCartridgeTrigger(convoID, cartKey, cartVal):
+async def addNewUserCartridgeTrigger(sessionID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
     #TODO: replace this with better new user flow
-    if convoID not in available_cartridges:
-        available_cartridges[convoID] = {}
-    available_cartridges[convoID][cartKey]= cartVal  
+    if sessionID not in available_cartridges:
+        available_cartridges[sessionID] = {}
+    available_cartridges[sessionID][cartKey]= cartVal  
     print('adding new user cartridge')
-    userID = novaConvo[convoID]['userID']
+    userID = novaSession[sessionID]['userID']
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
