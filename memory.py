@@ -383,10 +383,10 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
                 # print(str(len(conversation_string)))
 
                 if len(conversation_string) > 7000:
-                    convoSplitID = conversation.SessionID.split('-')
-                    docID = convoSplitID
-                    if len(convoSplitID) >1:
-                        docID = convoSplitID[1]
+                    # convoSplitID = conversation.SessionID.split('-')
+                    # docID = convoSplitID
+                    # if len(convoSplitID) >1:
+                    #     docID = convoSplitID[1]
 
                     i = 0
                     range = 7000
@@ -406,7 +406,7 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
                             'toSummarise': target,
                             'epoch' : 0,
                             'meta' : meta,
-                            'docID' : docID
+                            'docID' : conversation.SessionID
                         })
 
                         i += range
@@ -417,16 +417,16 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
         # eZprint('logging conversation with unsumarised messages\n' + f'{conversation_string}')
             # print('adding on last bit of convo')
             # print(str(len(conversation_string)))
-            convoSplitID = conversation.SessionID.split('-')
-            docID = convoSplitID
-            if len(convoSplitID) >1:
-                docID = convoSplitID[1]
+            # convoSplitID = conversation.SessionID.split('-')
+            # docID = convoSplitID
+            # if len(convoSplitID) >1:
+            #     docID = convoSplitID[1]
             normalised_convos.append({
                 'ids': ids,
                 'toSummarise': conversation_string,
                 'epoch' : 0,
                 'meta' : meta,
-                'docID' : docID
+                'docID' : conversation.SessionID
 
             })
 
@@ -506,7 +506,7 @@ async def summarise_batches(batches, userID, sessionID, client_loadout = None, t
 
 
 
-async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, meta = {}, sessionID = '', docID = '', loadout =None):
+async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, meta = {}, sessionID = '', loadout =None):
     # print(summary)
     # eZprint('creating summary record')
     # print(summary)
@@ -526,21 +526,21 @@ async def create_summary_record(userID, sourceIDs, summaryKey, summary, epoch, m
         summarDict.update({'key': summaryKey})
         
 
-        SessionID = sessionID
+        # SessionID = sessionID
         docID = ''
         if 'docID' in meta:
             docID = meta['docID']
 
-        if docID != '':
-            SessionID += '-' + docID
+        # if docID != '':
+        #     SessionID += '-' + docID
 
-        if loadout:
-            SessionID += '-' + loadout
+        # if loadout:
+        #     SessionID += '-' + loadout
 
         summary = await prisma.summary.create(
             data={
                 "key": summaryKey,
-                'SessionID' : SessionID,
+                'SessionID' : docID,
                 "UserID": userID,
                 "timestamp": datetime.now(),
                 "blob": Json({summaryKey:summarDict})
@@ -762,7 +762,7 @@ async def get_summaries(userID, sessionID, target_loadout):
         # print(summary)
         splitID = str(summary.SessionID).split('-')
         # print(splitID)
-        if(len(splitID) >= 2):
+        if(len(splitID) >= 3):
             if splitID[2] == target_loadout:
                 # print('loadout ID found')
                 summary_candidates.append(summary)
@@ -879,7 +879,7 @@ async def summarise_percent(convoID, percent):
     # print(chatlog[convoID])
     for log in chatlog[convoID]:
         # print(log)
-        if 'summarised' not in log:
+        if 'summarised' not in log or log['summarised'] == False:
             if counter <= max:
                 # print(log)
                 # eZprint('adding to summarise' + str(log))
@@ -950,7 +950,7 @@ async def summariseChatBlocks(input,  loadout = None):
                             messageIDs.append(log['id'])
                             messageIDs.append(log['id'])
 
-
+    sessionID = novaConvo[convoID]['sessionID']
     summaryKey = input['summaryKey']
     userID = novaSession[sessionID]['userID']
     messages_string = ''
@@ -971,6 +971,8 @@ async def summariseChatBlocks(input,  loadout = None):
                 if start_message == None:
                     start_message = log
                 if 'name' in log:
+                    messages_string += str(log['name']) + ': '
+                if 'userName' in log:
                     messages_string += str(log['userName']) + ': '
                 if 'title' in log:
                     messages_string += str(log['title']) + ': '
@@ -1008,11 +1010,10 @@ async def summariseChatBlocks(input,  loadout = None):
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         # print ('model: ' + model)
-    userID = novaConvo[convoID]['userID']
 
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
     #wait for 2 seconds
-    # print(summary)
+    print(summary)
     if summary:
         summarDict = json.loads(summary, strict=False)
     # print(summarDict)
@@ -1024,6 +1025,10 @@ async def summariseChatBlocks(input,  loadout = None):
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
     date = datetime.now()
     # summarDict.update({'sources':messageIDs})
+    # convoSplitID = convoID.split('-')
+    # docID = convoSplitID
+    # if len(convoSplitID) >1:
+    #     docID = convoSplitID[1]
     meta = {
         'overview': 'Conversation section from conversation ' + str(date),
         'docID': sessionID,
@@ -1031,8 +1036,6 @@ async def summariseChatBlocks(input,  loadout = None):
         'type' : 'message',
         'corpus' : 'loadout-conversations',
         'docID' : convoID
-
-
     }    
     # print(summarDict)
     summaryID = None

@@ -112,7 +112,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "order": order,
         "thread": thread,
     }
-    print('message object is: ' + str(messageObject))
+    # print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
     # print('message logged' + str(id)    )
@@ -401,18 +401,29 @@ async def command_interface(command, convoID, threadRequested):
 async def set_convo(requested_convoID, sessionID):
     
     userID = novaSession[sessionID]['userID']
-    print(requested_convoID)
+    # print(requested_convoID)
     splitConvoID = requested_convoID.split('-')
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
 
-    remote_summaries_from_convo = await prisma.summary.find_many(
-        where = {
-            'UserID' : userID,
-            'SessionID' : splitConvoID
-            }
-    )
+    try:
+        remote_summaries_from_convo = await prisma.summary.find_many(
+            where = {
+                'UserID' : userID,
+                'SessionID' : splitConvoID
+                }
+        )
 
+        if not remote_summaries_from_convo:
+            remote_summaries_from_convo = await prisma.summary.find_many(
+                where = {
+                    'UserID' : userID,
+                    'SessionID' : requested_convoID
+                    }
+            )
+    except:
+        remote_summaries_from_convo = None
+    
     remote_messages_from_convo = await prisma.message.find_many(
         where = {
             'UserID' : userID,
@@ -448,13 +459,15 @@ async def set_convo(requested_convoID, sessionID):
     for summary in summaries:
         chatlog[requested_convoID].append(summary)
         messages_added = False
-        for sources in summary['sources']:
+        for source in summary['sources']:
             for message in messages:
-                if message['id'] == sources:
+                if message['id'] == source:
+                    print('adding on source match' + str(message) + 'to summary' + str(summary))
                     messages_added = True
                     chatlog[requested_convoID].append(message)
                     messages.remove(message)
         if not messages_added:
+            print('removing sum ary as no sources' + str(summary))
             chatlog[requested_convoID].remove(summary)
     for message in messages:
         message['muted'] = False

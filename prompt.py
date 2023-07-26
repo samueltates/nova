@@ -121,11 +121,11 @@ async def construct_prompt_string(prompt_objects, convoID):
 async def construct_chat(convoID, thread = 0):
     current_chat = []
     # print('constructing chat for thread ' + str(thread))
-    eZprint('chatlog is ')
+    # eZprint('chatlog is ')
     # print(chatlog[convoID])
     if convoID in chatlog:
         for log in chatlog[convoID]:
-            eZprint('log is: ' + str(log))    
+            # eZprint('log is: ' + str(log))    
             if 'muted' not in log or log['muted'] == False:
                 # if 'thread' in log and thread > 0:
                 #     if log['thread'] == thread:
@@ -402,6 +402,8 @@ async def handle_token_limit(convoID):
         prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
         if prompt_too_long: 
             await summarise_percent(convoID, .5)
+            await construct_chat(convoID,0)
+
         
 
 async def handle_prompt_context(convoID):

@@ -307,20 +307,12 @@ async def process_message(parsed_data):
         current_config[sessionID] = {}
         
         print( 'current loadout is ' + str(current_loadout[sessionID]))
-
-        if sessionID in current_config and 'convoID' in current_config[sessionID]:
-            print('convoID found in currentConfig')
-            # print(current_config)
-            convoID = current_config[sessionID]['convoID']
-        elif sessionID in available_convos:
-            print('convoID found in available_convos')
-            convoID = available_convos[sessionID][-1]['sessionID']
-
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
-            
-        if convoID:
-            await set_convo(convoID, sessionID)
+        convoID_full = await handle_convo_switch(sessionID)
+
+        if convoID_full:
+            await set_convo(convoID_full, sessionID)
             await initialise_conversation(sessionID, convoID, params)
             await initialiseCartridges(sessionID)
         
@@ -421,6 +413,8 @@ async def process_message(parsed_data):
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
         await add_loadout(loadout, sessionID)
+        convoID_full = await handle_convo_switch(sessionID)
+
 
 
     if(parsed_data['type'] == 'set_loadout'):
@@ -428,20 +422,34 @@ async def process_message(parsed_data):
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
         await set_loadout(loadout, sessionID)
+        convoID_full = await handle_convo_switch(sessionID)
 
-        convoID = None
-        print(current_config)
-        if sessionID in current_config and 'convoID' in current_config[sessionID]:
-            requested_convoID = current_config[sessionID]['convoID']
+        # requested_convoID = None
+        # if sessionID in current_config and 'convoID' in current_config[sessionID]:
+        #     requested_convoID = current_config[sessionID]['convoID']
 
-        elif sessionID in available_convos:
-            requested_convoID = available_convos[sessionID][-1]['sessionID']
+        # elif sessionID in available_convos:
+        #     requested_convoID = available_convos[sessionID][-1]['sessionID']
 
-        if requested_convoID:
-            await set_convo(requested_convoID, sessionID)
+        # if requested_convoID:
+        #     await set_convo(requested_convoID, sessionID)
 
-        if 'params' in parsed_data['data']:
-            params = parsed_data['data']['params']
+        # if not requested_convoID:
+        #     #TODO: make 'add convo'wrapper (and set convo
+        #     convoID = secrets.token_bytes(4).hex()
+        #     loadout = current_loadout[sessionID]
+        #     # await initialise_conversation(sessionID, convoID, params)
+        #     convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
+        #     novaSession[sessionID]['convoID'] = convoID_full
+        #     novaConvo[convoID_full] = {}
+        #     novaConvo[convoID_full]['sessionID'] = sessionID
+        #     session ={
+        #         'sessionID' : convoID_full,
+        #         'convoID' : convoID_full,
+        #         'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
+        #         'summary': "new conversation",
+        #     }
+        #     await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
 
         await runCartridges(sessionID, loadout)
 
@@ -453,34 +461,18 @@ async def process_message(parsed_data):
         params = parsed_data['data']['params']
         await set_loadout(loadout, sessionID, True)
         await add_loadout_to_session(loadout, sessionID)
+        convoID_full = await handle_convo_switch(sessionID)
+        # requested_convoID = None
+        # if sessionID in current_config and 'convoID' in current_config[sessionID]:
+        #     requested_convoID = current_config[sessionID]['convoID']
 
-        convoID = None
-        if sessionID in current_config and 'convoID' in current_config[sessionID]:
-            requested_convoID = current_config[sessionID]['convoID']
+        # elif sessionID in available_convos:
+        #     requested_convoID = available_convos[sessionID][-1]['sessionID']
 
-        elif sessionID in available_convos:
-            requested_convoID = available_convos[sessionID][-1]['sessionID']
+        # if requested_convoID:
+        #     await set_convo(requested_convoID, sessionID)
 
-        if requested_convoID:
-            await set_convo(requested_convoID, sessionID)
-
-        if not convoID:
-            #TODO: make 'add convo'wrapper (and set convo
-            convoID = secrets.token_bytes(4).hex()
-            loadout = current_loadout[sessionID]
-            # await initialise_conversation(sessionID, convoID, params)
-            convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
-            novaSession[sessionID]['convoID'] = convoID_full
-            novaConvo[convoID_full] = {}
-            novaConvo[convoID_full]['sessionID'] = sessionID
-            session ={
-                'sessionID' : convoID_full,
-                'convoID' : convoID_full,
-                'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
-                'summary': "new conversation",
-            }
-            await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
-
+       
         await initialise_conversation(sessionID,convoID_full, params)
         await runCartridges(sessionID, loadout)
         
@@ -494,21 +486,20 @@ async def process_message(parsed_data):
         eZprint('clear_loadout route hit')
         sessionID = parsed_data['data']['sessionID']
         await clear_loadout(sessionID)
-        print(available_convos)
-        convoID = None
-        if sessionID in current_config and 'convoID' in current_config[sessionID]:
-            print('adding on currentConfig')
-            requested_convoID = current_config[sessionID]['convoID']
+        # print(available_convos)
+        # convoID = None
+        # if sessionID in current_config and 'convoID' in current_config[sessionID]:
+        #     print('adding on currentConfig')
+        #     requested_convoID = current_config[sessionID]['convoID']
 
-        elif sessionID in available_convos:
-            print('adding on available convos')
+        # elif sessionID in available_convos:
+        #     print('adding on available convos')
 
-            requested_convoID = available_convos[sessionID][-1]['sessionID']
+        #     requested_convoID = available_convos[sessionID][-1]['sessionID']
 
-        if requested_convoID:
-            await set_convo(requested_convoID, sessionID)
-
-
+        # if requested_convoID:
+        #     await set_convo(requested_convoID, sessionID)
+        await handle_convo_switch(sessionID)
         await loadCartridges(sessionID)
         await runCartridges(sessionID)
 
@@ -549,7 +540,8 @@ async def process_message(parsed_data):
     if(parsed_data['type']=='search_cartridges'):
         eZprint('search_cartridges route hit')
         print(parsed_data['data'])
-        sessionID = parsed_data['data']['sessionID']
+        convoID = parsed_data['data']['convoID']
+        sessionID = novaConvo[convoID]['sessionID']
         query = parsed_data['data']['query']
         await search_cartridges(query, sessionID)
     if(parsed_data['type']=='request_content_children'):
@@ -577,6 +569,46 @@ async def process_message(parsed_data):
             await get_summary_from_keyword(key, sessionID, cartKey, client_loadout, target_loadout, True)
         elif type == 'insight':
             await get_summary_from_insight(key, sessionID, cartKey, client_loadout, target_loadout, True)
+
+
+
+async def handle_convo_switch(sessionID):
+    print('handle_convo_switch called')
+    requested_convoID = None
+    if sessionID in current_config and 'convoID' in current_config[sessionID]:
+        print('adding on currentConfig')
+        requested_convoID = current_config[sessionID]['convoID']
+
+    elif sessionID in available_convos:
+        print('adding on available convos')
+        if len(available_convos[sessionID]) > 0:
+            requested_convoID = available_convos[sessionID][-1]['sessionID']
+
+    if requested_convoID:
+        await set_convo(requested_convoID, sessionID)
+
+    if not requested_convoID:
+        #TODO: make 'add convo'wrapper (and set convo
+        convoID = secrets.token_bytes(4).hex()
+        loadout = current_loadout[sessionID]
+        # await initialise_conversation(sessionID, convoID, params)
+        convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
+        novaSession[sessionID]['convoID'] = convoID_full
+        novaConvo[convoID_full] = {}
+        novaConvo[convoID_full]['sessionID'] = sessionID
+        session ={
+            'sessionID' : convoID_full,
+            'convoID' : convoID_full,
+            'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
+            'summary': "new conversation",
+        }
+        await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
+
+        requested_convoID = convoID_full
+        
+    return requested_convoID
+
+
 
 
 file_chunks = {}

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime
+import datetime 
 from prisma import Prisma
 from prisma import Json
 from human_id import generate_id
@@ -626,6 +626,90 @@ async def delete_summaries_in_range():
         )
         print(delete)
 
+async def get_daily_messages_report():
+    # get the current date
+    today = datetime.date.today()
+
+    # query the messages from today
+    messages_today = await prisma.message.find_many(
+        where={'timestamp': {'gte': today.strftime('%Y-%m-%d')}}
+    )
+
+    print(f'Total messages for today: {len(messages_today)}')
+
+    # get unique user IDs from the messages
+    user_ids = set([message.UserID for message in messages_today])
+
+    # query and print messages per user
+    for user_id in user_ids:
+        user_messages = await prisma.message.find_many(
+            where={'timestamp': {'gte': today.strftime('%Y-%m-%d')}, 'UserID': user_id}
+        )
+
+        print(f'Messages from UserID {user_id} today: {len(user_messages)}')
+
+    return
+
+async def get_messages_report(start_date, end_date, exclude_uuid):
+    # date range
+    date_range = [start_date + datetime.timedelta(days=x) for x in range((end_date-start_date).days + 1)]
+
+    for date in date_range:
+        # query the messages from the date
+        messages = await prisma.message.find_many(
+            where={'timestamp': {'gte': date.strftime('%Y-%m-%d'), 'lt': (date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')}}
+        )
+
+        print(f"Total messages for {date.strftime('%Y-%m-%d')}: {len(messages)}")
+
+        # get unique user IDs from the messages
+        user_ids = set([message.UserID for message in messages if message.UserID != exclude_uuid])
+
+        # query and print messages per user
+        for user_id in user_ids:
+            user_messages = await prisma.message.find_many(
+                where={'timestamp': {'gte': date.strftime('%Y-%m-%d'), 'lt': (date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')}, 'UserID': user_id}
+            )
+
+            print(f"Messages from UserID {user_id} on {date.strftime('%Y-%m-%d')}: {len(user_messages)}")
+
+    return
+
+async def get_messages_report_aggregate(start_date, end_date, exclude_uuid):
+    # date range
+    date_range = [start_date + datetime.timedelta(days=x) for x in range((end_date-start_date).days + 1)]
+
+    for date in date_range:
+        # query the messages from the date
+        messages = await prisma.message.find_many(
+            where={'timestamp': {'gte': date.strftime('%Y-%m-%d'), 'lt': (date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')}}
+        )
+
+        # Initialize dictionaries for logged in and guest users for the day
+        logged_in_users, guest_users = {}, {}
+
+        # get unique user IDs from the messages
+        user_ids = set([message.UserID for message in messages if message.UserID != exclude_uuid])
+
+        # query and process messages per user
+        for user_id in user_ids:
+            user_messages = await prisma.message.find_many(
+                where={'timestamp': {'gte': date.strftime('%Y-%m-%d'), 'lt': (date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')}, 'UserID': user_id}
+            )
+
+            # count messages only for users with more than one message
+            if len(user_messages) > 1:
+                if 'guest' in user_id:
+                    guest_users[user_id] = len(user_messages)
+                else:
+                    logged_in_users[user_id] = len(user_messages)
+
+        print(f"Date: {date.strftime('%Y-%m-%d')}")
+        print(f'Logged in users ({len(logged_in_users)}): Message total ({sum(logged_in_users.values())})')
+        print(f'Guests ({len(guest_users)}): Message total ({sum(guest_users.values())})')
+
+    return
+
 async def delete_summary_with_content():
     summaries = await prisma.summary.find_many(
     )
@@ -657,8 +741,11 @@ async def delete_summary_with_content():
 async def main() -> None:
     await prisma.connect()
     # await delete_summary_with_content()
+    # await get_daily_messages_report()
+    # await get_messages_report(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
+    await get_messages_report_aggregate(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
     # await delete_summaries_in_range()
-    await find_users()
+    # await find_users()
     # await clear_user_history( '108238407115881872743')
     # await findIndexes('108238407115881872743')
     # await findBatches()

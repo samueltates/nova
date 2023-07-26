@@ -128,11 +128,11 @@ async def runCartridges(sessionID, loadout = None):
 
     if sessionID in available_cartridges:
         for cartKey, cartVal in available_cartridges[sessionID].items():
-            # if cartVal['type'] == 'summary':
-            #     if 'enabled' in cartVal and cartVal['enabled'] == True:
-            #         # print('running summary cartridge on loadout ' + str(loadout))
-            #         # if cartVal['state'] != 'loading':
-            #         asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
+            if cartVal['type'] == 'summary':
+                if 'enabled' in cartVal and cartVal['enabled'] == True:
+                    # print('running summary cartridge on loadout ' + str(loadout))
+                    # if cartVal['state'] != 'loading':
+                    asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
                     # else:
                     #     cartVal['state'] = ''
                     #     cartVal['status'] = ''

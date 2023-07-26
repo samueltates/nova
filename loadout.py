@@ -4,6 +4,7 @@ import json
 from appHandler import app, websocket
 from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts,current_config, available_convos,novaSession
 from debug import eZprint
+import asyncio
 
 async def get_loadouts(sessionID):
 
@@ -56,7 +57,7 @@ async def get_loadout_logs(loadout_requested, sessionID):
     available_convos[sessionID] = []
 
     logs = await prisma.log.find_many(
-            where={ "UserID": userID },
+            # where={ "UserID": userID },
         )
     
 
@@ -66,21 +67,8 @@ async def get_loadout_logs(loadout_requested, sessionID):
             # print(splitID[1])
             if splitID[2] == str(loadout_requested):
                
-                # print('adding on loadout')
-                # remote_summaries_from_convo = await prisma.summary.find_first(
-                #     where = {
-                #         'UserID' : userID,
-                #         'SessionID' : splitID[1]
-                #         }
-                # )
-                # summary = ''
-                # if log.summary:
-                #     summary = log.summary
-                # if remote_summaries_from_convo:
-                #     summary = json.loads(remote_summaries_from_convo.json())['blob']
-                #     for key, val in summary.items():
-                #         summary = val['title']
                 session ={
+                    'id': log.id,
                     'sessionID' : log.SessionID,
                     'convoID' : splitID[1],
                     'date' : log.date,
@@ -92,20 +80,9 @@ async def get_loadout_logs(loadout_requested, sessionID):
             # print(splitID)
             
             if len(splitID) >=2:
-            #     remote_summaries_from_convo = await prisma.summary.find_first(
-            #         where = {
-            #             'UserID' : userID,
-            #             'SessionID' : splitID[1]
-            #             }
-            #     )
-            #     summary = ''
-            #     if log.summary:
-            #         summary = log.summary
-            #     if remote_summaries_from_convo:
-            #         summary = json.loads(remote_summaries_from_convo.json())['blob']
-            #         for key, val in summary.items():
-            #             summary = val['title']
+            #    
                 session ={
+                    'id': log.id,
                     'sessionID' : log.SessionID,
                     'convoID' : splitID[1],
                     'date' : log.date,
@@ -114,6 +91,7 @@ async def get_loadout_logs(loadout_requested, sessionID):
                 available_convos[sessionID].append(session)
             else:
                 session ={
+                    'id': log.id,
                     'sessionID' : log.SessionID,
                     'convoID' : splitID,
                     'date' : log.date,
@@ -124,8 +102,57 @@ async def get_loadout_logs(loadout_requested, sessionID):
 
 
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
+    asyncio.create_task( populate_summaries(loadout_requested, sessionID))
 
 
+async def populate_summaries(loadout_requested, sessionID):
+     
+    userID = novaSession[sessionID]['userID']
+
+    for log in available_convos[sessionID]:
+        if log['summary'] == '':
+            splitID = log['sessionID'].split('-')
+            if len(splitID) >1:
+                splitID = splitID[1]
+            try:
+                remote_summaries_from_convo = await prisma.summary.find_many(
+                    where = {
+                        'UserID' : userID,
+                        'SessionID' : splitID
+                        }
+                )
+                if not remote_summaries_from_convo:
+                    remote_summaries_from_convo = await prisma.summary.find_many(
+                    where = {
+                        'UserID' : userID,
+                        'SessionID' : log['sessionID']
+                        }
+                )
+            except:
+                remote_summaries_from_convo = None
+                
+            summary = ''
+
+            if remote_summaries_from_convo:
+                for summary in remote_summaries_from_convo:
+                    # print(summary)
+                    summary = json.loads(summary.json())['blob']
+                    for key, val in summary.items():
+                        summary = val['title']
+                    log['summary'] = summary
+
+                    updated_log = await prisma.log.update(
+                        where = {
+                            'id' : log['id']
+                            },
+                        data = {
+                            'summary' : summary
+                        }
+                    )
+                    await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
+
+
+        
 async def add_loadout(loadout: str, convoID):
     current_loadout[convoID] = loadout
     available_cartridges[convoID] = {}
@@ -406,7 +433,7 @@ async def update_loadout_field(loadout_key, field, value):
     )
     blob = json.loads(loadout.json())['blob']
     for key, val in blob.items():
-        print(key, val)
+        # print(key, val)
         val['config'][field] = value
 
         update = await prisma.loadout.update(

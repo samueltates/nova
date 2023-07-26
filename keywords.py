@@ -50,7 +50,7 @@ async def get_keywords_from_summaries(sessionID, cartKey, cartVal, client_loadou
         # print(candidate.SessionID)
         splitID = candidate.SessionID.split('-')
         # print(splitID)
-        if len(splitID) >= 2:
+        if len(splitID) >= 3:
             if splitID[2] == target_loadout:
                 # print('found loadout candidate')
                 loadout_candidates.append(candidate)
