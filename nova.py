@@ -30,7 +30,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 async def initialise_conversation(sessionID,convoID, params = None):
     ##session setup stuff should be somewhere else
     eZprint('initialising conversation')
-    print(params)
+
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
     if params:
@@ -80,6 +80,7 @@ async def initialiseCartridges(sessionID):
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
     novaSession[sessionID]['owner'] = True
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
     print(current_loadout[sessionID])
     if sessionID not in current_loadout or current_loadout[sessionID] == None:
         await loadCartridges(sessionID)

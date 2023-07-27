@@ -225,6 +225,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 
 async def clear_loadout(sessionID):
     current_loadout[sessionID] = None
+    novaSession[sessionID]['owner'] = True
+
     available_cartridges[sessionID] = {}
     current_config[sessionID] = {}
     if novaSession[sessionID]['userID']:
@@ -244,9 +246,9 @@ async def clear_loadout(sessionID):
                     }
             )
 
-            print(update_user)
+            # print(update_user)
 
-    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': True}}))
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))
 
 
@@ -270,7 +272,7 @@ async def delete_loadout(loadout_key: str, sessionID):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    print(loadout)
+    # print(loadout)
     await prisma.loadout.delete(
         where={
             'id': loadout.id

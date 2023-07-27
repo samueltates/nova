@@ -14,48 +14,55 @@ async def get_loadout_logs(sessionID):
     userID = novaSession[sessionID]['userID']
     available_convos[sessionID] = []
 
-    logs = await prisma.log.find_many(
-            # where={ "UserID": userID },
-        )
-    
+    logs = None
+
+    print(current_config[sessionID])
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+        logs = await prisma.log.find_many(
+                where={ "SessionID": {'contains':str(loadout)} },
+            )
+    else:
+        logs = await prisma.log.find_many(
+                where={ "UserID": userID, "SessionID": {'contains':str(loadout)} },
+                )
+            
     for log in logs:
         splitID = log.SessionID.split('-')
-        if len(splitID) >=3:
-            # print(splitID[1])
-            if splitID[2] == str(loadout):
-               
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID[1],
-                    'date' : log.date,
-                    'summary': log.summary,
-                }
-                available_convos[sessionID].append(session)
+        session ={
+            'id': log.id,
+            'sessionID' : log.SessionID,
+            'convoID' : splitID[1],
+            'date' : log.date,
+            'summary': log.summary,
+        }
+        available_convos[sessionID].append(session)
 
-        elif loadout == None:
-            # print(splitID)
-            
-            if len(splitID) >=2:
-            #    
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID[1],
-                    'date' : log.date,
-                    'summary':log.summary,
-                }
-                available_convos[sessionID].append(session)
-            else:
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID,
-                    'date' : log.date,
-                    'summary': log.summary,
-                }
-                available_convos[sessionID].append(session)
-                # convos.append(splitID)
+
+    if loadout == None:
+        # print(splitID)
+        logs = await prisma.log.find_many(
+            where={ "UserID": userID },
+        )
+        if len(splitID) >=2:
+        #    
+            session ={
+                'id': log.id,
+                'sessionID' : log.SessionID,
+                'convoID' : splitID[1],
+                'date' : log.date,
+                'summary':log.summary,
+            }
+            available_convos[sessionID].append(session)
+        else:
+            session ={
+                'id': log.id,
+                'sessionID' : log.SessionID,
+                'convoID' : splitID,
+                'date' : log.date,
+                'summary': log.summary,
+            }
+            available_convos[sessionID].append(session)
+            # convos.append(splitID)
 
 
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
@@ -117,36 +124,50 @@ async def set_convo(requested_convoID, sessionID):
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
 
-    try:
-        remote_summaries_from_convo = await prisma.summary.find_many(
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+
+        try:
+            remote_summaries_from_convo = await prisma.summary.find_many(
+                where = {
+                    'SessionID' : {'contains':splitConvoID}
+                    }
+            )
+
+        except:
+            remote_summaries_from_convo = None
+
+        remote_messages_from_convo = await prisma.message.find_many(
             where = {
-                # 'UserID' : userID,
-                'SessionID' : splitConvoID
+                'SessionID' : requested_convoID
                 }
         )
 
-        if not remote_summaries_from_convo:
+    else:
+        try:
             remote_summaries_from_convo = await prisma.summary.find_many(
                 where = {
-                    # 'UserID' : userID,
-                    'SessionID' : requested_convoID
+                    'UserID' : userID,
+                    'SessionID' : {'contains':splitConvoID}
                     }
             )
-    except:
-        remote_summaries_from_convo = None
-    
-    remote_messages_from_convo = await prisma.message.find_many(
-        where = {
-            # 'UserID' : userID,
-            'SessionID' : requested_convoID
-            }
-    )
+
+        except:
+            remote_summaries_from_convo = None
+
+        remote_messages_from_convo = await prisma.message.find_many(
+            where = {
+                'UserID' : userID,
+                'SessionID' : requested_convoID
+                }
+        )
+
+
     chatlog[requested_convoID] = []
     # summaries_found = False
     summaries = []
     messages = []
     if remote_summaries_from_convo:
-        print('remote summaries found')
+        # print('remote summaries found')
         # print(remote_summaries_from_convo)
         for summary in remote_summaries_from_convo:
             json_summary = json.loads(summary.json())['blob']
@@ -162,7 +183,7 @@ async def set_convo(requested_convoID, sessionID):
                     summaries.append(val)
 
     if remote_messages_from_convo:
-        print('remote messages found')
+        # print('remote messages found')
         for message in remote_messages_from_convo:
             json_message = json.loads(message.json())
             messages.append(json_message)
@@ -173,7 +194,7 @@ async def set_convo(requested_convoID, sessionID):
         for source in summary['sources']:
             for message in messages:
                 if message['id'] == source:
-                    print('adding on source match' + str(message) + 'to summary' + str(summary))
+                    # print('adding on source match' + str(message) + 'to summary' + str(summary))
                     messages_added = True
                     chatlog[requested_convoID].append(message)
                     messages.remove(message)
@@ -199,14 +220,14 @@ async def set_convo(requested_convoID, sessionID):
 
 
 async def handle_convo_switch(sessionID):
-    print('handle_convo_switch called')
+    # print('handle_convo_switch called')
     requested_convoID = None
     if sessionID in current_config and 'convoID' in current_config[sessionID]:
-        print('adding on currentConfig')
+        # print('adding on currentConfig')
         requested_convoID = current_config[sessionID]['convoID']
 
     elif sessionID in available_convos:
-        print('adding on available convos')
+        # print('adding on available convos')
         if len(available_convos[sessionID]) > 0:
             requested_convoID = available_convos[sessionID][-1]['sessionID']
 

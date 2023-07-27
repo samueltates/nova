@@ -330,7 +330,7 @@ async def process_message(parsed_data):
 
     if(parsed_data['type'] == 'set_convo'):
         print('set convo called')
-        print(parsed_data['data'])
+        # print(parsed_data['data'])
         requested_convoID = parsed_data['data']['requestedConvoID']
         sessionID = parsed_data['data']['sessionID']
         await set_convo(requested_convoID, sessionID)
@@ -441,7 +441,14 @@ async def process_message(parsed_data):
         params = parsed_data['data']['params']
         await set_loadout(loadout, sessionID, True)
         await add_loadout_to_session(loadout, sessionID)
-        convoID_full = await start_new_convo(sessionID)
+        await get_loadout_logs(sessionID)
+
+        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
+            convoID_full = await handle_convo_switch(sessionID)
+            if not convoID_full:
+                convoID_full = await start_new_convo(sessionID)
+        else:
+            convoID_full = await start_new_convo(sessionID)
         await initialise_conversation(sessionID,convoID_full, params)
         await runCartridges(sessionID, loadout)
         
