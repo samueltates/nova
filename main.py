@@ -526,6 +526,7 @@ async def process_message(parsed_data):
 
     if(parsed_data['type']=='request_cartridge_list'):
         eZprint('request_cartridge_list route hit')
+        sessionID = parsed_data['data']['sessionID']
         await get_cartridge_list(sessionID)
 
     if(parsed_data['type']=='addExistingCartridge'):

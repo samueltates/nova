@@ -409,7 +409,7 @@ async def set_convo(requested_convoID, sessionID):
     try:
         remote_summaries_from_convo = await prisma.summary.find_many(
             where = {
-                'UserID' : userID,
+                # 'UserID' : userID,
                 'SessionID' : splitConvoID
                 }
         )
@@ -417,7 +417,7 @@ async def set_convo(requested_convoID, sessionID):
         if not remote_summaries_from_convo:
             remote_summaries_from_convo = await prisma.summary.find_many(
                 where = {
-                    'UserID' : userID,
+                    # 'UserID' : userID,
                     'SessionID' : requested_convoID
                     }
             )
@@ -426,7 +426,7 @@ async def set_convo(requested_convoID, sessionID):
     
     remote_messages_from_convo = await prisma.message.find_many(
         where = {
-            'UserID' : userID,
+            # 'UserID' : userID,
             'SessionID' : requested_convoID
             }
     )
