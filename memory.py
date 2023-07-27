@@ -328,14 +328,14 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
     messages = []
     remote_messages = await prisma.message.find_many(
             where={
-            'UserID': userID,
+            'SessionID': { 'contains': str(target_loadout) },
             'summarised': False
             }
     )
 
     conversations = await prisma.log.find_many(
             where={
-            'UserID': userID,
+            'SessionID': { 'contains': str(target_loadout) },
             }
     )
 

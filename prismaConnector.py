@@ -710,6 +710,61 @@ async def get_messages_report_aggregate(start_date, end_date, exclude_uuid):
 
     return
 
+
+async def retrieve_logs_and_messages():
+    messages = await prisma.message.find_many(
+        where={'SessionID': {'contains': '7531ab40afd82ba4'}},
+    )
+    message_data = [{'id': message.id, 'key': message.key, 'SessionID': message.SessionID, 'UserID': message.UserID, 'name': message.name, 'timestamp': message.timestamp, 'body': message.body, 'batched': message.batched, 'summarised': message.summarised, 'minimised': message.minimised, 'muted': message.muted, 'blob': message.blob} for message in messages]
+
+    with open('messages_backup.json', 'w') as f:
+        json.dump(message_data, f)
+
+async def write_recovered_messages():
+    with open('messages_backup.json', 'r') as f:
+        messages_from_backup = json.load(f)
+
+    for message in messages_from_backup:
+
+        await prisma.message.create(
+            data={
+                'id': message['id'],
+                'key': message['key'],
+                'SessionID': message['SessionID'],
+                'UserID': message['UserID'],
+                'name': message['name'],
+                'timestamp': message['timestamp'],
+                'body': message['body'],
+                'batched': message['batched'],
+                'summarised': message['summarised'],
+                'minimised': message['minimised'],
+                'muted': message['muted'],
+                'blob': Json(message['blob']),
+            }
+        )
+
+async def delete_logs_and_messages():
+    messages = await prisma.message.find_many(
+        where={'SessionID': {'contains': '7531ab40afd82ba4'}},
+    )
+
+    sessions = {}
+    for message in messages:
+        if message.SessionID not in sessions:
+            sessions[message.SessionID] = []
+        sessions[message.SessionID].append(message)
+
+    sessions_with_one_message = 0
+    sessions_with_more_than_one_message = 0
+    for sessions in sessions:
+        if len(sessions[sessions]) < 1:
+            sessions_with_one_message += 1
+        else:
+            sessions_with_more_than_one_message += 1
+        
+    print(f'Sessions with one message: {sessions_with_one_message}')
+    print(f'Sessions with more than one message: {sessions_with_more_than_one_message}')
+
 async def delete_summary_with_content():
     summaries = await prisma.summary.find_many(
     )
@@ -743,7 +798,10 @@ async def main() -> None:
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
-    await get_messages_report_aggregate(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
+    # await get_messages_report_aggregate(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
+    # await retrieve_logs_and_messages()
+    await write_recovered_messages()
+    # await delete_logs_and_messages()
     # await delete_summaries_in_range()
     # await find_users()
     # await clear_user_history( '108238407115881872743')
