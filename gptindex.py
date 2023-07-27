@@ -16,7 +16,7 @@ from GoogleDocsReader import GoogleDocsReader
 from UnstructuredReader import UnstructuredReader
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-
+from UnstructuredURLLoader import UnstructuredURLLoader
 from llama_index import (
     Document,
     # GPTSimpleVectorIndex, 
@@ -99,6 +99,12 @@ async def indexDocument(payload, client_loadout):
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
 
+    elif payload['document_type'] == 'url':
+        url = payload['url']
+        documentTitle = url
+        loader = UnstructuredURLLoader([url])
+        document = loader.load()
+        # print(document)
 
     index = None
 # if(indexType == 'Vector'):
@@ -170,6 +176,14 @@ async def indexDocument(payload, client_loadout):
     newCart = await addCartridgePrompt(input, client_loadout)
     
     return newCart
+
+async def QuickUrlQuery(url, query):
+    print('quick url query')
+    loader = UnstructuredURLLoader([url])
+    document = loader.load()
+    index = GPTVectorStoreIndex.from_documents(document)
+    response = await queryIndex(query, index)
+    return response
 
 async def reconstructIndex(indexJson):
     tmpDir = tempfile.mkdtemp()

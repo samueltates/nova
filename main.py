@@ -357,8 +357,7 @@ async def process_message(parsed_data):
         loadout = None
         if sessionID in current_loadout:
             loadout = current_loadout[sessionID]
-        if 'gDocID' in data:
-            eZprint('indexing gDoc')
+
             # print(data)
             indexRecord = await asyncio.create_task(indexDocument(data, loadout))
             if indexRecord:
