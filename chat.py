@@ -222,14 +222,14 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     ## sends prompt object to GPT and handles response
     # eZprint('sending to GPT')
     # print( len(str(promptObject)))
-    print(promptObject)
+    # print(promptObject)
     # for object in promptObject:
     #     print(f'{object["role"]}')
     #     print(f'{object["content"]}')
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
     if 'agent-name' not in novaConvo[convoID]:
-        print('setting name to default in chat')
+        # print('setting name to default in chat')
         novaConvo[convoID]['agent-name'] = 'nova'
 
     # print('checking tokens')

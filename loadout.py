@@ -43,113 +43,7 @@ async def get_loadouts(sessionID):
                 await websocket.send(json.dumps({'event': 'set_loadout', 'payload': current_loadout[sessionID]}))
             else: 
                 current_loadout[sessionID] = None
-
-        # if current_remote_loadout:
-
-    await get_loadout_logs(current_remote_loadout, sessionID)
-
-    # print(convos)
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
-
-async def get_loadout_logs(loadout_requested, sessionID):
-
-    userID = novaSession[sessionID]['userID']
-    available_convos[sessionID] = []
-
-    logs = await prisma.log.find_many(
-            where={ "UserID": userID },
-        )
-    
-
-    for log in logs:
-        splitID = log.SessionID.split('-')
-        if len(splitID) >=3:
-            # print(splitID[1])
-            if splitID[2] == str(loadout_requested):
-               
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID[1],
-                    'date' : log.date,
-                    'summary': log.summary,
-                }
-                available_convos[sessionID].append(session)
-
-        elif loadout_requested == None:
-            # print(splitID)
-            
-            if len(splitID) >=2:
-            #    
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID[1],
-                    'date' : log.date,
-                    'summary':log.summary,
-                }
-                available_convos[sessionID].append(session)
-            else:
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID,
-                    'date' : log.date,
-                    'summary': log.summary,
-                }
-                available_convos[sessionID].append(session)
-                # convos.append(splitID)
-
-
-    await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
-    asyncio.create_task( populate_summaries(loadout_requested, sessionID))
-
-
-async def populate_summaries(loadout_requested, sessionID):
-     
-    userID = novaSession[sessionID]['userID']
-
-    for log in available_convos[sessionID]:
-        if log['summary'] == '':
-            splitID = log['sessionID'].split('-')
-            if len(splitID) >1:
-                splitID = splitID[1]
-            try:
-                remote_summaries_from_convo = await prisma.summary.find_many(
-                    where = {
-                        'UserID' : userID,
-                        'SessionID' : splitID
-                        }
-                )
-                if not remote_summaries_from_convo:
-                    remote_summaries_from_convo = await prisma.summary.find_many(
-                    where = {
-                        'UserID' : userID,
-                        'SessionID' : log['sessionID']
-                        }
-                )
-            except:
-                remote_summaries_from_convo = None
-                
-            summary = ''
-
-            if remote_summaries_from_convo:
-                for summary in remote_summaries_from_convo:
-                    # print(summary)
-                    summary = json.loads(summary.json())['blob']
-                    for key, val in summary.items():
-                        summary = val['title']
-                    log['summary'] = summary
-
-                    updated_log = await prisma.log.update(
-                        where = {
-                            'id' : log['id']
-                            },
-                        data = {
-                            'summary' : summary
-                        }
-                    )
-                    await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
 
 
         
@@ -325,14 +219,14 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
                     cartVal['minimised'] = False
     # print('updated available cartridges')
     # print(available_cartridges[convoID])
-    await get_loadout_logs(loadout_key, sessionID)
-
     if loadout_key == current_loadout[sessionID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))
 
 
 async def clear_loadout(sessionID):
     current_loadout[sessionID] = None
+    novaSession[sessionID]['owner'] = True
+
     available_cartridges[sessionID] = {}
     current_config[sessionID] = {}
     if novaSession[sessionID]['userID']:
@@ -352,12 +246,9 @@ async def clear_loadout(sessionID):
                     }
             )
 
-            print(update_user)
+            # print(update_user)
 
-
-    await get_loadout_logs(None, sessionID)
-
-    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': True}}))
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))
 
 
@@ -381,7 +272,7 @@ async def delete_loadout(loadout_key: str, sessionID):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    print(loadout)
+    # print(loadout)
     await prisma.loadout.delete(
         where={
             'id': loadout.id
