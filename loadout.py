@@ -57,7 +57,7 @@ async def get_loadout_logs(loadout_requested, sessionID):
     available_convos[sessionID] = []
 
     logs = await prisma.log.find_many(
-            # where={ "UserID": userID },
+            where={ "UserID": userID },
         )
     
 
