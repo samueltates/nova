@@ -1,8 +1,8 @@
 from datetime import datetime
 import secrets
 from appHandler import websocket
-from sessionHandler import novaConvo, novaSession, chatlog, available_convos, current_config
-from loadout import current_loadout, update_loadout_field
+from sessionHandler import novaConvo, novaSession, chatlog, available_convos, current_config, current_loadout
+from loadout import update_loadout_field
 from prismaHandler import prisma
 import json
 import asyncio

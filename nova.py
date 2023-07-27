@@ -58,8 +58,8 @@ async def initialise_conversation(sessionID,convoID, params = None):
             novaConvo[convoID]['token_limit'] = 4000
     if 'token_limit' not in novaConvo[convoID]:
         novaConvo[convoID]['token_limit'] = 4000
-    print('nova convo')
-    print(novaConvo[convoID])
+    # print('nova convo')
+    # print(novaConvo[convoID])
         # print(params['model'])
 
 
@@ -79,11 +79,11 @@ async def initialiseCartridges(sessionID):
     eZprint('intialising cartridges')
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
-    novaSession[sessionID]['owner'] = True
-    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
-    print(current_loadout[sessionID])
     if sessionID not in current_loadout or current_loadout[sessionID] == None:
         await loadCartridges(sessionID)
+        novaSession[sessionID]['owner'] = True
+        await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
+ 
     await runCartridges(sessionID, current_loadout[sessionID])
 
 

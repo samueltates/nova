@@ -707,7 +707,7 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                         'first-doc' : timestamp,
                         'type' : 'summary',
                         'corpus' : 'loadout-conversations',
-                        'docID' : target_loadout
+                        'docID' : str(target_loadout)
                     }
                 toSummarise += str(summaryObj['content']) + '\n'
                 ids.append(summary['id'])

@@ -248,7 +248,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     try:
         response = await sendChat(promptObject, model)
         content = str(response["choices"][0]["message"]["content"])
-        print(response)
+        # print(response)
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)

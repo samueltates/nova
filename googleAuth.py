@@ -14,7 +14,8 @@ CLIENT_SECRETS_FILE = "credentials.json"
 # oauth lib docs : https://google-auth-oauthlib.readthedocs.io/en/latest/reference/google_auth_oauthlib.flow.html
 
 from appHandler import app, websocket
-from sessionHandler import novaSession
+from sessionHandler import novaSession, current_config, current_loadout, available_convos, available_cartridges, novaConvo, chatlog, agentName
+
 from user import GoogleSignOn
 from debug import eZprint
 
@@ -177,6 +178,7 @@ async def logout(sessionID):
     if creds_obj:
         access_token = creds_obj.token
         if revoke_token(access_token):
+            convoID = novaSession[sessionID]['convoID']
             if 'credentials' in novaSession[sessionID]:
                 novaSession[sessionID]['credentials'] = ''
             if 'userID' in novaSession[sessionID]:
@@ -191,6 +193,20 @@ async def logout(sessionID):
                 novaSession[sessionID]['profileAuthed']=False
             if 'scopes' in novaSession[sessionID]:
                 novaSession[sessionID]['scopes'] =''
+            if 'owner' in novaSession[sessionID]:
+                novaSession[sessionID]['owner'] = False
+            if sessionID in current_config:
+                current_config.pop(sessionID)
+            if sessionID in current_loadout:
+                current_loadout.pop(sessionID)
+            if sessionID in available_cartridges:
+                available_cartridges.pop(sessionID)
+            if sessionID in available_convos:
+                available_convos.pop(sessionID)
+            if convoID in novaConvo:
+                novaConvo.pop(convoID)
+            if sessionID in chatlog:
+                chatlog.pop(sessionID)
             return True
     return False
 
