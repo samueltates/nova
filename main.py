@@ -234,6 +234,7 @@ async def process_message(parsed_data):
         eZprint('requestLogout route hit')
         sessionID = parsed_data['sessionID']    
 
+        app.session.pop('sessionID')
         logoutStatus = await logout(sessionID)    
         app.session.modified = True
         await websocket.send(json.dumps({'event':'logout', 'payload': logoutStatus}))

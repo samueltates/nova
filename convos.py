@@ -18,14 +18,18 @@ async def get_loadout_logs(sessionID):
 
     print(current_config[sessionID])
     if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+        print('shared or owner')
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
     else:
+        print('not shared or owner')
         logs = await prisma.log.find_many(
-                where={ "UserID": userID, "SessionID": {'contains':str(loadout)} },
+                where={ "UserID": userID, 
+                       "SessionID": {'contains':str(loadout)} },
                 )
             
+    print(logs)
     for log in logs:
         splitID = log.SessionID.split('-')
         session ={
@@ -40,6 +44,7 @@ async def get_loadout_logs(sessionID):
 
     if loadout == None:
         # print(splitID)
+        print('loadout is none')
         logs = await prisma.log.find_many(
             where={ "UserID": userID },
         )

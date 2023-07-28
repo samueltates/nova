@@ -3,7 +3,7 @@ import asyncio
 import json
 import requests
 from quart import redirect, url_for, request, render_template
-
+import secrets
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 import google_auth_oauthlib.flow
@@ -195,6 +195,18 @@ async def logout(sessionID):
                 novaSession[sessionID]['scopes'] =''
             if 'owner' in novaSession[sessionID]:
                 novaSession[sessionID]['owner'] = False
+            if sessionID in novaSession:
+                novaSession.pop(sessionID)
+            # sessionID = secrets.token_bytes(8).hex()
+            # app.session['sessionID'] = sessionID
+            novaSession[sessionID] = {}
+            novaSession[sessionID]['profileAuthed'] = False
+            novaSession[sessionID]['docsAuthed'] = False
+            novaSession[sessionID]['userName'] = 'Guest'
+            novaSession[sessionID]['userID'] = 'guest-'+sessionID    
+            novaSession[sessionID]['new_login'] = True
+            novaSession[sessionID]['subscribed'] = False
+
             if sessionID in current_config:
                 current_config.pop(sessionID)
             if sessionID in current_loadout:
