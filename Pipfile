@@ -42,5 +42,7 @@ quart-redis = "*"
 random-word = "*"
 levenshtein = "*"
 stripe = "*"
+moviepy = "*"
+python-magic = "*"
 
 [dev-packages]

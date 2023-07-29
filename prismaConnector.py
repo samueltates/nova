@@ -747,7 +747,6 @@ async def delete_logs_and_messages():
     messages = await prisma.message.find_many(
         where={'SessionID': {'contains': '7531ab40afd82ba4'}},
     )
-
     sessions = {}
     for message in messages:
         if message.SessionID not in sessions:
@@ -756,9 +755,15 @@ async def delete_logs_and_messages():
 
     sessions_with_one_message = 0
     sessions_with_more_than_one_message = 0
-    for sessions in sessions:
-        if len(sessions[sessions]) < 1:
+    for key, val in sessions.items():
+        # print('new session')
+        if len(val) <= 1:
+            # print(val)
             sessions_with_one_message += 1
+            # carpark_message = await prisma.message.update(
+            #     where={'id': val[0].id},
+            #     data={'SessionID': 'Carpark message'}
+            # )
         else:
             sessions_with_more_than_one_message += 1
         
@@ -800,8 +805,8 @@ async def main() -> None:
     # await get_messages_report(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
     # await get_messages_report_aggregate(datetime.date(2023, 6, 26), datetime.date(2023, 7, 26), '110327569930296986874')
     # await retrieve_logs_and_messages()
-    await write_recovered_messages()
-    # await delete_logs_and_messages()
+    # await write_recovered_messages()
+    await delete_logs_and_messages()
     # await delete_summaries_in_range()
     # await find_users()
     # await clear_user_history( '108238407115881872743')
