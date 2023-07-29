@@ -883,8 +883,10 @@ async def summarise_percent(convoID, percent):
             if counter <= max:
                 # print(log)
                 # eZprint('adding to summarise' + str(log))
-                message_IDs.append(log['id'])
-                message_keys.append(log['key'])
+                if 'id' in log:
+                    message_IDs.append(log['id'])
+                if 'key' in log:
+                    message_keys.append(log['key'])
                 counter += 1
 
     summary_block = {
@@ -962,6 +964,8 @@ async def summariseChatBlocks(input,  loadout = None):
     for messageID in messageIDs:
         for log in chatlog[convoID]:
             # print(str(log['id']) + ' ' + str(messageID))
+            if 'id' not in log:
+                log['id'] = ''
             if messageID == log['id']:
                 # print('found message to summarise' + str(log))
                 if sessionID == '':
