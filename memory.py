@@ -939,8 +939,15 @@ async def summarise_from_range(convoID, start, end):
 async def summariseChatBlocks(input,  loadout = None):
     eZprint('summarising chat blocks')
     convoID = input['convoID']
+    print(input)
+    messageIDs = []
+
     if 'messageIDs' in input:
-        messageIDs = input['messageIDs']
+        for id in input['messageKeys']:
+            for log in chatlog[convoID]:
+                if id == log['id']:
+                    if 'summarised' not in log or log['summarised'] == False:
+                        messageIDs.append(log['id'])
     else:
         messageIDs = []
         if 'messageKeys' in input:
@@ -948,9 +955,8 @@ async def summariseChatBlocks(input,  loadout = None):
             for key in input['messageKeys']:
                 for log in chatlog[convoID]:
                     if key == log['key']:
-                        if 'summarised' not in log:
-                            messageIDs.append(log['id'])
-                            messageIDs.append(log['id'])
+                        if 'summarised' not in log or log['summarised'] == False:
+                            messageIDs.append(log['key'])
 
     sessionID = novaConvo[convoID]['sessionID']
     summaryKey = input['summaryKey']
@@ -961,30 +967,26 @@ async def summariseChatBlocks(input,  loadout = None):
     sessionID = ''
 
     # print('checking message ID list for messages to summarise' + str(messageIDs))
-    for messageID in messageIDs:
-        for log in chatlog[convoID]:
-            # print(str(log['id']) + ' ' + str(messageID))
-            if 'id' not in log:
-                log['id'] = ''
-            if messageID == log['id']:
-                # print('found message to summarise' + str(log))
-                if sessionID == '':
-                    if 'sessionID' in log:
-                        sessionID = log['sessionID']
-                messagesToSummarise.append(log)
-                if start_message == None:
-                    start_message = log
-                if 'name' in log:
-                    messages_string += str(log['name']) + ': '
-                if 'userName' in log:
-                    messages_string += str(log['userName']) + ': '
-                if 'title' in log:
-                    messages_string += str(log['title']) + ': '
-                if 'body' in log:
-                    messages_string += str(log['body'])
-                if 'timestamp' in log:
-                    messages_string += ' ' + str(log['timestamp'])
-                messages_string += '\n'
+    for log in chatlog[convoID]:
+
+        if 'id' in log and log['id'] in messageIDs or 'key' in log and log['key'] in messageIDs  :
+            if sessionID == '':
+                if 'sessionID' in log:
+                    sessionID = log['sessionID']
+            messagesToSummarise.append(log)
+            if start_message == None:
+                start_message = log
+            if 'name' in log:
+                messages_string += str(log['name']) + ': '
+            if 'userName' in log:
+                messages_string += str(log['userName']) + ': '
+            if 'title' in log:
+                messages_string += str(log['title']) + ': '
+            if 'body' in log:
+                messages_string += str(log['body'])
+            if 'timestamp' in log:
+                messages_string += ' ' + str(log['timestamp'])
+            messages_string += '\n'
 
                 # print('running message string is ' + str(messages_string)) 
                 
