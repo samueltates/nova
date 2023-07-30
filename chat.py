@@ -160,6 +160,14 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     simple_response = None
     # print('json return is ' + str(json_return)) 
 
+    if role == 'user':
+        update_message_payload = {
+            'convoID':convoID,
+            'key':key,
+            'fields': {'id' : id}
+        }
+        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload})))
+
     if role == 'assistant' :
         # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal

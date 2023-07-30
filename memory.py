@@ -881,12 +881,8 @@ async def summarise_percent(convoID, percent):
         # print(log)
         if 'summarised' not in log or log['summarised'] == False:
             if counter <= max:
-                # print(log)
-                # eZprint('adding to summarise' + str(log))
                 if 'id' in log:
-                    message_IDs.append(log['id'])
-                if 'key' in log:
-                    message_keys.append(log['key'])
+                    message_keys.append(log['id'])
                 counter += 1
 
     summary_block = {
@@ -908,20 +904,18 @@ async def summarise_from_range(convoID, start, end):
     eZprint('summarising from range')
     summaryKey = secrets.token_bytes(4).hex()
     message_IDs = []
-    message_keys = []
 
     # print(chatlog[convoID])
 
     counter = 0
     for log in chatlog[convoID]:
-        if 'summarised' not in log:
+        if 'summarised' not in log or log['summarised'] == False:
         # print(log)
-            if log['summarised'] == False:
                 if counter >= start and counter <= end:
                     # eZprint('adding to summarise' + str(log['ID'] + ' ' + log['body']))
-                    message_IDs.append(log['id'])
-                    message_keys.append(log['key'])
-        counter += 1
+                    if 'id' in log:
+                        message_IDs.append(log['id'])
+                counter += 1
 
     summary_block = {
         'convoID': convoID,
@@ -929,7 +923,7 @@ async def summarise_from_range(convoID, start, end):
         'summaryKey': summaryKey,
     }
 
-    payload = {'summaryKey':summaryKey, 'messages': message_keys}
+    payload = {'summaryKey':summaryKey, 'messages': message_IDs}
     await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
     summary_result = await summariseChatBlocks(summary_block)
     return summary_result
@@ -943,20 +937,12 @@ async def summariseChatBlocks(input,  loadout = None):
     messageIDs = []
 
     if 'messageIDs' in input:
-        for id in input['messageKeys']:
+        for id in input['messageIDs']:
             for log in chatlog[convoID]:
-                if id == log['id']:
-                    if 'summarised' not in log or log['summarised'] == False:
-                        messageIDs.append(log['id'])
-    else:
-        messageIDs = []
-        if 'messageKeys' in input:
-            ##if coming from client doesn't have id, so using key to find ID
-            for key in input['messageKeys']:
-                for log in chatlog[convoID]:
-                    if key == log['key']:
+                if 'id' in log and id == log['id']:
                         if 'summarised' not in log or log['summarised'] == False:
-                            messageIDs.append(log['key'])
+                            messageIDs.append(log['id'])
+
 
     sessionID = novaConvo[convoID]['sessionID']
     summaryKey = input['summaryKey']
@@ -969,7 +955,7 @@ async def summariseChatBlocks(input,  loadout = None):
     # print('checking message ID list for messages to summarise' + str(messageIDs))
     for log in chatlog[convoID]:
 
-        if 'id' in log and log['id'] in messageIDs or 'key' in log and log['key'] in messageIDs  :
+        if 'id' in log and log['id'] in messageIDs:
             if sessionID == '':
                 if 'sessionID' in log:
                     sessionID = log['sessionID']
