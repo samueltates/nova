@@ -44,5 +44,6 @@ levenshtein = "*"
 stripe = "*"
 moviepy = "*"
 python-magic = "*"
+pydub = "*"
 
 [dev-packages]

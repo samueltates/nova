@@ -5,6 +5,10 @@ import tempfile
 from moviepy.editor import VideoFileClip
 import openai
 import os
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
+from cartridges import addCartridge
+import asyncio
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
@@ -16,7 +20,7 @@ from sessionHandler import novaSession, novaConvo,current_loadout, current_confi
 async def handle_file_start(data):
   tempKey = data["tempKey"]
   file_chunks[tempKey] = {
-    "metadata": data,
+    "metadata": data,   
     "chunks_received": 0,
     "content": [],
   }
@@ -80,7 +84,7 @@ async def handle_file_end(data):
     elif file_type == 'audio/mpeg':
         print('audio found')
         await handle_audio_file(temp_file)
-    temp_file.close()
+    # temp_file.close()
 
     del file_chunks[tempKey]
 
@@ -92,5 +96,27 @@ async def handle_video_file(file):
     audio_temp.close()
 
 async def handle_audio_file(file):
-    transcript = openai.Audio.transcribe("whisper-1", file)
-    print(transcript)
+    print(file.name)
+    audio = AudioSegment.from_mp3(file.name)
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-64, keep_silence=1000, seek_step=1)
+    transcriptions = []
+    chunk_time_ms = 0  # initial start time
+    for chunk in chunks:
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
+            chunk.export(chunk_file.name, format='mp3')
+            chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
+            # loop = asyncio.get_event_loop()
+            transcript =  openai.Audio.transcribe('whisper-1', chunk_file)
+            print(transcript)
+            transcriptions.append({
+                'start_time': chunk_time_ms,
+                'transcript': transcript
+            })
+            chunk_time_ms += len(chunk)  # increment by the length of the chunk
+            # os.unlink(chunk_file.name)  # Remove the temporary file
+
+    print(transcriptions)
+
+
+
+    return transcriptions
