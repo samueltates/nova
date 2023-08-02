@@ -1048,10 +1048,24 @@ async def summariseChatBlocks(input,  loadout = None):
                     'summarised': True,
                     'muted': True,
                     'minimised': True,
-                 }
+                 }      
             )
-            payload = {'key':log['key'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
-            await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+        elif log['contentType'] == 'summary': 
+            remoteMessage = await prisma.summary.find_first(
+                where={'id': log['id']}
+            )
+            if remoteMessage:
+                updatedSummary = await prisma.summary.update(
+                    where={ 'id': remoteMessage.id },
+                    data={
+                        'summarised': True,
+                        'muted': True,
+                        'minimised': True,
+                    }
+                )
+
+        payload = {'key':log['id'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
+        await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
         # print('updated message' + str(log))
         log['summarised'] = True
         log['muted'] = True

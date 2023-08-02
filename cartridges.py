@@ -81,7 +81,7 @@ async def addCartridge(cartVal, sessionID, client_loadout = None):
         print('sending to websocket')
         await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
 
-    return True
+    return cartKey
 
 
 async def addCartridgePrompt(input, client_loadout = None):

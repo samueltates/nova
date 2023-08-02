@@ -111,6 +111,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "timestamp": str(datetime.now()),
         "order": order,
         "thread": thread,
+        "contentType" : 'message'
     }
     # print('message object is: ' + str(messageObject))
 
@@ -405,96 +406,7 @@ async def command_interface(command, convoID, threadRequested):
         
         if 'user-interupt' in novaConvo[convoID]:
             novaConvo[convoID]['user-interupt'] = False
-
-async def set_convo(requested_convoID, sessionID):
     
-    userID = novaSession[sessionID]['userID']
-    # print(requested_convoID)
-    splitConvoID = requested_convoID.split('-')
-    if len(splitConvoID) > 1:
-        splitConvoID = splitConvoID[1]
-
-    try:
-        remote_summaries_from_convo = await prisma.summary.find_many(
-            where = {
-                'UserID' : userID,
-                'SessionID' : splitConvoID
-                }
-        )
-
-        if not remote_summaries_from_convo:
-            remote_summaries_from_convo = await prisma.summary.find_many(
-                where = {
-                    'UserID' : userID,
-                    'SessionID' : requested_convoID
-                    }
-            )
-    except:
-        remote_summaries_from_convo = None
-    
-    remote_messages_from_convo = await prisma.message.find_many(
-        where = {
-            # 'UserID' : userID,
-            'SessionID' : requested_convoID
-            }
-    )
-    chatlog[requested_convoID] = []
-    # summaries_found = False
-    summaries = []
-    messages = []
-    if remote_summaries_from_convo:
-        print('remote summaries found')
-        # print(remote_summaries_from_convo)
-        for summary in remote_summaries_from_convo:
-            json_summary = json.loads(summary.json())['blob']
-            for key, val in json_summary.items():
-                if val['epoch']<1:
-                    summaries_found = True
-                    val['role'] = 'user'
-                    val['userName']= 'summary'
-                    val['muted'] = False
-                    val['minimised'] = False
-                    val['contentType'] = 'summary'
-                    val['sources'] = val['sourceIDs']
-                    summaries.append(val)
-
-    if remote_messages_from_convo:
-        print('remote messages found')
-        for message in remote_messages_from_convo:
-            json_message = json.loads(message.json())
-            messages.append(json_message)
-
-    for summary in summaries:
-        chatlog[requested_convoID].append(summary)
-        messages_added = False
-        for source in summary['sources']:
-            for message in messages:
-                if message['id'] == source:
-                    print('adding on source match' + str(message) + 'to summary' + str(summary))
-                    messages_added = True
-                    chatlog[requested_convoID].append(message)
-                    messages.remove(message)
-        if not messages_added:
-            print('removing sum ary as no sources' + str(summary))
-            chatlog[requested_convoID].remove(summary)
-    for message in messages:
-        message['muted'] = False
-        message['minimised'] = False
-        message['summarised'] = False
-        chatlog[requested_convoID].append(message)
-        
-    await websocket.send(json.dumps({'event':'set_convo', 'payload':{'messages': chatlog[requested_convoID], 'convoID' : requested_convoID}}))
-        # print(chatlog[requested_convoID])
-    
-    loadout = current_loadout[sessionID]
-    if loadout:
-        print('updating loadout field' + str(loadout))
-        await update_loadout_field(loadout, 'convoID', requested_convoID)
-    novaSession[sessionID]['convoID'] = requested_convoID
-    novaConvo[requested_convoID] = {}
-    novaConvo[requested_convoID]['sessionID'] = sessionID
-
-           
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)
     to_summarise = ''

@@ -1,6 +1,7 @@
 
 
 import base64
+import json
 import tempfile
 from moviepy.editor import VideoFileClip
 import openai
@@ -9,6 +10,9 @@ from pydub import AudioSegment
 from pydub.silence import split_on_silence
 from cartridges import addCartridge
 import asyncio
+from cartridges import addCartridge, update_cartridge_field
+from datetime import datetime
+
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
@@ -49,6 +53,7 @@ async def handle_file_end(data):
         'file_name': file_metadata['file_name'],
         'file_type': file_metadata['file_type'],
         'sessionID': file_metadata['sessionID'],
+        'loadout': file_metadata['loadout'],
         'tempKey': file_metadata['tempKey'],
         'document_type': file_metadata['document_type'],
     }
@@ -62,7 +67,7 @@ async def handle_file_end(data):
 
     file_name = data['file_name']
     file_type = data['file_type']
-
+    loadout = data['loadout']
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_name)
     temp_file.write(file_content)
@@ -77,46 +82,71 @@ async def handle_file_end(data):
     elif file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
         print('docx found')
     elif file_type == 'video/mp4':
-       await handle_video_file(temp_file)
+       await handle_video_file(temp_file, file_metadata['file_name'], sessionID, loadout)
     elif file_type == 'video/quicktime':
         print('video found')
-        await handle_video_file(temp_file)
+        await handle_video_file(temp_file, file_metadata['file_name'], sessionID, loadout)
     elif file_type == 'audio/mpeg':
         print('audio found')
-        await handle_audio_file(temp_file)
+        await handle_audio_file(temp_file, file_metadata['file_name'], sessionID, loadout)
     # temp_file.close()
 
     del file_chunks[tempKey]
 
-async def handle_video_file(file):
+async def handle_video_file(file, name, sessionID, loadout):
     clip = VideoFileClip(file.name)
     audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
     clip.audio.write_audiofile(audio_temp.name)
-    await handle_audio_file(audio_temp)
+    await handle_audio_file(audio_temp, name, sessionID, loadout)
     audio_temp.close()
 
-async def handle_audio_file(file):
+async def handle_audio_file(file, name, sessionID, loadout):
     print(file.name)
     audio = AudioSegment.from_mp3(file.name)
-    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-64, keep_silence=1000, seek_step=1)
+
+    avg_loudness = audio.dBFS
+    silence_thresh = avg_loudness  # Consider adjusting this if needed
+
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=silence_thresh, keep_silence=1000, seek_step=1)
     transcriptions = []
     chunk_time_ms = 0  # initial start time
+
+    cartVal = {
+        'label' : name,
+        # 'text' : str(transcriptions),
+        'type' : 'note',
+        'enabled' : True,
+    }
+
+    cartKey = await addCartridge(cartVal, sessionID, loadout )
+    transcript_text = ''
+
     for chunk in chunks:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
-            # loop = asyncio.get_event_loop()
             transcript =  openai.Audio.transcribe('whisper-1', chunk_file)
+            
             print(transcript)
+            transcript_text +=  transcript['text'] + '\n' + 'Start: ' + str(chunk_time_ms) + 'ms'+ ' - Length: ' + str(len(chunk)) +'ms'+ '\n\n'
             transcriptions.append({
                 'start_time': chunk_time_ms,
+                'end_time': chunk_time_ms + len(chunk),
                 'transcript': transcript
             })
+
+            payload = {
+                'sessionID': sessionID,
+                'cartKey' : cartKey,
+                'fields':
+                        {'text': transcript_text}
+                        }
+            loadout = current_loadout[sessionID]
+            await update_cartridge_field(payload, loadout, True)      
             chunk_time_ms += len(chunk)  # increment by the length of the chunk
             # os.unlink(chunk_file.name)  # Remove the temporary file
+            
 
-    print(transcriptions)
-
-
-
+    # print(transcriptions)
+    print('transcriptions complete')
     return transcriptions

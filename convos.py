@@ -177,14 +177,15 @@ async def set_convo(requested_convoID, sessionID):
         for summary in remote_summaries_from_convo:
             json_summary = json.loads(summary.json())['blob']
             for key, val in json_summary.items():
-                if val['epoch']<1:
+                # if val['epoch']<1:
                     summaries_found = True
                     val['role'] = 'user'
                     val['userName']= 'summary'
-                    val['muted'] = False
-                    val['minimised'] = False
+                    # val['muted'] = False
+                    # val['minimised'] = False
                     val['contentType'] = 'summary'
                     val['sources'] = val['sourceIDs']
+                    val['id'] = summary.id
                     summaries.append(val)
 
     if remote_messages_from_convo:
@@ -193,24 +194,72 @@ async def set_convo(requested_convoID, sessionID):
             json_message = json.loads(message.json())
             messages.append(json_message)
 
-    for summary in summaries:
-        chatlog[requested_convoID].append(summary)
-        messages_added = False
-        for source in summary['sources']:
-            for message in messages:
-                if message['id'] == source:
-                    # print('adding on source match' + str(message) + 'to summary' + str(summary))
-                    messages_added = True
-                    chatlog[requested_convoID].append(message)
-                    messages.remove(message)
-        if not messages_added:
-            print('removing sum ary as no sources' + str(summary))
-            chatlog[requested_convoID].remove(summary)
+    # for summary in summaries:
+    #     chatlog[requested_convoID].append(summary)
+    #     messages_added = False
+    #     for source in summary['sources']:
+    #         for message in messages:
+    #             if message['id'] == source:
+    #                 # print('adding on source match' + str(message) + 'to summary' + str(summary))
+    #                 messages_added = True
+    #                 chatlog[requested_convoID].append(message)
+    #                 messages.remove(message)
+    #     if not messages_added:
+    #         # print('removing sum ary as no sources' + str(summary))
+    #         chatlog[requested_convoID].remove(summary)
     for message in messages:
-        message['muted'] = False
-        message['minimised'] = False
-        message['summarised'] = False
+        # message['muted'] = False
+        # message['minimised'] = False
+        # message['summarised'] = False
         chatlog[requested_convoID].append(message)
+
+
+    for summary in summaries:
+        for log in chatlog[requested_convoID]:
+            if log['id'] == summary['sourceIDs'][0]:
+                index = chatlog[requested_convoID].index(log)
+                chatlog[requested_convoID].insert(index, summary)
+                # summaries.remove(summary)
+                break
+
+    for log in chatlog[requested_convoID]:
+        if 'sourceIDs' in log:
+            for source in log['sourceIDs']:
+                for log in chatlog[requested_convoID]:
+                    if log['id'] == source:
+                        log['summarised'] = True
+                        log['minimised'] = True
+                        log['muted'] = True
+
+  
+
+    unsumarrised = False
+    for log in chatlog[requested_convoID]:
+        if 'summarised' not in log or not log['summarised']:
+            unsumarrised = True
+            break
+
+    if not unsumarrised:
+        summaries_present = False
+        for log in chatlog[requested_convoID]:
+            if 'contentType' in log and log['contentType'] == 'summary':
+                summaries_present = True
+                local_summary = False
+                for otherLog in chatlog[requested_convoID]:
+                    if 'contentType' in otherLog and otherLog['contentType'] == 'summary':
+                        if log['id']  in otherLog['sourceIDs']:
+                            local_summary = True
+                            break   
+                if not local_summary:
+                    log['summarised'] = False
+                    log['minimised'] = False
+                    log['muted'] = False
+
+        if not summaries_present:
+            for log in chatlog[requested_convoID]:
+                    log['summarised'] = False
+                    log['minimised'] = False
+                    log['muted'] = False
         
     await websocket.send(json.dumps({'event':'set_convo', 'payload':{'messages': chatlog[requested_convoID], 'convoID' : requested_convoID}}))
         # print(chatlog[requested_convoID])
