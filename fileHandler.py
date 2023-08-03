@@ -11,6 +11,7 @@ from pydub.silence import split_on_silence
 from cartridges import addCartridge
 import asyncio
 from cartridges import addCartridge, update_cartridge_field
+from chat import handle_message
 from datetime import datetime
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
@@ -72,6 +73,9 @@ async def handle_file_end(data):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_name)
     temp_file.write(file_content)
 
+    convoID = novaSession[sessionID]['convoID']
+    await handle_message(convoID, 'file recieved', 'system', 'system', None,0, meta = 'terminal')
+
 
     if file_type == 'application/pdf':
        print('pdf found')
@@ -107,17 +111,19 @@ async def handle_audio_file(file, name, sessionID, loadout):
     avg_loudness = audio.dBFS
     silence_thresh = avg_loudness  # Consider adjusting this if needed
 
-    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=silence_thresh, keep_silence=1000, seek_step=1)
+    chunks = split_on_silence(audio, min_silence_len=1000, silence_thresh=silence_thresh, keep_silence=1000, seek_step=1)
     transcriptions = []
     chunk_time_ms = 0  # initial start time
 
     cartVal = {
-        'label' : name,
+        'label' : name + ' transcript',
         # 'text' : str(transcriptions),
         'type' : 'note',
         'enabled' : True,
     }
 
+    convoID = novaSession[sessionID]['convoID']
+    await handle_message(convoID, name + ' transcript created', 'system', 'system', None,0, meta = 'terminal')
     cartKey = await addCartridge(cartVal, sessionID, loadout )
     transcript_text = ''
 
@@ -128,7 +134,9 @@ async def handle_audio_file(file, name, sessionID, loadout):
             transcript =  openai.Audio.transcribe('whisper-1', chunk_file)
             
             print(transcript)
-            transcript_text +=  transcript['text'] + '\n' + 'Start: ' + str(chunk_time_ms) + 'ms'+ ' - Length: ' + str(len(chunk)) +'ms'+ '\n\n'
+            transcript_text +=  str(chunk_time_ms) + 'ms:  ' + transcript['text'] + '\n' + 'Length: ' + str(len(chunk)) +'ms'+ '\n\n'
+            await handle_message(convoID, str(chunk_time_ms) + 'ms:  ' + transcript['text'] + '\n' + 'Length: ' + str(len(chunk)) +'ms', 'system', 'system',  None,0, meta = 'terminal')
+
             transcriptions.append({
                 'start_time': chunk_time_ms,
                 'end_time': chunk_time_ms + len(chunk),
