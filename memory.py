@@ -878,11 +878,11 @@ async def summarise_percent(convoID, percent):
     max = len(chatlog[convoID]) * percent
     # print(chatlog[convoID])
     for log in chatlog[convoID]:
-        # print(log)
+        print(log)
         if 'summarised' not in log or log['summarised'] == False:
             if counter <= max:
                 if 'id' in log:
-                    message_keys.append(log['id'])
+                    message_IDs.append(log['id'])
                 counter += 1
 
     summary_block = {

@@ -169,7 +169,7 @@ async def construct_chat(convoID, thread = 0):
 
 async def construct_context(convoID):
     # print('constructing context')
-    await get_sessions(convoID)
+    # await get_sessions(convoID)
     sessionID = novaConvo[convoID]['sessionID']
     # print(novaConvo[convoID])
     if 'agent-name' not in novaConvo[convoID]:
@@ -432,8 +432,8 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
     if convoID not in token_usage:
         token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
-    print('nova convo')
-    print(novaConvo[convoID])
+    # print('nova convo')
+    # print(novaConvo[convoID])
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 

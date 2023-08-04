@@ -27,7 +27,7 @@ from memory import summariseChatBlocks,get_summary_children_by_key
 from keywords import get_summary_from_keyword, get_summary_from_insight
 from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
 from tokens import update_coin_count
-from fileHandler import handle_file_start, handle_file_chunk, handle_file_end
+from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
 
 app.session = session
 Session(app)
