@@ -3,7 +3,7 @@ import asyncio
 import json
 import base64
 
-from quart import request, jsonify, url_for, session, render_template, redirect
+from quart import request, jsonify, url_for, session, render_template, redirect, send_file
 from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
@@ -58,9 +58,13 @@ def make_session_permanent():
     # eZprint("Make session permanent")
 
 
+@app.route('/download_video', methods=['GET'])
+async def download_video():
+    video_name = request.args.get('video_name')
+    return await send_file(video_name, as_attachment=True)
+
 @app.route("/startsession", methods=['POST'])
 async def startsession():
-
     eZprint('start-session route hit')
     print(app.session)
 

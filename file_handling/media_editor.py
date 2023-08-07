@@ -1,43 +1,58 @@
 from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips
 import json
+from moviepy.video.VideoClip import ColorClip
+from datetime import datetime
+from quart import websocket,  request
+from appHandler import app, websocket
+import tempfile
 
-def split_video(main_cuts, audio_clips, b_roll, final_cuts, video_file):
+
+async def split_video(edit_plan, video_file):
     clip = VideoFileClip(video_file)
     final_audio = []
     final_video = []
 
-    for cut in main_cuts:
-        start, end = cut['start'], cut['end']
-        final_video.append(clip.subclip(start, end))
+    # main_cuts = []
+    # if 'main_cuts' in edit_plan:
+    #     for cut in edit_plan['main_cuts']:
+            
 
-    audio_clip = clip.audio
+    for seq in edit_plan['final_edit']['video']:
+        cut_key = 'cut_' + str(seq['main_cut'])
+        print(cut_key)
+        start, end = edit_plan['main_cuts'][cut_key]['start'], edit_plan['main_cuts'][cut_key]['end']
+        if seq['b_roll']:
+            #split the main cut at 'cut_at'
+            cut_at = seq['cut_at']
+            clip1 = clip.subclip(start, cut_at)
+            # clip2 = clip.subclip(cut_at, end)
+            # Calculate B-roll duration
+            ## get end and cut as datetime so can subtract
+            end = datetime.strptime(end, '%H:%M:%S.%f')
+            cut_at = datetime.strptime(cut_at, '%H:%M:%S.%f')
 
-    for cut in final_cuts:
-        start, end = cut['start'], cut['end']
-        
 
+            b_roll_duration = end - cut_at
+            b_roll_duration = b_roll_duration.total_seconds()
+            # Create a blank color placeholder
+            b_roll = ColorClip((clip.size), col=(0,0,0), duration=b_roll_duration)
+            #append main cut until 'cut_at', followed by B-roll and rest of the main cut
+            final_video.append(concatenate_videoclips([clip1, b_roll]))
+        else:
+            final_video.append(clip.subclip(start, end))
+        audio_clip = clip.audio
 
+    for seq in edit_plan['final_edit']['audio']:
+        cut_key = 'cut_' + str(seq)
+        start, end = edit_plan['main_cuts'][cut_key]['start'], edit_plan['main_cuts'][cut_key]['end']
+        final_audio.append(audio_clip.subclip(start, end))
 
+    
     final_clip = concatenate_videoclips(final_video)
     final_clip.audio = concatenate_audioclips(final_audio)
-    ## save final clip to disk
-    final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
-    return final_clip
+    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    final_clip.write_videofile(file_to_send.name, fps=24, codec='libx264', audio_codec='aac')
+    # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
+    await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
+    return final_clip   
 
-# example usage:
-# main_cuts = [ {'start': '00:00:00', 'end': '00:01:00'}, {'start': '00:01:00', 'end': '00:03:00'} ]
-# audio_cuts = [ {'start': '00:00:00', 'end': '00:01:00'}, {'start': '00:01:00', 'end': '00:03:00'} ]
-# split_video(main_cuts, audio_cuts, 'my_video.mp4')
-#'main_cuts': [{'cut_1': {'start': '0ms', 'end': '3313ms'}, 'cut_2': {'start': '3313ms', 'end': '7249ms'}, 'cut_3': {'start': '7249ms', 'end': '11515ms'}, 'cut_4': {'start': '11515ms', 'end': '14015ms'}, 'cut_5': {'start': '14015ms', 'end': '18924ms'}}], 'b_roll_needed': ['Close up of Bones', 'Footage from the wedding', 'B-roll of cat grooming', 'Outdoor footage of the bush'], 'final_edit': {'audio': [1, 2, 3, 4, 5], 'video': [{'main_cut': 1, 'cut_at': '1600ms', 'b_roll': 'Close up of Bones'}, {'main_cut': 2, 'cut_at': '5300ms', 'b_roll': 'Footage from the wedding'}, {'main_cut': 3, 'cut_at': '8400ms', 'b_roll': 'B-roll of cat grooming'}, {'main_cut': 4, 'cut_at': '13000ms', 'b_roll': 'Outdoor footage of the bush'}, {'main_cut': 5, 'cut_at': '17000ms', 'b_roll': ''}]}}
-
-def parse_and_edit(edit_plan_json, video_file):
-    edit_plan = json.loads(edit_plan_json)
-    main_cuts = edit_plan['main_cuts']
-    audio_cuts = edit_plan['audio_cuts']
-
-    return split_video(main_cuts, audio_cuts, video_file)
-
-
-# updated usage:
-# edit_plan_json = '<edit_plan_stringified_json_here>'
-# parse_and_edit(edit_plan_json, 'my_video.mp4')

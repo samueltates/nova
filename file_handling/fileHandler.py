@@ -82,7 +82,7 @@ async def handle_file_end(data):
     cartVal = {
         'label' : file_name,
         # 'text' : str(transcriptions),
-        'files' : [temp_file.name],
+        'file' : temp_file.name,
         'type' : 'media',
         'enabled' : True,
     }
@@ -139,10 +139,11 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
             chunk.export(chunk_file.name, format='mp3')
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
             transcript =  openai.Audio.transcribe('whisper-1', chunk_file)
-            
+            start_time = await convert_ms_to_hh_mm_ss(chunk_time_ms)
+            length = await convert_ms_to_hh_mm_ss(len(chunk))
             print(transcript)
-            transcript_text +=  str(chunk_time_ms) + 'ms:  ' + transcript['text'] + '\n' + 'Length: ' + str(len(chunk)) +'ms'+ '\n\n'
-            await handle_message(convoID, str(chunk_time_ms) + 'ms:  ' + transcript['text'] + '\n' + 'Length: ' + str(len(chunk)) +'ms', 'system', 'system',  None,0, meta = 'terminal')
+            transcript_text +=  str(start_time) + ': ' + transcript['text'] + '\n' + 'Length: ' + str(length) + '\n\n'
+            await handle_message(convoID, str(start_time) + ': ' + transcript['text'] + '\n' + 'Length: ' + str(length), 'system', 'transcriber',  None,0, meta = 'terminal')
 
             transcriptions.append({
                 'start_time': chunk_time_ms,
@@ -161,44 +162,15 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
             chunk_time_ms += len(chunk)  # increment by the length of the chunk
             # os.unlink(chunk_file.name)  # Remove the temporary file
             
+    await handle_message(convoID, 'transcriptions complete', 'user', 'terminal',  None, 0, 'terminal')
 
     # print(transcriptions)
     print('transcriptions complete')
     # return transcriptions
 
 
-def split_video(main_cuts, audio_cuts, video_file):
-    clip = VideoFileClip(video_file)
-    final_audio = []
-    final_video = []
-
-    for cut in main_cuts:
-        start, end = cut['start'], cut['end']
-        final_video.append(clip.subclip(start, end))
-
-    audio_clip = clip.audio
-
-    for cut in audio_cuts:
-        start, end = cut['start'], cut['end']
-        final_audio.append(audio_clip.subclip(start, end))
-
-    final_clip = concatenate_videoclips(final_video)
-    final_clip.audio = concatenate_audioclips(final_audio)
-    return final_clip
-
-# example usage:
-# main_cuts = [ {'start': '00:00:00', 'end': '00:01:00'}, {'start': '00:01:00', 'end': '00:03:00'} ]
-# audio_cuts = [ {'start': '00:00:00', 'end': '00:01:00'}, {'start': '00:01:00', 'end': '00:03:00'} ]
-# split_video(main_cuts, audio_cuts, 'my_video.mp4')
-
-def parse_and_edit(edit_plan_json, video_file):
-    edit_plan = json.loads(edit_plan_json)
-    main_cuts = edit_plan['main_cuts']
-    audio_cuts = edit_plan['audio_cuts']
-
-    return split_video(main_cuts, audio_cuts, video_file)
-
-
-# updated usage:
-# edit_plan_json = '<edit_plan_stringified_json_here>'
-# parse_and_edit(edit_plan_json, 'my_video.mp4')
+async def convert_ms_to_hh_mm_ss(ms):
+    seconds, ms = divmod(ms, 1000)
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    return ':'.join([str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2)]) + '.' + str(ms).zfill(3)

@@ -7,7 +7,7 @@ from cartridges import whole_cartridge_list
 from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
 from Levenshtein import distance
-from file_handling.media_editor import parse_and_edit, split_video
+from file_handling.media_editor import split_video
 
 import asyncio
 
@@ -341,26 +341,18 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return command_return
     
     if name == 'edit_video':
-        main_cuts = []
-        if 'main_cuts' in args:
-            main_cuts = args['main_cuts']
-        audio_cuts = []
-        if 'audio_cuts' in args:
-            audio_cuts = args['audio_cuts']
-        video_file = ''
-        if 'video_file' in args:
-            video_file = args['video_file']
-        edit_plan = {
-            'main_cuts' : main_cuts,
-            'audio_cuts' : audio_cuts
-        }
-        if edit_plan:
-
-            edited_video = parse_and_edit(edit_plan, video_file)
-            print(edited_video)
-            command_return['status'] = "Success."
-            command_return['message'] = "video edited" 
-            print(command_return)
+        video_file = args['video_file']
+        for key, val in available_cartridges[sessionID].items():
+            # if 'type' in val and val['type'] == 'media':
+            if 'label' in val and val['label'] == video_file:
+                print(val)
+                video_file = val['file']
+                break
+        edited_video = await split_video(args, video_file)
+        print(edited_video)
+        command_return['status'] = "Success."
+        command_return['message'] = "video edited" 
+        print(command_return)
 
 
 
