@@ -73,8 +73,10 @@ async def handle_file_end(data):
     file_type = data['file_type']
     loadout = data['loadout']
 
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_name)
+    temp_dir = tempfile.mkdtemp()
+    temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix=file_name)
     temp_file.write(file_content)
+
 
     convoID = novaSession[sessionID]['convoID']
     await handle_message(convoID, 'file recieved', 'system', 'system', None,0, meta = 'terminal')
@@ -163,6 +165,7 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
             # os.unlink(chunk_file.name)  # Remove the temporary file
             
     await handle_message(convoID, 'transcriptions complete', 'user', 'terminal',  None, 0, 'terminal')
+
 
     # print(transcriptions)
     print('transcriptions complete')
