@@ -342,11 +342,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
     if name == 'edit_video':
         video_file = args['video_file']
+        extension = None
         for key, val in available_cartridges[sessionID].items():
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == video_file:
                 print(val)
-                video_file = val['file']
+                video_file = val['key']
+                # extension = val['extension']
                 break
         edited_video = await split_video(args, video_file)
         print(edited_video)

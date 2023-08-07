@@ -13,6 +13,7 @@ import asyncio
 from cartridges import addCartridge, update_cartridge_field
 from chat import handle_message
 from datetime import datetime
+from file_handling.s3 import write_file, read_file
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
@@ -84,13 +85,16 @@ async def handle_file_end(data):
     cartVal = {
         'label' : file_name,
         # 'text' : str(transcriptions),
-        'file' : temp_file.name,
+        'file' : file_name,
+        'extension' : file_type,
         'type' : 'media',
         'enabled' : True,
     }
 
     cartKey = await addCartridge(cartVal, sessionID, loadout )
     cartridge = {cartKey : cartVal}
+    write_file(file_content, cartKey) 
+
     if file_type == 'application/pdf':
        print('pdf found')
     #    // await handlePDF(data, client_loadout)

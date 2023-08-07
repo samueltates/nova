@@ -5,10 +5,17 @@ from datetime import datetime
 from quart import websocket,  request
 from appHandler import app, websocket
 import tempfile
+from file_handling.s3 import write_file, read_file
 
 
-async def split_video(edit_plan, video_file):
-    clip = VideoFileClip(video_file)
+async def  split_video(edit_plan, video_file):
+    print('splitting video' + video_file + 'with edit plan' + str(edit_plan)) 
+    file = read_file(video_file)
+    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    processed_file.write(file)
+    processed_file.close()
+
+    clip = VideoFileClip(processed_file.name)
     final_audio = []
     final_video = []
 

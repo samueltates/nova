@@ -45,5 +45,6 @@ stripe = "*"
 moviepy = "*"
 python-magic = "*"
 pydub = "*"
+boto3 = "*"
 
 [dev-packages]
