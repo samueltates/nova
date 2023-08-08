@@ -116,6 +116,10 @@ async def construct_prompt_string(prompt_objects, convoID):
         final_string += "\n--Notes--\n"
         final_string += prompt_objects['note']['string']
         final_string += '\n[Notes can be written, appended, opened or closed.]\n'
+    if 'media' in prompt_objects:
+        final_string += "\n--Media--"
+        final_string += prompt_objects['media']['string']
+        final_string += '\n[Media can be opened, closed or queried.]\n'
     return final_string
 
 async def construct_chat(convoID, thread = 0):
