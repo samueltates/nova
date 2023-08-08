@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["...", "redis", "ffmpeg", "libgl1-mesa-glx"]
+nixPkgs = ["...", "redis", "ffmpeg", "libgl1"]
 
 [phases.install]
 cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
