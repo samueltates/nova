@@ -46,6 +46,6 @@ moviepy = "*"
 python-magic = "*"
 pydub = "*"
 boto3 = "*"
-opencv-python = "*"
+opencv-python-headless = "*"
 
 [dev-packages]
