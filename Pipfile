@@ -47,5 +47,6 @@ python-magic = "*"
 pydub = "*"
 boto3 = "*"
 opencv-python-headless = "*"
+bs4 = "*"
 
 [dev-packages]
