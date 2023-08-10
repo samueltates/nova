@@ -16,7 +16,7 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     # print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    prompt_string = await construct_prompt_string(cartridges, convoID)
+    prompt_string = await construct_system_string(cartridges, convoID)
     await construct_objects(convoID, prompt_string, cartridges)
     await construct_chat(convoID, thread)
     await handle_token_limit(convoID)
@@ -35,54 +35,54 @@ async def unpack_cartridges(convoID):
             if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
                 cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
-                if cartVal['type'] == 'note' or cartVal['type'] == 'index':
-                    if 'minimised' in cartVal and cartVal['minimised']:
-                        cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
-                    else:
-                        cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
-                if cartVal['type']=='summary' or cartVal['type']=='index':
-                    cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
+                # if cartVal['type'] == 'note' or cartVal['type'] == 'index':
+                #     if 'minimised' in cartVal and cartVal['minimised']:
+                #         cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
+                #     else:
+                #         cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
+                # if cartVal['type']=='summary' or cartVal['type']=='index':
+                #     cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
                 # cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
             if 'blocks' in cartVal:
                 if 'overview' in cartVal['blocks']:
                         cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
-            if 'minimised' in cartVal and cartVal['minimised'] == False:
-                if 'text' in cartVal:
-                    cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['text'] + "\n--\n"
-                if 'blocks' in cartVal:
-                    #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
-                    #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
-                    if 'blocks' in cartVal:
-                        if 'summaries' in cartVal['blocks']:
-                            for summary in cartVal['blocks']['summaries']:
-                                for key, value in summary.items():
-                                    if 'title' in value:
-                                        cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['title']) 
-                                        if 'timestamp' in value:
-                                            cartridge_contents[cartVal['type']]['string'] += " - " + str(value['timestamp'])
-                                        if 'epoch' in value:
-                                            cartridge_contents[cartVal['type']]['string'] += " - layer " + str(value['epoch'])
-                                        # if 'minimised' in value:
-                                        #     if value['minimised']:
-                                        #         cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
-                                        #     else:
-                                        #         cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
-                                        #         # if 'body' in value:
-                                        #         #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
-                                        # else:
-                                        #     cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
-                                            # if 'body' in value:
-                                            #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
-                                        cartridge_contents[cartVal['type']]['string'] += "\n"
-                        if 'queries' in cartVal['blocks']:
-                            if 'minimised' in cartVal and not cartVal['minimised']:
-                                if 'query' in cartVal['blocks']['queries']:
-                                    cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
-                                if 'response' in cartVal['blocks']['queries']:
-                                    cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
-                                # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+            # if 'minimised' in cartVal and cartVal['minimised'] == False:
+            #     if 'text' in cartVal:
+            #         cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['text'] + "\n--\n"
+            #     if 'blocks' in cartVal:
+            #         #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
+            #         #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
+            #         if 'blocks' in cartVal:
+            #             if 'summaries' in cartVal['blocks']:
+            #                 for summary in cartVal['blocks']['summaries']:
+            #                     for key, value in summary.items():
+            #                         if 'title' in value:
+            #                             cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['title']) 
+            #                             if 'timestamp' in value:
+            #                                 cartridge_contents[cartVal['type']]['string'] += " - " + str(value['timestamp'])
+            #                             if 'epoch' in value:
+            #                                 cartridge_contents[cartVal['type']]['string'] += " - layer " + str(value['epoch'])
+            #                             # if 'minimised' in value:
+            #                             #     if value['minimised']:
+            #                             #         cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
+            #                             #     else:
+            #                             #         cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+            #                             #         # if 'body' in value:
+            #                             #         #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
+            #                             # else:
+            #                             #     cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
+            #                                 # if 'body' in value:
+            #                                 #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
+            #                             cartridge_contents[cartVal['type']]['string'] += "\n"
+            #             if 'queries' in cartVal['blocks']:
+            #                 if 'minimised' in cartVal and not cartVal['minimised']:
+            #                     if 'query' in cartVal['blocks']['queries']:
+            #                         cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
+            #                     if 'response' in cartVal['blocks']['queries']:
+            #                         cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
+            #                     # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
             if cartVal['type'] == 'simple-agent':
@@ -97,7 +97,7 @@ async def unpack_cartridges(convoID):
     return cartridge_contents
 
 
-async def construct_prompt_string(prompt_objects, convoID):
+async def construct_system_string(prompt_objects, convoID):
     # print('constructing string')
     final_string = ''
 

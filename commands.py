@@ -8,7 +8,7 @@ from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
 from Levenshtein import distance
 from file_handling.media_editor import split_video
-
+from file_handling.url_scraper import advanced_scraper
 import asyncio
 
 system_threads = {}
@@ -43,7 +43,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name == '':
         command_return = {"status": "Error", "name" : '', "message": "No command supplied"}
         return False
-
+    
     if  name in 'list_files':
         response = await list_files(name, sessionID)
         print('back at list parent function')
@@ -67,6 +67,16 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(response)
         return response
     
+    if 'read' in name or name in 'read':
+        for key, val in available_cartridges[sessionID].items():
+            if 'label' in val:
+                if val['label'] == args['filename']:
+                    response = await read_text(name, val['label'], str(val), sessionID, thread)
+                    print(response)
+                    return response
+        command_return['status'] = "Error."
+        command_return['message'] = "File not found."
+        print(command_return)
 
     if name in 'open' or 'open' in name :
         response = await open_file(name, args, sessionID, loadout)
@@ -355,22 +365,26 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['status'] = "Success."
         command_return['message'] = "video edited" 
         print(command_return)
+        return command_return
+
+    if name == 'scrape_website':
+        website_url = args['website_url']
+        scraped_data = await advanced_scraper(website_url)
+        if len(scraped_data) > 2000:
+            print('website larger than 2k starting large doc loop')
+            command_return = await large_document_loop(website_url, scraped_data, name, sessionID, thread)
+            return command_return
+        elif len(scraped_data) > 0:
+            command_return['status'] = "Success."
+            command_return['message'] = "Website scraped : " + str(scraped_data)
+            # command_return['data'] = scraped_data
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Website scrape failed"
+            return command_return
 
 
-
-    # else :
-
-    #     query = name + ' ' + str(args)
-    #     await get_cartridge_list(convoID)
-    #     for key, val in whole_cartridge_list[convoID].items():
-    #         all_text += str(val)
-    #         response = await quick_query(all_text, str(query))
-    #         print(response)
-    #         command_return['status'] = "Success."
-    #         command_return['message'] = "Query not found, results from deep search" + str(response)
-    #         print(command_return)
-    #         return command_return
-        
 async def open_file(name, args, sessionID, loadout):
     command_return = {"status": "", "name" :name, "message": ""}
     eZprint('reading file')            
@@ -457,8 +471,6 @@ async def broad_query(name, args, sessionID, loadout):
         command_return['status'] = "Error."
         command_return['message'] = "Arg 'query' missing"
         return command_return
-    
-
 
     if 'filename' in args:
         filename = args['filename']
@@ -535,19 +547,16 @@ async def broad_query(name, args, sessionID, loadout):
                                             print(command_return)
                                             return command_return
                                     
+
     print('all text query')
     query = ''
     if 'query' in args:
-        query = args['query']
-        query_response = await quick_query(all_text, str(query))
+        # query = args['query']
+        # query_response = await quick_query(all_text, str(query))
         command_return['status'] = "Return."
-        command_return['message'] = "File not found, results from all text search : " + str(query_response)
+        command_return['message'] = "File not found, please use exact filename"
         return command_return
-    else:
-        command_return['status'] = "Error."
-        command_return['message'] = "Arg 'query' missing"
-        return command_return
-    
+
 
 async def traverse_blocks(query, blocks, sessionID, cartKey, loadout):
     text_to_query = ''
@@ -650,6 +659,23 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, loadout):
         print(response)
         return response
 
+async def read_text(name, text_title, text_body, sessionID, thread = 0):
+    command_return = {"status": "", "name" :name, "message": ""}
+    if text_body == '':
+        command_return['status'] = "Error."
+        command_return['message'] = "No text supplied"
+        return command_return
+    
+    if len(text_body) > 2000:
+        command_return = await large_document_loop(text_title, text_body, name, sessionID, thread)
+        return command_return
+    
+    else:
+        command_return['status'] = "Success."
+        command_return['message'] = text_title + '\n' + text_body
+        return command_return
+
+
 
 async def list_files(name, sessionID, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
@@ -701,7 +727,7 @@ async def list_files(name, sessionID, thread = 0):
         return command_return
     
     if len(string) > 2000:
-        command_return = await large_document_loop(string, name, sessionID, thread)
+        command_return = await large_document_loop("Files available", string, name, sessionID, thread)
         return command_return
 
     string = '\nFiles available:\n' + string
@@ -729,7 +755,7 @@ async def continue_command(convoID, thread):
             command_return = large_document_loop(convoID, thread)
             return command_return
 
-async def large_document_loop(string, command = '', convoID= '', thread = 0):
+async def large_document_loop(title, string, command = '', convoID= '', thread = 0):
 
     command_return = {"status": "", "name" : command, "message": ""}
 
@@ -776,7 +802,7 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0):
         eZprint('returning sections based on loop')
         command_return['status'] = 'in-progress'
         
-        message = "Files Available:\n Page " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  
+        message = title + ":\n Page " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  
         command_return['message'] = message + ongoing_return_string
         command_return['name'] = command
         print(command_return)
@@ -785,7 +811,7 @@ async def large_document_loop(string, command = '', convoID= '', thread = 0):
     else:
         eZprint('Loop complete as sections val is not last val')
         command_return['status'] = "Success."
-        message = "List is complete, closing loop." 
+        message = title + "is complete, closing loop." 
         command_return['message'] = message
         print(command_return)
         return command_return

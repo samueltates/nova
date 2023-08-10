@@ -68,14 +68,36 @@ async def  split_video(edit_plan, video_file):
 
             # image = cv2.resize(image, (int(clip1.size[0]*image.shape[0]/clip1.size[1]), image.shape[0]))
 
-            resized_image = cv2.resize(image, (image.shape[1] * clip_dimensions[0]//image.shape[0], clip_dimensions[0]))
-            print(f'Resized image size: {resized_image.shape}')
 
-            start_x = (resized_image.shape[1] - clip_dimensions[1]) // 2
-            print(f'Start x-value for cropping: {start_x}')
+            # Determine orientation of clip
+            def determine_orientation(clip):
+               if clip_dimensions[0] > clip_dimensions[1]:
+                   return 'vertical'
+               elif clip_dimensions[0] == clip_dimensions[1]:
+                   return 'square'
+               else:
+                   return 'horizontal'
 
-            resized_cropped_image = resized_image[:, start_x:start_x+clip_dimensions[1]]
-            cv2.imwrite(temp_image.name, image)
+           # Resize image based on orientation of clip
+            if determine_orientation(clip) == 'horizontal':
+       # dimensions switched for horizontal clip
+                # Aspect ratio of image should be clip_hight/clip_width to match with clip dimensions.
+                resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
+            else:
+                resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
+
+            print('Resized image size:', resized_image.shape)
+            # Crop excess width/height if necessary
+            start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
+            start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
+            resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
+
+            print('Start x-value for cropping:', start_x)
+            print('Start y-value for cropping:', start_y)
+
+            # Writing image
+            print('Writing temporary image')
+            cv2.imwrite(temp_image.name, resized_cropped_image)
 
             b_roll_duration = end - cut_at
             b_roll_duration = b_roll_duration.total_seconds()

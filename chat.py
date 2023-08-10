@@ -18,7 +18,7 @@ from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 from cartridges import updateContentField
 from tokens import handle_token_use, check_tokens
-
+import logging
 
 
 async def agent_initiate_convo(sessionID):
@@ -301,7 +301,19 @@ async def command_interface(command, convoID, threadRequested):
         novaConvo[convoID]['steps-taken'] = 0
     novaConvo[convoID]['steps-taken'] += 1 
     print(novaConvo[convoID]['steps-taken'])
-    command_response = await handle_commands(command, convoID, threadRequested)
+    
+    command_response = None
+    def error_handler():
+        logging.basicConfig(filename='errors.log', level=logging.ERROR)
+    try:
+        # Your code here
+        command_response = await handle_commands(command, convoID, threadRequested)
+
+    except Exception as e:
+        error_handler()
+        logging.error(str(e))
+        await handle_message(convoID, str(e), 'user', 'terminal', None, 0, 'terminal')
+
     if not command_response:
         novaConvo[convoID]['command-loop']= False
         novaConvo[convoID]['steps-taken'] = 0
