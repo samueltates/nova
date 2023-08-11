@@ -97,6 +97,8 @@ async def  split_video(edit_plan, video_file):
 
             # Writing image
             print('Writing temporary image')
+            resized_cropped_image = cv2.cvtColor(resized_cropped_image, cv2.COLOR_BGR2RGB)
+
             cv2.imwrite(temp_image.name, resized_cropped_image)
 
             b_roll_duration = end - cut_at
