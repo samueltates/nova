@@ -17,7 +17,7 @@ from sessionHandler import novaSession, novaConvo,current_loadout, current_confi
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat import handle_message, user_input
 from convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo, handle_convo_switch
-from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges
+from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, available_cartridges
 from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
@@ -301,9 +301,7 @@ async def process_message(parsed_data):
             'summary': "new conversation",
         }
         await initialise_conversation(sessionID, convoID_full)
-        await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
-        # await initialiseCartridges(sessionID)
-    
+        await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
 
     if(parsed_data['type'] == 'request_loadouts'):
         eZprint('request_loadouts route hit')
@@ -313,16 +311,58 @@ async def process_message(parsed_data):
         params = {}
         convoID = None      
         current_config[sessionID] = {}
-        
         print( 'current loadout is ' + str(current_loadout[sessionID]))
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
+
+        # if 'fake-user' in params:
+        #     if 'userID' in novaSession[sessionID]:
+        #         if novaSession[sessionID]['userID'] != params['fake-user']:
+        #             current_config[sessionID] = {}
+        #             available_cartridges[sessionID] = {}
+        #     userID = params['fake-user']
+        #     novaSession[sessionID]['userID'] = userID
+        #     novaSession[sessionID]['fake-user'] = True
+        #     novaSession[sessionID]['profileAuthed'] = True
+
         convoID_full = await handle_convo_switch(sessionID)
         if not convoID_full:
             convoID_full = await start_new_convo(sessionID)
-        else :
-            await initialise_conversation(sessionID, convoID, params)
-            await initialiseCartridges(sessionID)
+        await initialise_conversation(sessionID, convoID, params)
+        await initialiseCartridges(sessionID)
+
+    if(parsed_data['type'] == 'set_loadout'):
+        eZprint('set_loadout route hit')
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+        await set_loadout(loadout, sessionID)
+        await get_loadout_logs(sessionID)
+
+        convoID_full = await handle_convo_switch(sessionID)
+        if not convoID_full:
+            convoID_full = await start_new_convo(sessionID)
+
+        await runCartridges(sessionID, loadout)
+
+    if(parsed_data['type'] == 'loadout_referal'):
+        eZprint('loadout_referal route hit')
+        sessionID = parsed_data['data']['sessionID']
+        # convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']    
+        params = parsed_data['data']['params']
+        await set_loadout(loadout, sessionID, True)
+        await add_loadout_to_session(loadout, sessionID)
+        await get_loadout_logs(sessionID)
+
+        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
+            convoID_full = await handle_convo_switch(sessionID)
+            if not convoID_full:
+                convoID_full = await start_new_convo(sessionID)
+        else:
+            convoID_full = await start_new_convo(sessionID)
+        await initialise_conversation(sessionID,convoID_full, params)
+        await runCartridges(sessionID, loadout)
+        
         
     if(parsed_data['type'] == 'requestCartridges'):
         convoID = parsed_data['data']['convoID']
@@ -438,38 +478,6 @@ async def process_message(parsed_data):
 
 
 
-    if(parsed_data['type'] == 'set_loadout'):
-        eZprint('set_loadout route hit')
-        sessionID = parsed_data['data']['sessionID']
-        loadout = parsed_data['data']['loadout']
-        await set_loadout(loadout, sessionID)
-        await get_loadout_logs(sessionID)
-
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
-
-        await runCartridges(sessionID, loadout)
-
-    if(parsed_data['type'] == 'loadout_referal'):
-        eZprint('loadout_referal route hit')
-        sessionID = parsed_data['data']['sessionID']
-        # convoID = parsed_data['data']['convoID']
-        loadout = parsed_data['data']['loadout']    
-        params = parsed_data['data']['params']
-        await set_loadout(loadout, sessionID, True)
-        await add_loadout_to_session(loadout, sessionID)
-        await get_loadout_logs(sessionID)
-
-        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
-            convoID_full = await handle_convo_switch(sessionID)
-            if not convoID_full:
-                convoID_full = await start_new_convo(sessionID)
-        else:
-            convoID_full = await start_new_convo(sessionID)
-        await initialise_conversation(sessionID,convoID_full, params)
-        await runCartridges(sessionID, loadout)
-        
     if(parsed_data['type']=='delete_loadout'):
         eZprint('delete_loadout route hit')
         sessionID = parsed_data['data']['sessionID']

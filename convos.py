@@ -10,66 +10,60 @@ import asyncio
 
 
 async def get_loadout_logs(sessionID):
-    loadout = current_loadout[sessionID]
+    if sessionID not in novaSession:
+        novaSession[sessionID] = {}
+    if 'userID' not in novaSession[sessionID]:
+        novaSession[sessionID]['userID'] = None
+    
     userID = novaSession[sessionID]['userID']
+    
+    if sessionID not in current_loadout:
+        current_loadout[sessionID] = None
+    loadout = current_loadout[sessionID]
     available_convos[sessionID] = []
 
     logs = None
 
     # print(current_config[sessionID])
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] and loadout != None:
         print('shared or owner')
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
+        print(logs)
     else:
-        print('not shared or owner')
+        print('not shared or owner or no loadout')
         logs = await prisma.log.find_many(
                 where={ "UserID": userID, 
-                       "SessionID": {'contains':str(loadout)} },
+                    "SessionID": {'contains':str(loadout)} },
                 )
+        print (logs)
             
     # print(logs)
     for log in logs:
         splitID = log.SessionID.split('-')
-        session ={
-            'id': log.id,
-            'sessionID' : log.SessionID,
-            'convoID' : splitID[1],
-            'date' : log.date,
-            'summary': log.summary,
-        }
-        available_convos[sessionID].append(session)
+    
+        if len(splitID) >=2:
+        #    
+            session ={
+                'id': log.id,
+                'sessionID' : log.SessionID,
+                'convoID' : splitID[1],
+                'date' : log.date,
+                'summary':log.summary,
+            }
+            available_convos[sessionID].append(session)
+        else:
+            session ={
+                'id': log.id,
+                'sessionID' : log.SessionID,
+                'convoID' : splitID,
+                'date' : log.date,
+                'summary': log.summary,
+            }
+            available_convos[sessionID].append(session)
+            # convos.append(splitID)
 
-
-    if loadout == None:
-        # print(splitID)
-        print('loadout is none')
-        logs = await prisma.log.find_many(
-            where={ "UserID": userID },
-        )
-        for log in logs:
-            splitID = log.SessionID.split('-')
-            if len(splitID) >=2:
-            #    
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID[1],
-                    'date' : log.date,
-                    'summary':log.summary,
-                }
-                available_convos[sessionID].append(session)
-            else:
-                session ={
-                    'id': log.id,
-                    'sessionID' : log.SessionID,
-                    'convoID' : splitID,
-                    'date' : log.date,
-                    'summary': log.summary,
-                }
-                available_convos[sessionID].append(session)
-                # convos.append(splitID)
 
 
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
@@ -276,14 +270,14 @@ async def set_convo(requested_convoID, sessionID):
 
 
 async def handle_convo_switch(sessionID):
-    # print('handle_convo_switch called')
+    print('handle_convo_switch called')
     requested_convoID = None
     if sessionID in current_config and 'convoID' in current_config[sessionID]:
-        # print('adding on currentConfig')
+        print('adding on currentConfig')
         requested_convoID = current_config[sessionID]['convoID']
 
     elif sessionID in available_convos:
-        # print('adding on available convos')
+        print('adding on available convos')
         if len(available_convos[sessionID]) > 0:
             requested_convoID = available_convos[sessionID][-1]['sessionID']
 
@@ -295,6 +289,7 @@ async def handle_convo_switch(sessionID):
 
 
 async def start_new_convo(sessionID):
+    print('start_new_convo called')
     #TODO: make 'add convo'wrapper (and set convo
     convoID = secrets.token_bytes(4).hex()
     loadout = current_loadout[sessionID]

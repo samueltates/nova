@@ -34,10 +34,10 @@ async def initialise_conversation(sessionID,convoID, params = None):
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
     if params:
-        if 'fake_user' in params and params['fake_user'] == 'True':
-            eZprint('fake user detected')
-            novaSession[sessionID]['fake_user'] = True 
-            novaSession[sessionID]['userName'] = "Archer"
+        # if 'fake_user' in params and params['fake_user'] == 'True':
+        #     eZprint('fake user detected')
+        #     novaSession[sessionID]['fake_user'] = True 
+        #     novaSession[sessionID]['userName'] = "Archer"
 
         if 'agent_initiated' in params and params['agent_initiated'] == 'True':
             eZprint('agent initiated convo')
@@ -77,6 +77,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
 async def initialiseCartridges(sessionID):
     
     eZprint('intialising cartridges')
+    print(current_loadout[sessionID])
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
     if sessionID not in current_loadout or current_loadout[sessionID] == None:
@@ -109,17 +110,19 @@ async def loadCartridges(sessionID, loadout = None):
 
 async def runCartridges(sessionID, loadout = None):
     # await construct_query(convoID)
-    # print('running cartridges')
-    if loadout != current_loadout[sessionID]:
-        return
+    print('running cartridges')
+    # if loadout != current_loadout[sessionID]:
+    #     return
     
     if sessionID not in available_cartridges or available_cartridges[sessionID] == {}:
+        print('no cartridges available')
         await copy_cartridges_from_loadout('e8b0d808235f9aa4', sessionID)
         await runCartridges(sessionID)
         return
     
         
     if sessionID in current_config:
+        print('current config')
         # print(current_config[convoID])
         if 'agent_initiated' in current_config[sessionID] and current_config[sessionID]['agent_initiated'] == True:
             await agent_initiate_convo(sessionID)

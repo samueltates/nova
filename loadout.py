@@ -2,14 +2,16 @@ from prismaHandler import prisma
 from prisma import Json
 import json
 from appHandler import app, websocket
-from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts,current_config, available_convos,novaSession
+from sessionHandler import available_cartridges, novaConvo, current_loadout, available_loadouts,current_config, available_convos ,novaSession
 from debug import eZprint
 import asyncio
 
 async def get_loadouts(sessionID):
 
     if sessionID not in novaSession:
-        return
+        novaSession[sessionID] = {}
+    if 'userID' not in novaSession[sessionID]:
+        novaSession[sessionID]['userID'] = None
     userID = novaSession[sessionID]['userID']
 
     loadouts = await prisma.loadout.find_many(
