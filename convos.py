@@ -30,14 +30,14 @@ async def get_loadout_logs(sessionID):
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
-        print(logs)
+        # print(logs)
     else:
         print('not shared or owner or no loadout')
         logs = await prisma.log.find_many(
                 where={ "UserID": userID, 
                     "SessionID": {'contains':str(loadout)} },
                 )
-        print (logs)
+        # print (logs)
             
     # print(logs)
     for log in logs:

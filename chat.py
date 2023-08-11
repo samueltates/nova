@@ -312,7 +312,8 @@ async def command_interface(command, convoID, threadRequested):
     except Exception as e:
         error_handler()
         logging.error(str(e))
-        await handle_message(convoID, str(e), 'user', 'terminal', None, 0, 'terminal')
+        await handle_message(convoID, e, 'user', 'terminal', None, 0, 'terminal')
+
 
     if not command_response:
         novaConvo[convoID]['command-loop']= False

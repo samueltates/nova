@@ -370,19 +370,36 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name == 'scrape_website':
         website_url = args['website_url']
         scraped_data = await advanced_scraper(website_url)
-        if len(scraped_data) > 2000:
-            print('website larger than 2k starting large doc loop')
-            command_return = await large_document_loop(website_url, scraped_data, name, sessionID, thread)
-            return command_return
-        elif len(scraped_data) > 0:
-            command_return['status'] = "Success."
-            command_return['message'] = "Website scraped : " + str(scraped_data)
-            # command_return['data'] = scraped_data
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Website scrape failed"
-            return command_return
+        print('length is ' + str(len(str(scraped_data))))
+
+        
+        cartVal = {
+        'label' : website_url,
+        'text' :str(scraped_data),
+        'type' : 'note',
+        'enabled' : True,
+        'minimised' : False,
+        }
+
+        print(cartVal)
+        await addCartridge(cartVal, sessionID, current_loadout[sessionID])
+        command_return['status'] = "Success."
+        command_return['message'] = "Website scrape saved as  : " + str(website_url)
+        return command_return
+
+        # if len(str(scraped_data)) > 2000:
+        #     print('website larger than 2k starting large doc loop')
+        #     command_return = await large_document_loop(website_url, str(scraped_data), name, sessionID, thread)
+        #     return command_return
+        # elif len(scraped_data) > 0:
+        #     command_return['status'] = "Success."
+        #     command_return['message'] = "Website scraped : " + str(scraped_data)
+        #     # command_return['data'] = scraped_data
+        #     return command_return
+        # else:
+        #     command_return['status'] = "Error."
+        #     command_return['message'] = "Website scrape failed"
+        #     return command_return
 
 
 async def open_file(name, args, sessionID, loadout):
@@ -752,7 +769,7 @@ async def continue_command(convoID, thread):
     # eZprint('continuing command' + str(loop))
     if convoID in command_loops:
         if thread in command_loops[convoID]:
-            command_return = large_document_loop(convoID, thread)
+            command_return = large_document_loop('','','',convoID, thread)
             return command_return
 
 async def large_document_loop(title, string, command = '', convoID= '', thread = 0):
@@ -795,14 +812,14 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
 
     sections = command_loops[convoID][thread]['sections']
     command_loops[convoID][thread]['loop'] += 1
-    # print(sections)
-    # print(len(sections))
-    # print(loop)
+    print(sections)
+    print(len(sections))
+    print(loop)
     if loop < len(sections):
         eZprint('returning sections based on loop')
         command_return['status'] = 'in-progress'
         
-        message = title + ":\n Page " + str(loop) + " of " + str(len(sections)) + "\n" + sections[loop]  
+        message = title + ":\n Page " + str(loop) + " of " + str(len(sections)) + "\n" + str(sections[loop])
         command_return['message'] = message + ongoing_return_string
         command_return['name'] = command
         print(command_return)
