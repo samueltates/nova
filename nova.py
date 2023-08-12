@@ -77,7 +77,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
 async def initialiseCartridges(sessionID):
     
     eZprint('intialising cartridges')
-    print(current_loadout[sessionID])
+    # print(current_loadout[sessionID])
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
     if sessionID not in current_loadout or current_loadout[sessionID] == None:
@@ -97,8 +97,8 @@ async def loadCartridges(sessionID, loadout = None):
         "UserID": userID,
         }
     )
+    available_cartridges[sessionID] = {}
     if len(cartridges) != 0:
-        available_cartridges[sessionID] = {}
         for cartridge in cartridges:    
             blob = json.loads(cartridge.json())
             for cartKey, cartVal in blob['blob'].items():
