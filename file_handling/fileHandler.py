@@ -121,16 +121,22 @@ async def handle_video_file(file, name, sessionID, loadout, cartKey):
     clip.audio.write_audiofile(audio_temp.name)
 
     await handle_audio_file(audio_temp, name, sessionID, loadout, cartKey)
-    audio_temp.close()
+    # audio_temp.close()
 
 async def handle_audio_file(file, name, sessionID, loadout, cartKey):
     print(file.name)
     audio = AudioSegment.from_mp3(file.name)
-
     avg_loudness = audio.dBFS
-    silence_thresh = avg_loudness  # Consider adjusting this if needed
 
-    chunks = split_on_silence(audio, min_silence_len=1000, silence_thresh=silence_thresh, keep_silence=1000, seek_step=1)
+    # Try reducing these values to create smaller clips
+    silence_thresh = avg_loudness + (avg_loudness * 0.15)
+    min_silence_len = 1000
+
+    chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=100, seek_step=1)
+
+    # Add print statements for debugging
+    print('Average loudness:', avg_loudness)
+    print('Number of audio chunks:', len(chunks))
     transcriptions = []
     chunk_time_ms = 0  # initial start time
 
@@ -139,11 +145,13 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
     
     
     transcript_text = ''
-
+    
     for chunk in chunks:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')
+            print('Saved to:', chunk_file.name) # Confirm file path
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
+            #write to local as audio file
             transcript =  openai.Audio.transcribe('whisper-1', chunk_file)
             start_time = await convert_ms_to_hh_mm_ss(chunk_time_ms)
             length = await convert_ms_to_hh_mm_ss(len(chunk))

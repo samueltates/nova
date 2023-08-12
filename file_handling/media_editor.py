@@ -80,10 +80,12 @@ async def  split_video(edit_plan, video_file):
 
            # Resize image based on orientation of clip
             if determine_orientation(clip) == 'horizontal':
+                print('Horizontal clip')
        # dimensions switched for horizontal clip
                 # Aspect ratio of image should be clip_hight/clip_width to match with clip dimensions.
                 resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
             else:
+                print('Vertical clip')
                 resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
 
             print('Resized image size:', resized_image.shape)
