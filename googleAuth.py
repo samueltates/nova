@@ -78,7 +78,10 @@ async def requestPermissions(scopes, sessionID):
         # include_granted_scopes='true'
     )
     
+    print('url set to : ' + authorization_url)
     novaSession[sessionID]['state'] =  state
+    novaSession[state] = {}
+    novaSession[state]['sessionID'] = sessionID
     redir = redirect(authorization_url)
     eZprint('got redirect URL')
 
@@ -86,12 +89,18 @@ async def requestPermissions(scopes, sessionID):
 
 @app.route('/authoriseRequest')
 async def authoriseRequest():
+    req = request.args
     eZprint('authorise request route hit')
-    print(app.session)
+    print(req)
+    state = req.get('state')
+    # scopes = req.get('scope')
+    sessionID = novaSession[state]['sessionID']
+    # print(app.session)
     sessionID = app.session.get('sessionID')
     if sessionID in novaSession:
-        state = novaSession[sessionID]['state'] 
+        # state = novaSession[sessionID]['state'] 
         scopes = novaSession[sessionID]['scopes'] 
+    
         
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
     'credentials.json', scopes=scopes, state=state) 
