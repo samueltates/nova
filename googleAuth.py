@@ -119,20 +119,11 @@ async def authoriseRequest():
             novaSession[sessionID]['docsAuthed'] = True
             print('docsAuthed set to true')
 
-    flow.redirect_uri = url_for('requestComplete', _external=True, _scheme=os.environ.get('SCHEME') or 'https')
-    requestCompleteURL, state = flow.authorization_url(
-        access_type='offline',
-        prompt="none",  # Add this line
-        # include_granted_scopes='true'
-    )
-    return redirect(requestCompleteURL)
+    return redirect(url_for('requestComplete'))
 
 @app.route('/requestComplete')
 async def requestComplete():
-    
-    req = request.args
-    eZprint(' request complete route hit')
-    print(req)    
+    eZprint('requestComplete route hit')
     return redirect(os.environ.get('NOVAHOME'))
 
     print(app.session)
