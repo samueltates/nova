@@ -62,7 +62,7 @@ async def download_video():
     video_name = request.args.get('video_name')
     return await send_file(video_name, as_attachment=True)
 
-@app.route("/startsession", methods=['POST'])
+@app.route("/startsession")
 async def startsession():
     eZprint('start-session route hit')
     print(app.session)
