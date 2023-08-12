@@ -43,6 +43,7 @@ async def hello():
 @app.before_serving
 async def startup():
     await prismaConnect()
+    print(app.config)
     eZprint("Connected to Prisma")
 
 @app.after_serving
@@ -62,14 +63,18 @@ async def download_video():
     video_name = request.args.get('video_name')
     return await send_file(video_name, as_attachment=True)
 
-@app.route("/startsession")
+@app.route("/startsession", methods=['POST'])
 async def startsession():
     eZprint('start-session route hit')
     print(app.session)
+    print(app.config)
 
+    print(request)
     payload = await request.get_json()
+    browserSession = payload['sessionID']
+    print(payload)
     show_onboarding = False
-    if app.session.get('sessionID') is None:
+    if app.session.get('sessionID') is None or browserSession is None:
         
         eZprint('sessionID not found, creating new session')
 
@@ -86,6 +91,8 @@ async def startsession():
         show_onboarding = True
         
     sessionID = app.session.get('sessionID')    
+    if sessionID is None:
+        sessionID = browserSession
     # convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
     
@@ -638,7 +645,7 @@ if __name__ == '__main__':
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
     asyncio.run(serve(app, config))
-    
+ 
 
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
     # app.run(host="127.0.0.1", port=5500) 
