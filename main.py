@@ -66,15 +66,19 @@ async def download_video():
 @app.route("/startsession", methods=['POST'])
 async def startsession():
     eZprint('start-session route hit')
-    print(app.session)
-    print(app.config)
+    # print(app.session)
+    # print(app.config)
 
-    print(request)
+    # print(request)
     payload = await request.get_json()
     browserSession = payload['sessionID']
-    print(payload)
+    # print(payload)
     show_onboarding = False
-    if app.session.get('sessionID') is None or browserSession is None:
+    sessionID = None
+    sessionID = app.session.get('sessionID')    
+    if sessionID is None:
+        sessionID = browserSession
+    if sessionID is None or sessionID not in novaSession:
         
         eZprint('sessionID not found, creating new session')
 
@@ -90,9 +94,7 @@ async def startsession():
 
         show_onboarding = True
         
-    sessionID = app.session.get('sessionID')    
-    if sessionID is None:
-        sessionID = browserSession
+
     # convoID = secrets.token_bytes(4).hex()
     # setting convo specific vars easier to pass around
     
