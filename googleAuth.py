@@ -96,7 +96,7 @@ async def authoriseRequest():
     # scopes = req.get('scope')
     sessionID = novaSession[state]['sessionID']
     # print(app.session)
-    sessionID = app.session.get('sessionID')
+    # sessionID = app.session.get('sessionID')
     if sessionID in novaSession:
         # state = novaSession[sessionID]['state'] 
         scopes = novaSession[sessionID]['scopes'] 
