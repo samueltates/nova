@@ -123,15 +123,11 @@ async def authoriseRequest():
 
 @app.route('/requestComplete')
 async def requestComplete():
-    req = request.args
-    eZprint('authorise request route hit')
-    print(req)
-    state = req.get('state')
-    # scopes = req.get('scope')
-    sessionID = novaSession[state]['sessionID']
-    # print(app.session)
-    # sessionID = app.session.get('sessionID')
+    eZprint('requestComplete route hit')
+    return redirect(os.environ.get('NOVAHOME'))
 
+    print(app.session)
+    sessionID = app.session.get('sessionID')
     if sessionID in novaSession:
         novaSession[sessionID]['requesting'] = False
         if novaSession[sessionID]['profileAuthed']:
