@@ -60,8 +60,10 @@ async def user_input(sessionData):
     userName = novaSession[sessionID]['userName']
 
     # print(availableCartridges[convoID])
+    
     if 'command' in novaConvo[convoID]:
         message = userName + ': ' + message
+        
     await handle_message(convoID, message, 'user', userName, sessionData['key'])
     await construct_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] 

@@ -111,7 +111,7 @@ async def handle_file_end(data):
     elif file_type == 'audio/mpeg':
         print('audio found')
         await handle_audio_file(temp_file, file_metadata['file_name'], sessionID, loadout, cartKey)
-    # temp_file.close()
+    temp_file.close()
 
     del file_chunks[tempKey]
 
@@ -127,12 +127,12 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
     print(file.name)
     audio = AudioSegment.from_mp3(file.name)
     avg_loudness = audio.dBFS
-
+    
     # Try reducing these values to create smaller clips
     silence_thresh = avg_loudness + (avg_loudness * 0.15)
     min_silence_len = 1000
 
-    chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=100, seek_step=1)
+    chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
 
     # Add print statements for debugging
     print('Average loudness:', avg_loudness)
@@ -157,7 +157,7 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
             length = await convert_ms_to_hh_mm_ss(len(chunk))
             print(transcript)
             transcript_text +=  str(start_time) + ': ' + transcript['text'] + '\n' + 'Length: ' + str(length) + '\n\n'
-            await handle_message(convoID, str(start_time) + ': ' + transcript['text'] + '\n' + 'Length: ' + str(length), 'system', 'transcriber',  None,0, meta = 'terminal')
+            await handle_message(convoID, str(start_time) + ': ' + transcript['text'] + '\n' + 'Length: ' + str(length), 'system', 'transcriber',  None, 0, meta = 'terminal')
 
             transcriptions.append({
                 'start_time': chunk_time_ms,
@@ -174,7 +174,7 @@ async def handle_audio_file(file, name, sessionID, loadout, cartKey):
             loadout = current_loadout[sessionID]
             await update_cartridge_field(payload, loadout, True)      
             chunk_time_ms += len(chunk)  # increment by the length of the chunk
-            # os.unlink(chunk_file.name)  # Remove the temporary file
+            os.unlink(chunk_file.name)  # Remove the temporary file
             
     await handle_message(convoID, 'transcriptions complete', 'user', 'terminal',  None, 0, 'terminal')
 

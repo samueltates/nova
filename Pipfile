@@ -48,5 +48,7 @@ pydub = "*"
 boto3 = "*"
 opencv-python-headless = "*"
 bs4 = "*"
+ffmpeg-python = "*"
+ffprobe-python = "*"
 
 [dev-packages]

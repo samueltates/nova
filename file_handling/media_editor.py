@@ -1,4 +1,4 @@
-from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx
 import json
 from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
@@ -10,6 +10,11 @@ import openai
 import os
 import requests
 import cv2
+import ffmpeg
+
+import subprocess
+import shlex
+import json
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
@@ -22,6 +27,12 @@ async def  split_video(edit_plan, video_file):
     processed_file.close()
 
     clip = VideoFileClip(processed_file.name)
+    rotated = await is_rotated(processed_file.name)
+    if rotated:
+        clip = clip.resize(clip.size[::-1])
+
+    clip.write_videofile('before-edit.mp4', fps=24, codec='libx264', audio_codec='aac')
+
     final_audio = []
     final_video = []
 
@@ -29,18 +40,21 @@ async def  split_video(edit_plan, video_file):
     # if 'main_cuts' in edit_plan:
     #     for cut in edit_plan['main_cuts']:
             
+    audio_clip = clip.audio
 
     for seq in edit_plan['final_edit']['video']:
         cut_key = 'cut_' + str(seq['main_cut'])
         print(f'Processing {cut_key}')
         start, end = edit_plan['main_cuts'][cut_key]['start'], edit_plan['main_cuts'][cut_key]['end']
+        final_audio.append(audio_clip.subclip(start, end))
+
         if seq['b_roll']:
             #split the main cut at 'cut_at'
             cut_at = seq['cut_at']
             clip1 = clip.subclip(start, cut_at)
             # clip2 = clip.subclip(cut_at, end)
             clip_dimensions = clip.get_frame(0).shape
-
+    
             print(f'Clip 1 size: {clip1.size}')
             print(f'clip dimensions: {clip_dimensions}')
             
@@ -66,20 +80,11 @@ async def  split_video(edit_plan, video_file):
             image = cv2.imread(temp_image.name)
             print(f'Initial image size: {image.shape}')
 
-            # image = cv2.resize(image, (int(clip1.size[0]*image.shape[0]/clip1.size[1]), image.shape[0]))
-
-
             # Determine orientation of clip
-            def determine_orientation(clip):
-               if clip_dimensions[0] > clip_dimensions[1]:
-                   return 'vertical'
-               elif clip_dimensions[0] == clip_dimensions[1]:
-                   return 'square'
-               else:
-                   return 'horizontal'
+
 
            # Resize image based on orientation of clip
-            if determine_orientation(clip) == 'horizontal':
+            if await determine_orientation(clip_dimensions) == 'horizontal':
                 print('Horizontal clip')
        # dimensions switched for horizontal clip
                 # Aspect ratio of image should be clip_hight/clip_width to match with clip dimensions.
@@ -116,19 +121,72 @@ async def  split_video(edit_plan, video_file):
             final_video.append(concatenate_videoclips([clip1, b_roll]))
         else:
             final_video.append(clip.subclip(start, end))
-        audio_clip = clip.audio
+    #     audio_clip = clip.audio
 
-    for seq in edit_plan['final_edit']['audio']:
-        cut_key = 'cut_' + str(seq)
-        start, end = edit_plan['main_cuts'][cut_key]['start'], edit_plan['main_cuts'][cut_key]['end']
-        final_audio.append(audio_clip.subclip(start, end))
+    # for seq in edit_plan['final_edit']['audio']:
+    #     cut_key = 'cut_' + str(seq)
+    #     start, end = edit_plan['main_cuts'][cut_key]['start'], edit_plan['main_cuts'][cut_key]['end']
+    #     final_audio.append(audio_clip.subclip(start, end))
 
     
     final_clip = concatenate_videoclips(final_video)
     final_clip.audio = concatenate_audioclips(final_audio)
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     final_clip.write_videofile(file_to_send.name, fps=24, codec='libx264', audio_codec='aac')
-    # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
+    final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
     return final_clip   
 
+
+async def determine_orientation(clip_dimensions):
+    
+    # probe = ffmpeg.probe(video_file)
+    # rotate_code = next((stream['tags']['rotate'] for stream in probe['streams'] if 'rotate' in stream['tags']), None)       
+    # 
+
+    print(f'clip dimensions: {clip_dimensions}')   
+
+    if clip_dimensions[0] > clip_dimensions[1]:
+        print('vertical clip' + str(clip_dimensions))
+        return 'vertical'
+    elif clip_dimensions[0] == clip_dimensions[1]:
+        print('Square clip' + str(clip_dimensions))
+        return 'square'
+    else:
+        print('Horizontal clip' + str(clip_dimensions))
+        return 'horizontal'
+
+
+async def is_rotated( file_path):
+    rotation = await get_rotation(file_path)
+    print('Rotation:', rotation)
+    if rotation == 90:  # If video is in portrait
+        return True
+    elif rotation == -90:
+        return True
+    elif rotation == 270:  # Moviepy can only cope with 90, -90, and 180 degree turns
+        return True
+    elif rotation == -270:
+        return True
+    elif rotation == 180:
+        return True
+    elif rotation == -180:
+        return True
+    return False
+
+async def get_rotation(source):
+    # clip = VideoFileClip('IMG_3561.mov')
+    cmd = "ffprobe -loglevel error -select_streams v:0 -show_entries side_data=rotation -of default=nw=1:nk=1 "
+    args = shlex.split(cmd)
+    args.append(source)
+    print(args)
+    ffprobe_output = subprocess.check_output(args).decode('utf-8')
+    print(ffprobe_output)
+    if len(ffprobe_output) > 0:  # Output of cmdis None if it should be 0
+        ffprobe_output = json.loads(ffprobe_output)
+        rotation = ffprobe_output
+    else:
+        rotation = 0
+
+    print(rotation)
+    return rotation
