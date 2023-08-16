@@ -839,10 +839,12 @@ async def search_files(name, args, sessionID, loadout, thread = 0):
                 search_response += ' | Closed\n'
             else:
                 search_response += ' | Open\n'
-            if cartridge.get('summary', None):
-                search_response += ' | Summary: ' + cartridge['summary']
-            if cartridge.get('text', None):
-                search_response += ' | ' + cartridge['text'][0:280] + '...\n'
+            if cartridge.get('snippet', None):
+                search_response += ' | Snippet: ' + cartridge['snippet']
+            # if cartridge.get('summary', None):
+            #     search_response += ' | Summary: ' + cartridge['summary']
+            # if cartridge.get('text', None):
+            #     search_response += ' | ' + cartridge['text'][0:280] + '...\n'
             # if 'blocks' in val:
             #     if 'summaries' in val['blocks']:
             #         for summary in val['blocks']['summaries']:
