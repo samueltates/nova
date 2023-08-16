@@ -267,7 +267,7 @@ async def set_convo(requested_convoID, sessionID):
     novaSession[sessionID]['convoID'] = requested_convoID
     novaConvo[requested_convoID] = {}
     novaConvo[requested_convoID]['sessionID'] = sessionID
-
+    novaConvo[requested_convoID]['loadout'] = loadout
 
 async def handle_convo_switch(sessionID):
     print('handle_convo_switch called')

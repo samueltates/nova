@@ -133,9 +133,12 @@ async def  split_video(edit_plan, video_file):
     final_clip.audio = concatenate_audioclips(final_audio)
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     final_clip.write_videofile(file_to_send.name, fps=24, codec='libx264', audio_codec='aac')
-    final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
+    # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
-    return final_clip   
+
+    file_to_send.close()
+
+    # return final_clip   
 
 
 async def determine_orientation(clip_dimensions):

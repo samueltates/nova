@@ -112,19 +112,23 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
             if 'cartridges' in val:
-                for cart in val['cartridges']:
+                cartridges_copy = val['cartridges'][:]
+                for cart in cartridges_copy:
                     if 'key' in cart and cart['key'] == cartridge:
                         if 'softDelete' in settings and settings['softDelete'] == True:
+                            # print(val)
+                            # print(cart)
+
                             val['cartridges'].remove(cart)
                         if 'settings' not in cart:
                             cart['settings'] = {}                
-                        for key, val in settings.items():
-                            if key == 'enabled':
-                                cart['settings'][key] = val
-                            if key == 'minimised':
-                                cart['settings'][key] = val
-                            if key == 'softDelete':
-                                cart['settings'][key] = val
+                        for settingsKey, settingsVal in settings.items():
+                            if settingsKey == 'enabled':
+                                cart['settings'][settingsVal] = settingsVal
+                            if settingsKey == 'minimised':
+                                cart['settings'][settingsVal] = settingsVal
+                            if settingsKey == 'softDelete':
+                                cart['settings'][settingsVal] = settingsVal
                                          
         update = await prisma.loadout.update(
             where = {
@@ -275,7 +279,7 @@ async def delete_loadout(loadout_key: str, sessionID):
         where={ "key": str(loadout_key) },
     )
     # print(loadout)
-    await prisma.loadout.delete(
+    await prisma.loadout.update(
         where={
             'id': loadout.id
         }

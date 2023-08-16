@@ -54,6 +54,7 @@ async def agent_initiate_convo(sessionID):
 async def user_input(sessionData):
     #takes user iput and runs message cycle
     # print('user input')
+    print(sessionData)
     convoID = sessionData['convoID']
     message = sessionData['body']
     sessionID = sessionData['sessionID']

@@ -46,13 +46,16 @@ async def addCartridge(cartVal, sessionID, client_loadout = None):
         if client_loadout == current_loadout[sessionID]:
             await add_cartridge_to_loadout(sessionID, cartKey, client_loadout)
             cartVal["softDelete"] = True
-
+    if 'position' not in cartVal:
+        cartVal['position'] = 99
+    
+    cartVal['initial-loadout'] = client_loadout
     cartVal['dateAdded'] = str(datetime.now())
     newCart = await prisma.cartridge.create(
         data={
             'key': cartKey,
             'UserID':userID,
-            'blob': Json({cartKey:cartVal})
+            'blob': Json({cartKey:cartVal}),
         }
     )
     
@@ -94,6 +97,7 @@ async def addCartridgePrompt(input, client_loadout = None):
     cartVal.update({'key': cartKey})
     userID = novaSession[sessionID]['userID']
     cartVal['dateAdded'] = str(datetime.now())
+    cartVal['initial-loadout'] = client_loadout
 
     if current_loadout[sessionID] != None:
         if client_loadout == current_loadout[sessionID]:
@@ -221,7 +225,8 @@ async def addCartridgeTrigger(input, client_loadout = None):
 async def update_cartridge_field(input, client_loadout= None, system = False):
     targetCartKey = input['cartKey']
     sessionID = input['sessionID']
-    # print('update cartridge field ' + available_cartridges[convoID][targetCartKey]['label'])
+    # print('update cartridge field ' + str(available_cartridges[sessionID][targetCartKey]))
+    # print(input['fields'])
     
     if client_loadout != current_loadout[sessionID]:
         return False
@@ -232,7 +237,7 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
         },         
     )
 
-    # print(available_cartridges[convoID])
+    # print(available_cartridges[sessionID])
     for key, val in input['fields'].items():
         available_cartridges[sessionID][targetCartKey][key] = val
 
@@ -240,52 +245,51 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
         # print('matched cart ' + str(matchedCart.id))
         matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
         # print ('checking loadout ' + str(loadout))
-        if client_loadout == current_loadout[sessionID]:
             # print('loadout match')
-            if client_loadout:
-                #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
-                # print('update settings in loadout')
-                await update_settings_in_loadout(sessionID, targetCartKey, input['fields'], client_loadout)
-                for key, val in input['fields'].items():
-                        if key == 'enabled':
-                            continue
-                        if key == 'minimised':
-                            continue
-                        if key == 'softDelete' and val == True:
-                            print('soft delete')
-                            del available_cartridges[sessionID][targetCartKey]
-                            continue
-                        matchedCartVal[key] = val
-                    
-            elif client_loadout == None: 
-                #if not coming from loadout then applies to base
-                # print('update base cartridge')
-
-                for key, val in input['fields'].items():
-                    matchedCartVal[key] = val
+        if client_loadout:
+            #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
+            # print('update settings in loadout')
+            await update_settings_in_loadout(sessionID, targetCartKey, input['fields'], client_loadout)
+            for key, val in input['fields'].items():
+                    if key == 'enabled':
+                        continue
+                    if key == 'minimised':
+                        continue
                     if key == 'softDelete' and val == True:
                         print('soft delete')
                         del available_cartridges[sessionID][targetCartKey]
+                        continue
+                    matchedCartVal[key] = val
+                
+        elif client_loadout == None: 
+            #if not coming from loadout then applies to base
+            # print('update base cartridge')
 
-                    
-            # print(available_cartridges[convoID])
+            for key, val in input['fields'].items():
+                matchedCartVal[key] = val
+                if key == 'softDelete' and val == True:
+                    print('soft delete')
+                    del available_cartridges[sessionID][targetCartKey]
 
-            matchedCartVal['lastUpdated'] = str(datetime.now())
+                
+        # print(available_cartridges[convoID])
 
-            updatedCart = await prisma.cartridge.update(
-                where={ 'id': matchedCart.id },
-                data={
-                    'blob' : Json({targetCartKey:matchedCartVal})
-                }
-            )
-            # print('updated cart' + str(updatedCart.id))
-            if system:
-                # print('system update')
-                payload = { 'key':targetCartKey,
-                           'fields': input['fields'], 
-                           'loadout': client_loadout,
-                                }
+        matchedCartVal['lastUpdated'] = str(datetime.now())
 
+        updatedCart = await prisma.cartridge.update(
+            where={ 'id': matchedCart.id },
+            data={
+                'blob' : Json({targetCartKey:matchedCartVal})
+            }
+        )
+        # print('updated cart' + str(updatedCart.id))
+        if system:
+            print('system update')
+            payload = { 'key':targetCartKey,
+                        'fields': input['fields'], 
+                        'loadout': client_loadout,
+                            }
+            if client_loadout == current_loadout[sessionID]:
                 await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
 
 
@@ -352,20 +356,30 @@ async def copy_cartridges_from_loadout(loadout: str, sessionID):
                 val['minimised'] = False
                 await addCartridge(val, sessionID, current_loadout[sessionID])
 
+
 async def search_cartridges(search_query, sessionID):
     matching_objects = []
-    for key, val in whole_cartridge_list[sessionID].items():
+    #sort by last updated
+    if sessionID not in whole_cartridge_list:
+        whole_cartridge_list[sessionID] = {}
+        await get_cartridge_list(sessionID)
+    
+    default_value = '1970-01-01 00:00:00.000000'
+    sorted_cartridge_list = sorted(whole_cartridge_list[sessionID].items(), key=lambda x: x[1].get('lastUpdated', default_value), reverse=True)
+    # sorted_cartridge_list = sorted(whole_cartridge_list[sessionID].items(), key=lambda x: x[1]['lastUpdated'], reverse=True)
+    for key, val in sorted_cartridge_list:
             # print(val)
             for field, value in val.items():
-                print(value)
+                # print(value)
                 # if len(value) <0:
                 if len(str(value)) and search_query in str(value):
                     matching_objects.append(val)
                     break
 
-    print (matching_objects)
-    if len(matching_objects) > 0:
-        await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': matching_objects}))
+    # print (matching_objects)
+    # if len(matching_objects) > 0:
+    await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': matching_objects}))
+    return matching_objects
     # else:
         # await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': whole_cartridge_list[convoID]}))
 

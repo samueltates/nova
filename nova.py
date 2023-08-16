@@ -136,7 +136,32 @@ async def runCartridges(sessionID, loadout = None):
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     # print('running summary cartridge on loadout ' + str(loadout))
                     # if cartVal['state'] != 'loading':
-                    asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
+                    # print('running summary cartridge' + str(cartVal))
+                    # if 'running' in cartVal:
+                    #     print(cartVal)
+                    if 'running' not in cartVal or cartVal['running'] == False:
+                        try : 
+                            input = {
+                                'cartKey': cartKey,
+                                'sessionID': sessionID,
+                                'fields': {
+                                    'running': True,
+                                }
+                            }
+                            await update_cartridge_field(input, loadout)
+                            asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
+                        except Exception as e:
+                            print(e)
+                            input = {
+                                'cartKey': cartKey,
+                                'sessionID': sessionID,
+                                'fields': {
+                                    'running': False,
+                                }
+                            }
+                            await update_cartridge_field(input, loadout)
+                            
+            
                     # else:
                     #     cartVal['state'] = ''
                     #     cartVal['status'] = ''
@@ -162,6 +187,9 @@ async def runCartridges(sessionID, loadout = None):
                                 novaConvo[convoID]['token_limit'] = 8000
                             else:
                                 novaConvo[convoID]['token_limit'] = 4000
+                        if 'scope' in values:
+                            novaConvo[convoID]['scope'] = values['scope']
+                            # print('scope set to ' + str(values['scope']))
 
 async def addNewUserCartridgeTrigger(sessionID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this

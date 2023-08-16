@@ -803,7 +803,7 @@ async def main() -> None:
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
-    # await get_messages_report_aggregate(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
+    await get_messages_report_aggregate(datetime.date(2023, 7, 11), datetime.date(2023, 8, 15), '110327569930296986874')
     # await retrieve_logs_and_messages()
     # await write_recovered_messages()
     # await delete_logs_and_messages()

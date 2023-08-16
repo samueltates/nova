@@ -1,8 +1,8 @@
 
 from keywords import get_summary_from_keyword, keywords_available
 from debug import eZprint
-from cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list
-from sessionHandler import available_cartridges, current_loadout, novaConvo
+from cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
+from sessionHandler import available_cartridges, current_loadout, novaConvo, novaSession
 from cartridges import whole_cartridge_list
 from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
@@ -22,6 +22,7 @@ command_loops = {}
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     eZprint('handling command')
     sessionID = novaConvo[convoID]['sessionID']
+    loadout = novaConvo[convoID]['loadout']
     print(command_object)
     if command_object:
         name = ''
@@ -45,7 +46,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return False
     
     if  name in 'list_files':
-        response = await list_files(name, sessionID)
+        response = await list_files(name, sessionID, loadout)
         print('back at list parent function')
         print(response)
         return response
@@ -61,8 +62,26 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
     command_return = {"status": "", "name" : name, "message": ""}
     print( 'command name: ' + name + ' args: ' + str(args))
+    
+    if 'search' in name or name in 'search':
+        if args.get('query'):
+            if args.get('type') == 'files':
+                response = await search_files(name, args, sessionID, loadout, thread) 
+                return response
+            # elif args.get('type') == 'web':
+            #     # response = await search_web(name, args, sessionID, loadout, thread)
+            #     return response
+            else:
+                command_return['status'] = "Error."
+                command_return['message'] = "type can't be blank"
+                return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Query can't be blank"
+            return command_return
+        # if args.get('type') == 'web':
 
-    if 'query' in name or name in 'query' or 'search' in name or name in 'search':
+    if 'query' in name or name in 'query':
         response = await broad_query(name, args, sessionID, thread)
         print(response)
         return response
@@ -71,12 +90,46 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         for key, val in available_cartridges[sessionID].items():
             if 'label' in val:
                 if val['label'] == args['filename']:
-                    response = await read_text(name, val['label'], str(val), sessionID, thread)
-                    print(response)
-                    return response
+                    new_page = 0
+                    text_to_read = ''
+                    if val.get('text', None):
+                        text_to_read = val['text']
+                    else:
+                        text_to_read = str(val)
+                    if 'text' in val:
+                        if 'page' not in args:
+                            response = await read_text(name, val['label'], str(text_to_read), sessionID, thread,0)
+                        if 'page' in args:
+                            new_page = args['page']
+                            response = await read_text(name, val['label'],  str(text_to_read), sessionID, thread, args['page'])
+                        new_page = int(new_page + 1)
+
+                        if 'status' in response:
+                            if response['status'] == 'Success.':
+                                new_page = 0
+
+                        payload = {
+                            'cartKey' : key,
+                            'sessionID' : sessionID,
+                            'fields' : {
+                                'page' : new_page
+                            }
+                            }
+                            
+                        update_cartridge_field(payload)
+                        return response
+
+                    else:
+
+                        command_return['status'] = "Error."
+                        command_return['message'] = "Text empty."
+                        print(command_return)
+                        return command_return
+                    
         command_return['status'] = "Error."
         command_return['message'] = "File not found."
         print(command_return)
+        return command_return
 
     if name in 'open' or 'open' in name :
         response = await open_file(name, args, sessionID, loadout)
@@ -154,7 +207,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     print(command_return)
                     return command_return
                 
-
             cartVal = {
             'label' : filename,
             'text' :text,
@@ -267,24 +319,23 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if 'filename' in args:
             filename = args['filename']
             for key, val in available_cartridges[sessionID].items():
-                all_text += str(val)
+                # all_text += str(val)
                 string_match = distance(filename, str(val['label']))
                 if string_match < 3:
                     return_string = ''
-                    if 'enabled' not in val:
-                        val['enabled'] = False
-                    if val['enabled'] == True:
-                        val['enabled'] = False
+                    if 'softDelete' not in val:
+                        val['softDelete'] = True
+                    if val['softDelete'] == False:
+                        val['softDelete'] = True
                         return_string += "File " + args['filename'] + " closed.\n"
                     else:
                         return_string += "File " + args['filename'] + " already closed.\n"
-
 
                     payload = {
                         'sessionID': sessionID,
                         'cartKey' : key,
                         'fields':
-                                {'enabled': val['enabled']}
+                                {'softDelete': val['softDelete']}
                                 }
                     loadout = current_loadout[sessionID]
                     await update_cartridge_field(payload, loadout, True)       
@@ -374,7 +425,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
         
         cartVal = {
-        'label' : website_url,
+        'label' : 'scrape of ' + website_url,
         'text' :str(scraped_data),
         'type' : 'note',
         'enabled' : True,
@@ -405,70 +456,72 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 async def open_file(name, args, sessionID, loadout):
     command_return = {"status": "", "name" :name, "message": ""}
     eZprint('reading file')            
+    if sessionID not in whole_cartridge_list:
+        await get_cartridge_list(sessionID)
     if 'filename' in args:
         filename = args['filename']
-        for cartKey, cartVal in available_cartridges[sessionID].items():
-            string_match = distance(filename, str(cartVal['label']))
-            # print('distance: ' + str(string_match))
-            # print('filename: ' + filename)
-            # print('label: ' + str(cartVal['label']))
-            if string_match < 3:
-                print('found match' + str(cartVal))
-        
-                return_string = ''
-                print('file found')
-                if 'enabled' not in cartVal or cartVal['enabled'] == False or 'minimised' not in cartVal or cartVal['minimised']:
-                    cartVal['enabled'] = True
-                    cartVal['minimised'] = False
-                    return_string += "File " + filename + " opened.\n"
-                else:
-                    return_string += "File " + filename + " already open.\n"
-
-                payload = {
-                    'sessionID': sessionID,
-                    'cartKey' : cartKey,
-                    'fields':
-                            {'enabled': cartVal['enabled'],
-                             'minimised': cartVal['minimised']
-                             }
-                            }
-                loadout = current_loadout[sessionID]
-                await update_cartridge_field(payload, loadout, True)       
-                command_return['status'] = "Success."
-                command_return['message'] = return_string
-                print(command_return)
-                return command_return
+        for cartKey, cartVal in whole_cartridge_list[sessionID].items():
+            if 'label' in cartVal:
+                string_match = distance(filename, str(cartVal['label']))
+                # print('distance: ' + str(string_match))
+                # print('filename: ' + filename)
+                # print('label: ' + str(cartVal['label']))
+                if string_match < 3:
+                    print('found match' + str(cartVal))
             
-            if cartVal['type'] == 'summary':
-                print('checking summary')
-                if 'blocks' in cartVal:
-                    if 'summaries' in cartVal['blocks']:
-                        for summary in cartVal['blocks']['summaries']:
-                            for summaryKey, summaryVal in summary.items():
-                                if 'title' in summaryVal:
-                                    # print('checking summary title' + str(summaryVal['title']))
-                                    similarity = distance(filename, summaryVal['title'])
-                                    if similarity < 3:
-                                        # print('found match' + str(summaryVal))  
-                                        children = await get_summary_children_by_key(summaryKey, sessionID, cartKey, loadout)
-                                        if children:
-                                            for child in children:
-                                                # print('child' + str(child))
-                                                cartVal['blocks']['summaries'].append(child)
+                    return_string = ''
+                    print('file found')
+                    if cartVal.get('softDelete') == True:
+                        return_string += "File " + filename + " opened.\n"
+                    else:
+                        return_string += "File " + filename + " already open.\n"
 
-                                            input = {
-                                                'sessionID': sessionID,
-                                                'cartKey' : cartKey,
-                                                'fields':
-                                                        {'blocks': cartVal['blocks']},
-                                                        'loadout': loadout
-                                                        }                                        
-                                            update_cartridge_field(input, loadout, True)
-                                            return_string = "File " + filename + " opened.\n"
-                                            command_return['status'] = "Success."
-                                            command_return['message'] = return_string
-                                            print(command_return)
-                                            return command_return
+                    payload = {
+                        'sessionID': sessionID,
+                        'cartridge' : cartKey,
+                        'fields':
+                                {'enabled': True,
+                                'minimised': False,
+                                'softDelete': False,
+                                }
+                                }
+                    loadout = current_loadout[sessionID]
+                    await add_existing_cartridge(payload, loadout)       
+                    command_return['status'] = "Success."
+                    command_return['message'] = return_string
+                    print(command_return)
+                    return command_return
+                
+            # if cartVal['type'] == 'summary':
+            #     print('checking summary')
+            #     if 'blocks' in cartVal:
+            #         if 'summaries' in cartVal['blocks']:
+            #             for summary in cartVal['blocks']['summaries']:
+            #                 for summaryKey, summaryVal in summary.items():
+            #                     if 'title' in summaryVal:
+            #                         # print('checking summary title' + str(summaryVal['title']))
+            #                         similarity = distance(filename, summaryVal['title'])
+            #                         if similarity < 3:
+            #                             # print('found match' + str(summaryVal))  
+            #                             children = await get_summary_children_by_key(summaryKey, sessionID, cartKey, loadout)
+            #                             if children:
+            #                                 for child in children:
+            #                                     # print('child' + str(child))
+            #                                     cartVal['blocks']['summaries'].append(child)
+
+            #                                 input = {
+            #                                     'sessionID': sessionID,
+            #                                     'cartKey' : cartKey,
+            #                                     'fields':
+            #                                             {'blocks': cartVal['blocks']},
+            #                                             'loadout': loadout
+            #                                             }                                        
+            #                                 update_cartridge_field(input, loadout, True)
+            #                                 return_string = "File " + filename + " opened.\n"
+            #                                 command_return['status'] = "Success."
+            #                                 command_return['message'] = return_string
+            #                                 print(command_return)
+            #                                 return command_return
         command_return['status'] = "Error."
         command_return['message'] = "File not found.\n"
         print(command_return)
@@ -676,7 +729,7 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, loadout):
         print(response)
         return response
 
-async def read_text(name, text_title, text_body, sessionID, thread = 0):
+async def read_text(name, text_title, text_body, sessionID, thread = 0, page = 0):
     command_return = {"status": "", "name" :name, "message": ""}
     if text_body == '':
         command_return['status'] = "Error."
@@ -684,7 +737,7 @@ async def read_text(name, text_title, text_body, sessionID, thread = 0):
         return command_return
     
     if len(text_body) > 2000:
-        command_return = await large_document_loop(text_title, text_body, name, sessionID, thread)
+        command_return = await large_document_loop(text_title, text_body, name, sessionID, thread, page)
         return command_return
     
     else:
@@ -694,48 +747,56 @@ async def read_text(name, text_title, text_body, sessionID, thread = 0):
 
 
 
-async def list_files(name, sessionID, thread = 0):
+async def list_files(name, sessionID, loadout, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
 
     eZprint('list available files')
-    string = '\nFiles available:\n'
+    string = '\nOpen files:\n'
 
     label = ''
     type = ''
     description = ''
     preview = ''
     state = ''
-    string = ''
+    # string = ''
     # await ava(convoID)
     if sessionID in available_cartridges:
         for key, val in available_cartridges[sessionID].items():
             if 'type' in val and val['type'] == 'note' or val['type'] == 'index' or val['type'] == 'summary':
-                if 'label' in val:
+                if val.get('label', None):
+                    print(val['label'])
                     string += '\n-' + val['label']
-                if 'text' in val:
+                if val.get('lastUpdated', None):
+                    string += ' | Last updated : ' + val['lastUpdated']
+                if val.get('summary', None):
+                    string += ' | Summary: ' + val['summary']
+                if val.get('text', None):
                     string += val['text'][0:280] + '...\n'
-                if 'enabled' in val and val['enabled'] == True:
-                    if 'minimised' in val and val['minimised'] == True:
-                        string += ' | expand'
-                    else:
-                        string += ' | minimise'
-                    string += ' | close '
-                else:
-                    string += ' | open'
-                string += '\n'
+    scope = None
+    if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
+        convoID = novaSession[sessionID]['convoID'] 
+    if convoID in novaConvo and 'scope' in novaConvo[convoID]:
+        scope = novaConvo[convoID]['scope']
 
-                if val['type'] == 'summary':
-                    if 'blocks' in val:
-                        if 'summaries' in val['blocks']:
-                            for summary in val['blocks']['summaries']:
-                                for summaryKey, summaryVal in summary.items():
-                                    if 'title' in summaryVal:
-                                        string += "\n-"+summaryVal['title'] 
-                                    # if 'body' in summaryVal:
-                                    #     string += "\n"+summaryVal['body'][0:280] + '...\n'
-                                    string += ' | expand'
-                                    string += ' | close'
-                                    string += '\n'
+    if sessionID not in whole_cartridge_list:
+        await get_cartridge_list(sessionID)
+    string += '[Open file commands: Read, Write, Append, Query or Close.]'
+
+    if sessionID in whole_cartridge_list and len(whole_cartridge_list[sessionID])>0:
+        string += '\nClosed files:\n'
+        for key, val in whole_cartridge_list[sessionID].items():    
+            if key not in available_cartridges[sessionID]:
+                if scope == 'global' or loadout == None or 'initial-loadout' in val and val['initial-loadout'] == loadout:
+                    if val.get('label', None):
+                        print(val['label'])
+                        string += '\n-' + val['label']
+                    if val.get('lastUpdated', None):
+                        string += ' | Last updated : ' + val['lastUpdated']
+                    if val.get('summary', None):
+                        string += ' | Summary: ' + val['summary']
+                    if val.get('text', None):
+                        string += val['text'][0:280] + '...\n'
+        string += '[Closed file commands: Open, Read, Query or Delete.]'
 
     if string == '':
         string = 'no files available'
@@ -747,11 +808,64 @@ async def list_files(name, sessionID, thread = 0):
         command_return = await large_document_loop("Files available", string, name, sessionID, thread)
         return command_return
 
-    string = '\nFiles available:\n' + string
+    string = '\nFile List:\n' + string
     command_return['status'] = "Success."
     command_return['message'] = string
     print(command_return)
     return command_return
+
+async def search_files(name, args, sessionID, loadout, thread = 0):
+    command_return = {"status": "", "name" : name, "message": ""}
+
+    query = args.get('query', '')
+    results = await search_cartridges(query, sessionID)
+
+    scope = None
+    if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
+        convoID = novaSession[sessionID]['convoID'] 
+    if convoID in novaConvo and 'scope' in novaConvo[convoID]:
+        scope = novaConvo[convoID]['scope']
+
+    search_response = ''
+    for cartridge in results:
+        # for key, val in cartridge.items():
+        if scope == 'global' or loadout == None or 'initial-loadout' in cartridge and cartridge['initial-loadout'] == loadout:
+            if cartridge.get('label', None):
+                print(cartridge['label'])
+                search_response += '\n-' + cartridge['label']
+            if cartridge.get('lastUpdated', None):
+                search_response += ' | Last updated : ' + cartridge['lastUpdated']
+            if cartridge.get('softDelete', None):
+                search_response += ' | Closed\n'
+            else:
+                search_response += ' | Open\n'
+            if cartridge.get('summary', None):
+                search_response += ' | Summary: ' + cartridge['summary']
+            if cartridge.get('text', None):
+                search_response += ' | ' + cartridge['text'][0:280] + '...\n'
+            # if 'blocks' in val:
+            #     if 'summaries' in val['blocks']:
+            #         for summary in val['blocks']['summaries']:
+            #             for summaryKey, summaryVal in summary.items():
+            #                 if 'title' in summaryVal:
+            #                     search_response += "\n-"+summaryVal['title'] 
+
+    if search_response == '':
+        search_response = 'no files available'
+        command_return['status'] = "Success."
+        command_return['message'] = search_response
+        return command_return
+    
+    if len(search_response) > 2000:
+        command_return = await large_document_loop("Search results", search_response, name, sessionID, thread)
+        return command_return
+    
+    else:
+        search_response = '\nSearch results:\n' + search_response
+        command_return['status'] = "Success."
+        command_return['message'] = search_response
+        return command_return     
+
 
 async def return_from_thread(args):
 
@@ -772,7 +886,7 @@ async def continue_command(convoID, thread):
             command_return = large_document_loop('','','',convoID, thread)
             return command_return
 
-async def large_document_loop(title, string, command = '', convoID= '', thread = 0):
+async def large_document_loop(title, string, command = '', convoID= '', thread = 0, page = -1):
 
     command_return = {"status": "", "name" : command, "message": ""}
 
@@ -780,9 +894,14 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         command_loops[convoID] = {}
     if thread not in command_loops[convoID]:
         command_loops[convoID][thread] = {}
-        command_loops[convoID][thread]['loop'] = 0
+    if command not in command_loops[convoID][thread]:
+        command_loops[convoID][thread][command] = {}
+        command_loops[convoID][thread][command]['loop'] = 0
 
-    loop = command_loops[convoID][thread]['loop']
+    loop = command_loops[convoID][thread][command]['loop']
+
+    if page != -1:
+        loop = page
     
     eZprint('large document loop' + str(loop) + ' ' + str(thread))
 
@@ -801,26 +920,24 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         eZprint('sections created')
         # eZprint(sections)
         # eZprint(len(sections))
-        command_loops[convoID][thread]['sections'] = sections
-        command_loops[convoID][thread]['command'] = command
+        command_loops[convoID][thread][command]['sections'] = sections
 
     else:
         eZprint('loop not 0 sections retrieved')
 
-        sections = command_loops[convoID][thread]['sections']
-        command = command_loops[convoID][thread]['command']
+        sections = command_loops[convoID][thread][command]['sections']
 
-    sections = command_loops[convoID][thread]['sections']
-    command_loops[convoID][thread]['loop'] += 1
-    print(sections)
-    print(len(sections))
-    print(loop)
+    sections = command_loops[convoID][thread][command]['sections']
+    command_loops[convoID][thread][command]['loop'] += 1
+    # print(sections)
+    # print(len(sections))
+    # print(loop)
     if loop < len(sections):
         eZprint('returning sections based on loop')
         command_return['status'] = 'in-progress'
         
-        message = title + ":\n Page " + str(loop) + " of " + str(len(sections)) + "\n" + str(sections[loop])
-        command_return['message'] = message + ongoing_return_string
+        message = title + ":\n\n Page " + str(loop) + " of " + str(len(sections)) + "\n\n" + str(sections[loop])
+        command_return['message'] = message + "\n\nUse " + command + " for next page."""
         command_return['name'] = command
         print(command_return)
         return command_return
@@ -828,14 +945,9 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
     else:
         eZprint('Loop complete as sections val is not last val')
         command_return['status'] = "Success."
-        message = title + "is complete, closing loop." 
+        message = title + " is complete." 
         command_return['message'] = message
         print(command_return)
         return command_return
 
-
-
-# ongoing_return_string = """\n Commands available: 'open' to add document to working memory, 'close' to remove, 'continue' to see next page, 'note' to take note or 'return' to return to main thread with message."""
-
-ongoing_return_string = """\n Enter 'continue' for next page."""
 

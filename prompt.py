@@ -107,15 +107,15 @@ async def construct_system_string(prompt_objects, convoID):
     if 'summary' in prompt_objects:
         final_string += "\n--Past conversations--"
         final_string += prompt_objects['summary']['string'] 
-        final_string += '\n[Past conversations can be queried for more detail.]\n'
+        final_string += '\n[Past conversations can be queried or read for more detail.]\n'
     if 'index' in prompt_objects:
         final_string += "\n--Embedded documents--"
         final_string += prompt_objects['index']['string'] 
-        final_string += '\n[Embedded documents can be queried, opened or closed.]\n'
+        final_string += '\n[Embedded documents can be queried, or closed.]\n'
     if 'note' in prompt_objects:
         final_string += "\n--Notes--\n"
         final_string += prompt_objects['note']['string']
-        final_string += '\n[Notes can be written, appended, opened or closed.]\n'
+        final_string += '\n[Notes can be written, appended, read, quieried or closed.]\n'
     if 'media' in prompt_objects:
         final_string += "\n--Media--"
         final_string += prompt_objects['media']['string']

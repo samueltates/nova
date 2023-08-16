@@ -359,6 +359,7 @@ async def process_message(parsed_data):
         # convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']    
         params = parsed_data['data']['params']
+        print(params)
         await set_loadout(loadout, sessionID, True)
         await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(sessionID)
@@ -370,8 +371,7 @@ async def process_message(parsed_data):
         else:
             convoID_full = await start_new_convo(sessionID)
         await initialise_conversation(sessionID,convoID_full, params)
-        await runCartridges(sessionID, loadout)
-        
+        await runCartridges(sessionID, loadout)  
         
     if(parsed_data['type'] == 'requestCartridges'):
         convoID = parsed_data['data']['convoID']
