@@ -904,8 +904,8 @@ async def summarise_percent(convoID, percent):
         'summaryKey': summaryKey,
     }
 
-    payload = {'summaryKey':summaryKey, 'messages': message_keys}
-    await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
+    # payload = {'summaryKey':summaryKey, 'messages': message_IDs}
+    await  websocket.send(json.dumps({'event':'create_summary', 'payload':summary_block}))
 
     summary_result = await summariseChatBlocks(summary_block)
     return summary_result
@@ -936,8 +936,8 @@ async def summarise_from_range(convoID, start, end):
         'summaryKey': summaryKey,
     }
 
-    payload = {'summaryKey':summaryKey, 'messages': message_IDs}
-    await  websocket.send(json.dumps({'event':'create_summary', 'payload':payload}))
+    # payload = {'summaryKey':summaryKey, 'messageIDs': message_IDs}
+    await  websocket.send(json.dumps({'event':'create_summary', 'payload':summary_block}))
     summary_result = await summariseChatBlocks(summary_block)
     return summary_result
 
@@ -1007,7 +1007,7 @@ async def summariseChatBlocks(input,  loadout = None):
         "[Note Title2]": "[Note Body2]"
     }
     }
-
+~
     Ensure that the summary captures essential decisions, discoveries, or resolutions, and keep the information dense and easy to parse.
     """
 
@@ -1018,7 +1018,7 @@ async def summariseChatBlocks(input,  loadout = None):
 
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
     #wait for 2 seconds
-    print(summary)
+    # print(summary)
     if summary:
         summarDict = json.loads(summary, strict=False)
     # print(summarDict)
@@ -1048,7 +1048,7 @@ async def summariseChatBlocks(input,  loadout = None):
     # print(summary)
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index(start_message) 
-    chatlog[convoID].insert(injectPosition, {'id':summaryID, 'userName': 'summary', 'title':summarDict['title'], 'role':'user', 'body': summarDict['body'],'timestamp':datetime.now(),'key':summaryKey})
+    chatlog[convoID].insert(injectPosition, {'id':summaryID, 'userName': 'summary', 'title':summarDict['title'], 'role':'assistant', 'body': summarDict['title'] + '\n' + summarDict['body'],'timestamp':datetime.now(),'key':summaryKey})
     # print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(
@@ -1077,7 +1077,7 @@ async def summariseChatBlocks(input,  loadout = None):
                     }
                 )
 
-        payload = {'key':log['id'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
+        payload = {'id':log['id'], 'fields' :{ 'summarised': True, 'muted': True, 'minimised': True,}}
         await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
         # print('updated message' + str(log))
         log['summarised'] = True

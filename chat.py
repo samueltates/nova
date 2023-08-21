@@ -296,7 +296,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
-
+    # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
     novaConvo[convoID]['command-loop'] = True
     if 'steps-taken' not in novaConvo[convoID]:
@@ -306,16 +306,16 @@ async def command_interface(command, convoID, threadRequested):
     print(novaConvo[convoID]['steps-taken'])
     
     command_response = None
-    def error_handler():
-        logging.basicConfig(filename='errors.log', level=logging.ERROR)
-    try:
+    # def error_handler():
+    #     logging.basicConfig(filename='errors.log', level=logging.ERROR)
+    # try:
         # Your code here
-        command_response = await handle_commands(command, convoID, threadRequested)
+    command_response = await handle_commands(command, convoID, threadRequested)
 
-    except Exception as e:
-        error_handler()
-        logging.error(str(e))
-        await handle_message(convoID, e, 'user', 'terminal', None, 0, 'terminal')
+    # except Exception as e:
+    #     error_handler()
+    #     logging.error(str(e))
+    #     await handle_message(convoID, e, 'user', 'terminal', None, 0, 'terminal')
 
 
     if not command_response:
@@ -406,7 +406,7 @@ async def command_interface(command, convoID, threadRequested):
         if 'model' in novaConvo[convoID]:
             model = novaConvo[convoID]['model']
             print ('model: ' + model)
-        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
+        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
         
         print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
 

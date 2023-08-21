@@ -16,8 +16,9 @@ simple_agents = {}
 async def construct_query(convoID, thread = 0):
     # print('constructing query')
     cartridges = await unpack_cartridges(convoID)
-    prompt_string = await construct_system_string(cartridges, convoID)
-    await construct_objects(convoID, prompt_string, cartridges)
+    system_string = await construct_system_string(cartridges, convoID)
+    content_string = await construct_content_string(cartridges, convoID)
+    await construct_objects(convoID, system_string,content_string, cartridges)
     await construct_chat(convoID, thread)
     await handle_token_limit(convoID)
 
@@ -34,15 +35,25 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
             if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
-                cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
-                # if cartVal['type'] == 'note' or cartVal['type'] == 'index':
-                #     if 'minimised' in cartVal and cartVal['minimised']:
-                #         cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
-                #     else:
-                #         cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
-                # if cartVal['type']=='summary' or cartVal['type']=='index':
-                #     cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
-                # cartridge_contents[cartVal['type']]['string'] +=  "\n"
+                cartridge_contents[cartVal['type']]['string'] += "\n-" + cartVal['label']
+                if cartVal['type'] != 'prompt':
+                    if cartVal.get('lastUpdated', None):
+                        cartridge_contents[cartVal['type']]['string'] += ' | Last updated : ' + cartVal['lastUpdated']
+                    if cartVal.get('summary', None):
+                        cartridge_contents[cartVal['type']]['string'] += ' | Summary: ' + cartVal['summary']
+                    if cartVal.get('text', None):
+                        cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['text'][0:140] + ' ...\n'
+                    if cartVal.get('blocks', None):
+                        if cartVal['blocks'].get('overview', None):
+                            cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['blocks']['overview'][0:140] + ' ...\n'
+                        # if cartVal['type'] == 'note' or cartVal['type'] == 'index':
+                        #     if 'minimised' in cartVal and cartVal['minimised']:
+                        #         cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
+                        #     else:
+                        #         cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
+                        # if cartVal['type']=='summary' or cartVal['type']=='index':
+                        #     cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
+                        # cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
                 cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
             if 'blocks' in cartVal:
@@ -99,28 +110,52 @@ async def unpack_cartridges(convoID):
 
 async def construct_system_string(prompt_objects, convoID):
     # print('constructing string')
-    final_string = ''
+    system_string = ''
 
     if 'prompt' in prompt_objects:    
-        final_string += "\n--Instructions--"
-        final_string += prompt_objects['prompt']['string']
+        system_string += "\n--Instructions--"
+        system_string += prompt_objects['prompt']['string']
+    # if 'summary' in prompt_objects:
+    #     final_string += "\n--Past conversations--"
+    #     final_string += prompt_objects['summary']['string'] 
+    #     final_string += '\n[Past conversations can be queried or read for more detail.]\n'
+    # if 'index' in prompt_objects:
+    #     final_string += "\n--Embedded documents--"
+    #     final_string += prompt_objects['index']['string'] 
+    #     final_string += '\n[Embedded documents can be queried, or closed.]\n'
+    # if 'note' in prompt_objects:
+    #     final_string += "\n--Notes--\n"
+    #     final_string += prompt_objects['note']['string']
+    #     final_string += '\n[Notes can be written, appended, read, quieried or closed.]\n'
+    # if 'media' in prompt_objects:
+    #     final_string += "\n--Media--"
+    #     final_string += prompt_objects['media']['string']
+    #     final_string += '\n[Media can be opened, closed or queried.]\n'
+    return system_string
+
+
+async def construct_content_string(prompt_objects, convoID):
+    content_string = ''
+
     if 'summary' in prompt_objects:
-        final_string += "\n--Past conversations--"
-        final_string += prompt_objects['summary']['string'] 
-        final_string += '\n[Past conversations can be queried or read for more detail.]\n'
+        content_string += "\n--Past conversations--"
+        content_string += prompt_objects['summary']['string'] 
+        content_string += '\n[The summary can be queried or read for more detail.]\n'
+
+    content_string += "\n--Files available--"
     if 'index' in prompt_objects:
-        final_string += "\n--Embedded documents--"
-        final_string += prompt_objects['index']['string'] 
-        final_string += '\n[Embedded documents can be queried, or closed.]\n'
+        content_string += "\nEmbedded documents:"
+        content_string += prompt_objects['index']['string'] 
+        content_string += '\n[Embedded documents can be queried, or closed.]\n'
     if 'note' in prompt_objects:
-        final_string += "\n--Notes--\n"
-        final_string += prompt_objects['note']['string']
-        final_string += '\n[Notes can be written, appended, read, quieried or closed.]\n'
+        content_string += "\nNotes:"
+        content_string += prompt_objects['note']['string']
+        content_string += '\n[Notes can be written, appended, read, queried or closed.]\n'
     if 'media' in prompt_objects:
-        final_string += "\n--Media--"
-        final_string += prompt_objects['media']['string']
-        final_string += '\n[Media can be opened, closed or queried.]\n'
-    return final_string
+        content_string += "\nMedia:"
+        content_string += prompt_objects['media']['string']
+        content_string += '\n[Media can be opened, closed or queried.]\n'
+    return content_string
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
@@ -189,7 +224,7 @@ async def construct_context(convoID):
     return session_string
 
 
-async def construct_objects(convoID, main_string = None, prompt_objects = None, thread = 0 ):
+async def construct_objects(convoID, system_string = None, content_string = None, prompt_objects = None, thread = 0 ):
     list_to_send = []
     emphasis_to_send = []
     # print('main string is: ' + str(main_string))
@@ -197,8 +232,8 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
     emphasise_string = ''
     final_prompt_string = ''
     give_context = False
-    if main_string:
-        final_prompt_string += main_string
+    if system_string:
+        final_prompt_string += system_string
     if 'system' in prompt_objects:
         # if 'string' in prompt_objects['system']:
         #     final_prompt_string += "\n"+prompt_objects['system']['string']
@@ -219,25 +254,28 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
                         if value['auto-summarise'] == True:
                             # print('auto summarise found')
                             novaConvo[convoID]['auto-summarise'] = True
-                            if 'summarise-at' in value:
-                                # print(value['summarise-at'] + ' found')
-                                novaConvo[convoID]['summarise-at'] = int(value['summarise-at'])
-                            else:
-                                novaConvo[convoID]['summarise-at'] = .8
                         if value['auto-summarise'] == False:
                             novaConvo[convoID]['auto-summarise'] = False
+                    if 'summarise-at' in value:
+                        # print(str(value['summarise-at']) + ' found')
+                        novaConvo[convoID]['summarise-at'] = float(value['summarise-at'])
+                    # else:
+                    #     novaConvo[convoID]['summarise-at'] = .6
                     if 'agent-name' in value:
                         novaConvo[convoID]['agent-name'] = value['agent-name']
                     if 'give-context' in value:
                         if value['give-context'] == True:
                             give_context = True
-                    novaConvo[convoID]['token_limit'] = 4000
+                    # novaConvo[convoID]['token_limit'] = 4000
                     if 'model' in value:
                         novaConvo[convoID]['model'] = value['model']
                         if novaConvo[convoID]['model'] == 'gpt-4':
                             novaConvo[convoID]['token_limit'] = 8000
                         else:
                             novaConvo[convoID]['token_limit'] = 4000
+                    if 'scope' in value:
+                        novaConvo[convoID]['scope'] = value['scope']
+                  
         if give_context:
             context = await construct_context(convoID)
             final_prompt_string += context
@@ -274,9 +312,11 @@ async def construct_objects(convoID, main_string = None, prompt_objects = None, 
         # print('command string is: ' + str(final_command_string))
         final_prompt_string += "\n"+final_command_string
         novaConvo[convoID]['command'] = True
+    
     emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
     # print('final prompt string is: ' + str(final_prompt_string))
-    list_to_send.append({"role": "system", 'content': final_prompt_string})
+    list_to_send.append({"role": "user", 'content': final_prompt_string})
+    list_to_send.append({"role": "user", 'content': content_string})
     # print('list to send is: ' + str(list_to_send))
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
@@ -394,18 +434,21 @@ async def construct_commands(command_object, thread = 0):
                 
     
 async def handle_token_limit(convoID):
-    # print('handling token limit')
+    print('handling token limit')
     # print(novaConvo[convoID])
-    await summarise_at_limit(current_prompt[convoID]['prompt'], .25, convoID, 'prompt')
+    await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['emphasise'], .25, convoID, 'prompt')
     await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
+    # await summarise_at_limit(current_prompt[convoID]['emphasise'], .25, convoID, 'emphasise')
     # print (novaConvo[convoID]['auto-summarise'])
     if convoID in novaConvo and 'auto-summarise' in novaConvo[convoID] and novaConvo[convoID]['auto-summarise']:
         summarise_at = .8
         if 'summarise-at' in novaConvo[convoID]:
             summarise_at = novaConvo[convoID]['summarise-at']
-        prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
+        else:
+            novaConvo[convoID]['summarise-at'] = .6
+        prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise'], summarise_at, convoID, 'combined')
         if prompt_too_long: 
-            await summarise_percent(convoID, .5)
+            await summarise_percent(convoID, .3)
             await construct_chat(convoID,0)
 
         
@@ -438,6 +481,8 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
     tokens = estimateTokenSize(str(string_to_check))
     # print('nova convo')
     # print(novaConvo[convoID])
+    # print(convoID)
+    # print(novaConvo)
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 
@@ -481,7 +526,6 @@ async def get_system_preline_object():
 basic_system_endline = {"role": "user", "content": "Think about current instructions, resources and user response. Compose your answer and respond using the format specified above, including any commands:"}
 
 thread_system_endline = {"role": "user", "content": "You have entered a terminal session. Think about current objectives, the system response, and return command using the format specified above:\n>_ "}
-
 
 
 return_command =  """return: returns from thread with message for user, args: "message": "<message_string>,"""

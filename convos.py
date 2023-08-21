@@ -120,7 +120,7 @@ async def populate_summaries(sessionID):
 async def set_convo(requested_convoID, sessionID):
     
     userID = novaSession[sessionID]['userID']
-    # print(requested_convoID)
+    print(requested_convoID)
     splitConvoID = requested_convoID.split('-')
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
@@ -175,7 +175,7 @@ async def set_convo(requested_convoID, sessionID):
             for key, val in json_summary.items():
                 # if val['epoch']<1:
                     summaries_found = True
-                    val['role'] = 'user'
+                    val['role'] = 'assistant'
                     val['userName']= 'summary'
                     # val['muted'] = False
                     # val['minimised'] = False
@@ -260,14 +260,15 @@ async def set_convo(requested_convoID, sessionID):
     await websocket.send(json.dumps({'event':'set_convo', 'payload':{'messages': chatlog[requested_convoID], 'convoID' : requested_convoID}}))
         # print(chatlog[requested_convoID])
     
-    loadout = current_loadout[sessionID]
-    if loadout:
-        print('updating loadout field' + str(loadout))
-        await update_loadout_field(loadout, 'convoID', requested_convoID)
     novaSession[sessionID]['convoID'] = requested_convoID
     novaConvo[requested_convoID] = {}
     novaConvo[requested_convoID]['sessionID'] = sessionID
-    novaConvo[requested_convoID]['loadout'] = loadout
+    loadout = current_loadout[sessionID]
+    if loadout:
+        print('updating loadout field' + str(loadout))
+        novaConvo[requested_convoID]['loadout'] = loadout
+        print(novaConvo[requested_convoID]['loadout'])
+        await update_loadout_field(loadout, 'convoID', requested_convoID)
 
 async def handle_convo_switch(sessionID):
     print('handle_convo_switch called')
@@ -295,9 +296,12 @@ async def start_new_convo(sessionID):
     loadout = current_loadout[sessionID]
     # await initialise_conversation(sessionID, convoID, params)
     convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
+    print('new convo convoID full ' + convoID_full)
     novaSession[sessionID]['convoID'] = convoID_full
+
     novaConvo[convoID_full] = {}
     novaConvo[convoID_full]['sessionID'] = sessionID
+    novaConvo[convoID_full]['loadout'] = loadout
     session ={
         'sessionID' : convoID_full,
         'convoID' : convoID_full,

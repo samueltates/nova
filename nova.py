@@ -46,7 +46,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
             novaSession[sessionID]['userName'] = params['name']
         if 'message' in params:
             novaConvo[convoID]['message'] = params['message']
-            print(params['message'])
+            # print(params['message'])
 
         if 'model' in params:
             novaConvo[convoID]['model'] = params['model']
@@ -61,8 +61,6 @@ async def initialise_conversation(sessionID,convoID, params = None):
     # print('nova convo')
     # print(novaConvo[convoID])
         # print(params['model'])
-
-
 
     userID = novaSession[sessionID]['userID']
 
@@ -132,34 +130,34 @@ async def runCartridges(sessionID, loadout = None):
 
     if sessionID in available_cartridges:
         for cartKey, cartVal in available_cartridges[sessionID].items():
-            if cartVal['type'] == 'summary':
-                if 'enabled' in cartVal and cartVal['enabled'] == True:
-                    # print('running summary cartridge on loadout ' + str(loadout))
-                    # if cartVal['state'] != 'loading':
-                    # print('running summary cartridge' + str(cartVal))
-                    # if 'running' in cartVal:
-                    #     print(cartVal)
-                    if 'running' not in cartVal or cartVal['running'] == False:
-                        try : 
-                            input = {
-                                'cartKey': cartKey,
-                                'sessionID': sessionID,
-                                'fields': {
-                                    'running': True,
-                                }
-                            }
-                            await update_cartridge_field(input, loadout)
-                            asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
-                        except Exception as e:
-                            print(e)
-                            input = {
-                                'cartKey': cartKey,
-                                'sessionID': sessionID,
-                                'fields': {
-                                    'running': False,
-                                }
-                            }
-                            await update_cartridge_field(input, loadout)
+            # if cartVal['type'] == 'summary':
+            #     if 'enabled' in cartVal and cartVal['enabled'] == True:
+            #         # print('running summary cartridge on loadout ' + str(loadout))
+            #         # if cartVal['state'] != 'loading':
+            #         # print('running summary cartridge' + str(cartVal))
+            #         # if 'running' in cartVal:
+            #         #     print(cartVal)
+            #         if 'running' not in cartVal or cartVal['running'] == False:
+            #             try : 
+            #                 input = {
+            #                     'cartKey': cartKey,
+            #                     'sessionID': sessionID,
+            #                     'fields': {
+            #                         'running': True,
+            #                     }
+            #                 }
+            #                 await update_cartridge_field(input, loadout)
+            #                 asyncio.create_task(run_summary_cartridges(sessionID, cartKey, cartVal, loadout))
+            #             except Exception as e:
+            #                 print(e)
+            #                 input = {
+            #                     'cartKey': cartKey,
+            #                     'sessionID': sessionID,
+            #                     'fields': {
+            #                         'running': False,
+            #                     }
+            #                 }
+            #                 await update_cartridge_field(input, loadout)
                             
             
                     # else:
@@ -179,6 +177,7 @@ async def runCartridges(sessionID, loadout = None):
                 novaConvo[convoID]['token_limit'] = 4000
 
                 if 'values' in cartVal:
+                    # print('values in cartVal' + str(cartVal['values']))
                     for values in cartVal['values']:
                         if 'model' in values:
                             novaConvo[convoID]['model'] = values['model']
@@ -187,9 +186,20 @@ async def runCartridges(sessionID, loadout = None):
                                 novaConvo[convoID]['token_limit'] = 8000
                             else:
                                 novaConvo[convoID]['token_limit'] = 4000
-                        if 'scope' in values:
-                            novaConvo[convoID]['scope'] = values['scope']
-                            # print('scope set to ' + str(values['scope']))
+                    # if 'scope' in cartVal['values']:
+                    #     novaConvo[convoID]['scope'] = values['scope']
+                    #     # print('scope set to ' + str(values['scope']))
+                    # else :
+                    #     novaConvo[convoID]['scope'] = 'local'
+                    #     cartVal['values'].append({'scope': 'local'})
+                    #     input = {
+                    #         'cartKey': cartKey,
+                    #         'sessionID': sessionID,
+                    #         'fields': {
+                    #             'values': cartVal['values'],
+                    #         }
+                    #     }
+                    #     await update_cartridge_field(input, loadout, True)
 
 async def addNewUserCartridgeTrigger(sessionID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this

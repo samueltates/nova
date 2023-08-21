@@ -8,6 +8,7 @@ from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
 from Levenshtein import distance
 from file_handling.media_editor import split_video
+from google_search import google_api_search
 from file_handling.url_scraper import advanced_scraper
 import asyncio
 
@@ -22,7 +23,12 @@ command_loops = {}
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     eZprint('handling command')
     sessionID = novaConvo[convoID]['sessionID']
-    loadout = novaConvo[convoID]['loadout']
+    # loadout = novaConvo[convoID]['loadout']
+    splitID = convoID.split('-')
+    loadout = None
+    if len(splitID) > 1:
+        loadout = splitID[2]
+
     print(command_object)
     if command_object:
         name = ''
@@ -63,22 +69,42 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     command_return = {"status": "", "name" : name, "message": ""}
     print( 'command name: ' + name + ' args: ' + str(args))
     
-    if 'search' in name or name in 'search':
+    if 'search_files' in name or name in 'search_files':
         if args.get('query'):
-            if args.get('type') == 'files':
-                response = await search_files(name, args, sessionID, loadout, thread) 
-                return response
-            # elif args.get('type') == 'web':
-            #     # response = await search_web(name, args, sessionID, loadout, thread)
-            #     return response
-            else:
-                command_return['status'] = "Error."
-                command_return['message'] = "type can't be blank"
-                return command_return
+            # if args.get('type') == 'files':
+            response = await search_files(name, args, sessionID, loadout, thread) 
+            return response
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Query can't be blank"
             return command_return
+            # elif args.get('type') == 'web':
+            #     # response = await search_web(name, args, sessionID, loadout, thread)
+            #     return response
+    if 'search_web' in name or name in 'search_web':
+            # elif args.get('type') == 'web':
+            if args.get('query'):
+
+                # Call the Google API Search function
+                searchResults = google_api_search(args.get('query'))
+                # Return results
+                command_return['status'] = 'Success.'
+                command_return['message'] = 'Google web search completed. Results : ' + str(searchResults)
+                command_return['data'] = searchResults
+                return command_return
+            else:
+                command_return['status'] = "Error."
+                command_return['message'] = "Query can't be blank"
+                return command_return
+     
+            # else:
+            #     command_return['status'] = "Error."
+            #     command_return['message'] = "type can't be blank"
+            #     return command_return
+        # else:
+        #     command_return['status'] = "Error."
+        #     command_return['message'] = "Query can't be blank"
+        #     return command_return
         # if args.get('type') == 'web':
 
     if 'query' in name or name in 'query':
@@ -94,37 +120,36 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     text_to_read = ''
                     if val.get('text', None):
                         text_to_read = val['text']
-                    else:
+                    if text_to_read == '':
                         text_to_read = str(val)
-                    if 'text' in val:
-                        if 'page' not in args:
-                            response = await read_text(name, val['label'], str(text_to_read), sessionID, thread,0)
-                        if 'page' in args:
-                            new_page = args['page']
-                            response = await read_text(name, val['label'],  str(text_to_read), sessionID, thread, args['page'])
-                        new_page = int(new_page + 1)
+                    if 'page' not in args:
+                        response = await read_text(name, val['label'], str(text_to_read), convoID, thread,0)
+                    if 'page' in args:
+                        new_page = args['page']
+                        response = await read_text(name, val['label'],  str(text_to_read), convoID, thread, args['page'])
+                    new_page = int(new_page + 1)
 
-                        if 'status' in response:
-                            if response['status'] == 'Success.':
-                                new_page = 0
+                    if 'status' in response:
+                        if response['status'] == 'Success.':
+                            new_page = 0
 
-                        payload = {
-                            'cartKey' : key,
-                            'sessionID' : sessionID,
-                            'fields' : {
-                                'page' : new_page
-                            }
-                            }
-                            
-                        update_cartridge_field(payload)
-                        return response
+                    payload = {
+                        'cartKey' : key,
+                        'sessionID' : sessionID,
+                        'fields' : {
+                            'page' : new_page
+                        }
+                        }
+                        
+                    # if text_to_read == '':
+                    #     command_return['status'] = "Error."
+                    #     command_return['message'] = "Text empty."
+                    #     print(command_return)
+                    #     return command_return
+                    
+                    await update_cartridge_field(payload)
+                    return response
 
-                    else:
-
-                        command_return['status'] = "Error."
-                        command_return['message'] = "Text empty."
-                        print(command_return)
-                        return command_return
                     
         command_return['status'] = "Error."
         command_return['message'] = "File not found."
@@ -418,10 +443,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(command_return)
         return command_return
 
+    # if name == 'read_website':
+
+
+        
+
     if name == 'scrape_website':
         website_url = args['website_url']
         scraped_data = await advanced_scraper(website_url)
-        print('length is ' + str(len(str(scraped_data))))
+        # print('length is ' + str(len(str(scraped_data))))
 
         
         cartVal = {
@@ -432,10 +462,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         'minimised' : False,
         }
 
-        print(cartVal)
+        # print(cartVal)
         await addCartridge(cartVal, sessionID, current_loadout[sessionID])
         command_return['status'] = "Success."
-        command_return['message'] = "Website scrape saved as  : " + str(website_url)
+        command_return['message'] = "Website scrape saved as  : 'scrape of ' + " + str(website_url)
         return command_return
 
         # if len(str(scraped_data)) > 2000:
@@ -451,6 +481,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     command_return['status'] = "Error."
         #     command_return['message'] = "Website scrape failed"
         #     return command_return
+    else:
+        command_return['status'] = "Error."
+        command_return['message'] = "Command not recognised"
+        return command_return
 
 
 async def open_file(name, args, sessionID, loadout):
@@ -729,7 +763,7 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, loadout):
         print(response)
         return response
 
-async def read_text(name, text_title, text_body, sessionID, thread = 0, page = 0):
+async def read_text(name, text_title, text_body, convoID, thread = 0, page = 0):
     command_return = {"status": "", "name" :name, "message": ""}
     if text_body == '':
         command_return['status'] = "Error."
@@ -737,7 +771,7 @@ async def read_text(name, text_title, text_body, sessionID, thread = 0, page = 0
         return command_return
     
     if len(text_body) > 2000:
-        command_return = await large_document_loop(text_title, text_body, name, sessionID, thread, page)
+        command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page)
         return command_return
     
     else:
@@ -819,12 +853,13 @@ async def search_files(name, args, sessionID, loadout, thread = 0):
 
     query = args.get('query', '')
     results = await search_cartridges(query, sessionID)
-
+    # print(results)
     scope = None
     if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
         convoID = novaSession[sessionID]['convoID'] 
     if convoID in novaConvo and 'scope' in novaConvo[convoID]:
         scope = novaConvo[convoID]['scope']
+    # print(novaConvo[convoID])
 
     search_response = ''
     for cartridge in results:
@@ -898,16 +933,21 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         command_loops[convoID][thread] = {}
     if command not in command_loops[convoID][thread]:
         command_loops[convoID][thread][command] = {}
-        command_loops[convoID][thread][command]['loop'] = 0
+        command_loops[convoID][thread][command]
+        
+    if title not in command_loops[convoID][thread][command]:
+        command_loops[convoID][thread][command][title] = {}
 
-    loop = command_loops[convoID][thread][command]['loop']
+    if 'loop' not in command_loops[convoID][thread][command][title]:
+        command_loops[convoID][thread][command][title]['loop'] = 0
+    
+    loop = command_loops[convoID][thread][command][title]['loop']
 
     if page != -1:
-        loop = page
+        loop = int(page)
     
-    eZprint('large document loop' + str(loop) + ' ' + str(thread))
 
-    if loop == 0:
+    if loop == 0 or 'sections' not in command_loops[convoID][thread][command][title]:
         
         eZprint('loop 0')
         sections = []
@@ -922,15 +962,17 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         eZprint('sections created')
         # eZprint(sections)
         # eZprint(len(sections))
-        command_loops[convoID][thread][command]['sections'] = sections
+        command_loops[convoID][thread][command][title]['sections'] = sections
 
     else:
         eZprint('loop not 0 sections retrieved')
 
-        sections = command_loops[convoID][thread][command]['sections']
+        sections = command_loops[convoID][thread][command][title]['sections']
+    
+    eZprint('large document loop' + str(loop) + ' ' + str(thread))
 
-    sections = command_loops[convoID][thread][command]['sections']
-    command_loops[convoID][thread][command]['loop'] += 1
+    sections = command_loops[convoID][thread][command][title]['sections']
+    command_loops[convoID][thread][command][title]['loop'] += 1
     # print(sections)
     # print(len(sections))
     # print(loop)

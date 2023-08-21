@@ -104,7 +104,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, client_loadout = None):
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
-    # eZprint('update settings in loadout triggered')
+    eZprint('update settings in loadout triggered')
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout) },
     )
@@ -124,11 +124,11 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
                             cart['settings'] = {}                
                         for settingsKey, settingsVal in settings.items():
                             if settingsKey == 'enabled':
-                                cart['settings'][settingsVal] = settingsVal
+                                cart['settings'][settingsKey] = settingsVal
                             if settingsKey == 'minimised':
-                                cart['settings'][settingsVal] = settingsVal
+                                cart['settings'][settingsKey] = settingsVal
                             if settingsKey == 'softDelete':
-                                cart['settings'][settingsVal] = settingsVal
+                                cart['settings'][settingsKey] = settingsVal
                                          
         update = await prisma.loadout.update(
             where = {
@@ -138,6 +138,8 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout):
                 "blob":Json(blob)
                 }
         )
+        print('loadout updated')
+        # print(update)
 
 async def set_loadout(loadout_key: str, sessionID, referal = False):
 

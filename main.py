@@ -303,6 +303,7 @@ async def process_message(parsed_data):
         novaSession[sessionID]['convoID'] = convoID_full
         novaConvo[convoID_full] = {}
         novaConvo[convoID_full]['sessionID'] = sessionID
+        novaConvo[convoID_full]['loadout'] = loadout
         session ={
             'sessionID' : convoID_full,
             'convoID' : convoID_full,
@@ -548,6 +549,7 @@ async def process_message(parsed_data):
         sessionID = novaConvo[convoID]['sessionID']
         query = parsed_data['data']['query']
         await search_cartridges(query, sessionID)
+
     if(parsed_data['type']=='request_content_children'):
         eZprint('request content route hit')
         print(parsed_data['data'])

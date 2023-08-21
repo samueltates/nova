@@ -256,7 +256,7 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
                     if key == 'minimised':
                         continue
                     if key == 'softDelete' and val == True:
-                        print('soft delete')
+                        # print('soft delete')
                         del available_cartridges[sessionID][targetCartKey]
                         continue
                     matchedCartVal[key] = val
@@ -268,7 +268,7 @@ async def update_cartridge_field(input, client_loadout= None, system = False):
             for key, val in input['fields'].items():
                 matchedCartVal[key] = val
                 if key == 'softDelete' and val == True:
-                    print('soft delete')
+                    # print('soft delete')
                     del available_cartridges[sessionID][targetCartKey]
 
                 
@@ -388,27 +388,30 @@ async def copy_cartridges_from_loadout(loadout: str, sessionID):
 async def search_cartridges(search_query, sessionID):
     matching_objects = []
     #sort by last updated
+    print('search cartridges')
     if sessionID not in whole_cartridge_list:
         whole_cartridge_list[sessionID] = {}
         await get_cartridge_list(sessionID)
 
     default_value = '1970-01-01 00:00:00.000000'
     sorted_cartridge_list = sorted(whole_cartridge_list[sessionID].items(), key=lambda x: x[1].get('lastUpdated', default_value), reverse=True)
+    search_query = search_query.lower()
     for key, val in sorted_cartridge_list:
         for field, value in val.items():
+            value = str(value).lower()
             if len(str(value)) and search_query in str(value):
                 match_index = str(value).index(search_query)
-                print(match_index)
+                # print(match_index)
                 start = max(0, match_index - 100) # slice bounds handling
-                print(start)
+                # print(start)
                 end = min(len(str(value)), match_index + 100)
-                print(end)
+                # print(end)
                 snippet = str(value)[start:end]
-                print(snippet)
+                # print(snippet)
                 val['snippet'] = snippet
-                print(val)
+                # print(val)
                 matching_objects.append(val)
                 break
-    print(matching_objects)
+    # print(matching_objects)
     await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': matching_objects}))
     return matching_objects
