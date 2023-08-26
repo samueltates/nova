@@ -17,6 +17,7 @@ from memory import run_summary_cartridges
 from cartridges import copy_cartridges_from_loadout, update_cartridge_field
 from debug import fakeResponse, eZprint
 from tokens import update_coin_count
+from file_handling.s3 import get_signed_urls
 
 agentName = "nova"
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
@@ -130,6 +131,9 @@ async def runCartridges(sessionID, loadout = None):
 
     if sessionID in available_cartridges:
         for cartKey, cartVal in available_cartridges[sessionID].items():
+            if cartVal['type'] == 'media':
+                url = await get_signed_urls(cartKey)
+                await update_cartridge_field({'cartKey': cartKey, 'sessionID': sessionID, 'fields': {'url': url}}, loadout)
             # if cartVal['type'] == 'summary':
             #     if 'enabled' in cartVal and cartVal['enabled'] == True:
             #         # print('running summary cartridge on loadout ' + str(loadout))

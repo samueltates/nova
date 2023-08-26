@@ -2,9 +2,8 @@ import asyncio
 import json
 from debug import eZprint
 from appHandler import app, websocket
-from sessionHandler import available_cartridges, chatlog, novaConvo, current_loadout, novaSession
+from sessionHandler import available_cartridges, chatlog, novaConvo, current_loadout, novaSession, system_threads, command_loops
 from memory import get_sessions, summarise_percent
-from commands import system_threads, command_loops
 from query import sendChat
 from datetime   import datetime
 from cartridges import update_cartridge_field

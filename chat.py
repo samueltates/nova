@@ -8,12 +8,12 @@ from copy import deepcopy
 
 from debug import eZprint
 from appHandler import websocket
-from sessionHandler import novaConvo, novaSession, chatlog, available_cartridges, agentName
+from sessionHandler import novaConvo, novaSession, chatlog, available_cartridges, agentName, system_threads, command_loops
 from loadout import current_loadout, update_loadout_field
 from prismaHandler import prisma
 from prompt import construct_query, construct_chat, current_prompt, simple_agents, summarise_at_limit
 from query import sendChat
-from commands import handle_commands, system_threads, command_loops
+from commands import handle_commands
 from memory import get_sessions, summarise_from_range, summarise_percent
 from jsonfixes import correct_json
 from cartridges import updateContentField
@@ -80,6 +80,18 @@ async def user_input(sessionData):
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         # print ('model: ' + model)
+    if message[0] == '/':
+        #remove the / and then send to command interface
+        message = message[1:]
+        json_object = await parse_json_string(message)
+        if json_object != None:
+            command = await get_json_val(json_object, 'command')
+            if command:
+                await command_interface(command, convoID, 0)
+                print('command found from user')
+                return
+
+    print('sending user message to GPT')
     await send_to_GPT(convoID, query_object, 0, model)
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
@@ -231,13 +243,6 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
 async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'):
     
-    ## sends prompt object to GPT and handles response
-    # eZprint('sending to GPT')
-    # print( len(str(promptObject)))
-    # print(promptObject)
-    # for object in promptObject:
-    #     print(f'{object["role"]}')
-    #     print(f'{object["content"]}')
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
     if 'agent-name' not in novaConvo[convoID]:
@@ -396,32 +401,30 @@ async def command_interface(command, convoID, threadRequested):
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
             await handle_message(convoID, command_object, 'user', 'terminal', None, thread, 'terminal')
+        await return_to_GPT(convoID, thread)
+ 
 
-        # print('got this far expexting to send to agent but commended out now')
-        ##sends back - will this make an infinite loop? I don't think so
-        ##TODO : Handle the structure of the query, so eg take only certain amount, or add / abstract the goal and check against it.
+async def return_to_GPT(convoID, thread = 0):
+    await construct_query(convoID, thread)
+    model = 'gpt-3.5-turbo'
+    if 'model' in novaConvo[convoID]:
+        model = novaConvo[convoID]['model']
+        print ('model: ' + model)
+    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
+    
+    print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
 
-        await construct_query(convoID, thread)
-        model = 'gpt-3.5-turbo'
-        if 'model' in novaConvo[convoID]:
-            model = novaConvo[convoID]['model']
-            print ('model: ' + model)
-        query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
-        
-        print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
+    if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
+        print('sending to GPT')
+        await send_to_GPT(convoID, query_object, thread, model)
+    else:
+        await handle_message(convoID, 'maximum steps taken, input to agent with feedback - change steps allowed in command cartridge', 'user', 'terminal', None, 0, 'terminal')
+        novaConvo[convoID]['command-loop'] =  False
+        novaConvo[convoID]['steps-taken'] = 0
+        novaConvo[convoID]['user-interupt'] = False
 
-        if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
-            print('sending to GPT')
-            await send_to_GPT(convoID, query_object, thread, model)
-        else:
-            await handle_message(convoID, 'maximum steps taken, input to agent with feedback - change steps allowed in command cartridge', 'user', 'terminal', None, 0, 'terminal')
-            novaConvo[convoID]['command-loop'] =  False
-            novaConvo[convoID]['steps-taken'] = 0
-            novaConvo[convoID]['user-interupt'] = False
-
-        
-        if 'user-interupt' in novaConvo[convoID]:
-            novaConvo[convoID]['user-interupt'] = False
+    if 'user-interupt' in novaConvo[convoID]:
+        novaConvo[convoID]['user-interupt'] = False
     
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)

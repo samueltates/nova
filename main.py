@@ -15,7 +15,7 @@ from random_word import RandomWords
 from appHandler import app, websocket
 from sessionHandler import novaSession, novaConvo,current_loadout, current_config
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
-from chat import handle_message, user_input
+from chat import handle_message, user_input, return_to_GPT
 from convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo, handle_convo_switch
 from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, available_cartridges
 from gptindex import indexDocument, handleIndexQuery
@@ -452,11 +452,20 @@ async def process_message(parsed_data):
     elif parsed_data["type"] == "file_start":
         print('indexdoc_start')
         print(parsed_data["data"])
-        await handle_file_start(parsed_data["data"])
+        started = await handle_file_start(parsed_data["data"])
+        if started:
+            await websocket.send(json.dumps({'event':'file_start'}))
     elif parsed_data["type"] == "file_chunk":
-        await handle_file_chunk(parsed_data["data"])
+        chunk = await handle_file_chunk(parsed_data["data"])
+        if chunk:
+            await websocket.send(json.dumps({'event':'file_chunk', }))
     elif parsed_data["type"] == "file_end":
-        await handle_file_end(parsed_data["data"])
+        result = await handle_file_end(parsed_data["data"])
+        if result:
+            
+            await websocket.send(json.dumps({'event':'file_end'}))
+            await handle_message(convoID, result, 'system', 'system', None,0, meta = 'terminal')
+            await return_to_GPT(convoID, 0)
 
 
 

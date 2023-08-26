@@ -10,6 +10,15 @@ cartdigeLookup = {}
 available_convos = {}
 agentName = {}
 
+
+
+system_threads = {}
+
+command_state = {}
+
+all_cartridges = {}
+
+command_loops = {}
 # async def switch_convo(requested_convoID, current_convoID):
 
     # if requested_convoID not in novaConvo:

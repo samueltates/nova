@@ -2,7 +2,7 @@
 from keywords import get_summary_from_keyword, keywords_available
 from debug import eZprint
 from cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
-from sessionHandler import available_cartridges, current_loadout, novaConvo, novaSession
+from sessionHandler import available_cartridges, current_loadout, novaConvo, novaSession, system_threads, command_loops, command_state
 from cartridges import whole_cartridge_list
 from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
@@ -10,15 +10,10 @@ from Levenshtein import distance
 from file_handling.media_editor import split_video
 from google_search import google_api_search
 from file_handling.url_scraper import advanced_scraper
+from file_handling.fileHandler import transcribe_file
+from file_handling.image_handling import generate_image
 import asyncio
 
-system_threads = {}
-
-command_state = {}
-
-all_cartridges = {}
-
-command_loops = {}
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     eZprint('handling command')
@@ -68,7 +63,21 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
     command_return = {"status": "", "name" : name, "message": ""}
     print( 'command name: ' + name + ' args: ' + str(args))
-    
+
+
+    if 'generate_image' in name or name in 'generate_image':
+        if 'prompt' in args:
+            prompt = args['prompt']
+            response = await generate_image(prompt, sessionID, loadout)
+            command_return['status'] = "Success."
+            command_return['message'] = "Image " + response + " generated."
+            return command_return
+            return response
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'prompt' missing"
+            return command_return
+
     if 'search_files' in name or name in 'search_files':
         if args.get('query'):
             # if args.get('type') == 'files':
@@ -445,6 +454,25 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     # if name == 'read_website':
 
+    
+    if 'transcribe' in name or name in 'transcribe':
+        video_file_name = args['filename']
+        video_file = None
+        extension = None
+        for key, val in available_cartridges[sessionID].items():
+            # if 'type' in val and val['type'] == 'media':
+            if 'label' in val and val['label'] == video_file_name:
+                print(val)
+                video_file = val['key']
+                extension = val['extension']
+                break
+        transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, loadout)
+
+        if transcript:
+            command_return['status'] = "Success."
+            command_return['message'] = "video transcript:\n" + str(transcript)
+            print(command_return)
+            return command_return
 
         
 

@@ -19,9 +19,9 @@ import json
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
-async def  split_video(edit_plan, video_file):
+async def split_video(edit_plan, video_file):
     print('splitting video' + video_file + 'with edit plan' + str(edit_plan)) 
-    file = read_file(video_file)
+    file = await read_file(video_file)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(file)
     processed_file.close()
@@ -31,7 +31,7 @@ async def  split_video(edit_plan, video_file):
     if rotated:
         clip = clip.resize(clip.size[::-1])
 
-    clip.write_videofile('before-edit.mp4', fps=24, codec='libx264', audio_codec='aac')
+    # clip.write_videofile('before-edit.mp4', fps=24, codec='libx264', audio_codec='aac')
 
     final_audio = []
     final_video = []
