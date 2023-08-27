@@ -11,7 +11,8 @@ from file_handling.media_editor import split_video
 from google_search import google_api_search
 from file_handling.url_scraper import advanced_scraper
 from file_handling.fileHandler import transcribe_file
-from file_handling.image_handling import generate_image
+from file_handling.image_handling import generate_image, generate_images
+from file_handling.media_editor import overlay_video
 import asyncio
 
 
@@ -65,7 +66,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     print( 'command name: ' + name + ' args: ' + str(args))
 
 
-    if 'generate_image' in name or name in 'generate_image':
+    if name == 'generate_image':
         if 'prompt' in args:
             prompt = args['prompt']
             response = await generate_image(prompt, sessionID, loadout)
@@ -76,6 +77,18 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'prompt' missing"
+            return command_return
+        
+    if name == 'generate_images':
+        if 'prompts' in args:
+            prompts = args['prompts']
+            response = await generate_images(prompts, sessionID, loadout)
+            command_return['status'] = "Success."
+            command_return['message'] = "Images generated. "
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'prompts' missing"
             return command_return
 
     if 'search_files' in name or name in 'search_files':
@@ -435,6 +448,41 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             print(command_return)
         return command_return
     
+    if 'overlay_video' in name:
+        main_video_key = None
+        main_video_cartridge = None
+        media_to_overlay = None
+        media_to_overlay_keys = []
+        if args.get('main_video'):
+            main_video = args['main_video']
+            for key, val in available_cartridges[sessionID].items():
+                if 'label' in val and val['label'] == main_video:
+                    main_video_cartridge = val
+                    main_video_cartridge.update({'key' : key})
+                    print(main_video_cartridge)
+                    break
+        if args.get('media_to_overlay'):
+            media_to_overlay = args['media_to_overlay']
+            for media in media_to_overlay:
+                print(media)
+                if media.get('file_name'):
+                    print('file name found')
+                    for key, val in available_cartridges[sessionID].items():
+                        if 'label' in val and val['label'] == media.get('file_name'):
+                            media.update({'key' : key})
+                            break
+        print(media_to_overlay)
+        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay, sessionID, loadout) 
+        if overlay_video_name:
+            command_return['status'] = "Success."
+            command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "video overlay failed"
+            return command_return
+        
+
     if name == 'edit_video':
         video_file = args['video_file']
         extension = None
@@ -466,11 +514,23 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 video_file = val['key']
                 extension = val['extension']
                 break
-        transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, loadout)
 
-        if transcript:
-            command_return['status'] = "Success."
-            command_return['message'] = "video transcript:\n" + str(transcript)
+        if video_file:
+            transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, loadout)
+
+            if transcript:
+                command_return['status'] = "Success."
+                command_return['message'] = "video transcript:\n" + str(transcript)
+                print(command_return)
+                return command_return
+            else:
+                command_return['status'] = "Error."
+                command_return['message'] = "video transcript failed"
+                print(command_return)
+                return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "video not found"
             print(command_return)
             return command_return
 

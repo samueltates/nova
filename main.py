@@ -462,7 +462,7 @@ async def process_message(parsed_data):
     elif parsed_data["type"] == "file_end":
         result = await handle_file_end(parsed_data["data"])
         if result:
-            
+            convoID = parsed_data["data"]["convoID"]
             await websocket.send(json.dumps({'event':'file_end'}))
             await handle_message(convoID, result, 'system', 'system', None,0, meta = 'terminal')
             await return_to_GPT(convoID, 0)

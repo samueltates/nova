@@ -8,6 +8,14 @@ import tempfile
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
+async def generate_images(prompts, sessionID, loadout):
+    images = ''
+    for prompt in prompts:
+        image = await generate_image(prompt, sessionID, loadout)
+        images+= image + ', '
+    return images
+
+
 async def generate_image(prompt, sessionID, loadout):
 
     response = openai.Image.create(

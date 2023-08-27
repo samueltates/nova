@@ -303,12 +303,7 @@ async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
     # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
-    novaConvo[convoID]['command-loop'] = True
-    if 'steps-taken' not in novaConvo[convoID]:
-        print('no steps taken')
-        novaConvo[convoID]['steps-taken'] = 0
-    novaConvo[convoID]['steps-taken'] += 1 
-    print(novaConvo[convoID]['steps-taken'])
+
     
     command_response = None
     # def error_handler():
@@ -405,14 +400,21 @@ async def command_interface(command, convoID, threadRequested):
  
 
 async def return_to_GPT(convoID, thread = 0):
+    novaConvo[convoID]['command-loop'] = True
+    if 'steps-taken' not in novaConvo[convoID]:
+        print('no steps taken')
+        novaConvo[convoID]['steps-taken'] = 0
+    novaConvo[convoID]['steps-taken'] += 1 
+    print(novaConvo[convoID]['steps-taken'])
     await construct_query(convoID, thread)
+    
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         print ('model: ' + model)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
     
-    print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
+    # print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
 
     if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
         print('sending to GPT')
