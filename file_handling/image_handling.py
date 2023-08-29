@@ -28,7 +28,7 @@ async def generate_image(prompt, sessionID, loadout):
     print(f'Image URL: {image_url}')
     response = requests.get(image_url)
     
-    name = prompt[0:20] + '.png'
+    name = prompt + '.png'
     cartVal = {
         'label' : name,
         # 'text' : str(transcriptions),

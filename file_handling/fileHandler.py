@@ -84,6 +84,8 @@ async def handle_file_end(data):
     convoID = novaSession[sessionID]['convoID']
     # await handle_message(convoID, 'file recieved', 'system', 'system', None,0, meta = 'terminal')
     
+    
+
     cartVal = {
         'label' : file_name,
         # 'text' : str(transcriptions),
@@ -118,9 +120,9 @@ async def handle_file_end(data):
     #     print('audio found')
     #     await transcribe_audio_file(temp_file, file_metadata['file_name'], sessionID, loadout, cartKey)
     # temp_file.close()
-
+    
     del file_chunks[tempKey]
-    return file_name + ' recieved'
+    return file_name + ' recieved' 
 
 async def transcribe_file(file_key, file_name, file_type, sessionID, loadout):
     file = await read_file(file_key)
@@ -210,7 +212,8 @@ async def transcribe_audio_file(file, name, sessionID, loadout, cartKey):
                 'sessionID': sessionID,
                 'cartKey' : cartKey,
                 'fields':
-                        {'text': transcript_text}
+                        {'text': transcript_text
+                        }
                         }
             loadout = current_loadout[sessionID]
             await update_cartridge_field(payload, loadout, True)      

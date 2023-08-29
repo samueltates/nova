@@ -134,10 +134,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(response)
         return response
     
-    if 'read' in name or name in 'read':
+    if name == 'read':
         for key, val in available_cartridges[sessionID].items():
             if 'label' in val:
-                if val['label'] == args['filename']:
+                if val['label'].lower() == args['filename'].lower:
                     new_page = 0
                     text_to_read = ''
                     if val.get('text', None):
@@ -451,6 +451,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if 'overlay_video' in name:
         main_video_key = None
         main_video_cartridge = None
+        text_to_overlay = None
         media_to_overlay = None
         media_to_overlay_keys = []
         if args.get('main_video'):
@@ -471,8 +472,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         if 'label' in val and val['label'] == media.get('file_name'):
                             media.update({'key' : key})
                             break
+        if args.get('text_to_overlay'):
+            text_to_overlay = args['text_to_overlay']
         print(media_to_overlay)
-        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay, sessionID, loadout) 
+        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, loadout) 
         if overlay_video_name:
             command_return['status'] = "Success."
             command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)

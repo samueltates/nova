@@ -1,4 +1,4 @@
-from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip, TextClip
 import json
 from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
@@ -19,13 +19,12 @@ import json
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
-async def overlay_video(main_video_cartridge, media_to_overlay, sessionID, loadout):
+async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay, sessionID, loadout):
     main_video_key = main_video_cartridge['key']
     video_file = await read_file(main_video_key)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(video_file)
     processed_file.close()
-    media_to_overlay_files = []
     composites = []
     clip = VideoFileClip(processed_file.name)
     rotated = await is_rotated(processed_file.name)
@@ -37,6 +36,9 @@ async def overlay_video(main_video_cartridge, media_to_overlay, sessionID, loado
     layout = await determine_orientation(clip_dimensions)
 
     composites.append(clip)
+    
+    # if 'transcript' in main_video_cartridge:
+    #     for line in 
 
     for media in media_to_overlay:
         print('Processing media:', media)
@@ -64,33 +66,93 @@ async def overlay_video(main_video_cartridge, media_to_overlay, sessionID, loado
         else:
             resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
 
-        print('Resized image size:', resized_image.shape)
-        print('Resized image size:', resized_image.shape)
-        # Crop excess width/height if necessary
+        # print('Resized image size:', resized_image.shape)
+        # print('Resized image size:', resized_image.shape)
+        # # Crop excess width/height if necessary
         start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
         start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
-        resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
+        # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
 
         print('Start x-value for cropping:', start_x)
         print('Start y-value for cropping:', start_y)
 
-        # Writing image
-        print('Writing temporary image')
-        resized_cropped_image = cv2.cvtColor(resized_cropped_image, cv2.COLOR_BGR2RGB)
+        # # Writing image
+        # print('Writing temporary image')
+        # resized_cropped_image = cv2.cvtColor(resized_cropped_image, cv2.COLOR_BGR2RGB)
 
-        cv2.imwrite(processed_media.name, resized_cropped_image)
+        resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
 
-        image_clip = ImageClip(resized_cropped_image)
+        cv2.imwrite(processed_media.name, resized_image)
+
+        image_clip = ImageClip(resized_image)
         image_clip = image_clip.set_duration(duration)
         image_clip = image_clip.set_start(start)
         #set default position
-        image_clip.set_pos('center')
+        image_clip = image_clip.set_position('center')
+
+        # if 'zoom' in media:
+        #     start_zoom = float(media['zoom'].get('start_size', 1))
+        #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
+        #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
+
+
+        if 'position' in media:
+            print('position found')
+            image_clip = image_clip.set_position(media['position'])
+
+        if 'fade' in media:
+            fadein_duration = float(media['fade'].get('fadein', 0))
+            fadeout_duration = float(media['fade'].get('fadeout', 0))
+            if fadein_duration:
+                image_clip = image_clip.crossfadein(fadein_duration)
+            if fadeout_duration:
+                image_clip = image_clip.crossfadeout(fadeout_duration)
         # if 'position' in media:
-        #     image_clip = image_clip.set_position(media['position'])
-        # if 'effect' in media:
-        #     # placeholder for applying effects based on the 'effect' value
+        #     start_pos = float(media['position'].get('start', 'center'))
+        #     end_pos = float(media['position'].get('end', start_pos))
+        #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
+
+        if 'pan' in media:
+            # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
+            # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
+            direction = media['pan']
+            if direction == 'left':
+                image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
+            elif direction == 'right':
+                image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
+
+
+            # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
+            # print('panning from', pan_from, 'to', pan_to)
+
         composites.append(image_clip)
     
+    for text in text_to_overlay:
+
+        start, end = text.get('start',0), text.get('end',0)
+        size = text.get('size', (1,.5))
+        size_x = float(size[0])
+        # size_y = float(size[1])
+        font_size = int(text.get('font_size', 70))
+        text_value = text.get('text', '')
+        font = text.get('font', 'Arial-Bold')
+        position = text.get('position', 'bottom')
+
+        start = datetime.strptime(start, '%H:%M:%S.%f')
+        end = datetime.strptime(end, '%H:%M:%S.%f')
+        #get as  time delta
+        duration = end - start
+        duration = duration.total_seconds()
+        start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+        start = start_delta.total_seconds()
+        size = clip_dimensions[1], None
+        text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font=font)
+
+        text_clip = text_clip.set_duration(duration)
+        text_clip = text_clip.set_start(start)
+        text_clip = text_clip.set_position(position)
+        composites.append(text_clip)
+
     compositeClip = CompositeVideoClip(composites, size=clip.size)
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     compositeClip.write_videofile(file_to_send.name, fps=24, codec='libx264', audio_codec='aac')
@@ -114,6 +176,7 @@ async def overlay_video(main_video_cartridge, media_to_overlay, sessionID, loado
 
     await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, loadout, True)
     file_to_send.close()
+    compositeClip.close()
 
     return name
 
