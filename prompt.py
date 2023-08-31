@@ -448,11 +448,12 @@ async def handle_token_limit(convoID):
         prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise'], summarise_at, convoID, 'combined')
         if prompt_too_long: 
             novaConvo[convoID]['summarising'] = True
-            await summarise_percent(convoID, .5)
-            novaConvo[convoID]['summarising'] = False
-            await construct_chat(convoID,0)
-            await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['emphasise'], .25, convoID, 'prompt')
-            await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
+            if convoID in chatlog:
+                await summarise_percent(convoID, .5)
+                novaConvo[convoID]['summarising'] = False
+                await construct_chat(convoID,0)
+                await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['emphasise'], .25, convoID, 'prompt')
+                await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
 
 
         
@@ -515,6 +516,7 @@ async def getPromptEstimate(convoID):
     return prompt_token_count
 
 def estimateTokenSize(text):
+    print(text)
     tokenCount =  (len(text) / 4) + 1
     return tokenCount
 

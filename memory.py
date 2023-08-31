@@ -889,12 +889,13 @@ async def summarise_percent(convoID, percent):
     counter = 0
     # print(chatlog[convoID])
     unsummarised = []
-    for log in chatlog[convoID]:
-        # print(log)
-        if 'summarised' not in log or log['summarised'] == False:
-            # if counter <= max:
-                if 'id' in log:
-                    unsummarised.append(log['id'])
+    if convoID in chatlog:
+        for log in chatlog[convoID]:
+            # print(log)
+            if 'summarised' not in log or log['summarised'] == False:
+                # if counter <= max:
+                    if 'id' in log:
+                        unsummarised.append(log['id'])
     
     max = len(unsummarised) * percent
     for log in unsummarised:
