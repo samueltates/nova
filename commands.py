@@ -138,7 +138,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             # response = await go_to_location(name, args, sessionID, loadout, thread)
             command_return['status'] = "Success."
             command_return['message'] = "Location : " + str(location)
-            return response
+            return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'location' missing"
