@@ -5,7 +5,7 @@ import os
 
 def build_search_request(query, apiKey, cseID):
     service = build('customsearch', 'v1', developerKey=apiKey)
-    return service.cse().list(q=query, cx=cseID)
+    return service.cse().list(q=query, cx=cseID, num=3)
 
 # define the execute_search function
 def execute_search(request):
@@ -20,7 +20,9 @@ def process_search_results(response):
         # Extract search results
         searchResults = response['items']
         # Format and return
-        return [result['link'] for result in searchResults]
+        print(response)        
+
+        return searchResults
     except KeyError:
         print('No search results found')
     except Exception as e:

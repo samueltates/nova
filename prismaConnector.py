@@ -797,22 +797,39 @@ async def delete_summary_with_content():
                         where={'id': summary.id}
                     )
 
+async def add_nova_coin_to_user(userID):
+    user = await prisma.user.find_first(
+        where={'UserID': userID},
+    )
+
+    print(user)
+    blob = json.loads(user.json())['blob']
+    print(blob)
+    blob['tokensUsed'] = -1500
+    print(blob)
+    update = await prisma.user.update(
+        where={'id': user.id},
+        data={'blob': Json(blob)}
+    )
+    print(update)
 
 async def main() -> None:
     await prisma.connect()
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
-    await get_messages_report_aggregate(datetime.date(2023, 8, 1), datetime.date(2023, 8, 28), '110327569930296986874')
+    # await get_messages_report_aggregate(datetime.date(2023, 8, 1), datetime.date(2023, 8, 28), '110327569930296986874')
     # await retrieve_logs_and_messages()
     # await write_recovered_messages()
     # await delete_logs_and_messages()
     # await delete_summaries_in_range()
-    await find_users()
+    # await find_users()
     # await clear_user_history( '108238407115881872743')
     # await findIndexes('108238407115881872743')
     # await findBatches()
     # await findLogSummaries()
+    await add_nova_coin_to_user('106498647992109140281')
+
     # await findLogs('108238407115881872743')
     # await findSummaries('110327569930296986874')
     # await findMessages('110327569930296986874')

@@ -72,6 +72,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
     # novaConvo[convoID]['agent-name'] = agentName
     # sessionID = novaConvo[convoID]['sessionID'] 
     novaSession[sessionID]['latestConvo'] = convoID
+    
 
 async def initialiseCartridges(sessionID):
     

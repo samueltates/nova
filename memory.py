@@ -887,16 +887,20 @@ async def summarise_percent(convoID, percent):
     summaryKey = secrets.token_bytes(4).hex()
     message_IDs = []
     counter = 0
-    message_keys = []
-    max = len(chatlog[convoID]) * percent
     # print(chatlog[convoID])
+    unsummarised = []
     for log in chatlog[convoID]:
         # print(log)
         if 'summarised' not in log or log['summarised'] == False:
-            if counter <= max:
+            # if counter <= max:
                 if 'id' in log:
-                    message_IDs.append(log['id'])
-                counter += 1
+                    unsummarised.append(log['id'])
+    
+    max = len(unsummarised) * percent
+    for log in unsummarised:
+        if counter <= max:
+            message_IDs.append(log)
+            counter += 1
 
     summary_block = {
         'convoID': convoID,
@@ -955,7 +959,6 @@ async def summariseChatBlocks(input,  loadout = None):
                 if 'id' in log and id == log['id']:
                         if 'summarised' not in log or log['summarised'] == False:
                             messageIDs.append(log['id'])
-
 
     sessionID = novaConvo[convoID]['sessionID']
     summaryKey = input['summaryKey']
@@ -1021,13 +1024,8 @@ async def summariseChatBlocks(input,  loadout = None):
     # print(summary)
     if summary:
         summarDict = json.loads(summary, strict=False)
-    # print(summarDict)
-    fields = {}
-    for key, value in summarDict.items():
-      fields[key] = value
-    fields['state'] = ''
-    payload = {'key':summaryKey, 'fields':fields}
-    await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
+    print(summarDict)
+
     date = datetime.now()
     # summarDict.update({'sources':messageIDs})
     # convoSplitID = convoID.split('-')
@@ -1046,6 +1044,13 @@ async def summariseChatBlocks(input,  loadout = None):
     summaryID = None
     summaryID = await create_summary_record(userID, messageIDs, summaryKey, summary, 0, meta, sessionID, loadout)
     # print(summary)
+    fields = {}
+    for key, value in summarDict.items():
+      fields[key] = value
+    fields['state'] = ''
+    fields['id'] = summaryID
+    payload = {'key':summaryKey, 'fields':fields}
+    await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index(start_message) 
     chatlog[convoID].insert(injectPosition, {'id':summaryID, 'userName': 'summary', 'title':summarDict['title'], 'role':'assistant', 'body': summarDict['title'] + '\n' + summarDict['body'],'timestamp':datetime.now(),'key':summaryKey})

@@ -8,8 +8,8 @@ from memory import summarise_from_range, get_summary_children_by_key
 from gptindex import handleIndexQuery, quick_query
 from Levenshtein import distance
 from file_handling.media_editor import split_video
-from google_search import google_api_search
-from file_handling.url_scraper import advanced_scraper
+from web_handling.google_search import google_api_search
+from web_handling.url_scraper import advanced_scraper
 from file_handling.fileHandler import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from file_handling.media_editor import overlay_video
@@ -65,6 +65,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     command_return = {"status": "", "name" : name, "message": ""}
     print( 'command name: ' + name + ' args: ' + str(args))
 
+    if name.lower() == 'none':
+        return 
 
     if name == 'generate_image':
         if 'prompt' in args:
@@ -106,13 +108,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if 'search_web' in name or name in 'search_web':
             # elif args.get('type') == 'web':
             if args.get('query'):
-
                 # Call the Google API Search function
                 searchResults = google_api_search(args.get('query'))
+                results = []
+                for result in searchResults:
+                    results.append({'title': result['title'], 'snippet': result ['snippet'], 'link': result['link']})
                 # Return results
                 command_return['status'] = 'Success.'
-                command_return['message'] = 'Google web search completed. Results : ' + str(searchResults)
-                command_return['data'] = searchResults
+                command_return['message'] = 'Google web search completed. Results : ' + str(results)
+                # command_return['data'] = searchResults
                 return command_return
             else:
                 command_return['status'] = "Error."
@@ -129,6 +133,27 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     return command_return
         # if args.get('type') == 'web':
 
+    if name == 'query_website':
+        if args.get('website_url'):
+            website_url = args['website_url']
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'website_url' missing"
+            return command_return
+        if args.get('query'):
+            # if args.get('type') == 'files':
+            query = args['query']
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Query can't be blank"
+            return command_return
+        scraped_data = await advanced_scraper(website_url)
+        response = await quick_query(query, scraped_data)
+        command_return['status'] = "Success."
+        command_return['message'] = "Response : " + str(response)
+        return command_return
+
+
     if 'query' in name or name in 'query':
         response = await broad_query(name, args, sessionID, thread)
         print(response)
@@ -137,7 +162,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name == 'read':
         for key, val in available_cartridges[sessionID].items():
             if 'label' in val:
-                if val['label'].lower() == args['filename'].lower:
+                if val['label'].lower() == args['filename'].lower():
                     new_page = 0
                     text_to_read = ''
                     if val.get('text', None):
@@ -170,9 +195,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     #     return command_return
                     
                     await update_cartridge_field(payload)
-                    return response
-
-                    
+                    return response           
+        
         command_return['status'] = "Error."
         command_return['message'] = "File not found."
         print(command_return)
@@ -543,8 +567,17 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         website_url = args['website_url']
         scraped_data = await advanced_scraper(website_url)
         # print('length is ' + str(len(str(scraped_data))))
-
+        output = ''
+        print(scraped_data)
+        # for element in scraped_data:
+        #     if 'image_alt_text' in element and 'image_src' in element:
+        #         output += '!['+ element['image_alt_text'] +']('+ element['image_src'] +')\n'
+        #     if 'url' in element and 'link_text' in element:
+        #         output += '['+ element['link_text'] + '](' + element['url'] + ')\n'
+        #     elif 'text' in element:
+        #         output += element['text'] + '\n'
         
+        print(output)
         cartVal = {
         'label' : 'scrape of ' + website_url,
         'text' :str(scraped_data),
