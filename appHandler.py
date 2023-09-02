@@ -6,7 +6,7 @@ app = Quart(__name__)
 app.session = None
 
 
-app = cors(app, allow_origin='*', allow_credentials=True, allow_headers=["content-type", "Authorization"], max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+app = cors(app, allow_origin=os.environ.get("CORS_ALLOWED_ORIGINS"), allow_credentials=True, allow_headers=["content-type", "Authorization"], max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
