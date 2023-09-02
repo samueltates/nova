@@ -458,7 +458,7 @@ async def process_message(parsed_data):
     elif parsed_data["type"] == "file_chunk":
         chunk = await handle_file_chunk(parsed_data["data"])
         if chunk:
-            await websocket.send(json.dumps({'event':'file_chunk', }))
+            await websocket.send(json.dumps({'event':'file_chunk', 'id': chunk }))
     elif parsed_data["type"] == "file_end":
         result = await handle_file_end(parsed_data["data"])
         if result:

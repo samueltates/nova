@@ -41,7 +41,7 @@ async def handle_file_chunk(data):
     # Decode the base64-encoded chunkContent
     decoded_chunk_content = base64.b64decode(data["chunkContent"])
     file_chunks[tempKey]["content"].append(decoded_chunk_content)
-    return True
+    return file_chunks[tempKey]["chunks_received"]
   # You could also process and store the chunk immediately in this step
   # instead of collecting all chunks in `file_chunks` and processing them later
 
@@ -129,9 +129,13 @@ async def transcribe_file(file_key, file_name, file_type, sessionID, loadout):
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(file)
     processed_file.close()
+    transcript_text = ''
     if file_type == 'video/mp4':
         transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key)
     elif file_type == 'video/quicktime':
+        print('video requested')
+        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key )
+    elif file_type == 'video/x-matroska':
         print('video requested')
         transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key )
     elif file_type == 'audio/mpeg':
