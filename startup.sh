@@ -1,5 +1,1 @@
-#!/bin/bash
-redis-cli flushall &
-redis-server &
-REDIS_PID=$!
-pipenv run python main.py
+redis-cli flushall & redis-server & REDIS_PID=$! pipenv run python main.py
