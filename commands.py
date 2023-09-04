@@ -185,7 +185,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     if 'page' in args:
                         new_page = args['page']
                         response = await read_text(name, val['label'],  str(text_to_read), convoID, thread, args['page'])
-                    new_page = int(new_page + 1)
+                    new_page = int(new_page) + 1
 
                     if 'status' in response:
                         if response['status'] == 'Success.':

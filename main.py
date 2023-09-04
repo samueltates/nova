@@ -67,6 +67,7 @@ async def download_video():
 async def startsession():
     eZprint('start-session route hit')
     # print(app.session)
+    print(request)
     # print(app.config)
 
     # print(request)
