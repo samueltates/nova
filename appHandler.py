@@ -6,13 +6,13 @@ app = Quart(__name__)
 app.session = None
 
 
-app = cors(app, allow_origin=[os.environ.get("CORS_ALLOWED_ORIGINS")], allow_headers=["Content-Type", "content-type" "Authorization"], expose_headers=["Content-Type", "Authorization"], max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+app = cors(app, allow_origin=[os.environ.get("CORS_ALLOWED_ORIGINS")], allow_headers=["Content-Type","Authorization"],  max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config['DEBUG'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SESSION_TYPE'] = 'redis'
 app.config['TEST'] = True
-# app.config['QUART_CORS_ALLOW_HEADERS'] = "contenttype, Authorization"
+app.config['QUART_CORS_ALLOW_HEADERS'] = "contenttype, Authorization"
 # app.config['QUART_CORS_ALLOW_ORIGIN'] = os.environ.get("CORS_ALLOWED_ORIGINS")
 # app.config['QUART_CORS_ALLOW_CREDENTIALS'] = True
 # app.config['QUART_CORS_MAX_AGE'] = 86400
