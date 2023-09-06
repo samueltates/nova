@@ -21,10 +21,11 @@ async def get_loadouts(sessionID):
     # del current_loadout[convoID]
     available_loadouts[sessionID] = {}
     for loadout in loadouts:
-        # print(loadout)
+        print(loadout)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
-            available_loadouts[sessionID][key] = val
+            if key == loadout.key:
+                available_loadouts[sessionID][key] = val
 
     user_details = await prisma.user.find_first(
         where={ "UserID": userID },
@@ -148,7 +149,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         where={ "key": str(loadout_key)}
     )
 
-    # print(remote_loadout)
+    print(remote_loadout)
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
     current_loadout[sessionID] = loadout_key
@@ -191,6 +192,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     if sessionID not in current_config:
         current_config[sessionID] = {}
     current_config[sessionID] = config
+
+    print(config)
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaSession[sessionID]['owner']}}))
     
     cartridges_to_add = []
