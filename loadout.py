@@ -221,8 +221,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
             cartVal['softDelete'] = False
             print('config', config.get('cleanSlate', False))
             print('cartVal', cartVal['type'])
-
-            if (config.get('cleanSlate', False) == True and (cartVal['type'] == 'prompt' or cartVal['type'] == 'system' or cartVal['type'] == 'command' or cartVal['type'] == 'index')) or (config.get('cleanSlate', False) or cartVal.get('pinned', False) == True):                    
+            cleanSlate = config.get('cleanSlate', False)
+            if (cleanSlate and (cartVal['type'] == 'prompt' or cartVal['type'] == 'system' or cartVal['type'] == 'command' or cartVal['type'] == 'index')) or not cleanSlate:                    
                 available_cartridges[sessionID][cartKey] = cartVal
                 if 'settings' in loadout_cartridge:
                     # print(loadout_cartridge['settings'])
