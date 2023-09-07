@@ -24,7 +24,9 @@ async def get_loadouts(sessionID):
         # print(loadout)
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
-            available_loadouts[sessionID][key] = val
+            if key == loadout.key:
+
+                available_loadouts[sessionID][key] = val
 
     user_details = await prisma.user.find_first(
         where={ "UserID": userID },
