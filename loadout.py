@@ -157,33 +157,33 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     loadout_cartridges = []
     config = {}
 
+    if remote_loadout:
+        blob = json.loads(remote_loadout.json())['blob']
+        novaSession[sessionID]['owner'] = False
+        if novaSession[sessionID]['userID']:
 
-    blob = json.loads(remote_loadout.json())['blob']
-    novaSession[sessionID]['owner'] = False
-    if novaSession[sessionID]['userID']:
+            if remote_loadout.UserID == novaSession[sessionID]['userID']:
+                novaSession[sessionID]['owner'] = True
 
-        if remote_loadout.UserID == novaSession[sessionID]['userID']:
-            novaSession[sessionID]['owner'] = True
-
-        
-        user_details = await prisma.user.find_first(
-            where={ "UserID": novaSession[sessionID]['userID'] },
-        )
-
-
-        if user_details:
-            user_blob = json.loads(user_details.json())['blob']
-            user_blob['current_loadout'] = loadout_key
-            update_user = await prisma.user.update(
-                where = {
-                    'id' : user_details.id
-                },
-                data = {
-                    'blob': Json(user_blob)
-                    }
+            
+            user_details = await prisma.user.find_first(
+                where={ "UserID": novaSession[sessionID]['userID'] },
             )
 
-            # print(update_user)
+
+            if user_details:
+                user_blob = json.loads(user_details.json())['blob']
+                user_blob['current_loadout'] = loadout_key
+                update_user = await prisma.user.update(
+                    where = {
+                        'id' : user_details.id
+                    },
+                    data = {
+                        'blob': Json(user_blob)
+                        }
+                )
+
+                # print(update_user)
 
     for key, val in blob.items():
         loadout_cartridges = val['cartridges']
@@ -213,22 +213,29 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         if not remote_cartridge:
             continue
         # print(remote_cartridge)
+
+
         cartridges_to_add.append(remote_cartridge)
         blob = json.loads(remote_cartridge.json())
         for cartKey, cartVal in blob['blob'].items():
-            available_cartridges[sessionID][cartKey] = cartVal
             cartVal['softDelete'] = False
-            if 'settings' in loadout_cartridge:
-                # print(loadout_cartridge['settings'])
-                if 'enabled' in loadout_cartridge['settings']:
-                    cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
-                else:
-                    cartVal['enabled'] = True
-                if 'minimised' in loadout_cartridge['settings']:
-                    cartVal['minimised'] = loadout_cartridge['settings']['minimised']
-                else:
-                    cartVal['minimised'] = False
-    # print('updated available cartridges')
+            print('config', config.get('cleanSlate', False))
+            print('cartVal', cartVal['type'])
+
+            if (config.get('cleanSlate', False) == True and (cartVal['type'] == 'prompt' or cartVal['type'] == 'system' or cartVal['type'] == 'command' or cartVal['type'] == 'index')) or (config.get('cleanSlate', False) or cartVal.get('pinned', False) == True):                    
+                available_cartridges[sessionID][cartKey] = cartVal
+                if 'settings' in loadout_cartridge:
+                    # print(loadout_cartridge['settings'])
+                    if 'enabled' in loadout_cartridge['settings']:
+                        cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
+                    else:
+                        cartVal['enabled'] = True
+                    if 'minimised' in loadout_cartridge['settings']:
+                        cartVal['minimised'] = loadout_cartridge['settings']['minimised']
+                    else:
+                        cartVal['minimised'] = False
+
+    print('updated available cartridges')
     # print(available_cartridges[convoID])
     if loadout_key == current_loadout[sessionID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))
