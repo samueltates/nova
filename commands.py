@@ -143,6 +143,21 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'location' missing"
             return command_return
+    if name == 'go_to_tag':
+        print('going to tag')
+        command_return['status'] = "Success."
+        command_return['message'] = "Going to tag"
+        return command_return
+        if args.get('location'):
+            location = args['location']
+            # response = await go_to_location(name, args, sessionID, loadout, thread)
+            command_return['status'] = "Success."
+            command_return['message'] = "Location : " + str(location)
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'location' missing"
+            return command_return
 
     if name == 'query_website':
         if args.get('website_url'):
@@ -755,15 +770,14 @@ async def broad_query(name, args, sessionID, loadout):
                                 print(command_return)
                                 return command_return
                             
-                if 'type' in cartVal and cartVal['type'] == 'note':
 
-                    if 'query' in args:
-                        if 'text' in cartVal:
-                            query_response = await quick_query(cartVal['text'], str(args['query']))
-                            command_return['status'] = "Success."
-                            command_return['message'] = "From " + filename  + ": "+ str(query_response)
-                            print(command_return)
-                            return command_return
+                if 'query' in args:
+                    if 'text' in cartVal:
+                        query_response = await quick_query(cartVal['text'], str(args['query']))
+                        command_return['status'] = "Success."
+                        command_return['message'] = "From " + filename  + ": "+ str(query_response)
+                        print(command_return)
+                        return command_return
                     
         for cartKey, cartVal in available_cartridges[sessionID].items():
             if 'type' in cartVal and cartVal['type'] == 'summary':

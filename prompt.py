@@ -136,12 +136,6 @@ async def construct_system_string(prompt_objects, convoID):
 async def construct_content_string(prompt_objects, convoID):
     content_string = ''
 
-    if 'summary' in prompt_objects:
-        content_string += "\n--Past conversations--"
-        content_string += prompt_objects['summary']['string'] 
-        content_string += '\n[The summary can be queried or read for more detail.]\n'
-
-    content_string += "\n--Files available--"
     if 'index' in prompt_objects:
         content_string += "\nEmbedded documents:"
         content_string += prompt_objects['index']['string'] 
@@ -154,6 +148,22 @@ async def construct_content_string(prompt_objects, convoID):
         content_string += "\nMedia:"
         content_string += prompt_objects['media']['string']
         content_string += '\n[Media can be opened, closed or queried.]\n'
+
+    if 'dtx' in prompt_objects:
+        content_string += "\nDigital twin schemas:"
+        content_string += prompt_objects['dtx']['string']
+        content_string += '\n[Dtx can be queried or closed.]\n'
+
+    if content_string != '':
+        content_string = "\n--Files available--"+content_string
+
+    if 'summary' in prompt_objects:
+        content_string += "\n--Past conversations--"
+        content_string += prompt_objects['summary']['string'] 
+        content_string += '\n[The summary can be queried or read for more detail.]\n'
+
+
+        
     return content_string
 
 async def construct_chat(convoID, thread = 0):

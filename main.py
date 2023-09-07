@@ -17,7 +17,7 @@ from sessionHandler import novaSession, novaConvo,current_loadout, current_confi
 from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat import handle_message, user_input, return_to_GPT
 from convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo, handle_convo_switch
-from cartridges import addCartridgePrompt,update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, available_cartridges
+from cartridges import addCartridgePrompt,addCartridge, update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, available_cartridges
 from gptindex import indexDocument, handleIndexQuery
 from googleAuth import logout, check_credentials,requestPermissions
 from prismaHandler import prismaConnect, prismaDisconnect
@@ -406,10 +406,25 @@ async def process_message(parsed_data):
         await updateContentField(parsed_data['data'])
     if(parsed_data['type']== 'newPrompt'):
         loadout = None
+        convoID = parsed_data['data']['convoID']
+
         sessionID = parsed_data['data']['sessionID']
         if sessionID in current_loadout:
             loadout = current_loadout[sessionID]
         await addCartridgePrompt(parsed_data['data'], loadout)
+    if(parsed_data['type']=='add_cartridge'):
+        print(parsed_data)
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']    
+        cartVal = parsed_data['data']['cartVal']
+        convoID = parsed_data['data']['convoID']
+        log = parsed_data['data']['log']
+        await addCartridge(cartVal, sessionID, loadout)
+        message = 'Cartridge ' + cartVal['label'] + ' added.'
+        if log:
+            await handle_message(convoID, message, 'system', 'system', None,0, meta = 'terminal')
+            await return_to_GPT(convoID, 0)
+
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
         sessionID = data['sessionID']
