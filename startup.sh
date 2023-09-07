@@ -1,6 +1,6 @@
 #!/bin/bash
-convert -version
 redis-cli flushall &
 redis-server &
 REDIS_PID=$!
+convert -version
 pipenv run python main.py
