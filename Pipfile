@@ -50,6 +50,5 @@ bs4 = "*"
 ffmpeg-python = "*"
 ffprobe-python = "*"
 moviepy = {git = 'https://github.com/Zulko/moviepy.git', ref ='v2.0.0.dev2'}
-ffmpeg = "*"
 
 [dev-packages]
