@@ -149,7 +149,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         where={ "key": str(loadout_key)}
     )
 
-    print(remote_loadout)
+    # print(remote_loadout)
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
     current_loadout[sessionID] = loadout_key
@@ -193,7 +193,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         current_config[sessionID] = {}
     current_config[sessionID] = config
 
-    print(config)
+    # print(config)
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaSession[sessionID]['owner']}}))
     
     cartridges_to_add = []
@@ -235,7 +235,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
                     else:
                         cartVal['minimised'] = False
 
-    print('updated available cartridges')
+    # print('updated available cartridges')
     # print(available_cartridges[convoID])
     if loadout_key == current_loadout[sessionID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': available_cartridges[sessionID]}))

@@ -54,7 +54,7 @@ async def agent_initiate_convo(sessionID):
 async def user_input(sessionData):
     #takes user iput and runs message cycle
     # print('user input')
-    print(sessionData)
+    # print(sessionData)
     convoID = sessionData['convoID']
     message = sessionData['body']
     sessionID = sessionData['sessionID']
@@ -128,7 +128,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "thread": thread,
         "contentType" : 'message'
     }
-    # print('message object is: ' + str(messageObject))
+    print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
     # print('message logged' + str(id)    )
@@ -199,6 +199,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 ##basically thinking 'thread requested' so if the message is coming from a specific thread then it'll use / keep to that, otherwise it'll start a new one, using zero as false in this instance.
                 # if command:
                 # print('command', command)
+                print('sending response')
                 copiedMessage['body'] = json_object
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
             else: 
@@ -302,15 +303,21 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
+    print('running commands')
     # print('nova convo is ' + str(novaConvo))
-    # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
-    
     command_response = None
     # def error_handler():
     #     logging.basicConfig(filename='errors.log', level=logging.ERROR)
     # try:
         # Your code here
+    # command_parser = [
+    #     handle_commands(command, convoID, threadRequested)
+    # ]
+
+    # command_response = await asyncio.gather(*command_parser)
+    # await websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
     command_response = await handle_commands(command, convoID, threadRequested)
 
     # except Exception as e:

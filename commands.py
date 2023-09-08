@@ -17,7 +17,7 @@ import asyncio
 
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
-    eZprint('handling command')
+    # eZprint('handling command')
     sessionID = novaConvo[convoID]['sessionID']
     # loadout = novaConvo[convoID]['loadout']
     splitID = convoID.split('-')
@@ -25,7 +25,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if len(splitID) > 1:
         loadout = splitID[2]
 
-    print(command_object)
+    # print(command_object)
     if command_object:
         name = ''
         args = ''

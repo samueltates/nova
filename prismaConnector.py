@@ -828,7 +828,7 @@ async def main() -> None:
     # await findIndexes('108238407115881872743')
     # await findBatches()
     # await findLogSummaries()
-    # await add_nova_coin_to_user('106498647992109140281')
+    await add_nova_coin_to_user('112850279287928312114')
 
     # await findLogs('108238407115881872743')
     # await findSummaries('110327569930296986874')

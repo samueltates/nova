@@ -526,7 +526,7 @@ async def getPromptEstimate(convoID):
     return prompt_token_count
 
 def estimateTokenSize(text):
-    print(text)
+    # print(text)
     tokenCount =  (len(text) / 4) + 1
     return tokenCount
 
