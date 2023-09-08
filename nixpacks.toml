@@ -1,5 +1,6 @@
 [phases.setup]
     nixPkgs = ["...", "redis", "ffmpeg", "fontconfig", "imagemagick"]
+    paths = ['/etc/fonts/']
 
 [variables]
     FONTCONFIG_FILE = "${nixPkgs.fontconfig.out}/etc/fonts/fonts.conf"
