@@ -1,4 +1,5 @@
-from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip, TextClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip
+from custom.NewTextClip import TextClip
 import json
 from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
