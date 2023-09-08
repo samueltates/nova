@@ -42,7 +42,9 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
 
     for media in media_to_overlay:
         print('Processing media:', media)
-        media_key = media['key']
+        media_key = media.get('key', None)
+        if media_key is None:
+            continue    
         media_file = await read_file(media_key)
         processed_media = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         processed_media.write(media_file)
@@ -127,25 +129,25 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
 
         composites.append(image_clip)
     
-    for text in text_to_overlay:
+    # for text in text_to_overlay:
 
-        start, end = text.get('start',0), text.get('end',0)
-        size = text.get('size', (1,.5))
-        size_x = float(size[0])
-        # size_y = float(size[1])
-        font_size = int(text.get('font_size', 70))
-        text_value = text.get('text', '')
-        font = text.get('font', 'Arial-Bold')
-        position = text.get('position', 'bottom')
+    #     start, end = text.get('start',0), text.get('end',0)
+    #     size = text.get('size', (1,.5))
+    #     size_x = float(size[0])
+    #     # size_y = float(size[1])
+    #     font_size = int(text.get('font_size', 70))
+    #     text_value = text.get('text', '')
+    #     font = text.get('font', 'Arial-Bold')
+    #     position = text.get('position', 'bottom')
 
-        start = datetime.strptime(start, '%H:%M:%S.%f')
-        end = datetime.strptime(end, '%H:%M:%S.%f')
-        #get as  time delta
-        duration = end - start
-        duration = duration.total_seconds()
-        start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
-        start = start_delta.total_seconds()
-        size = clip_dimensions[1], None
+    #     start = datetime.strptime(start, '%H:%M:%S.%f')
+    #     end = datetime.strptime(end, '%H:%M:%S.%f')
+    #     #get as  time delta
+    #     duration = end - start
+    #     duration = duration.total_seconds()
+    #     start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+    #     start = start_delta.total_seconds()
+    #     size = clip_dimensions[1], None
         # text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font=font)
 
         # text_clip = text_clip.set_duration(duration)
