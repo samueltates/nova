@@ -1,5 +1,5 @@
 [phases.setup]
-    nixPkgs = ["...", "redis", "ffmpeg", "imagemagick"]
+    nixPkgs = ["...", "redis", "ffmpeg", "fontconfig", "imagemagick"]
     aptPkgs = [
         'fonts-liberation',
         'libappindicator3-1',
@@ -22,8 +22,6 @@
         'xdg-utils'
         ]
 
-    FONTCONFIG_FILE=${pkgs.fontconfig.out}/etc/fonts/fonts.conf
-    FONTCONFIG_PATH=${pkgs.fontconfig.out}/etc/fonts/
 
 [phases.install]
 cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
