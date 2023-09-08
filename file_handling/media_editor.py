@@ -147,7 +147,7 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
         start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
         start = start_delta.total_seconds()
         size = clip_dimensions[1], None
-        text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font=font)
+        text_clip = NewTextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font=font)
 
         text_clip = text_clip.set_duration(duration)
         text_clip = text_clip.set_start(start)
