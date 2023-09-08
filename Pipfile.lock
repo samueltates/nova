@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "70d72de1f57f58139177eab04b86d6d0b6cc592455f9a1b84dead1cbf88e64ed"
+            "sha256": "05a7de18594d73df08d5653fd9ffc3959f5bd1e85fd96c65a20a6383f7935a65"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -815,7 +815,7 @@
                 "sha256:74c6a832d81b7ad5a8a80976dea58ee033d3e2b99a54990cbd789b4cb0b31461",
                 "sha256:ea777be55bfa4bd6aee126c7dfa3bf1759bf87be982876c50f1a976d1b65446d"
             ],
-            "markers": "python_version >= '3.8'",
+            "markers": "python_version >= '3.4'",
             "version": "==2.31.3"
         },
         "imageio-ffmpeg": {
@@ -827,7 +827,7 @@
                 "sha256:dd3ef9835df91570a1cbd9e36dfbc7d228fca42dbb11636e20df75d719de2949",
                 "sha256:fdaa05ad10fe070b7fa8e5f615cb0d28f3b9b791d00af6d2a11e694158d10aa9"
             ],
-            "markers": "python_version >= '3.5'",
+            "markers": "python_version >= '3.4'",
             "version": "==0.4.8"
         },
         "importlib-metadata": {
@@ -1207,8 +1207,11 @@
             "version": "==0.1.6"
         },
         "moviepy": {
-            "git": "https://github.com/Zulko/moviepy.git",
-            "ref": "0e4bf6d1c1b448a477c9be49e49c97b104ba1830"
+            "hashes": [
+                "sha256:2884e35d1788077db3ff89e763c5ba7bfddbd7ae9108c9bc809e7ba58fa433f5"
+            ],
+            "index": "pypi",
+            "version": "==1.0.3"
         },
         "multidict": {
             "hashes": [
