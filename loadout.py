@@ -219,8 +219,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         blob = json.loads(remote_cartridge.json())
         for cartKey, cartVal in blob['blob'].items():
             cartVal['softDelete'] = False
-            print('config', config.get('cleanSlate', False))
-            print('cartVal', cartVal['type'])
+            # print('config', config.get('cleanSlate', False))
+            # print('cartVal', cartVal['type'])
             cleanSlate = config.get('cleanSlate', False)
             if (cleanSlate and (cartVal['type'] == 'prompt' or cartVal['type'] == 'system' or cartVal['type'] == 'command' or cartVal['type'] == 'index')) or not cleanSlate:                    
                 available_cartridges[sessionID][cartKey] = cartVal

@@ -42,7 +42,6 @@ quart-redis = "*"
 random-word = "*"
 levenshtein = "*"
 stripe = "*"
-moviepy = "*"
 python-magic = "*"
 pydub = "*"
 boto3 = "*"
@@ -50,5 +49,7 @@ opencv-python-headless = "*"
 bs4 = "*"
 ffmpeg-python = "*"
 ffprobe-python = "*"
+moviepy = {git = 'https://github.com/Zulko/moviepy.git', ref ='v2.0.0.dev2'}
+ffmpeg = "*"
 
 [dev-packages]
