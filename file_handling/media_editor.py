@@ -42,7 +42,9 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
 
     for media in media_to_overlay:
         print('Processing media:', media)
-        media_key = media['key']
+        media_key = media.get('key', None)
+        if media_key is None:
+            continue    
         media_file = await read_file(media_key)
         processed_media = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         processed_media.write(media_file)
@@ -146,7 +148,7 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
         start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
         start = start_delta.total_seconds()
         size = clip_dimensions[1], None
-        text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font=font)
+        text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font = 'DejaVu-Sans')
 
         text_clip = text_clip.set_duration(duration)
         text_clip = text_clip.set_start(start)

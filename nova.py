@@ -114,11 +114,11 @@ async def runCartridges(sessionID, loadout = None):
     # if loadout != current_loadout[sessionID]:
     #     return
     
-    if sessionID not in available_cartridges or available_cartridges[sessionID] == {}:
-        print('no cartridges available')
-        await copy_cartridges_from_loadout('e8b0d808235f9aa4', sessionID)
-        await runCartridges(sessionID)
-        return
+    # if sessionID not in available_cartridges or available_cartridges[sessionID] == {}:
+    #     print('no cartridges available')
+    #     await copy_cartridges_from_loadout('e8b0d808235f9aa4', sessionID)
+    #     await runCartridges(sessionID)
+    #     return
     
         
     if sessionID in current_config:
