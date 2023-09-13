@@ -78,7 +78,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         where={ "key": str(loadout_key)}
     )
 
-    print(remote_loadout)
+    # print(remote_loadout)
     # instantiates session if none - shouldn't be necessary
     #TODO : REMOVE
     if sessionID not in current_loadout:
@@ -167,131 +167,134 @@ async def add_loadout(loadout: str, convoID):
     if loadout == current_loadout[convoID]:
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
   
-async def add_cartridge_to_loadout(convoID, cartridge, loadout = None):
+async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     eZprint('add cartridge to loadout triggered')
 
+    loadout = active_loadouts[loadout_key]
+    if not loadout:
+        return
+    
+    loadout_config = loadout.get('config', {})
+    cleanSlate = loadout_config.get('cleanSlate', False)
+    # print(loadout_config)
+    # print(loadout)
+    if cleanSlate:
+        print('clean slate detected')
+        if 'convos' not in loadout:
+            loadout['convos'] = {}
+        if convoID not in loadout['convos']:
+            loadout['convos'][convoID]={}
+        if 'cartridges' not in loadout['convos'][convoID]:
+            loadout['convos'][convoID]['cartridges'] = []
+        loadout['convos'][convoID]['cartridges'].append({
+            'key':cartridge, 
+            'settings':{
+                'enabled':True,
+                'softDelete':False,
+                'minimised':True,
+                'pinned' : False,
+        }})
+
+    if 'cartridges' not in loadout:
+        loadout['cartridges'] = []
+
+    loadout['cartridges'].append({
+        'key':cartridge, 
+        'settings':{
+            'enabled':True,
+            'softDelete':False,
+            'minimised':True,
+            'pinned' : False,
+    }})
+
+
     remote_loadout = await prisma.loadout.find_first(
-        where={ "key": loadout },
+        where={ "key": loadout_key },
     )
+    
     print(remote_loadout)
 
-
-    loadout_config = remote_loadout.get('config', {})
-    cleanSlate = loadout_config.get('cleanSlate', False)
-
-    print(loadout_config)
-
-
-    if remote_loadout:
-        blob = json.loads(remote_loadout.json())['blob']
-        for key, val in blob.items():
-            if cleanSlate:
-                print('clean slate detected')
-                if 'convos' not in val:
-                    val['convos'] = {}
-                if convoID not in val['convos']:
-                    val['convos'][convoID]={}
-                if 'cartridges' not in val['convos'][convoID]:
-                    val['convos'][convoID]['cartridges'] = []
-                val['convos'][convoID]['cartridges'].append({
-                    'key':cartridge, 
-                    'settings':{
-                        'enabled':True,
-                        'softDelete':False,
-                        'minimised':True,
-                        'pinned' : False,
-                }})
-
-            if 'cartridges' not in val:
-                val['cartridges'] = []
-            val['cartridges'].append({
-                'key':cartridge, 
-                'settings':{
-                    'enabled':True,
-                    'softDelete':False,
-                    'minimised':True,
-                    'pinned' : False,
-            }})
-
-        update = await prisma.loadout.update(
-            where = {
-                'id' : remote_loadout.id
-            },
-            data={
-                "blob":Json(blob)
-                }
-        )
-        # print('loadout updated')
-        # print(update)
+    update = await prisma.loadout.update(
+        where = {
+            'id' : remote_loadout.id
+        },
+        data={
+            "blob":Json({loadout_key:loadout})
+            }
+    )
+    print('loadout updated')
+    print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
     eZprint('update settings in loadout triggered')
 
-    loadout = await prisma.loadout.find_first(
+    loadout = active_loadouts[loadout_key]
+    if not loadout:
+        return
+    loadout_config = loadout.get('config', {})
+    cleanSlate = loadout_config.get('cleanSlate', False)
+
+    if cleanSlate:
+        # if cleanslate then it sets all the settings at the convo level
+        print('clean slate detected')
+        if 'convos' not in loadout:
+            loadout['convos'] = {}
+        if convoID not in loadout['convos']:
+            loadout['convos'][convoID]={}
+        if 'cartridges' not in loadout['convos'][convoID]:
+            loadout['convos'][convoID]['cartridges'] = []
+        cartridges_copy = loadout['convos'][convoID]['cartridges'][:]
+        for cart in cartridges_copy:
+            if 'key' in cart and cart['key'] == cartridge:
+                if 'softDelete' in settings and settings['softDelete'] == True:
+                    loadout['convos'][convoID]['cartridges'].remove(cart)
+                if 'settings' not in cart:
+                    cart['settings'] = {}                
+                for settingsKey, settingsVal in settings.items():
+                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
+                        cart['settings'][settingsKey] = settingsVal
+
+        print(loadout['convos'])
+        print('adding cartridge ' + cartridge + ' to convo ' + convoID)
+        # but it also sets only the 'pinned' status at the base level
+        loadout_cartridge = loadout['cartridges'][:]
+        for cart in loadout_cartridge:
+            if 'key' in cart and cart['key'] == cartridge:
+                for settingsKey, settingsVal in settings.items():
+                    if settingsKey in ['pinned']:
+                        cart['settings'][settingsKey] = settingsVal 
+        
+    else:
+    #otherwise it sets all the settings at the base level
+        if 'cartridges' not in loadout:
+            loadout['cartridges'] = []
+        cartridges_copy = loadout['cartridges'][:]
+        for cart in cartridges_copy:
+            if 'key' in cart and cart['key'] == cartridge:
+                if 'softDelete' in settings and settings['softDelete'] == True:
+                    loadout['cartridges'].remove(cart)
+                if 'settings' not in cart:
+                    cart['settings'] = {}                
+                for settingsKey, settingsVal in settings.items():
+                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
+                        cart['settings'][settingsKey] = settingsVal
+        
+    remote_loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
     print(loadout_key)
 
-    loadout_config = loadout.get('config', {})
-    cleanSlate = loadout_config.get('cleanSlate', False)
-
-    if loadout_key:
-        blob = json.loads(loadout_key.json())['blob']
-        for key, val in blob.items():
-            if cleanSlate:
-                # if cleanslate then it sets all the settings at the convo level
-                print('clean slate detected')
-                if 'convos' not in val:
-                    val['convos'] = {}
-                if convoID not in val['convos']:
-                    val['convos'][convoID]={}
-                if 'cartridges' not in val['convos'][convoID]:
-                    val['convos'][convoID]['cartridges'] = []
-                cartridges_copy = val['convos'][convoID]['cartridges'][:]
-                for cart in cartridges_copy:
-                    if 'key' in cart and cart['key'] == cartridge:
-                        if 'softDelete' in settings and settings['softDelete'] == True:
-                            val['convos'][convoID]['cartridges'].remove(cart)
-                        if 'settings' not in cart:
-                            cart['settings'] = {}                
-                        for settingsKey, settingsVal in settings.items():
-                            if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
-                                cart['settings'][settingsKey] = settingsVal
-
-                # but it also sets only the 'pinned' status at the base level
-                loadout_cartridge = val['cartridges'][:]
-                for cart in loadout_cartridge:
-                    if 'key' in cart and cart['key'] == cartridge:
-                        for settingsKey, settingsVal in settings.items():
-                            if settingsKey in ['pinned']:
-                                cart['settings'][settingsKey] = settingsVal 
-                
-            else:
-            #otherwise it sets all the settings at the base level
-                if 'cartridges' not in val:
-                    val['cartridges'] = []
-                cartridges_copy = val['cartridges'][:]
-                for cart in cartridges_copy:
-                    if 'key' in cart and cart['key'] == cartridge:
-                        if 'softDelete' in settings and settings['softDelete'] == True:
-                            val['cartridges'].remove(cart)
-                        if 'settings' not in cart:
-                            cart['settings'] = {}                
-                        for settingsKey, settingsVal in settings.items():
-                            if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
-                                cart['settings'][settingsKey] = settingsVal
-        
-        update = await prisma.loadout.update(
-            where = {
-                'id' : loadout.id
-            },
-            data={
-                "blob":Json(blob)
-                }
-        )
-        print('loadout updated')
-        print(update)
+    update = await prisma.loadout.update(
+        where = {
+            'id' : remote_loadout.id
+        },
+        data={
+            "blob":Json({loadout_key:loadout})
+            }
+    )
+    print('loadout updated')
+    print(update)
 
 
 async def clear_loadout(sessionID, convoID):

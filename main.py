@@ -209,8 +209,7 @@ async def ws():
         asyncio.create_task(process_message(parsed_data))
 
 async def process_message(parsed_data):
-
-
+    
     ###AUTH BASED STUFF######
     if(parsed_data['type'] == 'login'):
         eZprint('login route hit')

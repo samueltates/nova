@@ -23,11 +23,12 @@ async def construct_query(convoID, thread = 0):
     await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
+    print(convoID)
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(active_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     # print('unpacking cartridges')
-    # print(sorted_cartridges)
+    print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:

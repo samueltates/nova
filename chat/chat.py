@@ -426,18 +426,20 @@ async def return_to_GPT(convoID, thread = 0):
     
     # print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
 
-    if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
-        print('sending to GPT')
-        await send_to_GPT(convoID, query_object, thread, model)
-    else:
-        await handle_message(convoID, 'maximum independent steps taken, awaiting user input', 'system', 'terminal', None, 0, 'terminal')
-        novaConvo[convoID]['command-loop'] =  False
-        novaConvo[convoID]['steps-taken'] = 0
-        novaConvo[convoID]['user-interupt'] = False
+    print(novaConvo)
+    if 'steps-taken' in novaConvo[convoID]:
+        if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
+            print('sending to GPT')
+            await send_to_GPT(convoID, query_object, thread, model)
+        else:
+            await handle_message(convoID, 'maximum independent steps taken, awaiting user input', 'system', 'terminal', None, 0, 'terminal')
+            novaConvo[convoID]['command-loop'] =  False
+            novaConvo[convoID]['steps-taken'] = 0
+            novaConvo[convoID]['user-interupt'] = False
 
-    if 'user-interupt' in novaConvo[convoID]:
-        novaConvo[convoID]['user-interupt'] = False
-    
+        if 'user-interupt' in novaConvo[convoID]:
+            novaConvo[convoID]['user-interupt'] = False
+        
 async def get_thread_summary(convoID, thread ):
     await construct_query(convoID, thread)
     to_summarise = ''

@@ -16,8 +16,8 @@ from tools.debug import eZprint
 whole_cartridge_list = {}
 
 async def retrieve_loadout_cartridges(loadout_key, convoID):
-    
     print('retrieving loadout cartridges')
+    print(convoID)
     # gets cartridges associated with that loadout
     # TODO : switch to cartridges, calling active loadouts, uses loadout key
     # same logic or question, is the cartridge session wide... on the content side, basically?
@@ -34,36 +34,46 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     #could possible clean slate check here and branch not sure
     loadout_data = active_loadouts.get(loadout_key, None)
 
-    print(loadout_data)
+    # print(loadout_data)
     if not loadout_data:
         return
     
     config = loadout_data.get('config', {})
     convos = loadout_data.get('convos', {})
     
+    convo_cartridges = None
     loadout_cartridges = None
     cleanSlate = config.get('cleanSlate', None)
 
+    print('config', config)
+    print('convos', convos)
     # if clean slate, then gets the convo cartridges and then loadout cartridges
 
-    if cleanSlate and convos.get('cartridges', None):
-        loadout_cartridges = convos.get('cartridges', None)
-        loadout_cartridges += loadout_data.get('cartridges', None)
+    if cleanSlate :
+        if convoID in convos:
+            convo_cartridges = convos[convoID].get('cartridges', None)
+        loadout_cartridges = loadout_data.get('cartridges', None) 
 
     else :
+
         loadout_cartridges = loadout_data.get('cartridges', None)
 
+    print(convo_cartridges, 'convo carts')
+    print(loadout_cartridges, 'loadout cartridges')
 
     #recalls cartridges in loadout
-    if not loadout_cartridges:
+    if not loadout_cartridges and not convo_cartridges:
         return
     
+    cartridges_to_add = []
+
+    ## new idea, checks for loadout carts, differntiated on pin setting if cleanslate, then checks convo carts if they're popped, then adds through that.
     for loadout_cartridge in loadout_cartridges:
 
         # has to find a lot of cartridges maybe unesarily
         # to do, clean slate check here eg
         # if cleanSlate and pinned then ... - pinned needs to get saved on a loadout level - sort of happens in settings anyways!
-        print(loadout_cartridge)
+        # print(loadout_cartridge)
         settings = loadout_cartridge.get('settings', False)
         if settings:
             pinned = settings.get('pinned', False)
@@ -77,36 +87,47 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
             if not remote_cartridge:
                 continue
+            cartridges_to_add.append(remote_cartridge)
 
-            blob = json.loads(remote_cartridge.json())
-            for cartKey, cartVal in blob['blob'].items():
-                # this check won't need to happen if done at loadout settings level
-                
-                cartVal['softDelete'] = False
-                active_cartridges[convoID][cartKey ]= cartVal
-                print('reading loadout', cartVal)
+    if convo_cartridges:
+            for convo_cartridge in convo_cartridges:
+                cartKey = convo_cartridge.get('key', None)
+                remote_cartridge = await prisma.cartridge.find_first(
+                    where={ "key": cartKey },
+                )
+            cartridges_to_add.append(remote_cartridge)
 
-                if 'settings' in loadout_cartridge:
-                    if 'enabled' in loadout_cartridge['settings']:
-                        cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
-                    else:
-                        cartVal['enabled'] = True
+    for cartridge_to_add in cartridges_to_add:
+        blob = json.loads(cartridge_to_add.json())
+        for cartKey, cartVal in blob['blob'].items():
+            # this check won't need to happen if done at loadout settings level
+            
+            cartVal['softDelete'] = False
+            active_cartridges[convoID][cartKey ]= cartVal
+            # print('reading cart', cartVal)
 
-                    if 'minimised' in loadout_cartridge['settings']:
-                        cartVal['minimised'] = loadout_cartridge['settings']['minimised']
-                    else:
-                        cartVal['minimised'] = False
-                        
-                    if 'pinned' in loadout_cartridge['settings']:
-                        cartVal['pinned']= loadout_cartridge['settings']['pinned']
-                    else:
-                        cartVal['pinned'] = False
+            if 'settings' in loadout_cartridge:
+                if 'enabled' in loadout_cartridge['settings']:
+                    cartVal['enabled'] = loadout_cartridge['settings']['enabled'] 
+                else:
+                    cartVal['enabled'] = True
 
-                    if 'position' in loadout_cartridge['settings']:
-                        cartVal['position'] = loadout_cartridge['settings']['position']
+                if 'minimised' in loadout_cartridge['settings']:
+                    cartVal['minimised'] = loadout_cartridge['settings']['minimised']
+                else:
+                    cartVal['minimised'] = False
+                    
+                if 'pinned' in loadout_cartridge['settings']:
+                    cartVal['pinned']= loadout_cartridge['settings']['pinned']
+                else:
+                    cartVal['pinned'] = False
 
-        # print(active_cartridges[convoID])
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+                if 'position' in loadout_cartridge['settings']:
+                    cartVal['position'] = loadout_cartridge['settings']['position']
+
+    # print('cartridge list')
+    # print(active_cartridges[convoID])
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
 
 async def get_cartridge_list(sessionID):
     userID = novaSession[sessionID]['userID']
@@ -160,7 +181,7 @@ async def addCartridge(cartVal, sessionID, client_loadout = None, convoID = None
     if client_loadout:
         cartVal["softDelete"] = False
     
-    if sessionID not in active_cartridges:
+    if convoID not in active_cartridges:
         active_cartridges[convoID]  = {}
 
     active_cartridges[convoID][cartKey] = cartVal
