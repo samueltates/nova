@@ -35,6 +35,9 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     loadout_data = active_loadouts.get(loadout_key, None)
 
     print(loadout_data)
+    if not loadout_data:
+        return
+    
     config = loadout_data.get('config', {})
     convos = loadout_data.get('convos', {})
     

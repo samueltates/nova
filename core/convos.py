@@ -211,11 +211,12 @@ async def set_convo(requested_convoID, sessionID):
 
     for summary in summaries:
         for log in chatlog[requested_convoID]:
-            if log['id'] == summary['sourceIDs'][0]:
-                index = chatlog[requested_convoID].index(log)
-                chatlog[requested_convoID].insert(index, summary)
-                # summaries.remove(summary)
-                break
+            if summary['sourceIDs']:
+                if log['id'] == summary['sourceIDs'][0]:
+                    index = chatlog[requested_convoID].index(log)
+                    chatlog[requested_convoID].insert(index, summary)
+                    # summaries.remove(summary)
+                    break
 
     for log in chatlog[requested_convoID]:
         if 'sourceIDs' in log:

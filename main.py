@@ -403,7 +403,7 @@ async def process_message(parsed_data):
         sessionID = parsed_data['data']['sessionID']
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
-        await set_convo(convoID, sessionID)
+        await set_convo(requestedConvoID, sessionID)
 
 
 
