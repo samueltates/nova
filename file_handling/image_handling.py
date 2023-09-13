@@ -1,9 +1,10 @@
 import openai
 import os
 import requests
-from cartridges import addCartridge, update_cartridge_field
-from file_handling.s3 import write_file, read_file
 import tempfile
+
+from core.cartridges import addCartridge, update_cartridge_field
+from file_handling.s3 import write_file, read_file
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 

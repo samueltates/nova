@@ -3,24 +3,24 @@
 import base64
 import json
 import tempfile
-from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips
 import openai
 import os
+import asyncio
+from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
-from cartridges import addCartridge
-import asyncio
-from cartridges import addCartridge, update_cartridge_field
-# from chat import handle_message, return_to_GPT
 from datetime import datetime
+
+# from chat import handle_message, return_to_GPT
+from core.cartridges import addCartridge
+from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
-
 file_chunks = {}
 
-from sessionHandler import novaSession, novaConvo,current_loadout, current_config
+from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
 
 
 async def handle_file_start(data):

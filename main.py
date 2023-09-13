@@ -12,21 +12,21 @@ import stripe
 import secrets
 from random_word import RandomWords
 
-from appHandler import app, websocket
-from sessionHandler import novaSession, novaConvo,current_loadout, current_config
-from nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
-from chat import handle_message, user_input, return_to_GPT
-from convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo, handle_convo_switch
-from cartridges import addCartridgePrompt,addCartridge, update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, available_cartridges
-from gptindex import indexDocument, handleIndexQuery
-from googleAuth import logout, check_credentials,requestPermissions
-from prismaHandler import prismaConnect, prismaDisconnect
-from debug import eZprint
-from user import set_subscribed, get_subscribed
-from memory import summariseChatBlocks,get_summary_children_by_key
-from keywords import get_summary_from_keyword, get_summary_from_insight
-from loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, add_loadout_to_session
-from tokens import update_coin_count
+from session.appHandler import app, websocket
+from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
+from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
+from chat.chat import handle_message, user_input, return_to_GPT
+from core.convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo, handle_convo_switch
+from core.cartridges import retrieve_loadout_cartridges, addCartridge, update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, active_cartridges
+from tools.gptindex import indexDocument, handleIndexQuery
+from session.googleAuth import logout, check_credentials,requestPermissions
+from session.prismaHandler import prismaConnect, prismaDisconnect
+from tools.debug import eZprint
+from session.user import set_subscribed, get_subscribed
+from tools.memory import summariseChatBlocks,get_summary_children_by_key
+from tools.keywords import get_summary_from_keyword, get_summary_from_insight
+from core.loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
+from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
 app.session = session
 Session(app)
@@ -210,6 +210,8 @@ async def ws():
 
 async def process_message(parsed_data):
 
+
+    ###AUTH BASED STUFF######
     if(parsed_data['type'] == 'login'):
         eZprint('login route hit')
         # print(app.session)
@@ -218,6 +220,15 @@ async def process_message(parsed_data):
         requestedScopes = ['https://www.googleapis.com/auth/userinfo.profile']
         loginURL = await requestPermissions( requestedScopes, sessionID )
         await websocket.send(json.dumps({'event':'open_auth_url', 'loginURL': loginURL}))
+
+    if(parsed_data['type']== 'requestLogout'):
+        eZprint('requestLogout route hit')
+        sessionID = parsed_data['sessionID']    
+
+        app.session.pop('sessionID') 
+        logoutStatus = await logout(sessionID)    
+        app.session.modified = True
+        await websocket.send(json.dumps({'event':'logout', 'payload': logoutStatus}))
 
     if(parsed_data['type'] == 'docAuthRequest'):
         eZprint('googleAuth')
@@ -244,15 +255,6 @@ async def process_message(parsed_data):
             'profileAuthed': novaSession[sessionID]['profileAuthed'],
         }
         await websocket.send(json.dumps({'event':'credentialState', 'payload': credentialState}))
-
-    if(parsed_data['type']== 'requestLogout'):
-        eZprint('requestLogout route hit')
-        sessionID = parsed_data['sessionID']    
-
-        app.session.pop('sessionID') 
-        logoutStatus = await logout(sessionID)    
-        app.session.modified = True
-        await websocket.send(json.dumps({'event':'logout', 'payload': logoutStatus}))
 
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
@@ -282,18 +284,96 @@ async def process_message(parsed_data):
                     'quantity': 1,
                 }]
             )
-            # print(checkout_session)
         sessionID = parsed_data['sessionID']
         userID = novaSession[sessionID]['userID']
         payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
-        # return redirect(checkout_session.url, code=303)
-        # print(checkout_session.url)
         await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
         while payment_requests[checkout_session.id]['status'] == 'pending':
             await asyncio.sleep(1)
         await websocket.send(json.dumps({'event':'paymentSuccess', 'payload': True}))
         await update_coin_count(userID, -amount)
         await set_subscribed(userID, True)
+
+
+    ## ALL LOADOUT CONVERSATION SETUP ####
+    if(parsed_data['type'] == 'request_loadouts'):
+        # gets loadouts available to user
+        eZprint('request_loadouts route hit')
+        sessionID = parsed_data['data']['sessionID']
+
+        params = {}
+        print( 'current loadout is ' + str(current_loadout[sessionID]))
+        if 'params' in parsed_data['data']:
+            params = parsed_data['data']['params']
+
+        await get_loadouts(sessionID)
+        await get_loadout_logs(None, sessionID)
+
+        # gets or creates conversation - should this pick up last?
+        convoID = await handle_convo_switch(sessionID)
+        if not convoID:
+            convoID = await start_new_convo(sessionID)
+
+        await initialise_conversation(sessionID, convoID, params)
+        await initialiseCartridges(sessionID, convoID, None)
+
+    if(parsed_data['type'] == 'set_loadout'):
+        eZprint('set_loadout route hit')
+        # sets to client specified loadout ... (or sets as active?)
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+
+        await set_loadout(loadout, sessionID)
+        await get_loadout_logs(loadout, sessionID)
+
+        convoID = await handle_convo_switch(sessionID)
+        if not convoID:
+            convoID = await start_new_convo(sessionID)
+
+        await retrieve_loadout_cartridges(loadout, convoID)
+        await runCartridges(sessionID, loadout)
+
+    if(parsed_data['type'] == 'loadout_referal'):
+        eZprint('loadout_referal route hit')
+        sessionID = parsed_data['data']['sessionID']
+        # convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']    
+        params = parsed_data['data']['params']
+        print(params)
+        await set_loadout(loadout, sessionID, True)
+        # await add_loadout_to_session(loadout, sessionID)
+        await get_loadout_logs(loadout, sessionID)
+
+        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
+            convoID = await handle_convo_switch(sessionID)
+            if not convoID_full:
+                convoID = await start_new_convo(sessionID)
+        else:
+            convoID = await start_new_convo(sessionID)
+        
+        await retrieve_loadout_cartridges(loadout, convoID)
+        await initialise_conversation(sessionID, convoID, params)
+        await runCartridges(convoID, loadout)  
+
+    if(parsed_data['type'] == 'add_loadout'):
+        eZprint('add_loadout route hit')
+        print(parsed_data['data'])
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+        await add_loadout(loadout, sessionID)
+        convoID_full = await handle_convo_switch(sessionID)
+        if not convoID_full:
+            convoID_full = await start_new_convo(sessionID)
+
+    if(parsed_data['type']=='clear_loadout'):
+        eZprint('clear_loadout route hit')
+
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
+        sessionID = parsed_data['data']['sessionID']
+        await clear_loadout(sessionID, convoID)
+        await get_loadout_logs(loadout, sessionID)
+        await retrieve_loadout_cartridges(loadout, convoID)
 
     if(parsed_data['type']== 'add_convo'):
         convoID = secrets.token_bytes(4).hex()
@@ -314,104 +394,38 @@ async def process_message(parsed_data):
         await initialise_conversation(sessionID, convoID_full)
         await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
 
-    if(parsed_data['type'] == 'request_loadouts'):
-        eZprint('request_loadouts route hit')
-        sessionID = parsed_data['data']['sessionID']
-        await get_loadouts(sessionID)
-        await get_loadout_logs(sessionID)
-        params = {}
-        convoID = None      
-        current_config[sessionID] = {}
-        print( 'current loadout is ' + str(current_loadout[sessionID]))
-        if 'params' in parsed_data['data']:
-            params = parsed_data['data']['params']
-
-        # if 'fake-user' in params:
-        #     if 'userID' in novaSession[sessionID]:
-        #         if novaSession[sessionID]['userID'] != params['fake-user']:
-        #             current_config[sessionID] = {}
-        #             available_cartridges[sessionID] = {}
-        #     userID = params['fake-user']
-        #     novaSession[sessionID]['userID'] = userID
-        #     novaSession[sessionID]['fake-user'] = True
-        #     novaSession[sessionID]['profileAuthed'] = True
-
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
-        await initialise_conversation(sessionID, convoID, params)
-        await initialiseCartridges(sessionID)
-
-    if(parsed_data['type'] == 'set_loadout'):
-        eZprint('set_loadout route hit')
-        sessionID = parsed_data['data']['sessionID']
-        loadout = parsed_data['data']['loadout']
-        await set_loadout(loadout, sessionID)
-        await get_loadout_logs(sessionID)
-
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
-
-        await runCartridges(sessionID, loadout)
-
-    if(parsed_data['type'] == 'loadout_referal'):
-        eZprint('loadout_referal route hit')
-        sessionID = parsed_data['data']['sessionID']
-        # convoID = parsed_data['data']['convoID']
-        loadout = parsed_data['data']['loadout']    
-        params = parsed_data['data']['params']
-        print(params)
-        await set_loadout(loadout, sessionID, True)
-        await add_loadout_to_session(loadout, sessionID)
-        await get_loadout_logs(sessionID)
-
-        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
-            convoID_full = await handle_convo_switch(sessionID)
-            if not convoID_full:
-                convoID_full = await start_new_convo(sessionID)
-        else:
-            convoID_full = await start_new_convo(sessionID)
-        await initialise_conversation(sessionID,convoID_full, params)
-        await runCartridges(sessionID, loadout)  
-        
-    if(parsed_data['type'] == 'requestCartridges'):
-        convoID = parsed_data['data']['convoID']
-        eZprint('requestCartridges route hit')
-        params = {}
-        if 'params' in parsed_data['data']:
-            params = parsed_data['data']['params']
-        print(parsed_data['data'])
-        await initialise_conversation(sessionID, convoID, params)
-        await initialiseCartridges(sessionID)
-
     if(parsed_data['type'] == 'set_convo'):
         print('set convo called')
         # print(parsed_data['data'])
-        requested_convoID = parsed_data['data']['requestedConvoID']
+        requestedConvoID = parsed_data['data']['requestedConvoID']
+        convoID = parsed_data['data']['convoID']
+        loadout = parsed_data['data']['loadout']
         sessionID = parsed_data['data']['sessionID']
-        await set_convo(requested_convoID, sessionID)
+        await retrieve_loadout_cartridges(loadout, requestedConvoID)
+
+        await set_convo(convoID, sessionID)
+
+
+
+    ## ALL BACK AND FORTH ###
 
     if(parsed_data['type'] == 'sendMessage'):
         eZprint('handleInput called')
         await user_input(parsed_data['data'])
-    if(parsed_data['type']== 'updateCartridgeField'):
-        # print(parsed_data['data']['fields'])
-        sessionID = parsed_data['data']['sessionID']
-        loadout = None
-        if sessionID in current_loadout:
-            loadout = current_loadout[sessionID]
-        await update_cartridge_field(parsed_data['data'], loadout)
+
     if(parsed_data['type']== 'updateContentField'):
         await updateContentField(parsed_data['data'])
-    if(parsed_data['type']== 'newPrompt'):
-        loadout = None
-        convoID = parsed_data['data']['convoID']
 
-        sessionID = parsed_data['data']['sessionID']
-        if sessionID in current_loadout:
-            loadout = current_loadout[sessionID]
-        await addCartridgePrompt(parsed_data['data'], loadout)
+
+    # if(parsed_data['type']== 'newPrompt'):
+    #     loadout = None
+    #     convoID = parsed_data['data']['convoID']
+    #     sessionID = parsed_data['data']['sessionID']
+    #     if sessionID in current_loadout:
+    #         loadout = current_loadout[sessionID]
+    #     await addCartridgePrompt(parsed_data['data'], convoID, loadout)
+        
+
     if(parsed_data['type']=='add_cartridge'):
         print(parsed_data)
         sessionID = parsed_data['data']['sessionID']
@@ -419,11 +433,20 @@ async def process_message(parsed_data):
         cartVal = parsed_data['data']['cartVal']
         convoID = parsed_data['data']['convoID']
         log = parsed_data['data']['log']
-        await addCartridge(cartVal, sessionID, loadout)
+        await addCartridge(cartVal,sessionID, loadout, convoID, False)
         message = 'Cartridge ' + cartVal['label'] + ' added.'
         if log:
             await handle_message(convoID, message, 'system', 'system', None,0, meta = 'terminal')
             await return_to_GPT(convoID, 0)
+
+    if(parsed_data['type']== 'updateCartridgeField'):
+        # print(parsed_data['data']['fields'])
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+        convoID = parsed_data['data']['convoID']
+        await update_cartridge_field(parsed_data['data'], convoID, loadout)
+
+
 
     if(parsed_data['type']== 'requestDocIndex'):
         data = parsed_data['data']
@@ -501,15 +524,6 @@ async def process_message(parsed_data):
         print(parsed_data['payload'])
         app.session['requesting'] = False
 
-    if(parsed_data['type'] == 'add_loadout'):
-        eZprint('add_loadout route hit')
-        print(parsed_data['data'])
-        sessionID = parsed_data['data']['sessionID']
-        loadout = parsed_data['data']['loadout']
-        await add_loadout(loadout, sessionID)
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
 
 
 
@@ -518,12 +532,6 @@ async def process_message(parsed_data):
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
         await delete_loadout(loadout, sessionID)
-
-    if(parsed_data['type']=='clear_loadout'):
-        eZprint('clear_loadout route hit')
-        sessionID = parsed_data['data']['sessionID']
-        await clear_loadout(sessionID)
-        await get_loadout_logs(sessionID)
 
         convoID_full = await handle_convo_switch(sessionID)
         if not convoID_full:
