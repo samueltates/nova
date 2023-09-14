@@ -95,7 +95,7 @@ async def unpack_cartridges(convoID):
             #                         cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
             #                     # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
-                cartridge_contents[cartVal['type']]['values'].append(cartVal['values'])
+                cartridge_contents[cartVal['type']]['values'] = cartVal['values']
             if cartVal['type'] == 'simple-agent':
                 if convoID not in simple_agents:
                     simple_agents[convoID] = {}
@@ -245,88 +245,107 @@ async def construct_objects(convoID, system_string = None, content_string = None
     if system_string:
         final_prompt_string += system_string
     if 'system' in prompt_objects:
-        # if 'string' in prompt_objects['system']:
-        #     final_prompt_string += "\n"+prompt_objects['system']['string']
-        if 'values' in prompt_objects['system']:
-            # print('values found')
-            for values in prompt_objects['system']['values']:
-                # print('value is: ' + str(values))
-                for value in values:
-                    if 'system-starter' in value and value['system-starter']!= '':
-                        # print('starter found' + str(value['system-starter']))
-                        if convoID not in current_prompt or 'chat' not in current_prompt[convoID] or current_prompt[convoID]['chat'] == []:
-                            emphasise_string += value['system-starter']
-                    if 'emphasise' in value and value['emphasise'] != '':
-                            emphasise_string += " " + value['emphasise']
-                    # print(value)
-                    if 'auto-summarise' in value:
-                        # print(value)
-                        if value['auto-summarise'] == True:
-                            # print('auto summarise found')
-                            novaConvo[convoID]['auto-summarise'] = True
-                        if value['auto-summarise'] == False:
-                            novaConvo[convoID]['auto-summarise'] = False
-                    if 'summarise-at' in value:
-                        # print(str(value['summarise-at']) + ' found')
-                        novaConvo[convoID]['summarise-at'] = float(value['summarise-at'])
-                    # else:
-                    #     novaConvo[convoID]['summarise-at'] = .6
-                    if 'agent-name' in value:
-                        novaConvo[convoID]['agent-name'] = value['agent-name']
-                    if 'give-context' in value:
-                        if value['give-context'] == True:
-                            give_context = True
-                    # novaConvo[convoID]['token_limit'] = 4000
-                    if 'model' in value:
-                        novaConvo[convoID]['model'] = value['model']
-                        if novaConvo[convoID]['model'] == 'gpt-4':
-                            novaConvo[convoID]['token_limit'] = 8000
-                        else:
-                            novaConvo[convoID]['token_limit'] = 4000
-                    if 'scope' in value:
-                        novaConvo[convoID]['scope'] = value['scope']
-                  
+        print('system found')
+        print(prompt_objects['system']['values'])
+        for value in prompt_objects['system']['values']:
+            if 'system-starter' in value and value['system-starter']!= '':
+                # print('starter found' + str(value['system-starter']))
+                if convoID not in current_prompt or 'chat' not in current_prompt[convoID] or current_prompt[convoID]['chat'] == []:
+                    emphasise_string += value['system-starter']
+            if 'emphasise' in value and value['emphasise'] != '':
+                    emphasise_string += " " + value['emphasise']
+
+            if 'auto-summarise' in value:
+                # print(value)
+                if value['auto-summarise'] == True:
+                    # print('auto summarise found')
+                    novaConvo[convoID]['auto-summarise'] = True
+                if value['auto-summarise'] == False:
+                    novaConvo[convoID]['auto-summarise'] = False
+
+            if 'summarise-at' in value:
+                # print(str(value['summarise-at']) + ' found')
+                novaConvo[convoID]['summarise-at'] = float(value['summarise-at'])
+
+            if 'agent-name' in value:
+                novaConvo[convoID]['agent-name'] = value['agent-name']
+            if 'give-context' in value:
+                if value['give-context'] == True:
+                    give_context = True
+
+            if 'model' in value:
+                print(value['model'])
+                novaConvo[convoID]['model'] = value['model']
+                if novaConvo[convoID]['model'] == 'gpt-4':
+                    novaConvo[convoID]['token_limit'] = 8000
+                else:
+                    novaConvo[convoID]['token_limit'] = 4000
+            else:
+                novaConvo[convoID]['model'] = 'gpt-3.5-turbo'
+                novaConvo[convoID]['token_limit'] = 4000
+
+            if 'scope' in value:
+                novaConvo[convoID]['scope'] = value['scope']
+                    
         if give_context:
             context = await construct_context(convoID)
             final_prompt_string += context
+
     if 'command' in prompt_objects:
-        for values in prompt_objects['command']['values']:
-            print('command value is: ' + str(values))
-            for value in values:
+        print('command found')
+        # print(prompt_objects['command']['values'])
+        for value in prompt_objects['command']['values']:
+            if 'openAI_functions' in value:
                 # print(value)
-                if 'emphasise' in value and value['emphasise'] != '':
-                    emphasise_string += " " + value['emphasise']
-                if 'steps-allowed' in value:
-                    # print('steps allowed found and is ' + str(value['steps-allowed']))
-                    # print(novaConvo[convoID]['steps-allowed'])
-                    novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
-                elif 'steps-allowed' not in novaConvo[convoID]:
-                    novaConvo[convoID]['steps-allowed'] = 3
+                if value['openAI_functions'] == True:
+                    novaConvo[convoID]['return_type'] = 'openAI'
+                else:
+                    novaConvo[convoID]['return_type'] = 'json-string'
 
-                # print(novaConvo[convoID]['steps-allowed'])
 
-        final_command_string = ''
-        final_command_string += "\n"+prompt_objects['command']['string']
-        # print('command found' + str(prompt_objects['command']))
-        if 'label' in prompt_objects['command']:
-            # print('command label found')
-            # print(prompt_objects['commands']['label'])
-            final_command_string +=  prompt_objects['command']['label'] + "\n"
-        if 'prompt' in prompt_objects['command']:
-            # print('command prompt found')
-            # print(prompt_objects['commands']['prompt'])
-            final_command_string +=  prompt_objects['command']['prompt']
-        return_format = await construct_commands(prompt_objects['command'], thread)
-        # print('return format is: ' + str(return_format))
-        final_command_string += return_format
-        # print('command string is: ' + str(final_command_string))
-        final_prompt_string += "\n"+final_command_string
-        novaConvo[convoID]['command'] = True
-    
-    emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
+            if 'steps-allowed' in value:
+                novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
+            elif 'steps-allowed' not in novaConvo[convoID]:
+                novaConvo[convoID]['steps-allowed'] = 3
+            
+        
+        if novaConvo[convoID]['return_type'] == 'openAI':
+            if convoID not in current_prompt:
+                current_prompt[convoID] = {}
+            openAI_functions = await construct_commands(prompt_objects['command'], 'openAI', thread)    
+            print('openAI functions are: ' + str(openAI_functions))
+            current_prompt[convoID]['openAI_functions'] = openAI_functions
+
+        else:
+
+            final_command_string = ''
+            final_command_string += "\n"+prompt_objects['command']['string']
+            if 'emphasise' in prompt_objects['command']['values'] and prompt_objects['command']['values']['emphasise'] != '':
+                emphasise_string += " " + prompt_objects['command']['values']['emphasise']
+            # print('command found' + str(prompt_objects['command']))
+            if 'label' in prompt_objects['command']:
+                # print('command label found')
+                # print(prompt_objects['commands']['label'])
+                final_command_string +=  prompt_objects['command']['label'] + "\n"
+            if 'prompt' in prompt_objects['command']:
+                # print('command prompt found')
+                # print(prompt_objects['commands']['prompt'])
+                final_command_string +=  prompt_objects['command']['prompt']
+            return_format = await construct_commands(prompt_objects['command'], 'json-string', thread)
+            # print('return format is: ' + str(return_format))
+            final_command_string += return_format
+            # print('command string is: ' + str(final_command_string))
+            final_prompt_string += "\n"+final_command_string
+
+            novaConvo[convoID]['command'] = True
+    else:
+        novaConvo[convoID]['command'] = False
+        emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
     # print('final prompt string is: ' + str(final_prompt_string))
-    list_to_send.append({"role": "user", 'content': final_prompt_string})
-    list_to_send.append({"role": "user", 'content': content_string})
+    list_to_send.append({"role": "system", 'content': final_prompt_string})
+    list_to_send.append({"role": "system", 'content': content_string})
+    list_to_send.append({"role": "system", 'content': emphasise_string})
+
     # print('list to send is: ' + str(list_to_send))
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
@@ -334,97 +353,115 @@ async def construct_objects(convoID, system_string = None, content_string = None
     current_prompt[convoID]['emphasise'] = emphasis_to_send
     
 
-async def construct_commands(command_object, thread = 0):
+async def construct_commands(command_object, prompt_type = 'json-string', thread = 0):
     # print('constructing commands')
     # print(command_object)
     response_format = {}
     response_format_before = ""
     response_format_after = ""
     command_string = ""
+    open_AI_functions = []
 
-    if 'values' in command_object:
-        for values in command_object['values']:
-            # print('values found')
-            # print(values)
-            for value in values:
-                # print('value found')
-                # print(value)
-                if 'format instructions' in value:
-                    # print('instructions found')
-                    # print(value['format instructions'])
-                    for instruct in value['format instructions']:
-                        # print('instruct found')
-                        # print(instruct)
-                        for key, val in instruct.items():
-                            if key == 'before-format':
-                                response_format_before += val
-                            if key == 'after-format':
-                                response_format_after += val + "\n"
-                                
-                if 'response types requested' in value:
-                    # print('response found')
-                    for response_type in value['response types requested']:
-                        # print('types found')
-                        typeKey = ""
-                        typeVal = ""
-                        # print(response_type)
-                        for element in response_type:
-                            for key, val in element.items():
-                                # if thread == 0:
-                                if key == 'type':
-                                    # print('type found' + str(val))
-                                    typeKey = val
-                                if key == 'instruction':
-                                    # print('instruction found'  + str(val))
-                                    typeVal = val
-                                # else:
-                                #     if val == 'reason' or val == 'plan':
-                                #         if key == 'type':
-                                #             # print('type found' + str(val))
-                                #             typeKey = val
-                                #         if key == 'instruction':
-                                #             # print('instruction found'  + str(val))
-                                #             typeVal = val
+    for value in command_object['values']:
+        if 'format instructions' in value:
+            # print('instructions found')
+            # print(value['format instructions'])
+            for instruct in value['format instructions']:
+                # print('instruct found')
+                # print(instruct)
+                for key, val in instruct.items():
+                    if key == 'before-format':
+                        if prompt_type == 'json-string':
+                            response_format_before += val
+                    if key == 'after-format':
+                        if prompt_type == 'json-string':
+                            response_format_after += val + "\n"
+                        
+        if 'response types requested' in value:
+            # print('response found')
+            for response_type in value['response types requested']:
+                # print('types found')
+                typeKey = ""
+                typeVal = ""
+                # print(response_type)
+                for element in response_type:
+                    for key, val in element.items():
+                        # if thread == 0:
+                        if key == 'type':
+                            # print('type found' + str(val))
+                            typeKey = val
+                        if key == 'instruction':
+                            # print('instruction found'  + str(val))
+                            typeVal = val
+                        # else:
+                        #     if val == 'reason' or val == 'plan':
+                        #         if key == 'type':
+                        #             # print('type found' + str(val))
+                        #             typeKey = val
+                        #         if key == 'instruction':
+                        #             # print('instruction found'  + str(val))
+                        #             typeVal = val
 
-                            response_format[typeKey] =typeVal
-                if 'command' in value:
-                    # print('commands found')
-                    command_string = ""
-                    counter = 0
-                    # print(value['command'])
-                    for command in value['command']:
-                        command_line = ""
-                        # print('command is ')
-                        # print(command)
-                        ##TODO DEFINITELY MAKE THIS RECURSIVE
-                        for element in command:
-                            # print('element is '  + str(element))
-                            for key, value in element.items():
-                                if key == 'name':
-                                    command_line += str(counter) + ". " + value
-                                if key == 'description':
-                                    command_line += ": " + value
-                                if isinstance(value, list):
-                                    if key == 'args' and value != []:
-                                        command_line += ", args: "
-                                    # print('value is list' + str(value))
-                                    for args in value:
-                                        for elements in args:
-                                            # print('sub element is ' + str(elements))
-                                            for subKey, subVal in elements.items():
-                                                if subKey == 'name':
-                                                    command_line += subVal + ": "
-                                                if subKey == 'example':
-                                                    command_line += subVal + ", "
-                                if key == 'active':
-                                    # print('active is ' + str(value))
-                                    if value == False:
-                                        command_line = ""
-                                        continue
-                                    counter += 1
-                        if command_line != "":
-                            command_string += command_line + "\n"
-                    
+                    response_format[typeKey] =typeVal
+        if 'command' in value:
+            # print('commands found')
+            command_string = ""
+            counter = 0
+
+            # print(value['command'])
+
+
+            for command in value['command']:
+                command_line = ""
+                openAI_function = {}
+                # print('command is ')
+                # print(command)
+                ##TODO DEFINITELY MAKE THIS RECURSIVE
+                for element in command:
+                    # print('element is '  + str(element))
+                    for key, value in element.items():
+                        if key == 'name':
+                            command_line += str(counter) + ". " + value
+                            openAI_function['name'] = value
+                        if key == 'description':
+                            command_line += ": " + value
+                            openAI_function['description'] = value
+
+                        if isinstance(value, list):
+                            if key == 'args' and value != []:
+                                command_line += ", args: "
+                                openAI_function['parameters'] = {}
+                                openAI_function['parameters']['properties'] = {}
+                                openAI_function['parameters']['type'] = 'object'
+                            # print('value is list' + str(value))
+                            for args in value:
+                                for elements in args:
+                                    # print('sub element is ' + str(elements))
+                                    name = ""
+                                    for subKey, subVal in elements.items():
+                                        if subKey == 'name':
+
+                                            command_line += subVal + ": "
+                                            name = subVal
+                                            openAI_function['parameters']['properties'][subVal] = {}
+                                            
+                                        if subKey == 'example':
+                                            command_line += subVal + ", "
+                                            if name in openAI_function['parameters']['properties']:
+                                                openAI_function['parameters']['properties'][name]['type'] = subVal
+
+
+                        if key == 'active':
+                            # print('active is ' + str(value))
+                            if value == False:
+                                command_line = ""
+                                continue
+                            counter += 1
+                if command_line != "":
+                    command_string += command_line + "\n"
+                if command_object != {}:
+                    open_AI_functions.append(openAI_function)
+
     # print(response_format)
     response_format = {
         "thoughts" :response_format,
@@ -439,7 +476,10 @@ async def construct_commands(command_object, thread = 0):
     final_return = command_string_instruction + format_instruction
 
     # print('final return is: ' + str(final_return))
-    return final_return
+    if prompt_type == 'json-string':
+        return final_return
+    elif prompt_type == 'openAI':
+        return open_AI_functions
     
                 
     
@@ -496,7 +536,7 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
         token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
     # print('nova convo')
-    # print(novaConvo[convoID])
+    print(novaConvo[convoID])
     # print(convoID)
     # print(novaConvo)
     limit = novaConvo[convoID]['token_limit'] * limit

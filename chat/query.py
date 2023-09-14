@@ -5,14 +5,14 @@ import asyncio
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 from session.tokens import check_tokens
 
-async def sendChat(promptObj, model):
+async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
     try:
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
 
     except:
         try:
-            response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+            response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
         except Exception as e:
             print(e)
             # print(promptObj)

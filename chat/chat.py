@@ -100,7 +100,12 @@ async def user_input(sessionData):
                 return
 
     print('sending user message to GPT')
-    await send_to_GPT(convoID, query_object, 0, model)
+    functions = None
+    if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
+        functions = current_prompt[convoID]['openAI_functions']
+
+
+    await send_to_GPT(convoID, query_object, 0, model, functions)
 
 async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
     # print('handling message on thread: ' + str(thread)) 
@@ -255,7 +260,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
 
 
-async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'):
+async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo', functions = None):
     if novaConvo[convoID].get('summarising'):
         return
     sessionID = novaConvo[convoID]['sessionID']
@@ -267,7 +272,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     print('checking tokens')
 
     await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': promptObject}))
-    # print('sending prompt object' + str(promptObject))
+    print('sending prompt object' + str(promptObject))
     tokens = await check_tokens(userID)
     if not tokens:
         asyncio.create_task(handle_message(convoID, 'Not enough NovaCoin to continue', 'assistant', 'system', None, thread))
@@ -278,9 +283,9 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
     agent_name = novaConvo[convoID]['agent-name']
     try:
-        response = await sendChat(promptObject, model)
+        response = await sendChat(promptObject, model, functions)
         content = str(response["choices"][0]["message"]["content"])
-        # print(response)
+        print(response)
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -292,7 +297,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         print('trying again')
 
         try: 
-            response = await sendChat(promptObject, model)
+            response = await sendChat(promptObject, model, functions )
             content = str(response["choices"][0]["message"]["content"])
             completion_tokens = response["usage"]['completion_tokens']
             prompt_tokens = response["usage"]['prompt_tokens']
@@ -437,9 +442,11 @@ async def return_to_GPT(convoID, thread = 0):
         print ('model: ' + model)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
     
-    print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
+    # if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
+    #     query_object += current_prompt[convoID]['openAI_functions']
 
-    print(novaConvo)
+
+    print(query_object)
     if 'steps-taken' in novaConvo[convoID]:
         if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
             print('sending to GPT')
@@ -559,9 +566,9 @@ async def simple_agent_response(convoID):
     
 
 
-async def sendChat(promptObj, model):
+async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj,functions=functions))
     return response
 
 

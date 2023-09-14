@@ -94,7 +94,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
             for cartKey, cartVal in blob['blob'].items():
 
                 cartVal['softDelete'] = False
-                print('reading cart', cartVal)
+                # print('reading cart', cartVal)
 
                 if 'settings' in settingsValue:
                     if 'enabled' in settingsValue['settings']:
@@ -116,7 +116,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
                         cartVal['position'] = settingsValue['settings']['position']
           
                 active_cartridges[convoID][cartKey ]= cartVal
-                print('updated cartridge list' + str(active_cartridges[convoID][cartKey ]))
+                # print('updated cartridge list' + str(active_cartridges[convoID][cartKey ]))
 
 
     # print('cartridge list')
