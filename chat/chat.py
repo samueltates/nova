@@ -190,7 +190,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             'key':key,
             'fields': {'id' : id}
         }
-        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload, 'convoID': convoID})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload})))
 
     if role == 'assistant' :
         # print('role not user')
@@ -209,8 +209,10 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 # print('command', command)
                 print('sending response')
                 copiedMessage['body'] = json_object
+                copiedMessage['convoID'] = convoID
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
             else: 
+                copiedMessage['convoID'] = convoID
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
 
@@ -223,7 +225,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             # if json_object != None:
             #     copiedMessage['body'] = json_object
             #     print('copied message')
-            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+            copiedMessage['convoID'] = convoID
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
         # print(copiedMessage)
         if len(simple_agents) > 0 and thread == 0:
@@ -240,10 +243,12 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
 
     if meta == 'terminal':
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
+        messageObject['convoID'] = convoID
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
 
     if meta == 'simple':
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
+        messageObject['convoID'] = convoID
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
     
     
         

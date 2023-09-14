@@ -19,10 +19,10 @@ class UnstructuredReader(BaseReader):
         super().__init__(*args, **kwargs)
 
         # Prerequisite for Unstructured.io to work
-        import nltk
+        # import nltk
 
-        nltk.download("punkt")
-        nltk.download("averaged_perceptron_tagger")
+        # nltk.download("punkt")
+        # nltk.download("averaged_perceptron_tagger")
 
     def load_data(
         self,

@@ -357,12 +357,16 @@ async def process_message(parsed_data):
     if(parsed_data['type'] == 'add_loadout'):
         eZprint('add_loadout route hit')
         print(parsed_data['data'])
-        sessionID = parsed_data['data']['sessionID']
+        convoID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
         await add_loadout(loadout, sessionID)
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
+        convoID = await handle_convo_switch(sessionID)
+        if not convoID:
+            convoID = await start_new_convo(sessionID)
+                
+        await retrieve_loadout_cartridges(loadout, convoID)
+        await initialise_conversation(sessionID, convoID)
+        await runCartridges(convoID, loadout)  
 
     if(parsed_data['type']=='clear_loadout'):
         eZprint('clear_loadout route hit')
@@ -458,36 +462,36 @@ async def process_message(parsed_data):
         await update_cartridge_field(parsed_data['data'], convoID, loadout)
 
 
-
+    # ALL GPT INDEX STUFF
     if(parsed_data['type']== 'requestDocIndex'):
-        data = parsed_data['data']
-        sessionID = data['sessionID']
-        loadout = None
-        if sessionID in current_loadout:
-            loadout = current_loadout[sessionID]
 
-            # print(data)
-            indexRecord = await asyncio.create_task(indexDocument(data, loadout))
-            if indexRecord:
-                request = {
-                    'tempKey': data['tempKey'],
-                    'newCartridge': indexRecord.blob,
-                }
-            await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
-            queryPackage = {
-                'query': 'Give this document a short summary.',
-                'cartKey': indexRecord.key,
-                'sessionID': data['sessionID'],
-                'userID': data['userID'],
+        data = parsed_data['data']
+        print(data)
+        sessionID = data['sessionID']
+        loadout = data['loadout']
+        convoID = data['convoID']
+        indexRecord = await asyncio.create_task(indexDocument(data, loadout))
+        if indexRecord:
+            request = {
+                'tempKey': data['tempKey'],
+                'newCartridge': indexRecord.blob,
             }
-            await asyncio.create_task(handleIndexQuery(queryPackage,loadout))
+        await websocket.send(json.dumps({'event':'updateTempCart', 'payload':request}))
+        queryPackage = {
+            'query': 'Give this document a short summary.',
+            'cartKey': indexRecord.key,
+            'sessionID': data['sessionID'],
+            'userID': data['userID'],
+        }
+        await asyncio.create_task(handleIndexQuery(queryPackage,convoID, loadout))
+
     if(parsed_data['type']== 'queryIndex'):
         data = parsed_data['data']
         sessionID = data['sessionID']
-        loadout = None
-        if sessionID in current_loadout:
-            loadout = current_loadout[sessionID]
-        await asyncio.create_task(handleIndexQuery(data,loadout))
+        loadout = data['loadout']
+        convoID = data['convoID']
+        await asyncio.create_task(handleIndexQuery(data, convoID, loadout))
+
     if(parsed_data['type']== 'summarizeContent'):
         data = parsed_data['data']
         await summariseChatBlocks(parsed_data['data'])
@@ -653,6 +657,8 @@ async def handle_indexdoc_end(data):
         'sessionID': file_metadata['sessionID'],
         'userID': file_metadata['userID'],
         'file_content': file_content,
+        'loadout' : file_metadata['loadout'],
+        'convoID' : file_metadata['convoID'],
         'file_name': file_metadata['file_name'],
         'file_type': file_metadata['file_type'],
         'sessionID': file_metadata['sessionID'],
@@ -662,10 +668,8 @@ async def handle_indexdoc_end(data):
     }
 
     sessionID = data['sessionID']
-    client_loadout = None
-    if sessionID in current_loadout:
-        client_loadout = current_loadout[sessionID]
-    indexRecord = await indexDocument(data, client_loadout)
+
+    indexRecord = await indexDocument(data, file_metadata['loadout'])
     # if indexRecord:
     #     payload = {
     #         'tempKey': data['tempKey'],
@@ -680,7 +684,7 @@ async def handle_indexdoc_end(data):
     }
     sessionID = data['sessionID']
 
-    await asyncio.create_task(handleIndexQuery(queryPackage, client_loadout))
+    await asyncio.create_task(handleIndexQuery(queryPackage, file_metadata['convoID'], file_metadata['loadout']))
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]

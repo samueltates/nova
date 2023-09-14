@@ -145,27 +145,27 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     
 async def add_loadout(loadout: str, convoID):
     
-    current_loadout[convoID] = loadout
-    active_cartridges[convoID] = {}
+    loadout_values = {
+        'cartridges':[],
+        'config': { 
+                'title': '...',
+                'read_only': False,
+                'convo_summary': 'one_way',
+                'show_cartridges' : True,
+                'shared' : False,
+                }
+    }
+
+    active_loadouts[loadout] = loadout_values
 
     new_loadout = await prisma.loadout.create(
         data={
             "key": str(loadout),
             'UserID': novaSession[convoID]['userID'],
-            "blob":Json({loadout:{
-                'cartridges':[],
-                'config': { 
-                        'title': '...',
-                        'read_only': False,
-                        'convo_summary': 'one_way',
-                        'show_cartridges' : True,
-                        'shared' : False,
-                        }
-            }})
+            "blob":Json({loadout:loadout_values})
         }
     )
-    if loadout == current_loadout[convoID]:
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+
   
 async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     eZprint('add cartridge to loadout triggered')
@@ -245,45 +245,43 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
         if 'cartridges' not in loadout['convos'][convoID]:
             loadout['convos'][convoID]['cartridges'] = []
         # making edits to list copy to avoid 'list changed size during iteration' error
-        cartridges_copy = loadout['convos'][convoID]['cartridges'][:]
-        for cart in cartridges_copy:
+        # cartridges_copy = loadout['convos'][convoID]['cartridges'][:]
+        for cart in loadout['convos'][convoID]['cartridges']:
             if 'key' in cart and cart['key'] == cartridge:
-                if 'softDelete' in settings and settings['softDelete'] == True:
-                    loadout['convos'][convoID]['cartridges'].remove(cart)
                 if 'settings' not in cart:
                     cart['settings'] = {}                
                 for settingsKey, settingsVal in settings.items():
                     if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
                         cart['settings'][settingsKey] = settingsVal
+                if 'softDelete' in settings and settings['softDelete'] == True:
+                    loadout['convos'][convoID]['cartridges'].remove(cart)
         # write back to original list if there's been a change
-        loadout['convos'][convoID]['cartridges'] = cartridges_copy
 
         # print(loadout['convos'])
         # print('adding cartridge ' + cartridge + ' to convo ' + convoID)
         # but it also sets only the 'pinned' status at the base level
-        loadout_cartridge = loadout['cartridges'][:]
-        for cart in loadout_cartridge:
+        # loadout_cartridge = loadout['cartridges'][:]
+        for cart in loadout['cartridges']:
             if 'key' in cart and cart['key'] == cartridge:
                 for settingsKey, settingsVal in settings.items():
-                    if settingsKey in ['pinned']:
+                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
                         cart['settings'][settingsKey] = settingsVal 
         
     else:
     #otherwise it sets all the settings at the base level
         if 'cartridges' not in loadout:
             loadout['cartridges'] = []
-        cartridges_copy = loadout['cartridges'][:]
-        for cart in cartridges_copy:
+        # cartridges_copy = loadout['cartridges'][:]
+        for cart in loadout['cartridges']:
             if 'key' in cart and cart['key'] == cartridge:
-                if 'softDelete' in settings and settings['softDelete'] == True:
-                    loadout['cartridges'].remove(cart)
                 if 'settings' not in cart:
                     cart['settings'] = {}                
                 for settingsKey, settingsVal in settings.items():
                     if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
                         cart['settings'][settingsKey] = settingsVal
-        # write back to original list if there's been a change
-        loadout['cartridges'] = cartridges_copy
+                if 'softDelete' in settings and settings['softDelete'] == True:
+                    loadout['cartridges'].remove(cart)
+  
         
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
@@ -299,7 +297,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
             }
     )
     print('loadout updated')
-    # print(update)
+    print(update)
 
 
 async def clear_loadout(sessionID, convoID):

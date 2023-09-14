@@ -54,6 +54,7 @@ async def indexDocument(payload, client_loadout):
     indexType = payload['indexType']
     tempKey = payload['tempKey']
     sessionID = payload['sessionID']
+    convoID = payload['convoID']
     # sessionID = payload['sessionID']
     document = None
     documentTitle = None
@@ -148,7 +149,7 @@ async def indexDocument(payload, client_loadout):
             'enabled': True
     }
 
-    index = await prisma.index .create(
+    index = await prisma.index.create(
 
         data = {'key' :key,
                 'UserID' : userID,
@@ -176,7 +177,7 @@ async def indexDocument(payload, client_loadout):
     'tempKey': tempKey,
     'newCart': {tempKey:cartVal}
     }
-    newCart = await addCartridgePrompt(input, client_loadout)
+    newCart = await addCartridgePrompt(input, convoID, client_loadout)
     
     return newCart
 
@@ -258,7 +259,7 @@ def quicker_query(text, query, meta = '' ):
 
 
 
-async def handle_nova_query(cartKey, cartVal, sessionID, query, loadout = None):
+async def handle_nova_query(cartKey, cartVal, sessionID, query, convoID, loadout = None):
     index_key = cartVal['index']
     indexJson = await get_index_json(index_key)
     index = await reconstructIndex(indexJson)
@@ -276,7 +277,7 @@ async def handle_nova_query(cartKey, cartVal, sessionID, query, loadout = None):
             },
             'loadout' : loadout
         }
-        await update_cartridge_field(input, loadout, system=True)
+        await update_cartridge_field(input, convoID, loadout, system=True)
     return insert
 
 
@@ -286,12 +287,11 @@ async def handle_nova_query(cartKey, cartVal, sessionID, query, loadout = None):
     
 #     Document(t) for t in text_list
 
-async def handleIndexQuery(input, loadout = None):
+async def handleIndexQuery(input, convoID, loadout = None):
     cartKey = input['cartKey']
     sessionID = input['sessionID']
-
     query = input['query']
-    cartVal = active_cartridges[sessionID][cartKey]
+    cartVal = active_cartridges[convoID][cartKey]
     #TODO -  basically could comine with index query (or this is request, query is internal)
 
     cartVal['status'] = 'querying Index'
@@ -306,17 +306,17 @@ async def handleIndexQuery(input, loadout = None):
         },
         'loadout' : loadout
     }
-    await update_cartridge_field(input, loadout, system=True)
+    await update_cartridge_field(input,convoID,loadout, system=True)
 
     eZprint('handling index query')
     if cartVal['type'] == 'index' and cartVal['enabled'] == True :
         index_key = cartVal['index']
         index = await get_index_json(index_key)
-        response = await triggerQueryIndex(sessionID, cartKey, cartVal, query, index, index_key, loadout )
+        response = await triggerQueryIndex(sessionID, cartKey, cartVal, query, index, index_key, convoID, loadout )
         return response
 
 
-async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index_key, loadout = None):
+async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index_key, convoID, loadout = None):
     eZprint('triggering index query')
 
     cartVal['state'] = 'loading'
@@ -330,7 +330,7 @@ async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index
         },
         'loadout' : loadout
     }
-    await update_cartridge_field(input, loadout, system=True)
+    await update_cartridge_field(input, convoID,  loadout, system=True)
     localIndex = await reconstructIndex(indexJson)
     insert = await queryIndex(query, localIndex)
 
@@ -409,7 +409,7 @@ async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index
             },
             'loadout' : loadout
         }
-        await update_cartridge_field(input, loadout, system=True)
+        await update_cartridge_field(input, convoID, loadout, system=True)
         return insert
 
         
