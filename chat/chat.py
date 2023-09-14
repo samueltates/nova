@@ -232,6 +232,11 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             #     print('copied message')
             copiedMessage['convoID'] = convoID
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+            if meta == 'function_call':
+                asyncio.create_task(command_interface(message, convoID, thread))
+
+
+
 
         # print(copiedMessage)
         if len(simple_agents) > 0 and thread == 0:
@@ -279,6 +284,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         return
     
     content = ''
+    functions = None
     if thread == 0:
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
     agent_name = novaConvo[convoID]['agent-name']
@@ -286,6 +292,8 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         response = await sendChat(promptObject, model, functions)
         content = str(response["choices"][0]["message"]["content"])
         print(response)
+        if response["choices"][0]["message"].get('function_call', None):
+            functions = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -299,6 +307,8 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         try: 
             response = await sendChat(promptObject, model, functions )
             content = str(response["choices"][0]["message"]["content"])
+            if response["choices"][0]["message"].get('function_call', None):
+                functions = response["choices"][0]["message"]["function_call"]
             completion_tokens = response["usage"]['completion_tokens']
             prompt_tokens = response["usage"]['prompt_tokens']
             await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -315,6 +325,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
 
     asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread))
+
+    if functions:
+        asyncio.create_task(handle_message(convoID, functions, 'assistant', agent_name, None, thread, meta = 'function_call'))
+
 
     # if len(chatlog[convoID]) == 4:
         

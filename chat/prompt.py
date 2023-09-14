@@ -244,6 +244,18 @@ async def construct_objects(convoID, system_string = None, content_string = None
     give_context = False
     if system_string:
         final_prompt_string += system_string
+
+    print(prompt_objects)
+    if prompt_objects.get('openAI_functions', None):
+
+        novaConvo[convoID]['return_type'] = 'openAI'
+        for value in prompt_objects['openAI_functions']['values']:
+            if value.get('functions',None):
+                if convoID not in current_prompt:
+                    current_prompt[convoID] = {}
+                current_prompt[convoID]['openAI_functions'] = value['functions'][0]
+                print(current_prompt[convoID]['openAI_functions'])
+
     if 'system' in prompt_objects:
         print('system found')
         print(prompt_objects['system']['values'])
@@ -252,6 +264,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
                 # print('starter found' + str(value['system-starter']))
                 if convoID not in current_prompt or 'chat' not in current_prompt[convoID] or current_prompt[convoID]['chat'] == []:
                     emphasise_string += value['system-starter']
+                    
             if 'emphasise' in value and value['emphasise'] != '':
                     emphasise_string += " " + value['emphasise']
 
@@ -291,7 +304,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
             context = await construct_context(convoID)
             final_prompt_string += context
 
-    if 'command' in prompt_objects:
+    if prompt_objects.get('command', None):
         print('command found')
         # print(prompt_objects['command']['values'])
         for value in prompt_objects['command']['values']:
@@ -302,42 +315,41 @@ async def construct_objects(convoID, system_string = None, content_string = None
                 else:
                     novaConvo[convoID]['return_type'] = 'json-string'
 
-
             if 'steps-allowed' in value:
                 novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
             elif 'steps-allowed' not in novaConvo[convoID]:
                 novaConvo[convoID]['steps-allowed'] = 3
             
         
-        if novaConvo[convoID]['return_type'] == 'openAI':
-            if convoID not in current_prompt:
-                current_prompt[convoID] = {}
-            openAI_functions = await construct_commands(prompt_objects['command'], 'openAI', thread)    
-            print('openAI functions are: ' + str(openAI_functions))
-            current_prompt[convoID]['openAI_functions'] = openAI_functions
+        # if novaConvo[convoID]['return_type'] == 'openAI':
+        #     if convoID not in current_prompt:
+        #         current_prompt[convoID] = {}
+        #     openAI_functions = await construct_commands(prompt_objects['command'], 'openAI', thread)    
+        #     print('openAI functions are: ' + str(openAI_functions))
+        #     current_prompt[convoID]['openAI_functions'] = openAI_functions
 
-        else:
+        # else:
 
-            final_command_string = ''
-            final_command_string += "\n"+prompt_objects['command']['string']
-            if 'emphasise' in prompt_objects['command']['values'] and prompt_objects['command']['values']['emphasise'] != '':
-                emphasise_string += " " + prompt_objects['command']['values']['emphasise']
-            # print('command found' + str(prompt_objects['command']))
-            if 'label' in prompt_objects['command']:
-                # print('command label found')
-                # print(prompt_objects['commands']['label'])
-                final_command_string +=  prompt_objects['command']['label'] + "\n"
-            if 'prompt' in prompt_objects['command']:
-                # print('command prompt found')
-                # print(prompt_objects['commands']['prompt'])
-                final_command_string +=  prompt_objects['command']['prompt']
-            return_format = await construct_commands(prompt_objects['command'], 'json-string', thread)
-            # print('return format is: ' + str(return_format))
-            final_command_string += return_format
-            # print('command string is: ' + str(final_command_string))
-            final_prompt_string += "\n"+final_command_string
+        final_command_string = ''
+        final_command_string += "\n"+prompt_objects['command']['string']
+        if 'emphasise' in prompt_objects['command']['values'] and prompt_objects['command']['values']['emphasise'] != '':
+            emphasise_string += " " + prompt_objects['command']['values']['emphasise']
+        # print('command found' + str(prompt_objects['command']))
+        if 'label' in prompt_objects['command']:
+            # print('command label found')
+            # print(prompt_objects['commands']['label'])
+            final_command_string +=  prompt_objects['command']['label'] + "\n"
+        if 'prompt' in prompt_objects['command']:
+            # print('command prompt found')
+            # print(prompt_objects['commands']['prompt'])
+            final_command_string +=  prompt_objects['command']['prompt']
+        return_format = await construct_commands(prompt_objects['command'], 'json-string', thread)
+        # print('return format is: ' + str(return_format))
+        final_command_string += return_format
+        # print('command string is: ' + str(final_command_string))
+        final_prompt_string += "\n"+final_command_string
 
-            novaConvo[convoID]['command'] = True
+        novaConvo[convoID]['command'] = True
     else:
         novaConvo[convoID]['command'] = False
         emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
