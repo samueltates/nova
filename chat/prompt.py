@@ -28,7 +28,7 @@ async def unpack_cartridges(convoID):
     cartridge_contents = {} 
     simple_agents[convoID] = {}
     # print('unpacking cartridges')
-    print(sorted_cartridges)
+    # print(sorted_cartridges)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:

@@ -45,8 +45,8 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     loadout_cartridges = None
     cleanSlate = config.get('cleanSlate', None)
 
-    print('config', config)
-    print('convos', convos)
+    # print('config', config)
+    # print('convos', convos)
     # if clean slate, then gets the convo cartridges and then loadout cartridges
 
     if cleanSlate :
@@ -58,8 +58,8 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
         loadout_cartridges = loadout_data.get('cartridges', None)
 
-    print(convo_cartridges, 'convo carts')
-    print(loadout_cartridges, 'loadout cartridges')
+    # print(convo_cartridges, 'convo carts')
+    # print(loadout_cartridges, 'loadout cartridges')
 
     #recalls cartridges in loadout
     if not loadout_cartridges and not convo_cartridges:
@@ -351,7 +351,7 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
         },         
     )
 
-    print(active_cartridges[convoID])
+    # print(active_cartridges[convoID])
     if targetCartKey in active_cartridges[convoID]:
         for key, val in input['fields'].items():
             active_cartridges[convoID][targetCartKey][key] = val
@@ -364,16 +364,21 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
         if client_loadout:
             #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
             # print('update settings in loadout')
-            await update_settings_in_loadout(convoID, targetCartKey, input['fields'], client_loadout)
+            setting_update = False
             for key, val in input['fields'].items():
                     if key in ['enabled', 'minimised', 'pinned', 'position']:
+                        setting_update = True
                         continue
                     if key == 'softDelete' and val == True:
                         # print('soft delete')
+                        setting_update = True
+
                         del active_cartridges[convoID][targetCartKey]
                         continue
                     matchedCartVal[key] = val
-                
+            if setting_update:
+                await update_settings_in_loadout(convoID, targetCartKey, input['fields'], client_loadout)
+
         elif client_loadout == None: 
             #if not coming from loadout then applies to base
             # print('update base cartridge')

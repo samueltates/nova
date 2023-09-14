@@ -366,13 +366,24 @@ async def process_message(parsed_data):
 
     if(parsed_data['type']=='clear_loadout'):
         eZprint('clear_loadout route hit')
-
+        params = {}
+        # print( 'current loadout is ' + str(current_loadout[sessionID]))
+        if 'params' in parsed_data['data']:
+            params = parsed_data['data']['params']
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         sessionID = parsed_data['data']['sessionID']
         await clear_loadout(sessionID, convoID)
-        await get_loadout_logs(loadout, sessionID)
-        await retrieve_loadout_cartridges(loadout, convoID)
+        await get_loadouts(sessionID)
+        await get_loadout_logs(None, sessionID)
+        # gets or creates conversation - should this pick up last?
+        convoID = await handle_convo_switch(sessionID)
+        if not convoID:
+            convoID = await start_new_convo(sessionID)
+
+        await initialise_conversation(sessionID, convoID, params)
+        await initialiseCartridges(sessionID, convoID, None)
+
 
     if(parsed_data['type']== 'add_convo'):
         convoID = secrets.token_bytes(4).hex()
@@ -390,8 +401,10 @@ async def process_message(parsed_data):
             'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
             'summary': "new conversation",
         }
+        await retrieve_loadout_cartridges(loadout, convoID_full)
         await initialise_conversation(sessionID, convoID_full)
         await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
+
 
     if(parsed_data['type'] == 'set_convo'):
         print('set convo called')
@@ -403,7 +416,6 @@ async def process_message(parsed_data):
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
         await set_convo(requestedConvoID, sessionID)
-
 
 
     ## ALL BACK AND FORTH ###

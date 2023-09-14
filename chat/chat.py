@@ -22,6 +22,10 @@ from tools.jsonfixes import correct_json
 
 
 async def agent_initiate_convo(sessionID, convoID, loadout):
+    """
+    This function is called when the agent initiates a conversation. It will check if there is a message in the novaConvo object, and if so, it will send it to the GPT. It will then construct the query object and send it to GPT 
+    """
+
     # print('agent initiate convo')
     convoID = novaSession[sessionID]['convoID']
     if 'message' in novaConvo[convoID]:       
@@ -52,6 +56,10 @@ async def agent_initiate_convo(sessionID, convoID, loadout):
 
 
 async def user_input(sessionData):
+
+    """
+    
+    """
     #takes user iput and runs message cycle
     # print('user input')
     # print(sessionData)
@@ -182,7 +190,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             'key':key,
             'fields': {'id' : id}
         }
-        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload, 'convoID': convoID})))
 
     if role == 'assistant' :
         # print('role not user')
@@ -201,9 +209,9 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
                 # print('command', command)
                 print('sending response')
                 copiedMessage['body'] = json_object
-                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
             else: 
-                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
 
         else:
@@ -215,7 +223,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             # if json_object != None:
             #     copiedMessage['body'] = json_object
             #     print('copied message')
-            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
         # print(copiedMessage)
         if len(simple_agents) > 0 and thread == 0:
@@ -232,10 +240,10 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
 
     if meta == 'terminal':
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
 
     if meta == 'simple':
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
     
     
         
@@ -262,7 +270,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     
     content = ''
     if thread == 0:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing'}}))
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
     agent_name = novaConvo[convoID]['agent-name']
     try:
         response = await sendChat(promptObject, model)
@@ -294,7 +302,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     # eZprint('response recieved')
     
     
-    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}}))
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
 
     asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread))
 
@@ -305,7 +313,7 @@ async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
     print('running commands')
     # print('nova convo is ' + str(novaConvo))
-    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
+    # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
     command_response = None
     # def error_handler():
@@ -489,7 +497,7 @@ async def simple_agent_response(convoID):
 
         for key, val in simple_agents[convoID].items():
             
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': 'typing'}}))
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': 'typing'}, 'convoID': convoID}))
 
             promptObject = {'role': "system", "content": val['label']+'\n'+val['prompt']}
             await construct_chat(convoID)
@@ -534,7 +542,7 @@ async def simple_agent_response(convoID):
             completion_tokens = response["usage"]['completion_tokens']
             prompt_tokens = response["usage"]['prompt_tokens']
             await handle_token_use(userID, 'gpt-3.5-turbo', completion_tokens, prompt_tokens)
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': ''}}))
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': str(val['label']), 'state': ''}, 'convoID': convoID}))
             eZprint('response recieved')
             await handle_message(convoID, content, 'user', str(val['label']), None, 0, 'simple')
             await construct_query(convoID),

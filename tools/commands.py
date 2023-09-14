@@ -49,7 +49,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return False
     
     if  name in 'list_files':
-        response = await list_files(name, sessionID, loadout)
+        response = await list_files(name, sessionID, loadout, convoID)
         print('back at list parent function')
         print(response)
         return response
@@ -187,7 +187,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return response
     
     if name == 'read':
-        for key, val in active_cartridges[sessionID].items():
+        for key, val in active_cartridges[convoID].items():
             if 'label' in val:
                 if val['label'].lower() == args['filename'].lower():
                     new_page = 0
@@ -234,45 +234,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(response)
         return response
                 
-    if 'create' in name or name in 'create':
-        eZprint('create file')
-        if 'filename' in args:
-            filename = args['filename']
-
-            for key, val in active_cartridges[sessionID].items():
-                all_text += str(val)
-                string_match = distance(filename, str(val['label']))
-                # print('distance: ' + str(string_match))
-                # print('filename: ' + filename)
-                # print('label: ' + str(val['label']))
-                if string_match < 3:
-                    payload = {
-                    'cartKey' : key,
-                    'sessionID' : sessionID,
-                    'fields' : {
-                        'text' : args['text'],
-                    }
-                    }
-                    
-                    update_cartridge_field(payload, convoID)
-                    command_return['status'] = "Success."
-                    command_return['message'] = "file '" +filename  + "' exists, so appending to file"
-                    print(command_return)
-                    return command_return
-            
-        
-            cartVal = {
-            'label' : filename,
-            'text' : args['text'],
-            'type' : 'note'
-            }
-            print(cartVal)
-            await addCartridge(cartVal, sessionID, current_loadout[sessionID])
-            command_return['status'] = "Success."
-            command_return['message'] = "file " +filename  + " created"
-            print(command_return)
-            return command_return
-        
+   
     if 'write' in name or name in 'write':
         eZprint('writing file')
         text = ''
@@ -281,7 +243,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if 'filename' in args:
             filename = args['filename']
 
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
                 # print('distance: ' + str(string_match))
                 # print('filename: ' + filename)
@@ -298,7 +260,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         'fields':
                                 {'text': val['text']}
                                 }
-                    loadout = current_loadout[sessionID]
                     await update_cartridge_field(payload, convoID, loadout, True)
                     command_return['status'] = "Success."
                     command_return['message'] = "file '" +filename  + "' exists, so appending to file"
@@ -314,7 +275,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             }
 
             print(cartVal)
-            await addCartridge(cartVal, sessionID, current_loadout[sessionID])
+            await addCartridge(cartVal, sessionID, loadout, convoID, True)
 
             command_return['status'] = "Success."
             command_return['message'] = "file '" + filename  + "' written"
@@ -333,7 +294,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             filename = args['filename']
 
 
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
                 if string_match < 3:
                     current_text = ''
@@ -362,9 +323,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             }
 
             # print(cartVal)
-            await addCartridge(cartVal, sessionID, current_loadout[sessionID])
+            await addCartridge(cartVal, sessionID, loadout, convoID, True)
             command_return['status'] = "Success."
             command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
+            return command_return
+        
         command_return['status'] = "Error."
         command_return['message'] = "Arg 'filename' missing"
         print(command_return)
@@ -376,7 +339,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if 'filename' in args:
             filename = args['filename']
 
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 all_text += str(val)
                 string_match = distance(filename, str(val['label']))
                 if string_match < 3:
@@ -416,7 +379,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('closing file')
         if 'filename' in args:
             filename = args['filename']
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 # all_text += str(val)
                 string_match = distance(filename, str(val['label']))
                 if string_match < 3:
@@ -435,7 +398,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         'fields':
                                 {'softDelete': val['softDelete']}
                                 }
-                    loadout = current_loadout[sessionID]
                     await update_cartridge_field(payload, convoID, loadout, True)       
 
                     command_return['status'] = "Success."
@@ -453,7 +415,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint('deleting file')
         if 'filename' in args:
             filename = args['filename']
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 string_match = distance(filename, str(val['label']))
                 # print('distance: ' + str(string_match))
                 # print('filename: ' + filename)
@@ -468,7 +430,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         'fields':
                                 {'enabled': val['enabled']}
                                 }
-                    loadout = current_loadout[sessionID]
                     await update_cartridge_field(payload, convoID, loadout, True)       
                     command_return['status'] = "Success."
                     command_return['message'] = return_string
@@ -507,7 +468,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         media_to_overlay_keys = []
         if args.get('main_video'):
             main_video = args['main_video']
-            for key, val in active_cartridges[sessionID].items():
+            for key, val in active_cartridges[convoID].items():
                 if 'label' in val and val['label'] == main_video:
                     main_video_cartridge = val
                     main_video_cartridge.update({'key' : key})
@@ -519,7 +480,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 print(media)
                 if media.get('file_name'):
                     print('file name found')
-                    for key, val in active_cartridges[sessionID].items():
+                    for key, val in active_cartridges[convoID].items():
                         if 'label' in val and val['label'] == media.get('file_name'):
                             media.update({'key' : key})
                             break
@@ -540,7 +501,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name == 'edit_video':
         video_file = args['video_file']
         extension = None
-        for key, val in active_cartridges[sessionID].items():
+        for key, val in active_cartridges[convoID].items():
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == video_file:
                 print(val)
@@ -561,7 +522,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         video_file_name = args['filename']
         video_file = None
         extension = None
-        for key, val in active_cartridges[sessionID].items():
+        for key, val in active_cartridges[convoID].items():
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == video_file_name:
                 print(val)
@@ -614,7 +575,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         }
 
         # print(cartVal)
-        await addCartridge(cartVal, sessionID, current_loadout[sessionID])
+        await addCartridge(cartVal, sessionID, loadout, convoID, True)
         command_return['status'] = "Success."
         command_return['message'] = "Website scrape saved as  : 'scrape of ' + " + str(website_url)
         return command_return
@@ -670,7 +631,6 @@ async def open_file(name, args, sessionID, loadout):
                                 'softDelete': False,
                                 }
                                 }
-                    loadout = current_loadout[sessionID]
                     await add_existing_cartridge(payload, loadout)       
                     command_return['status'] = "Success."
                     command_return['message'] = return_string
@@ -718,7 +678,7 @@ async def open_file(name, args, sessionID, loadout):
         return command_return
 
 
-async def broad_query(name, args, sessionID, convoID, loadout):
+async def broad_query(name, args, sessionID, thread, convoID):
          # await get_cartridge_list(convoID)
     all_text = ''
     command_return = {"status": "", "name" :name, "message": ""}
@@ -730,7 +690,7 @@ async def broad_query(name, args, sessionID, convoID, loadout):
     if 'filename' in args:
         filename = args['filename']
 
-        for cartKey, cartVal in active_cartridges[sessionID].items():
+        for cartKey, cartVal in active_cartridges[convoID].items():
             all_text += str(cartVal)
             string_match = distance(filename, str(cartVal['label']))
             # print('distance: ' + str(string_match))
@@ -780,7 +740,7 @@ async def broad_query(name, args, sessionID, convoID, loadout):
                         print(command_return)
                         return command_return
                     
-        for cartKey, cartVal in active_cartridges[sessionID].items():
+        for cartKey, cartVal in active_cartridges[convoID].items():
             if 'type' in cartVal and cartVal['type'] == 'summary':
                 # print('searching summary for pointer')
                 if 'blocks' in cartVal:
@@ -931,7 +891,7 @@ async def read_text(name, text_title, text_body, convoID, thread = 0, page = 0):
 
 
 
-async def list_files(name, sessionID, loadout, thread = 0):
+async def list_files(name, sessionID, loadout, convoID, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
 
     eZprint('list available files')
@@ -945,7 +905,7 @@ async def list_files(name, sessionID, loadout, thread = 0):
     # string = ''
     # await ava(convoID)
     if sessionID in active_cartridges:
-        for key, val in active_cartridges[sessionID].items():
+        for key, val in active_cartridges[convoID].items():
             if 'type' in val and val['type'] == 'note' or val['type'] == 'index' or val['type'] == 'summary':
                 if val.get('label', None):
                     print(val['label'])
@@ -969,7 +929,7 @@ async def list_files(name, sessionID, loadout, thread = 0):
     if sessionID in whole_cartridge_list and len(whole_cartridge_list[sessionID])>0:
         string += '\nClosed files:\n'
         for key, val in whole_cartridge_list[sessionID].items():    
-            if key not in active_cartridges[sessionID]:
+            if key not in active_cartridges[convoID]:
                 if scope == 'global' or loadout == None or 'initial-loadout' in val and val['initial-loadout'] == loadout:
                     if val.get('label', None):
                         print(val['label'])

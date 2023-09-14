@@ -176,8 +176,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     
     loadout_config = loadout.get('config', {})
     cleanSlate = loadout_config.get('cleanSlate', False)
-    # print(loadout_config)
-    # print(loadout)
+    print(loadout_config)
+    print(loadout)
     if cleanSlate:
         print('clean slate detected')
         if 'convos' not in loadout:
@@ -212,7 +212,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
         where={ "key": loadout_key },
     )
     
-    print(remote_loadout)
+    # print(remote_loadout)
 
     update = await prisma.loadout.update(
         where = {
@@ -223,7 +223,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
             }
     )
     print('loadout updated')
-    print(update)
+    # print(update)
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
@@ -244,6 +244,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
             loadout['convos'][convoID]={}
         if 'cartridges' not in loadout['convos'][convoID]:
             loadout['convos'][convoID]['cartridges'] = []
+        # making edits to list copy to avoid 'list changed size during iteration' error
         cartridges_copy = loadout['convos'][convoID]['cartridges'][:]
         for cart in cartridges_copy:
             if 'key' in cart and cart['key'] == cartridge:
@@ -254,9 +255,11 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
                 for settingsKey, settingsVal in settings.items():
                     if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
                         cart['settings'][settingsKey] = settingsVal
+        # write back to original list if there's been a change
+        loadout['convos'][convoID]['cartridges'] = cartridges_copy
 
-        print(loadout['convos'])
-        print('adding cartridge ' + cartridge + ' to convo ' + convoID)
+        # print(loadout['convos'])
+        # print('adding cartridge ' + cartridge + ' to convo ' + convoID)
         # but it also sets only the 'pinned' status at the base level
         loadout_cartridge = loadout['cartridges'][:]
         for cart in loadout_cartridge:
@@ -279,11 +282,13 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
                 for settingsKey, settingsVal in settings.items():
                     if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
                         cart['settings'][settingsKey] = settingsVal
+        # write back to original list if there's been a change
+        loadout['cartridges'] = cartridges_copy
         
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    print(loadout_key)
+    # print(loadout_key)
 
     update = await prisma.loadout.update(
         where = {
@@ -294,33 +299,32 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
             }
     )
     print('loadout updated')
-    print(update)
+    # print(update)
 
 
 async def clear_loadout(sessionID, convoID):
     current_loadout[sessionID] = None
     novaSession[sessionID]['owner'] = True
-
     active_cartridges[convoID] = {}
-    current_config[sessionID] = {}
-    if novaSession[sessionID]['userID']:
-        user_details = await prisma.user.find_first(
-            where={ "UserID": novaSession[sessionID]['userID'] },
-        )
 
-        blob = json.loads(user_details.json())['blob']
-        blob['current_loadout'] = None
-        if user_details:
-            update_user = await prisma.user.update(
-                where = {
-                    'id' : user_details.id
-                },
-                data = {
-                    'blob': Json(blob)
-                    }
-            )
+    # if novaSession[sessionID]['userID']:
+    #     user_details = await prisma.user.find_first(
+    #         where={ "UserID": novaSession[sessionID]['userID'] },
+    #     )
 
-            # print(update_user)
+        # blob = json.loads(user_details.json())['blob']
+        # blob['current_loadout'] = None
+        # if user_details:
+        #     update_user = await prisma.user.update(
+        #         where = {
+        #             'id' : user_details.id
+        #         },
+        #         data = {
+        #             'blob': Json(blob)
+        #             }
+        #     )
+
+        #     # print(update_user)
 
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
@@ -392,21 +396,27 @@ async def set_loadout_title(loadout_key, title):
         )
 
 async def update_loadout_field(loadout_key, field, value):
+    print('update_loadout_field')
     # print(loadout_key, field, value)
+    active_loadout = active_loadouts[loadout_key]
+    if not active_loadout:
+        return
+    
+    print(active_loadout)
+
+    if 'config' in active_loadout:
+        active_loadout['config'][field] = value
+
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    blob = json.loads(loadout.json())['blob']
-    for key, val in blob.items():
-        # print(key, val)
-        val['config'][field] = value
 
-        update = await prisma.loadout.update(
-            where = {
-                'id' : loadout.id
-            },
-            data={
-                "blob":Json({key:val})
-                }
-        )
+    update = await prisma.loadout.update(
+        where = {
+            'id' : loadout.id
+        },
+        data={
+            "blob":Json({loadout_key:active_loadout})
+            }
+    )
         # print(update)
