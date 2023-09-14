@@ -291,7 +291,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
             final_prompt_string += context
     if 'command' in prompt_objects:
         for values in prompt_objects['command']['values']:
-            # print('command value is: ' + str(values))
+            print('command value is: ' + str(values))
             for value in values:
                 # print(value)
                 if 'emphasise' in value and value['emphasise'] != '':

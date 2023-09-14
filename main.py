@@ -503,6 +503,8 @@ async def process_message(parsed_data):
         await handle_indexdoc_chunk(parsed_data["data"])
     elif parsed_data["type"] == "indexdoc_end":
         await handle_indexdoc_end(parsed_data["data"])
+
+        ##REST OF FILE HANDLING STUFF
     elif parsed_data["type"] == "file_start":
         print('indexdoc_start')
         print(parsed_data["data"])

@@ -20,7 +20,7 @@ from file_handling.s3 import write_file, read_file
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
-async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay, sessionID, loadout):
+async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay, sessionID, convoID, loadout):
     main_video_key = main_video_cartridge['key']
     video_file = await read_file(main_video_key)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
@@ -174,10 +174,10 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
         'enabled' : True,
     }
 
-    cartKey = await addCartridge(cartVal, sessionID, loadout )
+    cartKey = await addCartridge(cartVal, sessionID, loadout, convoID )
     url = await write_file(file_to_send.file, cartKey) 
 
-    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, loadout, True)
+    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}},convoID, loadout, True)
     file_to_send.close()
     compositeClip.close()
 

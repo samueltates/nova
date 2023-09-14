@@ -60,6 +60,7 @@ async def handle_file_end(data):
         'file_name': file_metadata['file_name'],
         'file_type': file_metadata['file_type'],
         'sessionID': file_metadata['sessionID'],
+        'convoID' : file_metadata['convoID'],
         'loadout': file_metadata['loadout'],
         'tempKey': file_metadata['tempKey'],
         'document_type': file_metadata['document_type'],
@@ -75,7 +76,7 @@ async def handle_file_end(data):
     file_name = data['file_name']
     file_type = data['file_type']
     loadout = data['loadout']
-
+    convoID = data['convoID']
     temp_dir = tempfile.mkdtemp()
     temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix=file_name)
     temp_file.write(file_content)
@@ -96,13 +97,13 @@ async def handle_file_end(data):
         'enabled' : True,
     }
 
-    cartKey = await addCartridge(cartVal, sessionID, loadout )
+    cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     cartridge = {cartKey : cartVal}
 
     url = await write_file(file_content, cartKey) 
     print(url)
     print(file_type)
-    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, loadout, True)
+    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, convoID, loadout, True)
     # if file_type == 'application/pdf':
     #    print('pdf found')
     # #    // await handlePDF(data, client_loadout)
@@ -124,37 +125,37 @@ async def handle_file_end(data):
     del file_chunks[tempKey]
     return file_name + ' recieved' 
 
-async def transcribe_file(file_key, file_name, file_type, sessionID, loadout):
+async def transcribe_file(file_key, file_name, file_type, sessionID, convoID, loadout):
     file = await read_file(file_key)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(file)
     processed_file.close()
     transcript_text = ''
     if file_type == 'video/mp4':
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key)
+        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
     elif file_type == 'video/quicktime':
         print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key )
+        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key )
     elif file_type == 'video/x-matroska':
         print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, loadout, file_key )
+        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key )
     elif file_type == 'audio/mpeg':
         print('audio requested')
-        transcript_text = await transcribe_audio_file(processed_file, file_name, sessionID, loadout, file_key)
+        transcript_text = await transcribe_audio_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
 
     return transcript_text
 
 
-async def transcribe_video_file(file, name, sessionID, loadout, cartKey):
+async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey):
     clip = VideoFileClip(file.name)
     audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
     clip.audio.write_audiofile(audio_temp.name)
 
-    transcript_text = await transcribe_audio_file(audio_temp, name, sessionID, loadout, cartKey)
+    transcript_text = await transcribe_audio_file(audio_temp, name, sessionID, convoID, loadout, cartKey)
     audio_temp.close()
     return transcript_text
 
-async def transcribe_audio_file(file, name, sessionID, loadout, cartKey):
+async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey):
     print(file.name)
     audio = AudioSegment.from_mp3(file.name)
     avg_loudness = audio.dBFS
@@ -192,7 +193,7 @@ async def transcribe_audio_file(file, name, sessionID, loadout, cartKey):
                 {'text':transcript_text }
                 }
     loadout = current_loadout[sessionID]
-    await update_cartridge_field(payload, loadout, True)    
+    await update_cartridge_field(payload, convoID, loadout, True)    
     for chunk in chunks:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')
@@ -220,7 +221,7 @@ async def transcribe_audio_file(file, name, sessionID, loadout, cartKey):
                         }
                         }
             loadout = current_loadout[sessionID]
-            await update_cartridge_field(payload, loadout, True)      
+            await update_cartridge_field(payload,convoID, loadout, True)      
             chunk_time_ms += len(chunk)  # increment by the length of the chunk
             os.unlink(chunk_file.name)  # Remove the temporary file
     

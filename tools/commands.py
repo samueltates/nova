@@ -69,30 +69,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name.lower() == 'none':
         return 
 
-    if name == 'generate_image':
-        if 'prompt' in args:
-            prompt = args['prompt']
-            response = await generate_image(prompt, sessionID, loadout)
-            command_return['status'] = "Success."
-            command_return['message'] = "Image " + response + " generated."
-            return command_return
-            return response
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'prompt' missing"
-            return command_return
-        
-    if name == 'generate_images':
-        if 'prompts' in args:
-            prompts = args['prompts']
-            response = await generate_images(prompts, sessionID, loadout)
-            command_return['status'] = "Success."
-            command_return['message'] = "Images generated. "
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'prompts' missing"
-            return command_return
 
     if 'search_files' in name or name in 'search_files':
         if args.get('query'):
@@ -106,6 +82,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             # elif args.get('type') == 'web':
             #     # response = await search_web(name, args, sessionID, loadout, thread)
             #     return response
+
     if 'search_web' in name or name in 'search_web':
             # elif args.get('type') == 'web':
             if args.get('query'):
@@ -460,6 +437,31 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             print(command_return)
         return command_return
     
+    if name == 'generate_image':
+        if 'prompt' in args:
+            prompt = args['prompt']
+            response = await generate_image(prompt, sessionID, convoID, loadout)
+            command_return['status'] = "Success."
+            command_return['message'] = "Image " + response + " generated."
+            return command_return
+        
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'prompt' missing"
+            return command_return
+        
+    if name == 'generate_images':
+        if 'prompts' in args:
+            prompts = args['prompts']
+            response = await generate_images(prompts, sessionID, convoID,loadout)
+            command_return['status'] = "Success."
+            command_return['message'] = "Images generated. "
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'prompts' missing"
+            return command_return
+        
     if 'overlay_video' in name:
         main_video_key = None
         main_video_cartridge = None
@@ -487,7 +489,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if args.get('text_to_overlay'):
             text_to_overlay = args['text_to_overlay']
         print(media_to_overlay)
-        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, loadout) 
+
+        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, convoID, loadout) 
         if overlay_video_name:
             command_return['status'] = "Success."
             command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
@@ -531,7 +534,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 break
 
         if video_file:
-            transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, loadout)
+            transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, convoID,  loadout)
 
             if transcript:
                 command_return['status'] = "Success."
@@ -599,7 +602,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return command_return
 
 
-async def open_file(name, args, sessionID, loadout):
+async def open_file(name, args, sessionID, convoID, loadout):
     command_return = {"status": "", "name" :name, "message": ""}
     eZprint('reading file')            
     if sessionID not in whole_cartridge_list:
@@ -624,6 +627,7 @@ async def open_file(name, args, sessionID, loadout):
 
                     payload = {
                         'sessionID': sessionID,
+                        'convoID' : convoID, 
                         'cartridge' : cartKey,
                         'fields':
                                 {'enabled': True,

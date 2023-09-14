@@ -82,7 +82,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
             cartridges_to_add.update({cartKey:loadout_cartridge})
                 
 
-    print( 'cartridges to add', cartridges_to_add)
+    # print( 'cartridges to add', cartridges_to_add)
     for settingsKey, settingsValue in cartridges_to_add.items():
         cartKey = settingsValue.get('key', None)
         if cartKey:

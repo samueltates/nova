@@ -437,7 +437,7 @@ async def return_to_GPT(convoID, thread = 0):
         print ('model: ' + model)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
     
-    # print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
+    print('steps taken', novaConvo[convoID]['steps-taken'], 'steps-allowed', novaConvo[convoID]['steps-allowed'])
 
     print(novaConvo)
     if 'steps-taken' in novaConvo[convoID]:

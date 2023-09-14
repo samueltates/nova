@@ -176,8 +176,8 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     
     loadout_config = loadout.get('config', {})
     cleanSlate = loadout_config.get('cleanSlate', False)
-    print(loadout_config)
-    print(loadout)
+    # print(loadout_config)
+    # print(loadout)
     if cleanSlate:
         print('clean slate detected')
         if 'convos' not in loadout:
@@ -296,8 +296,8 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
             "blob":Json({loadout_key:loadout})
             }
     )
-    print('loadout updated')
-    print(update)
+    # print('loadout updated')
+    # print(update)
 
 
 async def clear_loadout(sessionID, convoID):
