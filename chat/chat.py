@@ -114,7 +114,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
     sessionID = sessionID  +"-"+convoID
-    if 'command' in novaConvo[convoID]:
+    if novaConvo[convoID].get('command'):
         json_return = novaConvo[convoID]['command']
     else:
         json_return = False
@@ -304,10 +304,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
         response = await sendChat(promptObject, model, functions)
         message = response["choices"][0]["message"]
-        content = str(response["choices"][0]["message"]["content"])
+        # content = str(response["choices"][0]["message"]["content"])
         print(response)
-        if response["choices"][0]["message"].get('function_call', None):
-            function_call = response["choices"][0]["message"]["function_call"]
+        # if response["choices"][0]["message"].get('function_call', None):
+        #     function_call = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
@@ -432,7 +432,7 @@ async def command_interface(command, convoID, threadRequested):
             # command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, message, 'function',name, None, 0, 'terminal')
+            await handle_message(convoID, message, 'function', name, None, 0, 'terminal')
         
         else:
             print('thread requested so same again but this time on a thread')
@@ -471,7 +471,16 @@ async def return_to_GPT(convoID, thread = 0):
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         print ('model: ' + model)
-    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise']
+
+    
+    query_object = []
+    if 'prompt' in current_prompt[convoID]:
+        query_object += current_prompt[convoID]['prompt']
+    if 'chat' in current_prompt[convoID]:
+        query_object += current_prompt[convoID]['chat']
+    if 'emphasise' in current_prompt[convoID]:
+        query_object += current_prompt[convoID]['emphasise']
+    
     
     # if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
     #     query_object += current_prompt[convoID]['openAI_functions']

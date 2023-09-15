@@ -359,7 +359,8 @@ async def process_message(parsed_data):
         print(parsed_data['data'])
         convoID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
-        await add_loadout(loadout, sessionID)
+        sessionID = parsed_data['data']['sessionID']
+        await add_loadout(loadout, convoID)
         convoID = await handle_convo_switch(sessionID)
         if not convoID:
             convoID = await start_new_convo(sessionID)
@@ -520,7 +521,7 @@ async def process_message(parsed_data):
         if result:
             convoID = parsed_data["data"]["convoID"]
             await websocket.send(json.dumps({'event':'file_end'}))
-            await handle_message(convoID, result, 'system', 'system', None,0, meta = 'terminal')
+            await handle_message(convoID, result, 'function', 'upload', None,0, meta = 'terminal')
             await return_to_GPT(convoID, 0)
 
 

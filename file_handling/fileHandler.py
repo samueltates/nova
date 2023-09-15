@@ -194,6 +194,7 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
                 }
     loadout = current_loadout[sessionID]
     await update_cartridge_field(payload, convoID, loadout, True)    
+
     for chunk in chunks:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')

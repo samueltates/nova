@@ -2,6 +2,7 @@ import openai
 import os
 import requests
 import tempfile
+import asyncio
 
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
@@ -10,20 +11,21 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
 async def generate_images(prompts, sessionID, convoID, loadout):
-    images = ''
-    for prompt in prompts:
-        image = await generate_image(prompt, sessionID, convoID,loadout)
-        images+= image + ', '
-    return images
+
+    tasks = [generate_image(prompt, sessionID, convoID, loadout) for prompt in prompts]
+    images = await asyncio.gather(*tasks)
+    images_str = ', '.join(images)
+    return images_str
 
 
 async def generate_image(prompt, sessionID, convoID, loadout):
 
-    response = openai.Image.create(
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, lambda: openai.Image.create(
         prompt=prompt,
         n=1,
         size='1024x1024'
-        )
+        ))
     
     image_url = response['data'][0]['url']
     print(f'Image URL: {image_url}')

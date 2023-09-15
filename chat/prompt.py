@@ -174,30 +174,26 @@ async def construct_chat(convoID, thread = 0):
     # print(chatlog[convoID])
     if convoID in chatlog:
         for log in chatlog[convoID]:
-            # eZprint('log is: ' + str(log))    
+            eZprint('log is: ' + str(f"""{log})""")    )
             if 'muted' not in log or log['muted'] == False:
-                # if 'thread' in log and thread > 0:
-                #     if log['thread'] == thread:
-                #         # print('thread indicator found so breaking main chat')
-                #         break
-                # if log['role'] == 'user':
-                #     log['body'] = log['body']if
                 object = {}
-
                 if 'role' not in log:
                     log['role'] = 'user'
                 object.update({ "role":  log['role']})
                 if 'body' in log:
-                    object.update({"content": str(log['body'])})
+                    ### IT IS NOT PROPERLY LOADING THE AI RESPONSE BACK INTO LOG AND THIS IS MAKING AI FREAK OUT
+                    object.update({"content":f"""{str(log['body'])}""" })
                 if log['role'] == 'assistant':
                     if log.get('content'):
-                        object.update({'content': str(log['content']) })
+                        object.update({'content': f"""{str(log['content'])}""" })
                     if log.get('function_calls'):
                         object.update({'function_calls': log['function_calls'] })
-                if 'userName' in log:
-                    # removes all characters except alphanum
-                    name = ''.join(e for e in log['userName'] if e.isalnum())
-                    object.update({"name": name})
+                # if 'userName' in log:
+                #     # removes all characters except alphanum
+                #     name = ''.join(e for e in log['userName'] if e.isalnum())
+                #     object.update({"name": name})
+                if log.get('role') == 'function':
+                    object.update({"name": log['userName']})
 
                 current_chat.append(object)
                 
@@ -252,28 +248,37 @@ async def construct_context(convoID):
 async def construct_objects(convoID, system_string = None, content_string = None, prompt_objects = None, thread = 0 ):
     list_to_send = []
     emphasis_to_send = []
-    # print('main string is: ' + str(main_string))
-    # print('chat objects are: ' + str(chat_objects))
+    openAI_functions = []
+
     emphasise_string = ''
     final_prompt_string = ''
     give_context = False
+
+
     if system_string:
         final_prompt_string += system_string
 
     print(prompt_objects)
     if prompt_objects.get('openAI_functions', None):
-
+        
         novaConvo[convoID]['return_type'] = 'openAI'
         for value in prompt_objects['openAI_functions']['values']:
-            if value.get('functions',None):
+            if value.get('functions'):
                 if convoID not in current_prompt:
                     current_prompt[convoID] = {}
-                current_prompt[convoID]['openAI_functions'] = value['functions'][0]
-                print(current_prompt[convoID]['openAI_functions'])
+                openAI_functions = value['functions'][0]
+
+    # reset system values every time for loop so only applies values if cartridge present
+
+    novaConvo[convoID]['auto-summarise'] = False
+    novaConvo[convoID]['model'] = 'gpt-3.5-turbo'
+    novaConvo[convoID]['scope'] = 'local'
 
     if 'system' in prompt_objects:
         print('system found')
         print(prompt_objects['system']['values'])
+ 
+        # cycles through setting cartridge values and applies
         for value in prompt_objects['system']['values']:
             if 'system-starter' in value and value['system-starter']!= '':
                 # print('starter found' + str(value['system-starter']))
@@ -319,75 +324,69 @@ async def construct_objects(convoID, system_string = None, content_string = None
             context = await construct_context(convoID)
             final_prompt_string += context
 
-    if prompt_objects.get('command', None):
-        print('command found')
-        # print(prompt_objects['command']['values'])
-        for value in prompt_objects['command']['values']:
-            if 'openAI_functions' in value:
-                # print(value)
-                if value['openAI_functions'] == True:
-                    novaConvo[convoID]['return_type'] = 'openAI'
-                else:
-                    novaConvo[convoID]['return_type'] = 'json-string'
+    # custom REaCT cartridge constructing prompt based on autoGPT model
+    # sets to defaults so settings from command cartridge don't stick
 
+    novaConvo[convoID]['command'] = False
+    novaConvo[convoID]['steps-allowed'] = 3
+
+    if prompt_objects.get('command', None): # gets settings related to running commands
+
+        for value in prompt_objects['command']['values']:
             if 'steps-allowed' in value:
                 novaConvo[convoID]['steps-allowed'] = int(value['steps-allowed'])
             elif 'steps-allowed' not in novaConvo[convoID]:
                 novaConvo[convoID]['steps-allowed'] = 3
             
-        
-        # if novaConvo[convoID]['return_type'] == 'openAI':
-        #     if convoID not in current_prompt:
-        #         current_prompt[convoID] = {}
-        #     openAI_functions = await construct_commands(prompt_objects['command'], 'openAI', thread)    
-        #     print('openAI functions are: ' + str(openAI_functions))
-        #     current_prompt[convoID]['openAI_functions'] = openAI_functions
-
-        # else:
-
         final_command_string = ''
-        final_command_string += "\n"+prompt_objects['command']['string']
+        final_command_string += "\n"+ prompt_objects['command']['string']
+
+        # constructs prompt relating to command cartridge
         if 'emphasise' in prompt_objects['command']['values'] and prompt_objects['command']['values']['emphasise'] != '':
             emphasise_string += " " + prompt_objects['command']['values']['emphasise']
-        # print('command found' + str(prompt_objects['command']))
-        if 'label' in prompt_objects['command']:
-            # print('command label found')
-            # print(prompt_objects['commands']['label'])
-            final_command_string +=  prompt_objects['command']['label'] + "\n"
-        if 'prompt' in prompt_objects['command']:
-            # print('command prompt found')
-            # print(prompt_objects['commands']['prompt'])
-            final_command_string +=  prompt_objects['command']['prompt']
-        return_format = await construct_commands(prompt_objects['command'], 'json-string', thread)
-        # print('return format is: ' + str(return_format))
-        final_command_string += return_format
-        # print('command string is: ' + str(final_command_string))
-        final_prompt_string += "\n"+final_command_string
 
+        if 'label' in prompt_objects['command']:
+            final_command_string +=  prompt_objects['command']['label'] + "\n"
+
+        if 'prompt' in prompt_objects['command']:
+            final_command_string +=  prompt_objects['command']['prompt']
+
+        # constructs command prompt string
+        return_format = await construct_commands(prompt_objects['command'], 'json-string', thread)
+        final_command_string += return_format
+        final_prompt_string += "\n"+ final_command_string
         novaConvo[convoID]['command'] = True
     else:
         novaConvo[convoID]['command'] = False
-        emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
-    # print('final prompt string is: ' + str(final_prompt_string))
-    list_to_send.append({"role": "system", 'content': final_prompt_string})
-    list_to_send.append({"role": "system", 'content': content_string})
-    list_to_send.append({"role": "system", 'content': emphasise_string})
 
-    # print('list to send is: ' + str(list_to_send))
-    if convoID not in current_prompt:
-        current_prompt[convoID] = {}
-    current_prompt[convoID]['prompt'] = list_to_send
-    current_prompt[convoID]['emphasise'] = emphasis_to_send
+
+    # turns all strings into objects, and adds to list to send
+    
+    current_prompt[convoID] = {}    # clears prompt so if empty no holdovers
+
+    if final_prompt_string != '':
+        list_to_send.append({"role": "user", 'content': final_prompt_string})
+    
+    if content_string != '':    
+        list_to_send.append({"role": "user", 'content': content_string})
+
+    if list_to_send != []:
+        current_prompt[convoID]['prompt'] = list_to_send
+
+    if openAI_functions != []:
+        current_prompt[convoID]['openAI_functions'] = openAI_functions
+    
+    if emphasise_string != '':
+        emphasis_to_send.append({'role' : 'user', 'content': emphasise_string})
+        current_prompt[convoID]['emphasise'] = emphasis_to_send
     
 
 async def construct_commands(command_object, prompt_type = 'json-string', thread = 0):
-    # print('constructing commands')
-    # print(command_object)
+
     response_format = {}
     response_format_before = ""
     response_format_after = ""
     command_string = ""
-    open_AI_functions = []
 
     for value in command_object['values']:
         if 'format instructions' in value:
@@ -435,12 +434,8 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
             command_string = ""
             counter = 0
 
-            # print(value['command'])
-
-
             for command in value['command']:
                 command_line = ""
-                openAI_function = {}
                 # print('command is ')
                 # print(command)
                 ##TODO DEFINITELY MAKE THIS RECURSIVE
@@ -449,17 +444,12 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
                     for key, value in element.items():
                         if key == 'name':
                             command_line += str(counter) + ". " + value
-                            openAI_function['name'] = value
                         if key == 'description':
                             command_line += ": " + value
-                            openAI_function['description'] = value
 
                         if isinstance(value, list):
                             if key == 'args' and value != []:
                                 command_line += ", args: "
-                                openAI_function['parameters'] = {}
-                                openAI_function['parameters']['properties'] = {}
-                                openAI_function['parameters']['type'] = 'object'
                             # print('value is list' + str(value))
                             for args in value:
                                 for elements in args:
@@ -469,13 +459,9 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
                                         if subKey == 'name':
 
                                             command_line += subVal + ": "
-                                            name = subVal
-                                            openAI_function['parameters']['properties'][subVal] = {}
-                                            
+                                            name = subVal                                            
                                         if subKey == 'example':
                                             command_line += subVal + ", "
-                                            if name in openAI_function['parameters']['properties']:
-                                                openAI_function['parameters']['properties'][name]['type'] = subVal
 
 
                         if key == 'active':
@@ -486,8 +472,6 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
                             counter += 1
                 if command_line != "":
                     command_string += command_line + "\n"
-                if command_object != {}:
-                    open_AI_functions.append(openAI_function)
 
     # print(response_format)
     response_format = {
@@ -503,17 +487,20 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
     final_return = command_string_instruction + format_instruction
 
     # print('final return is: ' + str(final_return))
-    if prompt_type == 'json-string':
-        return final_return
-    elif prompt_type == 'openAI':
-        return open_AI_functions
-    
-                
+    return final_return            
     
 async def handle_token_limit(convoID):
     print('handling token limit')
     # print(novaConvo[convoID])
-    await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['emphasise'], .25, convoID, 'prompt')
+
+    prompt_to_check = []
+
+    if 'prompt' in current_prompt[convoID]:
+        prompt_to_check += current_prompt[convoID]['prompt']
+    if 'emphasise' in current_prompt[convoID]:
+        prompt_to_check += current_prompt[convoID]['emphasise']
+
+    await summarise_at_limit(prompt_to_check, .25, convoID, 'prompt')
     await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
     # await summarise_at_limit(current_prompt[convoID]['emphasise'], .25, convoID, 'emphasise')
     # print (novaConvo[convoID]['auto-summarise'])
@@ -523,14 +510,14 @@ async def handle_token_limit(convoID):
             summarise_at = novaConvo[convoID]['summarise-at']
         else:
             novaConvo[convoID]['summarise-at'] = .6
-        prompt_too_long = await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] + current_prompt[convoID]['emphasise'], summarise_at, convoID, 'combined')
+        prompt_too_long = await summarise_at_limit(prompt_to_check + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
         if prompt_too_long: 
             novaConvo[convoID]['summarising'] = True
             if convoID in chatlog:
                 await summarise_percent(convoID, .5)
                 novaConvo[convoID]['summarising'] = False
                 await construct_chat(convoID,0)
-                await summarise_at_limit(current_prompt[convoID]['prompt'] + current_prompt[convoID]['emphasise'], .25, convoID, 'prompt')
+                await summarise_at_limit(prompt_to_check, .25, convoID, 'prompt')
                 await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
 
 
@@ -619,52 +606,3 @@ next_command = """next: shows next page,"""
 quit_command = """quit: quits thread,"""
 
 
-
-
-# thread_system_PS2 = {"role": "user", "content": "You are currently in a thread and have recieved a response from the command system. You can issue more commands, take notes, or return with message: "}
-
-# response_format = {
-#     "thoughts": {
-#         "think" : "internal world",
-#         "reason": "logic and flow",
-#         "critique": "challenge and unpack",
-#         "plan": "what comes next",
-#         "answer": "say out loud"
-#     },
-#     "command": {"name": "command name", "args": {"arg name": "value"}},
-# }
-    
-# formatted_response_format = json.dumps(response_format, indent=4)
-# response = """You response should be entirely contained in JSON format as described below \nResponse"""
-# format = f" Format: \n{formatted_response_format} \nEnsure the response can be" 
-# python = """parsed by Python json.loads and passes a JSON schema validator."""
-
-# final_format = response + format + python
-
-# contraints = """\n\n\nConstraints:\n1. ~4000 word limit for short term memory. Your short term memory is short, so immediately save important information to files.\n2. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.\n3. No user assistance, you are to complete all commands\n4. Exclusively use the commands listed below e.g. command_name\n\nCommands:\n"""
-
-# create_note = """\n1. create_note: Create Note , args: "label": "<label_string>", "body": "<body_string>"\n"""
-# append_note = """\n2. append_note: Append Note, args: "label": "<filename>", "line" : "<new_line>"\n """
-# list_files = """\n3. list_files: List available files that aren't open, args: "type": "<resource type>"\n"""
-# open_note = """\n4. open_note: Open a note, args: "label": "<labelname>"\n"""
-# close_note = """\n5. close_note: Close a note, args: "label": "<labelname>"\n"""
-
-# list_documents = """\n6. list_documents: List document embeddings, args: "document": "<filename>", "text": "<text>"\n"""
-# query_document = """\n7. query_document: Query document embedding, args: "document": "<filename>", "query": "<text>"\n"""
-
-# summarise_conversation = """\n8. summarise_conversation: Summarise section of chat, args: "start-line" : <int>, "end-line": <int>,  "notes" "<text>"\n"""
-
-# search_summaries = """\n9. search_summaries: Use keyword or title to search conversation summaries, args: "query" : <text>, "notes" <text>"\n"""
-
-# create_prompt = """\n10. create_prompt: Create new prompt for yourself, args: "prompt-text" : <text>, "prompt-title" : "<text>", "start-enabled" : "<bool>"\n"""
-# enable_prompt = """\n11. enable_prompt: Enable prompt, args: "prompt-title" : "<text>"\n"""
-# disable_prompt = """\n12. disable_prompt: Disable prompt, args: "prompt-title" : "<text>"\n"""
-
-# Directions = """\n\nResources:\n1. Document deep query using embedded vector archive. \n2. Note creation and recall \n3. long Term memory management.\n\nPerformance Evaluation:\n1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.\n2. Constructively self-criticize your big-picture behavior constantly.\n3. Reflect on past decisions and strategies to refine your approach.\n4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.\n5. Write all code to a file.
-# """
-
-# format = """\n\nYou should only respond in JSON format as described below \nResponse Format: \n{\n    "thoughts": {\n        "text": "thought",\n        "reasoning": "reasoning",\n        "plan": "- short bulleted\\n- list that conveys\\n- long-term plan",\n        "criticism": "constructive self-criticism",\n        "speak": "thoughts summary to say to user"\n    },\n    "command": {\n        "name": "command name",\n        "args": {\n            "arg name": "value"\n        }\n    }\n} \nEnsure the response can be parsed by Python json.loads"""
-
-# glossary = """\n\nCommand Instructions:\nWhen you see see information worth preserving you will create a note, or append content to an existing one. \nYou will list files to find answers or existing notes that might be relavent. \nYou will be able to create new behaviours for yourself by creating a prompt, and triggering them by enabling or disabling. \nYou will manage your memory by closing unneeded notes, disabling uneeded prompts and summarising sections of the conversations. \nThe user will not use these commands and you will not mention them, they will be used by you to achieve your goals.\n"""
-
-# command_string = contraints + final_format + create_note + append_note + list_files + open_note + close_note + list_documents + query_document + summarise_conversation + search_summaries + create_prompt + enable_prompt + disable_prompt 
