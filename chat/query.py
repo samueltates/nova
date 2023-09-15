@@ -7,21 +7,28 @@ from session.tokens import check_tokens
 
 async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
-    try:
+    # try:
+    if functions:
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
+    else:
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
 
-    except:
-        try:
-            response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
-        except Exception as e:
-            print(e)
-            # print(promptObj)
-            response = None
-            response = {}
-            response["choices"] = []
-            response["choices"].append({})
-            response["choices"][0]["message"] = {}
-            response["choices"][0]["message"]["content"] = str(e)
+
+    # except:
+    #     try:
+    #         if functions:
+    #             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
+    #         else:
+    #             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))        
+    #     except Exception as e:
+    #         print(e)
+    #         # print(promptObj)
+    #         response = None
+    #         response = {}
+    #         response["choices"] = []
+    #         response["choices"].append({})
+    #         response["choices"][0]["message"] = {}
+    #         response["choices"][0]["message"]["content"] = str(e)
 
     return response
 

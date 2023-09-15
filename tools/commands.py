@@ -1,6 +1,7 @@
 
 from Levenshtein import distance
 import asyncio
+import json
 
 from session.sessionHandler import active_cartridges, current_loadout, novaConvo, novaSession, system_threads, command_loops, command_state
 from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
@@ -37,8 +38,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         else:
             for key, val in command_object.items():
                 name = str(key)
-        if 'args' in command_object:
+
+        if command_object.get('args'):
             args = command_object['args']
+        if command_object.get('arguments'):
+            args = json.loads(command_object['arguments'])
 
     eZprint('parsing command')
     if convoID not in command_state:
@@ -166,6 +170,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if name == 'read':
         for key, val in active_cartridges[convoID].items():
             if 'label' in val:
+                print(val['label'])
                 if val['label'].lower() == args['filename'].lower():
                     new_page = 0
                     text_to_read = ''
@@ -201,13 +206,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     await update_cartridge_field(payload, convoID)
                     return response           
         
+        # wait 1 ms
+        await asyncio.sleep(0.001)
         command_return['status'] = "Error."
         command_return['message'] = "File not found."
         print(command_return)
         return command_return
 
     if name in 'open' or 'open' in name :
-        response = await open_file(name, args, sessionID, loadout)
+        response = await open_file(name, args, sessionID, convoID, loadout)
         print(response)
         return response
                 

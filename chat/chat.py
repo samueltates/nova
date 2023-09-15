@@ -128,6 +128,12 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         chatlog[convoID] = []
     order = await getNextOrder(convoID)
     
+    content = ""
+    function_call = ""
+
+    if isinstance(message, dict):
+        content = message.get('content', "")
+        function_call = message.get('function_call', "")
     
     messageObject = {
         "sessionID": convoID,
@@ -135,6 +141,8 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         "userName": userName,
         "userID": str(userID),
         "body": message,
+        "content": content,
+        "function_call":function_call,
         "role": role,
         "timestamp": str(datetime.now()),
         "order": order,
@@ -202,7 +210,7 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
             # print('json return')
-            json_object = await parse_json_string(message)
+            json_object = await parse_json_string(content)
             if json_object != None:
                 # print('json object', json_object)
                 command = await get_json_val(json_object, 'command')
@@ -222,18 +230,22 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
 
 
         else:
-            message = copiedMessage['body']
-            # json_wrapped = '{"thoughts": { "speak " : "' + message + '"} }'
-            # json_object = await parse_json_string(json_wrapped)
-            # print('wrapping in json for return object')
-            # print (json_object)
-            # if json_object != None:
-            #     copiedMessage['body'] = json_object
-            #     print('copied message')
-            copiedMessage['convoID'] = convoID
-            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
-            if meta == 'function_call':
-                asyncio.create_task(command_interface(message, convoID, thread))
+            if function_call != "":
+
+                print(function_call)
+                print(isinstance, function_call)
+                asyncio.create_task(command_interface(function_call, convoID, thread))
+            if content != "":
+                message = copiedMessage['body']
+                # json_wrapped = '{"thoughts": { "speak " : "' + message + '"} }'
+                # json_object = await parse_json_string(json_wrapped)
+                # print('wrapping in json for return object')
+                # print (json_object)
+                # if json_object != None:
+                #     copiedMessage['body'] = json_object
+                #     print('copied message')
+                copiedMessage['convoID'] = convoID
+                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
 
 
@@ -284,50 +296,52 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         return
     
     content = ''
-    functions = None
+    function_call = None
     if thread == 0:
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
     agent_name = novaConvo[convoID]['agent-name']
     try:
+
         response = await sendChat(promptObject, model, functions)
+        message = response["choices"][0]["message"]
         content = str(response["choices"][0]["message"]["content"])
         print(response)
         if response["choices"][0]["message"].get('function_call', None):
-            functions = response["choices"][0]["message"]["function_call"]
+            function_call = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
+    # except Exception as e:
+        
+    #     print(e)
+    #     print('trying again')
+
+    #     try: 
+    #         response = await sendChat(promptObject, model, functions )
+    #         message = response["choices"][0]["message"]
+    #         content = str(response["choices"][0]["message"]["content"])
+    #         if response["choices"][0]["message"].get('function_call', None):
+    #             function_call = response["choices"][0]["message"]["function_call"]
+    #         completion_tokens = response["usage"]['completion_tokens']
+    #         prompt_tokens = response["usage"]['prompt_tokens']
+    #         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
+
 
     except Exception as e:
-        
         print(e)
-        print('trying again')
-
-        try: 
-            response = await sendChat(promptObject, model, functions )
-            content = str(response["choices"][0]["message"]["content"])
-            if response["choices"][0]["message"].get('function_call', None):
-                functions = response["choices"][0]["message"]["function_call"]
-            completion_tokens = response["usage"]['completion_tokens']
-            prompt_tokens = response["usage"]['prompt_tokens']
-            await handle_token_use(userID, model, completion_tokens, prompt_tokens)
-
-
-        except Exception as e:
-            print(e)
-            content = str(e)
-            agent_name = 'system'
+        message = str(e)
+        agent_name = 'system'
 
     # eZprint('response recieved')
     
     
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
 
-    asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread))
+    asyncio.create_task(handle_message(convoID, message, 'assistant', agent_name, None, thread))
 
-    if functions:
-        asyncio.create_task(handle_message(convoID, functions, 'assistant', agent_name, None, thread, meta = 'function_call'))
+    # if function_call:
+    #     asyncio.create_task(handle_message(convoID, function_call, 'assistant', agent_name, None, thread, meta = 'function_call'))
 
 
     # if len(chatlog[convoID]) == 4:
@@ -415,10 +429,10 @@ async def command_interface(command, convoID, threadRequested):
                     }
                 }
             
-            command_object = json.dumps(command_object)
+            # command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'system', 'terminal', None, 0, 'terminal')
+            await handle_message(convoID, message, 'function',name, None, 0, 'terminal')
         
         else:
             print('thread requested so same again but this time on a thread')
@@ -435,7 +449,7 @@ async def command_interface(command, convoID, threadRequested):
 
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, command_object, 'system', 'terminal', None, thread, 'terminal')
+            await handle_message(convoID, message, 'function', name, None, thread, 'terminal')
 
         await return_to_GPT(convoID, thread)
  
@@ -447,6 +461,9 @@ async def return_to_GPT(convoID, thread = 0):
     if 'steps-taken' not in novaConvo[convoID]:
         print('no steps taken')
         novaConvo[convoID]['steps-taken'] = 0
+
+    if 'steps-allowed' not in novaConvo[convoID]:
+        novaConvo[convoID]['steps-allowed'] = 3
     novaConvo[convoID]['steps-taken'] += 1 
     print(novaConvo[convoID]['steps-taken'])
     await construct_query(convoID, thread)
@@ -464,7 +481,11 @@ async def return_to_GPT(convoID, thread = 0):
     if 'steps-taken' in novaConvo[convoID]:
         if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
             print('sending to GPT')
-            await send_to_GPT(convoID, query_object, thread, model)
+            functions = None
+            if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
+                functions = current_prompt[convoID]['openAI_functions']
+
+            await send_to_GPT(convoID, query_object, thread, model, functions)
         else:
             await handle_message(convoID, 'maximum independent steps taken, awaiting user input', 'system', 'terminal', None, 0, 'terminal')
             novaConvo[convoID]['command-loop'] =  False
@@ -576,13 +597,12 @@ async def simple_agent_response(convoID):
             await send_to_GPT(convoID, query_object)
 
 
-
-    
-
-
 async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj,functions=functions))
+    if functions:
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
+    else:
+        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
     return response
 
 

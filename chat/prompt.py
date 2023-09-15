@@ -182,9 +182,24 @@ async def construct_chat(convoID, thread = 0):
                 #         break
                 # if log['role'] == 'user':
                 #     log['body'] = log['body']if
+                object = {}
+
                 if 'role' not in log:
                     log['role'] = 'user'
-                current_chat.append({"role": f"{log['role']}", "content": f"{log['body']}"})
+                object.update({ "role":  log['role']})
+                if 'body' in log:
+                    object.update({"content": str(log['body'])})
+                if log['role'] == 'assistant':
+                    if log.get('content'):
+                        object.update({'content': str(log['content']) })
+                    if log.get('function_calls'):
+                        object.update({'function_calls': log['function_calls'] })
+                if 'userName' in log:
+                    # removes all characters except alphanum
+                    name = ''.join(e for e in log['userName'] if e.isalnum())
+                    object.update({"name": name})
+
+                current_chat.append(object)
                 
     if convoID in system_threads:
         if thread in system_threads[convoID]:
