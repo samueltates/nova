@@ -41,8 +41,13 @@ model message {
   SessionID String
   UserID    String
   name      String
+  user_name  String @db.Text @default("")
   timestamp String
   body      String? @db.Text @default("")
+  content  String? @db.Text @default("")
+  role     String? @db.Text @default("")
+  function_name String? @db.Text @default("")
+  function_calls String? @db.Text @default("")
   batched   Boolean @default(false)
   summarised Boolean @default(false)
   minimised Boolean @default(false)
@@ -73,8 +78,6 @@ model user {
   UserID String 
   blob    Json? @default("{}")
 
-  // password String
-  // email    String @unique
 }
 
 model session {
