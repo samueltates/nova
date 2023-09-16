@@ -180,20 +180,15 @@ async def construct_chat(convoID, thread = 0):
                 if 'role' not in log:
                     log['role'] = 'user'
                 object.update({ "role":  log['role']})
-                if 'body' in log:
-                    ### IT IS NOT PROPERLY LOADING THE AI RESPONSE BACK INTO LOG AND THIS IS MAKING AI FREAK OUT
-                    object.update({"content":f"""{str(log['body'])}""" })
-                if log['role'] == 'assistant':
-                    if log.get('content'):
-                        object.update({'content': f"""{str(log['content'])}""" })
-                    if log.get('function_calls'):
-                        object.update({'function_calls': log['function_calls'] })
-                # if 'userName' in log:
-                #     # removes all characters except alphanum
-                #     name = ''.join(e for e in log['userName'] if e.isalnum())
-                #     object.update({"name": name})
+                #     object.update({"content":f"""{str(log['body'])}""" })
+                if log.get('content'):
+                    object.update({'content': f"""{str(log['content'])}""" })
+                if log.get('function_calls'):
+                    object.update({'function_calls': log['function_calls'] })
+                # if log.get('userName') and log['role'] == 'user':
+                #     object.update({"userName": log['userName']})
                 if log.get('role') == 'function':
-                    object.update({"name": log['userName']})
+                    object.update({"name": log['function_name']})
 
                 current_chat.append(object)
                 
@@ -235,7 +230,7 @@ async def construct_context(convoID):
     if 'agent-name' not in novaConvo[convoID]:
         novaConvo[convoID]['agent-name'] = 'Nova'
     session_string = f"""Your name is {novaConvo[convoID]['agent-name']}.\n"""
-    session_string += f"""You are speaking with {novaSession[sessionID]['userName']}.\n"""
+    session_string += f"""You are speaking with {novaSession[sessionID]['user_name']}.\n"""
     session_string += f"""Today's date is {datetime.now()}.\n"""
     if 'sessions' in novaSession[sessionID]:
         if novaSession[sessionID]['sessions'] > 0:
@@ -272,7 +267,12 @@ async def construct_objects(convoID, system_string = None, content_string = None
 
     novaConvo[convoID]['auto-summarise'] = False
     novaConvo[convoID]['model'] = 'gpt-3.5-turbo'
+    novaConvo[convoID]['token_limit'] = 4000
+    novaConvo[convoID]['summarise-at'] = .75
     novaConvo[convoID]['scope'] = 'local'
+    novaConvo[convoID]['command'] = False
+    novaConvo[convoID]['steps-allowed'] = 3
+    current_prompt[convoID] = {}    # clears prompt so if empty no holdovers
 
     if 'system' in prompt_objects:
         print('system found')
@@ -327,9 +327,6 @@ async def construct_objects(convoID, system_string = None, content_string = None
     # custom REaCT cartridge constructing prompt based on autoGPT model
     # sets to defaults so settings from command cartridge don't stick
 
-    novaConvo[convoID]['command'] = False
-    novaConvo[convoID]['steps-allowed'] = 3
-
     if prompt_objects.get('command', None): # gets settings related to running commands
 
         for value in prompt_objects['command']['values']:
@@ -362,7 +359,6 @@ async def construct_objects(convoID, system_string = None, content_string = None
 
     # turns all strings into objects, and adds to list to send
     
-    current_prompt[convoID] = {}    # clears prompt so if empty no holdovers
 
     if final_prompt_string != '':
         list_to_send.append({"role": "user", 'content': final_prompt_string})

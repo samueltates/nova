@@ -175,7 +175,7 @@ async def set_convo(requested_convoID, sessionID):
                 # if val['epoch']<1:
                     summaries_found = True
                     val['role'] = 'assistant'
-                    val['userName']= 'summary'
+                    val['user_name']= 'summary'
                     # val['muted'] = False
                     # val['minimised'] = False
                     val['contentType'] = 'summary'

@@ -88,7 +88,7 @@ async def startsession():
         novaSession[sessionID] = {}
         novaSession[sessionID]['profileAuthed'] = False
         novaSession[sessionID]['docsAuthed'] = False
-        novaSession[sessionID]['userName'] = 'Guest'
+        novaSession[sessionID]['user_name'] = 'Guest'
         novaSession[sessionID]['userID'] = 'guest-'+sessionID    
         novaSession[sessionID]['new_login'] = True
         novaSession[sessionID]['subscribed'] = False
@@ -122,7 +122,7 @@ async def startsession():
         'profileAuthed' : novaSession[sessionID]['profileAuthed'],
         'docsAuthed' : novaSession[sessionID]['docsAuthed'],
         'userID': novaSession[sessionID]['userID'],
-        'userName': novaSession[sessionID]['userName'],
+        'user_name': novaSession[sessionID]['user_name'],
         'show_onboarding': show_onboarding,
         'subscribed': novaSession[sessionID]['subscribed'],
     }
@@ -521,7 +521,7 @@ async def process_message(parsed_data):
         if result:
             convoID = parsed_data["data"]["convoID"]
             await websocket.send(json.dumps({'event':'file_end'}))
-            await handle_message(convoID, result, 'function', 'upload', None,0, meta = 'terminal')
+            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='upload')
             await return_to_GPT(convoID, 0)
 
 

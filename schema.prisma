@@ -1,83 +1,78 @@
-// generator
 generator client {
   provider             = "prisma-client-py"
-  recursive_type_depth = 5
+  recursive_type_depth = "5"
 }
 
 datasource db {
   provider = "mysql"
-  url      =  env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model batch {
   id        Int     @id @default(autoincrement())
   dateRange String
-  summary   String  @db.Text @default("")
+  summary   String  @default(dbgenerated("(_utf8mb4\\'\\')")) @db.Text
   batched   Boolean
   UserID    String  @default("sam")
 }
 
 model log {
-  key       String  @default("")
   id        Int     @id @default(autoincrement())
+  date      String  @default("")
+  summary   String? @default(dbgenerated("(_utf8mb4\\'\\')")) @db.Text
+  body      String? @default(dbgenerated("(_utf8mb4\\'\\')")) @db.Text
   SessionID String  @default("")
   UserID    String  @default("")
-  date      String  @default("")
-  summary   String? @db.Text @default("")
-  body      String? @db.Text @default("")
   batched   Boolean @default(false)
+  key       String  @default("")
 }
 
 model convo {
-  id        Int     @id @default(autoincrement())
-  convo_ID  String  @default("")
-  user_ID   String  @default("")
-  timestamp String  @default("")
+  id        Int    @id @default(autoincrement())
+  convo_ID  String @default("")
+  user_ID   String @default("")
+  timestamp String @default("")
 }
 
 model message {
-  id        Int    @id @default(autoincrement())
-  key       String  @default("")
-  SessionID String
-  UserID    String
-  name      String
-  user_name  String @db.Text @default("")
-  timestamp String
-  body      String? @db.Text @default("")
-  content  String? @db.Text @default("")
-  role     String? @db.Text @default("")
-  function_name String? @db.Text @default("")
-  function_calls String? @db.Text @default("")
-  batched   Boolean @default(false)
-  summarised Boolean @default(false)
-  minimised Boolean @default(false)
-  muted    Boolean @default(false)
-  blob      Json? @default("{}")
-
+  id            Int     @id @default(autoincrement())
+  SessionID     String
+  UserID        String
+  name          String
+  timestamp     String
+  body          String? @db.Text
+  batched       Boolean @default(false)
+  key           String  @default("")
+  summarised    Boolean @default(false)
+  minimised     Boolean @default(false)
+  muted         Boolean @default(false)
+  content       String? @db.Text
+  function_call String? @db.Text
+  function_name String? @default("")
+  role          String? @default("")
+  user_name     String  @default("")
 }
 
 model summary {
-  id        Int    @id @default(autoincrement())
-  key       String @default("")
-  SessionID String
-  UserID    String
-  timestamp String
-  title     String? @db.Text @default("")
-  body      String? @db.Text @default("")
-  blob      Json? @default("{}")
-  convoID   String? @default("")
+  id         Int     @id @default(autoincrement())
+  key        String  @default("")
+  SessionID  String
+  UserID     String
+  timestamp  String
+  blob       Json?
+  body       String? @default(dbgenerated("(_utf8mb4\\'\\')")) @db.Text
+  title      String? @default(dbgenerated("(_utf8mb4\\'\\')")) @db.Text
+  convoID    String? @default("")
+  minimised  Boolean @default(false)
+  muted      Boolean @default(false)
   summarised Boolean @default(false)
-  minimised Boolean @default(false)
-  muted    Boolean @default(false)
-
 }
 
 model user {
   id     Int    @id @default(autoincrement())
   name   String
-  UserID String 
-  blob    Json? @default("{}")
-
+  UserID String
+  blob   Json?
 }
 
 model session {
@@ -85,39 +80,35 @@ model session {
   SessionID String
   key       String @default("")
   UserID    String
-  blob      Json? @default("{}")
-
-  }
+  blob      Json?
+}
 
 model cartridge {
-  id        Int    @id @default(autoincrement())
-  key       String @default("")
-  UserID    String
-  blob      Json? @default("{}")
-  archived  Boolean @default(false)
+  id          Int     @id @default(autoincrement())
+  UserID      String
+  blob        Json?
+  archived    Boolean @default(false)
+  indexOrder  Int     @default(0)
+  key         String  @default("")
   softDeleted Boolean @default(false)
-  indexOrder Int @default(0)  
-  indexes String @default("")
-  
-  }
+  indexes     String  @default("")
+}
 
-  model index{
-    id        Int    @id @default(autoincrement())
-    key       String @default("")
-    UserID    String
-    docstore      Json? @default("{}")
-    index_store     Json? @default("{}")
-    vector_store   Json? @default("{}")
-    blob     Json? @default("{}")
-    archived  Boolean @default(false)
-    softDeleted Boolean @default(false)
-    }
-  
-  model loadout{
+model index {
+  id           Int     @id @default(autoincrement())
+  key          String  @default("")
+  UserID       String
+  docstore     Json?
+  index_store  Json?
+  vector_store Json?
+  archived     Boolean @default(false)
+  softDeleted  Boolean @default(false)
+  blob         Json?
+}
 
-    id        Int    @id @default(autoincrement())
-    key       String @default("")
-    UserID    String
-    blob      Json? @default("{}")
-  
-  }
+model loadout {
+  id     Int    @id @default(autoincrement())
+  key    String @default("")
+  UserID String
+  blob   Json?
+}

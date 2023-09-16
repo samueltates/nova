@@ -155,7 +155,7 @@ async def getUserInfo(sessionID):
     userInfo = service.userinfo().get().execute()
     await GoogleSignOn(userInfo, credentials)
     novaSession[sessionID]['userID'] =  userInfo['id']
-    novaSession[sessionID]['userName'] =  userInfo['name']
+    novaSession[sessionID]['user_name'] =  userInfo['name']
     return True
 
 async def getDocService(sessionID):
@@ -195,8 +195,8 @@ async def logout(sessionID):
                 novaSession[sessionID]['credentials'] = ''
             if 'userID' in novaSession[sessionID]:
                 novaSession[sessionID]['userID']= ''
-            if 'userName' in novaSession[sessionID]:
-                novaSession[sessionID]['userName'] = ''
+            if 'user_name' in novaSession[sessionID]:
+                novaSession[sessionID]['user_name'] = ''
             if 'docsAuthorised' in novaSession[sessionID]:
                 novaSession[sessionID]['docsAuthorised']=False
             if 'state' in  novaSession[sessionID]:
@@ -214,7 +214,7 @@ async def logout(sessionID):
             novaSession[sessionID] = {}
             novaSession[sessionID]['profileAuthed'] = False
             novaSession[sessionID]['docsAuthed'] = False
-            novaSession[sessionID]['userName'] = 'Guest'
+            novaSession[sessionID]['user_name'] = 'Guest'
             novaSession[sessionID]['userID'] = 'guest-'+sessionID    
             novaSession[sessionID]['new_login'] = True
             novaSession[sessionID]['subscribed'] = False

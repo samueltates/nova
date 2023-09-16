@@ -30,7 +30,7 @@ async def agent_initiate_convo(sessionID, convoID, loadout):
     convoID = novaSession[sessionID]['convoID']
     if 'message' in novaConvo[convoID]:       
         # print('message in nova convo' + novaConvo[convoID]['message'])  
-        await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaSession[sessionID]['userName'])
+        await handle_message(convoID, novaConvo[convoID]['message'], 'user', novaSession[sessionID]['user_name'])
     
     await construct_query(convoID),
 
@@ -64,16 +64,16 @@ async def user_input(sessionData):
     # print('user input')
     # print(sessionData)
     convoID = sessionData['convoID']
-    message = sessionData['body']
+    content = sessionData['content']
     sessionID = sessionData['sessionID']
-    userName = novaSession[sessionID]['userName']
+    user_name = novaSession[sessionID]['user_name']
 
     # print(availableCartridges[convoID])
     
     if 'command' in novaConvo[convoID]:
-        message = userName + ': ' + message
+        content = user_name + ': ' + content
         
-    await handle_message(convoID, message, 'user', userName, sessionData['key'])
+    await handle_message(convoID, content, 'user', user_name, sessionData['key'])
     await construct_query(convoID)
     query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] 
 
@@ -88,10 +88,10 @@ async def user_input(sessionData):
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
         # print ('model: ' + model)
-    if message[0] == '/':
+    if content[0] == '/':
         #remove the / and then send to command interface
-        message = message[1:]
-        json_object = await parse_json_string(message)
+        content = content[1:]
+        json_object = await parse_json_string(content)
         if json_object != None:
             command = await get_json_val(json_object, 'command')
             if command:
@@ -103,45 +103,35 @@ async def user_input(sessionData):
     functions = None
     if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
         functions = current_prompt[convoID]['openAI_functions']
-
-
     await send_to_GPT(convoID, query_object, 0, model, functions)
 
-async def handle_message(convoID, message, role = 'user', userName ='', key = None, thread = 0, meta= ''):
+async def handle_message(convoID, content, role = 'user', user_name ='', key = None, thread = 0, meta= '', function_name = None, function_call = None):
     # print('handling message on thread: ' + str(thread)) 
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
-    sessionID = sessionID  +"-"+convoID
+    
     if novaConvo[convoID].get('command'):
         json_return = novaConvo[convoID]['command']
     else:
         json_return = False
 
-    if sessionID in current_loadout:
-        sessionID += "-"+str(current_loadout[sessionID])
-
     if key == None:
         key = secrets.token_bytes(4).hex()
+
     if convoID not in chatlog:
         chatlog[convoID] = []
+
     order = await getNextOrder(convoID)
     
-    content = ""
-    function_call = ""
-
-    if isinstance(message, dict):
-        content = message.get('content', "")
-        function_call = message.get('function_call', "")
-    
     messageObject = {
-        "sessionID": convoID,
         "key": key,
-        "userName": userName,
+        "convoID": convoID,
+        "user_name": user_name,
         "userID": str(userID),
-        "body": message,
         "content": content,
+        "function_name" : function_name,
         "function_call":function_call,
         "role": role,
         "timestamp": str(datetime.now()),
@@ -188,9 +178,6 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             eZprint('THREAD UPDATE')
             # print(system_threads[convoID][thread])
             system_threads[convoID][thread].append(messageObject)
-
-  
-
     else:     
         chatlog[convoID].append(messageObject)
 
@@ -209,51 +196,27 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal
         if json_return:
-            # print('json return')
+            ## handles when expecting a JSON response, specifically for AUTOGPT commands
+            ## thinking it should just send as content, or parse outside of this? 
             json_object = await parse_json_string(content)
             if json_object != None:
-                # print('json object', json_object)
+                ## if it is an obj, finds command, sends that way
                 command = await get_json_val(json_object, 'command')
-                
-                ##then if there's a response it sends it... wait no this is handling the agent response? so its handling everything, but if the agent responds with the thread no it'll parse that way, or just stay 
+                if command:
+                    copiedMessage['content'] = ""
+                    copiedMessage['command'] = command
 
-                ##basically thinking 'thread requested' so if the message is coming from a specific thread then it'll use / keep to that, otherwise it'll start a new one, using zero as false in this instance.
-                # if command:
-                # print('command', command)
-                print('sending response')
-                copiedMessage['body'] = json_object
-                copiedMessage['convoID'] = convoID
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
             else: 
-                copiedMessage['convoID'] = convoID
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
-
         else:
-            if function_call != "":
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
 
-                print(function_call)
-                print(isinstance, function_call)
-                asyncio.create_task(command_interface(function_call, convoID, thread))
-            if content != "":
-                message = copiedMessage['body']
-                # json_wrapped = '{"thoughts": { "speak " : "' + message + '"} }'
-                # json_object = await parse_json_string(json_wrapped)
-                # print('wrapping in json for return object')
-                # print (json_object)
-                # if json_object != None:
-                #     copiedMessage['body'] = json_object
-                #     print('copied message')
-                copiedMessage['convoID'] = convoID
-                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
-
-
-
-
-        # print(copiedMessage)
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
                 asyncio.create_task(simple_agent_response(convoID))
+                
         if command:
             print('comand found')
             asyncio.create_task(command_interface(command, convoID, thread))
@@ -261,8 +224,6 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
             print('no command, resetting')
             novaConvo[convoID]['command-loop']= False
             novaConvo[convoID]['steps-taken'] = 0
-
-
 
     if meta == 'terminal':
         messageObject['convoID'] = convoID
@@ -272,9 +233,47 @@ async def handle_message(convoID, message, role = 'user', userName ='', key = No
         messageObject['convoID'] = convoID
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
     
+    if function_call:
+        asyncio.create_task(command_interface(function_call, convoID, thread))
+
+async def logMessage(messageObject):
+    print('logging message')
+
+    log = await prisma.log.find_first(
+        where={'SessionID': messageObject['convoID']}
+    )
     
-        
-    # eZprint('MESSAGE LINE ' + str(len(chatlog[convoID])) + ' : ' + copiedMessage['body'])    
+    # TODO - need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
+
+    if log == None:
+        log = await prisma.log.create(
+            data={
+                "SessionID": messageObject['convoID'],
+                "UserID": messageObject['userID'],
+                "date": datetime.now().strftime("%Y%m%d%H%M%S"),
+                "summary": "",
+                "body": "",
+                "batched": False,
+            }
+        )
+
+
+    message = await prisma.message.create(
+        data={
+            "key": messageObject['key'],
+            "UserID": str(messageObject['userID']), ## SHOULD MIGRATE 
+            "user_name" : str(messageObject['user_name']),
+            "SessionID": str(messageObject['convoID']), ## NEED TO MIGRATE 
+            "name": "", ## NEED TO MIGRATE 
+            "content": str(messageObject['content']),
+            "function_name" : str(messageObject['function_name']),
+            "function_call": str(messageObject['function_call']),
+            "role": str(messageObject['role']),
+            "timestamp": datetime.now(),
+        }
+    )
+    return message.id
+
 
 
 async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo', functions = None):
@@ -283,7 +282,6 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
     if 'agent-name' not in novaConvo[convoID]:
-        # print('setting name to default in chat')
         novaConvo[convoID]['agent-name'] = 'nova'
 
     print('checking tokens')
@@ -291,6 +289,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': promptObject}))
     print('sending prompt object' + str(promptObject))
     tokens = await check_tokens(userID)
+
     if not tokens:
         asyncio.create_task(handle_message(convoID, 'Not enough NovaCoin to continue', 'assistant', 'system', None, thread))
         return
@@ -304,48 +303,21 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
         response = await sendChat(promptObject, model, functions)
         message = response["choices"][0]["message"]
-        # content = str(response["choices"][0]["message"]["content"])
-        print(response)
-        # if response["choices"][0]["message"].get('function_call', None):
-        #     function_call = response["choices"][0]["message"]["function_call"]
+        content = str(response["choices"][0]["message"]["content"])
+        if response["choices"][0]["message"].get('function_call'):
+            function_call = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
         prompt_tokens = response["usage"]['prompt_tokens']
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
-    # except Exception as e:
-        
-    #     print(e)
-    #     print('trying again')
-
-    #     try: 
-    #         response = await sendChat(promptObject, model, functions )
-    #         message = response["choices"][0]["message"]
-    #         content = str(response["choices"][0]["message"]["content"])
-    #         if response["choices"][0]["message"].get('function_call', None):
-    #             function_call = response["choices"][0]["message"]["function_call"]
-    #         completion_tokens = response["usage"]['completion_tokens']
-    #         prompt_tokens = response["usage"]['prompt_tokens']
-    #         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
-
-
     except Exception as e:
         print(e)
-        message = str(e)
+        content = str(e)
         agent_name = 'system'
-
-    # eZprint('response recieved')
-    
     
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
+    asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread, '', function_call = function_call))
 
-    asyncio.create_task(handle_message(convoID, message, 'assistant', agent_name, None, thread))
-
-    # if function_call:
-    #     asyncio.create_task(handle_message(convoID, function_call, 'assistant', agent_name, None, thread, meta = 'function_call'))
-
-
-    # if len(chatlog[convoID]) == 4:
-        
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
@@ -408,6 +380,7 @@ async def command_interface(command, convoID, threadRequested):
             }
     
         command_object = json.dumps(command_object)
+        return_content = status + ' : ' + message
 
         meta = 'terminal'
         # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
@@ -432,7 +405,7 @@ async def command_interface(command, convoID, threadRequested):
             # command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, message, 'function', name, None, 0, 'terminal')
+            await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
         
         else:
             print('thread requested so same again but this time on a thread')
@@ -447,9 +420,8 @@ async def command_interface(command, convoID, threadRequested):
             
             command_object = json.dumps(command_object)
 
-            # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, message, 'function', name, None, thread, 'terminal')
+            await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
 
         await return_to_GPT(convoID, thread)
  
@@ -496,6 +468,7 @@ async def return_to_GPT(convoID, thread = 0):
 
             await send_to_GPT(convoID, query_object, thread, model, functions)
         else:
+
             await handle_message(convoID, 'maximum independent steps taken, awaiting user input', 'system', 'terminal', None, 0, 'terminal')
             novaConvo[convoID]['command-loop'] =  False
             novaConvo[convoID]['steps-taken'] = 0
@@ -613,43 +586,6 @@ async def sendChat(promptObj, model, functions = None):
     else:
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
     return response
-
-
-async def logMessage(messageObject):
-    print('logging message')
-
-    log = await prisma.log.find_first(
-        where={'SessionID': messageObject['sessionID']}
-    )
-    
-    # TODO - need better way to check if log or create if not as this checks each message? but for some reason I can't story the variable outside the function
-    if log == None:
-        log = await prisma.log.create(
-            data={
-                "SessionID": messageObject['sessionID'],
-                "UserID": messageObject['userID'],
-                "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-                "summary": "",
-                "body": "",
-                "batched": False,
-            }
-        )
-
-    # eZprint('logging message')
-    # print(messageObject)
-    message = await prisma.message.create(
-        data={
-            "key": messageObject['key'],
-            "UserID": str(messageObject['userID']),
-            "SessionID": str(messageObject['sessionID']),
-            "name": str(messageObject['userName']),
-            "timestamp": datetime.now(),
-            "body": str(messageObject['body']),
-        }
-    )
-    # print('message record is : ' + str(message))
-    return message.id
-
 
 
 async def getNextOrder(convoID):

@@ -45,7 +45,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
             eZprint('agent initiated convo')
             novaSession[sessionID]['agent_initiated'] = True
         if 'name' in params:
-            novaSession[sessionID]['userName'] = params['name']
+            novaSession[sessionID]['user_name'] = params['name']
         if 'message' in params:
             novaConvo[convoID]['message'] = params['message']
             # print(params['message'])

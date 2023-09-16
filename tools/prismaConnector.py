@@ -818,7 +818,7 @@ async def main() -> None:
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
-    # await get_messages_report_aggregate(datetime.date(2023, 8, 1), datetime.date(2023, 8, 28), '110327569930296986874')
+    await get_messages_report_aggregate(datetime.date(2023, 8, 29), datetime.date(2023, 9, 16), '110327569930296986874')
     # await retrieve_logs_and_messages()
     # await write_recovered_messages()
     # await delete_logs_and_messages()
@@ -828,7 +828,7 @@ async def main() -> None:
     # await findIndexes('108238407115881872743')
     # await findBatches()
     # await findLogSummaries()
-    await add_nova_coin_to_user('112850279287928312114')
+    # await add_nova_coin_to_user('112850279287928312114')
 
     # await findLogs('108238407115881872743')
     # await findSummaries('110327569930296986874')
