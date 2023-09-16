@@ -122,7 +122,10 @@ async def runCartridges(sessionID,  convoID, loadout = None):
     if convoID in active_cartridges:
         for cartKey, cartVal in active_cartridges[convoID].items():
             if cartVal['type'] == 'media':
-                url = await get_signed_urls(cartKey)
+                file_to_request = cartKey
+                if cartVal.get('aws_key'):
+                    file_to_request = cartVal['aws_key']
+                url = await get_signed_urls(file_to_request)
                 await update_cartridge_field({'cartKey': cartKey, 'sessionID': sessionID, 'fields': {'url': url}}, loadout)
             # if cartVal['type'] == 'summary':
             #     if 'enabled' in cartVal and cartVal['enabled'] == True:

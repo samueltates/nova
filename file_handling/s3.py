@@ -16,6 +16,7 @@ async def write_file(file_content, file_name):
     return url
 
 async def read_file(file_name):
+    print(f'Reading file {file_name}')
     response = s3.get_object(Bucket='ask-nova-media', Key=file_name)
     file_content = response['Body'].read()
 

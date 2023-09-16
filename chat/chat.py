@@ -139,7 +139,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         "thread": thread,
         "contentType" : 'message'
     }
-    print('message object is: ' + str(messageObject))
+    # print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
     # print('message logged' + str(id)    )
@@ -284,10 +284,10 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     if 'agent-name' not in novaConvo[convoID]:
         novaConvo[convoID]['agent-name'] = 'nova'
 
-    print('checking tokens')
+    # print('checking tokens')
 
     await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': promptObject}))
-    print('sending prompt object' + str(promptObject))
+    # print('sending prompt object' + str(promptObject))
     tokens = await check_tokens(userID)
 
     if not tokens:

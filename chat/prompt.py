@@ -23,7 +23,7 @@ async def construct_query(convoID, thread = 0):
     await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
-    print(convoID)
+    # print(convoID)
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(active_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
@@ -174,7 +174,7 @@ async def construct_chat(convoID, thread = 0):
     # print(chatlog[convoID])
     if convoID in chatlog:
         for log in chatlog[convoID]:
-            eZprint('log is: ' + str(f"""{log})""")    )
+            # eZprint('log is: ' + str(f"""{log})""")    )
             if 'muted' not in log or log['muted'] == False:
                 object = {}
                 if 'role' not in log:
@@ -253,7 +253,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
     if system_string:
         final_prompt_string += system_string
 
-    print(prompt_objects)
+    # print(prompt_objects)
     if prompt_objects.get('openAI_functions', None):
         
         novaConvo[convoID]['return_type'] = 'openAI'
@@ -276,7 +276,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
 
     if 'system' in prompt_objects:
         print('system found')
-        print(prompt_objects['system']['values'])
+        # print(prompt_objects['system']['values'])
  
         # cycles through setting cartridge values and applies
         for value in prompt_objects['system']['values']:
@@ -307,7 +307,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
                     give_context = True
 
             if 'model' in value:
-                print(value['model'])
+                # print(value['model'])
                 novaConvo[convoID]['model'] = value['model']
                 if novaConvo[convoID]['model'] == 'gpt-4':
                     novaConvo[convoID]['token_limit'] = 8000
@@ -486,7 +486,7 @@ async def construct_commands(command_object, prompt_type = 'json-string', thread
     return final_return            
     
 async def handle_token_limit(convoID):
-    print('handling token limit')
+    # print('handling token limit')
     # print(novaConvo[convoID])
 
     prompt_to_check = []
@@ -546,7 +546,7 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
         token_usage[convoID] = {}
     tokens = estimateTokenSize(str(string_to_check))
     # print('nova convo')
-    print(novaConvo[convoID])
+    # print(novaConvo[convoID])
     # print(convoID)
     # print(novaConvo)
     limit = novaConvo[convoID]['token_limit'] * limit

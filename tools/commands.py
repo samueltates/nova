@@ -491,7 +491,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     print('file name found')
                     for key, val in active_cartridges[convoID].items():
                         if 'label' in val and val['label'] == media.get('file_name'):
-                            media.update({'key' : key})
+                            media.update({'aws_key' : key})
                             break
         if args.get('text_to_overlay'):
             text_to_overlay = args['text_to_overlay']
@@ -536,7 +536,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == video_file_name:
                 print(val)
-                video_file = val['key']
+                video_file = val['aws_key']
                 extension = val['extension']
                 break
 

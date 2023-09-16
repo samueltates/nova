@@ -77,9 +77,9 @@ async def handle_file_end(data):
     file_type = data['file_type']
     loadout = data['loadout']
     convoID = data['convoID']
-    temp_dir = tempfile.mkdtemp()
-    temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix=file_name)
-    temp_file.write(file_content)
+    # temp_dir = tempfile.mkdtemp()
+    # temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False, suffix=file_name)
+    # temp_file.write(file_content)
 
 
     convoID = novaSession[sessionID]['convoID']
@@ -97,13 +97,32 @@ async def handle_file_end(data):
         'enabled' : True,
     }
 
+    extension = file_type.split('/')[1]
+    if extension == 'quicktime':
+        extension = 'mov'
+    if extension == 'x-matroska':
+        extension = 'mkv'
+    if extension == 'mpeg':
+        extension = 'mp3'
+    if extension == 'plain':
+        extension = 'txt'
+
+    cartVal['extension'] = extension
+
+
+
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     cartridge = {cartKey : cartVal}
 
-    url = await write_file(file_content, cartKey) 
+    file_name_to_write = cartKey + '.' + extension
+
+    url = await write_file(file_content, file_name_to_write) 
     print(url)
     print(file_type)
-    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, convoID, loadout, True)
+    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {
+        'media_url': url,
+        'aws_key': file_name_to_write
+        }}, convoID, loadout, True)
     # if file_type == 'application/pdf':
     #    print('pdf found')
     # #    // await handlePDF(data, client_loadout)
@@ -127,6 +146,7 @@ async def handle_file_end(data):
 
 async def transcribe_file(file_key, file_name, file_type, sessionID, convoID, loadout):
     file = await read_file(file_key)
+    print(file)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(file)
     processed_file.close()
