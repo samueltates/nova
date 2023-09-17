@@ -980,23 +980,20 @@ async def summariseChatBlocks(input,  loadout = None):
             messagesToSummarise.append(log)
             if start_message == None:
                 start_message = log
-            if 'name' in log:
-                messages_string += str(log['name']) + ': '
+            if 'role' in log:
+                messages_string += str(log['role']) + ': '
+            if 'function_name' in log:
+                messages_string += str(log['function_name']) + ': '
             if 'userName' in log:
                 messages_string += str(log['userName']) + ': '
-            if 'title' in log:
-                messages_string += str(log['title']) + ': '
-            if 'body' in log:
-                messages_string += str(log['body'])
+            if 'content' in log:
+                messages_string += str(log['content']) + '\n'
+            if 'function_call' in log:
+                messages_string += str(log['function_call']) + '\n'
             if 'timestamp' in log:
-                messages_string += ' ' + str(log['timestamp'])
+                messages_string += ' - ' + str(log['timestamp'])
             messages_string += '\n'
 
-                # print('running message string is ' + str(messages_string)) 
-                
-                
-    # print(messages_string)
-    # print(len(messages_string))
     payload = []   
     summary= ""
     prompt = """
@@ -1017,8 +1014,8 @@ async def summariseChatBlocks(input,  loadout = None):
     """
 
     model = 'gpt-3.5-turbo'
-    if 'model' in novaConvo[convoID]:
-        model = novaConvo[convoID]['model']
+    # if 'model' in novaConvo[convoID]:
+    #     model = novaConvo[convoID]['model']
         # print ('model: ' + model)
 
     summary = await get_summary_with_prompt(prompt, str(messages_string), model, userID)
@@ -1055,7 +1052,7 @@ async def summariseChatBlocks(input,  loadout = None):
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index(start_message) 
-    chatlog[convoID].insert(injectPosition, {'id':summaryID, 'userName': 'summary', 'title':summarDict['title'], 'role':'assistant', 'body': summarDict['title'] + '\n' + summarDict['body'],'timestamp':datetime.now(),'key':summaryKey})
+    chatlog[convoID].insert(injectPosition, {'id':summaryID,'role':'function',  'function_name': 'conversation_summary', 'content':summarDict['title'] + summarDict['body'], 'timestamp':datetime.now(),'key':summaryKey})
     # print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(

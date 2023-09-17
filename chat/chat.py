@@ -7,17 +7,14 @@ import openai
 from copy import deepcopy
 
 from session.appHandler import websocket
-from session.sessionHandler import novaConvo, novaSession, chatlog, active_cartridges, agentName, system_threads, command_loops
+from session.sessionHandler import novaConvo, novaSession, chatlog, system_threads
 from session.tokens import handle_token_use, check_tokens
-
-from core.loadout import current_loadout, update_loadout_field
 from session.prismaHandler import prisma
 from core.cartridges import updateContentField
-from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents, summarise_at_limit
+from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
 from chat.query import sendChat
-from tools.debug import eZprint
+from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list
 from tools.commands import handle_commands
-from tools.memory import get_sessions, summarise_from_range, summarise_percent
 from tools.jsonfixes import correct_json
 
 
@@ -106,9 +103,10 @@ async def user_input(sessionData):
     await send_to_GPT(convoID, query_object, 0, model, functions)
 
 async def handle_message(convoID, content, role = 'user', user_name ='', key = None, thread = 0, meta= '', function_name = None, function_call = None):
-    # print('handling message on thread: ' + str(thread)) 
+
     #handles input from any source, adding to logs and records 
     # TODO: UPDATE SO THAT IF ITS TOO BIG IT SPLITS AND SUMMARISES OR SOMETHING
+
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
     
@@ -142,6 +140,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     # print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
+    if check_debug(['CHAT', 'HANDLE_MESSAGE']):
+        eZprint_key_value_pairs({'log': messageObject})
+
+
     # print('message logged' + str(id)    )
     # input = {
     #     'convoID':convoID,
@@ -298,11 +300,21 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     function_call = None
     if thread == 0:
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
+
     agent_name = novaConvo[convoID]['agent-name']
     try:
+        debug = check_debug(['CHAT', 'SEND_TO_GPT'])
+        if debug:
+            eZprint('Sending prompt object')
+            print('model: ' + model)
+            eZprint_object_list(promptObject, ['CHAT', 'SEND_TO_GPT'])
+            print('functions: ' + str(functions))
 
         response = await sendChat(promptObject, model, functions)
-        message = response["choices"][0]["message"]
+        if debug:
+            eZprint('Response recieved')
+            print('response: ' + str(response))
+
         content = str(response["choices"][0]["message"]["content"])
         if response["choices"][0]["message"].get('function_call'):
             function_call = response["choices"][0]["message"]["function_call"]
@@ -311,6 +323,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
     except Exception as e:
+        print('error in send to GPT')
         print(e)
         content = str(e)
         agent_name = 'system'

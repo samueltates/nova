@@ -1,6 +1,7 @@
 from random import choice, randrange
 from datetime import datetime
 import json
+import os
 
 from session.prismaHandler import prisma
 
@@ -9,12 +10,38 @@ credentials = '{"token": "ya29.a0AWY7CkmXEArxPmjv6q0m23LMk_Yd6nXCiMK-wENAptDOnqk
 
 ##could we make an ezprint class (or debug object session fenced so calling that and it runs in that session) 
 
+debug_logs = {
+    'chat': os.getenv('DEBUG_CHAT', default=False),
+    'video_edit': os.getenv('DEBUG_CHAT', default=False),
+    # Other debug categories...
+}
 
+def check_debug(tags):
+    if os.getenv ('DEBUG', default=False):
+        return True
+    for tag in tags:
+        if os.getenv('DEBUG_'+tag, default=False):
+            return True
+    return False
+
+def print_key_value_pairs(data, indent=''):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, dict):
+                print_key_value_pairs(value, indent + '    ')
+            else:
+                print(f"{indent}{key}: {value}")
+    else:
+        print(f"{indent}{data}")
+
+def print_object_list(data, indent=''):
+    for item in data:
+        print_key_value_pairs(item, indent)
+        
 
 def eZprint(string):
     print('_____________')
     print(string )
-    print('_____________')
 
 def fakeResponse():
     return choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",

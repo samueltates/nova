@@ -8,8 +8,8 @@ s3 = boto3.client(
     )
 
 async def write_file(file_content, file_name):
-    # print(f'Writing file {file_name}')
-    print('writing')
+
+    print(f'Writing file {file_name}')
     s3.put_object(Body=file_content, Bucket='ask-nova-media', Key=file_name)
     url = await get_signed_urls(file_name)
     print('returned url')

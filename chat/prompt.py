@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from datetime import datetime
 
 from session.appHandler import app, websocket
@@ -7,7 +8,7 @@ from session.sessionHandler import active_cartridges, chatlog, novaConvo, curren
 from core.cartridges import update_cartridge_field
 from chat.query import sendChat
 from tools.memory import get_sessions, summarise_percent
-from tools.debug import eZprint
+from tools.debug import eZprint, check_debug, eZprint_key_value_pairs
 
 current_prompt = {}
 simple_agents = {}
@@ -169,58 +170,41 @@ async def construct_content_string(prompt_objects, convoID):
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
-    # print('constructing chat for thread ' + str(thread))
-    # eZprint('chatlog is ')
-    # print(chatlog[convoID])
+
+
+
     if convoID in chatlog:
         for log in chatlog[convoID]:
-            # eZprint('log is: ' + str(f"""{log})""")    )
+
+            eZprint_key_value_pairs({'log': log}, ['CHAT', 'CONSTRUCT_CHAT'])
+
             if 'muted' not in log or log['muted'] == False:
                 object = {}
                 if 'role' not in log:
                     log['role'] = 'user'
                 object.update({ "role":  log['role']})
-                #     object.update({"content":f"""{str(log['body'])}""" })
                 if log.get('content'):
                     object.update({'content': f"""{str(log['content'])}""" })
                 if log.get('function_call'):
                     object.update({'function_call': log['function_call'] })
-                # if log.get('userName') and log['role'] == 'user':
-                #     object.update({"userName": log['userName']})
                 if log.get('role') == 'function':
                     object.update({"name": log['function_name']})
-
                 current_chat.append(object)
-                
+
     if convoID in system_threads:
         if thread in system_threads[convoID]:
-            # print('constructing chat for thread ' + str(thread) )
             thread_system_preline = await get_system_preline_object()
             current_chat.append(thread_system_preline)
             if convoID in command_loops and thread in command_loops[convoID]:
-                # print("Command loop found, appending last command only")
                 last_command = system_threads[convoID][thread][-1]
                 current_chat.append({"role": "system", "content":  f"{last_command['body']}"})
             else:
                 for obj in system_threads[convoID][thread]:
-                    # print('found log for this thread number')
                     current_chat.append({"role": "system", "content":  f"{obj['body']}"})
 
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
-
-    # if 'command' in novaConvo[convoID]:
-    #     # print('command found appending sys')
-    #     if novaConvo[convoID]['command']:
-
-    #         if thread == 0:
-    #             current_chat.append(basic_system_endline)
-    #             # print('thread is 0 so appending basic')
-    #         else:
-    #             current_chat.append(thread_system_endline)
-
     current_prompt[convoID]['chat'] = current_chat
-    # print(current_chat)
 
 async def construct_context(convoID):
     # print('constructing context')
@@ -507,10 +491,13 @@ async def handle_token_limit(convoID):
         else:
             novaConvo[convoID]['summarise-at'] = .6
         prompt_too_long = await summarise_at_limit(prompt_to_check + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
-        if prompt_too_long: 
+        if prompt_too_long and not novaConvo[convoID].get('summarising', False): 
             novaConvo[convoID]['summarising'] = True
             if convoID in chatlog:
-                await summarise_percent(convoID, .5)
+                try:
+                    await summarise_percent(convoID, .5)    
+                except:
+                    print('summarise error')
                 novaConvo[convoID]['summarising'] = False
                 await construct_chat(convoID,0)
                 await summarise_at_limit(prompt_to_check, .25, convoID, 'prompt')

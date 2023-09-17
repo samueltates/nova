@@ -42,7 +42,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if command_object.get('args'):
             args = command_object['args']
         if command_object.get('arguments'):
-            args = json.loads(command_object['arguments'])
+            args = json.loads(command_object['arguments'], strict=False)
 
     eZprint('parsing command')
     if convoID not in command_state:
