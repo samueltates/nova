@@ -13,7 +13,7 @@ from session.prismaHandler import prisma
 from core.cartridges import updateContentField
 from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
 from chat.query import sendChat
-from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list
+from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
 from tools.commands import handle_commands
 from tools.jsonfixes import correct_json
 
@@ -140,8 +140,8 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     # print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
-    if check_debug(['CHAT', 'HANDLE_MESSAGE']):
-        eZprint_key_value_pairs({'log': messageObject})
+    
+    eZprint_anything(chatlog[convoID], ['CHAT', 'HANDLE_MESSAGE'], line_break = True)
 
 
     # print('message logged' + str(id)    )
@@ -302,18 +302,12 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
 
     agent_name = novaConvo[convoID]['agent-name']
-    try:
-        debug = check_debug(['CHAT', 'SEND_TO_GPT'])
-        if debug:
-            eZprint('Sending prompt object')
-            print('model: ' + model)
-            eZprint_object_list(promptObject, ['CHAT', 'SEND_TO_GPT'])
-            print('functions: ' + str(functions))
 
+    try:
+        eZprint_anything(promptObject, ['CHAT', 'SEND_TO_GPT', 'PROMPT'], line_break = True)
+        eZprint_anything(functions, ['CHAT', 'SEND_TO_GPT', 'FUNCTIONS'], line_break = True)
         response = await sendChat(promptObject, model, functions)
-        if debug:
-            eZprint('Response recieved')
-            print('response: ' + str(response))
+        eZprint_anything(response, ['CHAT', 'SEND_TO_GPT', 'RESPONSE'], line_break = True)
 
         content = str(response["choices"][0]["message"]["content"])
         if response["choices"][0]["message"].get('function_call'):
@@ -323,8 +317,8 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
     except Exception as e:
-        print('error in send to GPT')
-        print(e)
+        eZprint('error in send to GPT')
+        eZprint(e)
         content = str(e)
         agent_name = 'system'
     
@@ -334,7 +328,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
-    print('running commands')
+    # print('running commands')
     # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
@@ -404,7 +398,7 @@ async def command_interface(command, convoID, threadRequested):
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
-            print('no recognised return, so far in progress from command')
+            # print('no recognised return, so far in progress from command')
             if convoID not in system_threads:
                 system_threads[convoID] = {}
             
@@ -421,7 +415,7 @@ async def command_interface(command, convoID, threadRequested):
             await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
         
         else:
-            print('thread requested so same again but this time on a thread')
+            # print('thread requested so same again but this time on a thread')
             thread = threadRequested
             command_object = {'system':{
                     "name" : name, 
@@ -444,18 +438,18 @@ async def return_to_GPT(convoID, thread = 0):
     if novaConvo[convoID].get('summarising'):
         return
     if 'steps-taken' not in novaConvo[convoID]:
-        print('no steps taken')
+        # print('no steps taken')
         novaConvo[convoID]['steps-taken'] = 0
 
     if 'steps-allowed' not in novaConvo[convoID]:
         novaConvo[convoID]['steps-allowed'] = 3
     novaConvo[convoID]['steps-taken'] += 1 
-    print(novaConvo[convoID]['steps-taken'])
+    # print(novaConvo[convoID]['steps-taken'])
     await construct_query(convoID, thread)
     model = 'gpt-3.5-turbo'
     if 'model' in novaConvo[convoID]:
         model = novaConvo[convoID]['model']
-        print ('model: ' + model)
+        # print ('model: ' + model)
 
     
     query_object = []
@@ -471,10 +465,10 @@ async def return_to_GPT(convoID, thread = 0):
     #     query_object += current_prompt[convoID]['openAI_functions']
 
 
-    print(query_object)
+    # print(query_object)
     if 'steps-taken' in novaConvo[convoID]:
         if ('user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']) and not novaConvo[convoID]['steps-taken'] >= novaConvo[convoID]['steps-allowed']:
-            print('sending to GPT')
+            # print('sending to GPT')
             functions = None
             if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
                 functions = current_prompt[convoID]['openAI_functions']

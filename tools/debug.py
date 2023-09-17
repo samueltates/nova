@@ -17,31 +17,92 @@ debug_logs = {
 }
 
 def check_debug(tags):
-    if os.getenv ('DEBUG', default=False):
+    # print('checking debug')
+    if os.getenv('DEBUG', default='False') == 'True':
+        # print('value found is ' + os.getenv('DEBUG', default=False))
+        # print('returning true on debug')
         return True
     for tag in tags:
-        if os.getenv('DEBUG_'+tag, default=False):
+        # print('checking tag ' + tag)
+        if os.getenv('DEBUG_'+tag, default='False') == 'True':
+            # print('returning true on tag')
             return True
+        
+    # print('returning false')
     return False
 
-def print_key_value_pairs(data, indent=''):
+def conj(string):
+    if string == '':
+        return ''
+    else:
+        return ', '
+
+def eZprint_key_value_pairs(data, tags = [], line_break= False, indent=''):
+    # print('eZprint_key_value_pairs')
+    if not check_debug(tags):
+        return
+    if line_break:
+        print('---------------------')
+    # print(tags)
+
+    string = ''
     if isinstance(data, dict):
         for key, value in data.items():
+            if line_break:
+                print(indent+'---------------------')
             if isinstance(value, dict):
-                print_key_value_pairs(value, indent + '    ')
+                eZprint_key_value_pairs(value, indent + '    ')
             else:
-                print(f"{indent}{key}: {value}")
+                string += f"{conj(string)}{indent}{key}: {value}"
     else:
-        print(f"{indent}{data}")
+        if line_break:
+            print(indent+'---------------------')
+        string += f"{conj(string)}{indent}{data}"
+    print(string)
 
-def print_object_list(data, indent=''):
+def eZprint_object_list(data, tags = [], line_break= False, indent=''):
+    # print('eZprint_object_list')
+    if not check_debug(tags):
+        return
+    # print(tags)
+    if line_break:
+        print('---------------------')
+    
     for item in data:
-        print_key_value_pairs(item, indent)
+        if line_break:
+            print(indent + '---------------------')
+        if isinstance(item, dict):
+            eZprint_key_value_pairs(item, indent)
+        else:
+            if line_break:
+                print(indent+'---------------------')
+            print(f"{indent}{item}")
         
 
-def eZprint(string):
-    print('_____________')
+def eZprint(string, tags = [], line_break=False):
+    # print('eZprint')
+    if not check_debug(tags):
+        return
+    if line_break:
+        print('---------------------')
     print(string )
+
+def eZprint_anything(anything, tags = [], line_break= False, indent='', ) :
+    # print('ezPrint_anything')
+    if not check_debug(tags):
+        return
+    if line_break:
+        print('---------------------')
+        print(tags)
+        print('---------------------')
+
+    if isinstance(anything, dict):
+        eZprint_key_value_pairs(anything, tags, indent)
+    elif isinstance(anything, list):
+        eZprint_object_list(anything, tags, indent)
+    else:
+        eZprint(anything, tags, indent)
+
 
 def fakeResponse():
     return choice(["To be, or not to be, that is the question", "Love looks not with the eyes, but with the mind; and therefore is winged Cupid painted blind.", "Get thee to a nunnery. ",  "To be, or not to be: that is the question.",

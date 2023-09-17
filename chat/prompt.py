@@ -8,7 +8,7 @@ from session.sessionHandler import active_cartridges, chatlog, novaConvo, curren
 from core.cartridges import update_cartridge_field
 from chat.query import sendChat
 from tools.memory import get_sessions, summarise_percent
-from tools.debug import eZprint, check_debug, eZprint_key_value_pairs
+from tools.debug import eZprint_object_list, eZprint, check_debug, eZprint_key_value_pairs, eZprint_anything
 
 current_prompt = {}
 simple_agents = {}
@@ -169,14 +169,11 @@ async def construct_content_string(prompt_objects, convoID):
     return content_string
 
 async def construct_chat(convoID, thread = 0):
+    eZprint_object_list(chatlog[convoID], ['CHAT', 'CONSTRUCT_CHAT'], line_break=True)
     current_chat = []
-
-
-
     if convoID in chatlog:
         for log in chatlog[convoID]:
 
-            eZprint_key_value_pairs({'log': log}, ['CHAT', 'CONSTRUCT_CHAT'])
 
             if 'muted' not in log or log['muted'] == False:
                 object = {}

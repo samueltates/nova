@@ -17,10 +17,13 @@ import json
 from session.appHandler import app, websocket
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
+from tools.debug import eZprint, eZprint_anything
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay, sessionID, convoID, loadout):
+
+    eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
     main_video_key = main_video_cartridge['aws_key']
     video_file = await read_file(main_video_key)
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
@@ -177,17 +180,22 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID )
     aws_key = cartKey + '.mp4'
-    url = await write_file(file_to_send.file, cartKey) 
+    url = await write_file(file_to_send.file, aws_key) 
 
-    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url, 'aws_key': aws_key
-                                                                                          
-                                                                                          }},convoID, loadout, True)
+    await update_cartridge_field(
+        {   
+            'sessionID': sessionID, 
+            'cartKey' : cartKey, 
+            'fields': {
+                'media_url': url, 
+                'aws_key': aws_key
+            }
+        }, convoID, loadout, True )
+    
+    eZprint(f'file {name} written to {url}', ['OVERLAYT'])
     file_to_send.close()
     compositeClip.close()
-
     return name
-
-
 
 async def split_video(edit_plan, video_file):
     print('splitting video' + video_file + 'with edit plan' + str(edit_plan)) 

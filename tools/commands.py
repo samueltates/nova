@@ -535,28 +535,28 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         for key, val in active_cartridges[convoID].items():
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == video_file_name:
-                print(val)
+                eZprint(val, ['COMMANDS', 'TRANSCRIBE'])
                 video_file = val['aws_key']
                 extension = val['extension']
                 break
 
         if video_file:
-            transcript = await transcribe_file(video_file, video_file_name, extension, sessionID, convoID,  loadout)
+            transcript = await transcribe_file(None, video_file, video_file_name, extension, sessionID, convoID,  loadout)
 
             if transcript:
                 command_return['status'] = "Success."
                 command_return['message'] = "video transcript:\n" + str(transcript)
-                print(command_return)
+                eZprint(command_return)
                 return command_return
             else:
                 command_return['status'] = "Error."
                 command_return['message'] = "video transcript failed"
-                print(command_return)
+                eZprint(command_return)
                 return command_return
         else:
             command_return['status'] = "Error."
             command_return['message'] = "video not found"
-            print(command_return)
+            eZprint(command_return)
             return command_return
 
         
