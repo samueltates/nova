@@ -53,6 +53,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
     #recalls cartridges in loadout
     if not loadout_cartridges and not convo_cartridges:
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
         return
     
     cartridges_to_add = {}

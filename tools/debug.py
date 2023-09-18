@@ -17,7 +17,7 @@ debug_logs = {
 }
 
 def check_debug(tags):
-    # print('checking debug')
+    # print('checking debug for tags ' + str(tags))
     if os.getenv('DEBUG', default='False') == 'True':
         # print('value found is ' + os.getenv('DEBUG', default=False))
         # print('returning true on debug')
@@ -43,7 +43,7 @@ def eZprint_key_value_pairs(data, tags = [], line_break= False, indent=''):
         return
     if line_break:
         print('---------------------')
-    # print(tags)
+        if indent == '' :  print(tags)
 
     string = ''
     if isinstance(data, dict):
@@ -51,28 +51,29 @@ def eZprint_key_value_pairs(data, tags = [], line_break= False, indent=''):
             if line_break:
                 print(indent+'---------------------')
             if isinstance(value, dict):
-                eZprint_key_value_pairs(value, indent + '    ')
+                eZprint_key_value_pairs(value,  tags, line_break= False, indent = indent + '-')
             else:
-                string += f"{conj(string)}{indent}{key}: {value}"
+                string += f"{conj(string)}{key}: {value}"
     else:
         if line_break:
             print(indent+'---------------------')
-        string += f"{conj(string)}{indent}{data}"
-    print(string)
+        string += f"{conj(string)}{data}"
+    print(indent+string)
 
 def eZprint_object_list(data, tags = [], line_break= False, indent=''):
     # print('eZprint_object_list')
     if not check_debug(tags):
         return
-    # print(tags)
-    if line_break:
-        print('---------------------')
+    if indent == '' : 
+        if line_break:
+            print('---------------------')
+            print(tags)
     
     for item in data:
         if line_break:
             print(indent + '---------------------')
         if isinstance(item, dict):
-            eZprint_key_value_pairs(item, indent)
+            eZprint_key_value_pairs(item, tags, line_break= False, indent = indent + '-')
         else:
             if line_break:
                 print(indent+'---------------------')
@@ -97,9 +98,9 @@ def eZprint_anything(anything, tags = [], line_break= False, indent='', ) :
         print('---------------------')
 
     if isinstance(anything, dict):
-        eZprint_key_value_pairs(anything, tags, indent)
+        eZprint_key_value_pairs(anything, tags, line_break= False)
     elif isinstance(anything, list):
-        eZprint_object_list(anything, tags, indent)
+        eZprint_object_list(anything, tags, line_break= False)
     else:
         eZprint(anything, tags, indent)
 

@@ -5,7 +5,9 @@ import json
 from session.prismaHandler import prisma
 from session.appHandler import app, websocket
 from session.sessionHandler import active_cartridges, novaConvo, current_loadout, available_loadouts, active_loadouts, current_config, available_convos, novaSession
-from tools.debug import eZprint
+from tools.debug import eZprint, eZprint_anything
+
+CLASS_KEY = 'LOADOUT'
 
 async def get_loadouts(sessionID):
 
@@ -71,7 +73,7 @@ async def get_loadouts(sessionID):
 
 async def set_loadout(loadout_key: str, sessionID, referal = False):
 
-    eZprint('set_loadout')
+    eZprint('set_loadout' + loadout_key, ['LOADOUT', 'INITIALISE'])
 
     # gets remote loadout content - this includes the cartridges that loadout has, the configuration file with information like title and setup rules
     remote_loadout = await prisma.loadout.find_first(
@@ -138,7 +140,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     if sessionID not in current_config:
         current_config[sessionID] = {}
     current_config[sessionID] = config
-
+    eZprint_anything(config, ['LOADOUT', 'INITIALISE'])
     # sends config over to front end for that loadout 
     # TODO : Switch to front end side dict of [loadouts][config] so can handle multiple + switching
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaSession[sessionID]['owner']}}))
@@ -168,7 +170,8 @@ async def add_loadout(loadout: str, convoID):
 
   
 async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
-    eZprint('add cartridge to loadout triggered')
+    DEBUG_KEYS = ['LOADOUT', 'ADD_CARTRIDGE']
+    eZprint('add cartridge to loadout triggered', DEBUG_KEYS)
 
     loadout = active_loadouts[loadout_key]
     if not loadout:
@@ -179,7 +182,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     # print(loadout_config)
     # print(loadout)
     if cleanSlate:
-        print('clean slate detected')
+        eZprint('clean slate detected', DEBUG_KEYS)
         if 'convos' not in loadout:
             loadout['convos'] = {}
         if convoID not in loadout['convos']:
@@ -227,8 +230,9 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
         
 
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
-    eZprint('update settings in loadout triggered')
 
+    DEBUG_KEYS = ['LOADOUT', 'UPDATE_SETTINGS']
+    eZprint('update settings in loadout triggered', DEBUG_KEYS)
     loadout = active_loadouts[loadout_key]
     if not loadout:
         return
@@ -237,7 +241,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
 
     if cleanSlate:
         # if cleanslate then it sets all the settings at the convo level
-        print('clean slate detected')
+        eZprint('clean slate detected', DEBUG_KEYS)
         if 'convos' not in loadout:
             loadout['convos'] = {}
         if convoID not in loadout['convos']:
@@ -301,6 +305,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
 
 
 async def clear_loadout(sessionID, convoID):
+    DEBUG_KEYS = ['LOADOUT', 'CLEAR_LOADOUT']
     current_loadout[sessionID] = None
     novaSession[sessionID]['owner'] = True
     active_cartridges[convoID] = {}
@@ -394,13 +399,14 @@ async def set_loadout_title(loadout_key, title):
         )
 
 async def update_loadout_field(loadout_key, field, value):
-    print('update_loadout_field')
+    DEBUG_KEYS = ['LOADOUT', 'UPDATE_LOADOUT_FIELD']
+    eZprint('update_loadout_field', DEBUG_KEYS)
     # print(loadout_key, field, value)
     active_loadout = active_loadouts[loadout_key]
     if not active_loadout:
         return
     
-    print(active_loadout)
+    eZprint(active_loadout, DEBUG_KEYS)
 
     if 'config' in active_loadout:
         active_loadout['config'][field] = value

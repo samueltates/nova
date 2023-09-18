@@ -220,10 +220,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
                 asyncio.create_task(simple_agent_response(convoID))
                 
         if command:
-            print('comand found')
+            # print('comand found')
             asyncio.create_task(command_interface(command, convoID, thread))
         else:
-            print('no command, resetting')
+            # print('no command, resetting')
             novaConvo[convoID]['command-loop']= False
             novaConvo[convoID]['steps-taken'] = 0
 
@@ -259,7 +259,6 @@ async def logMessage(messageObject):
             }
         )
 
-
     message = await prisma.message.create(
         data={
             "key": messageObject['key'],
@@ -267,9 +266,9 @@ async def logMessage(messageObject):
             "user_name" : str(messageObject['user_name']),
             "SessionID": str(messageObject['convoID']), ## NEED TO MIGRATE 
             "name": "", ## NEED TO MIGRATE 
-            "content": str(messageObject['content']),
-            "function_name" : str(messageObject['function_name']),
-            "function_call": str(messageObject['function_call']),
+            "content": str(messageObject.get('content','')),
+            "function_name" :str( messageObject.get('function_name','')),
+            "function_call": str(messageObject.get('function_call', '')),
             "role": str(messageObject['role']),
             "timestamp": datetime.now(),
         }
@@ -328,7 +327,8 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
 async def command_interface(command, convoID, threadRequested):
     #handles commands from user input
-    # print('running commands')
+    DEBUG_KEYS = ['CHAT', 'COMMAND_INTERFACE']
+    eZprint('running commands',DEBUG_KEYS)
     # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
 
@@ -434,6 +434,8 @@ async def command_interface(command, convoID, threadRequested):
  
 
 async def return_to_GPT(convoID, thread = 0):
+    DEBUG_KEYS = ['CHAT', 'RETURN_TO_GPT']
+    eZprint('return to GPT', DEBUG_KEYS)
     novaConvo[convoID]['command-loop'] = True
     if novaConvo[convoID].get('summarising'):
         return

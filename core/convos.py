@@ -7,6 +7,7 @@ from session.appHandler import websocket
 from session.sessionHandler import novaConvo, novaSession, chatlog, available_convos, current_config, current_loadout
 from session.prismaHandler import prisma
 from core.loadout import update_loadout_field
+from tools.debug import eZprint, eZprint_anything
 
 
 
@@ -27,13 +28,13 @@ async def get_loadout_logs(loadout, sessionID ):
     logs = None
 
     if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] and loadout != None:
-        print('shared or owner')
+        eZprint('shared or owner', ['CONVO', 'INITIALISE'])
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
         # print(logs)
     else:
-        print('not shared or owner or no loadout')
+        eZprint('not shared or owner or no loadout', ['CONVO', 'INITIALISE'])
         logs = await prisma.log.find_many(
                 where={ "UserID": userID, 
                     "SessionID": {'contains':str(loadout)} },
@@ -119,7 +120,7 @@ async def populate_summaries(sessionID):
 async def set_convo(requested_convoID, sessionID):
     
     userID = novaSession[sessionID]['userID']
-    print(requested_convoID)
+    eZprint(requested_convoID+ ' requested convoID', ['CONVO', 'INITIALISE'])
     splitConvoID = requested_convoID.split('-')
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
@@ -273,14 +274,14 @@ async def set_convo(requested_convoID, sessionID):
     #     await update_loadout_field(loadout, 'convoID', requested_convoID)
 
 async def handle_convo_switch(sessionID):
-    print('handle_convo_switch called')
+    eZprint('handle_convo_switch called', ['CONVO', 'INITIALISE'])
     requested_convoID = None
     if sessionID in current_config and 'convoID' in current_config[sessionID]:
-        print('adding on currentConfig')
+        eZprint('adding on currentConfig', ['CONVO', 'INITIALISE'])
         requested_convoID = current_config[sessionID]['convoID']
 
     elif sessionID in available_convos:
-        print('adding on available convos')
+        eZprint('adding on available convos', ['CONVO', 'INITIALISE'])
         if len(available_convos[sessionID]) > 0:
             requested_convoID = available_convos[sessionID][-1]['sessionID']
 
@@ -292,13 +293,13 @@ async def handle_convo_switch(sessionID):
 
 
 async def start_new_convo(sessionID):
-    print('start_new_convo called')
+    eZprint('start_new_convo called', ['CONVO', 'INITIALISE'])
     #TODO: make 'add convo'wrapper (and set convo
     convoID = secrets.token_bytes(4).hex()
     loadout = current_loadout[sessionID]
     # await initialise_conversation(sessionID, convoID, params)
     convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
-    print('new convo convoID full ' + convoID_full)
+    eZprint('new convo convoID full ' + convoID_full, ['CONVO', 'INITIALISE'])
     novaSession[sessionID]['convoID'] = convoID_full
 
     novaConvo[convoID_full] = {}

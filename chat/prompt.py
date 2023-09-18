@@ -183,7 +183,8 @@ async def construct_chat(convoID, thread = 0):
                 if log.get('content'):
                     object.update({'content': f"""{str(log['content'])}""" })
                 if log.get('function_call'):
-                    object.update({'function_call': log['function_call'] })
+                    if log['function_call'] != 'None':  
+                        object.update({'function_call': log['function_call'] })
                 if log.get('role') == 'function':
                     object.update({"name": log['function_name']})
                 current_chat.append(object)

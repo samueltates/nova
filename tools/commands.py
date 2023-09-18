@@ -618,11 +618,7 @@ async def open_file(name, args, sessionID, convoID, loadout):
         filename = args['filename']
         for cartKey, cartVal in whole_cartridge_list[sessionID].items():
             if 'label' in cartVal:
-                string_match = distance(filename, str(cartVal['label']))
-                # print('distance: ' + str(string_match))
-                # print('filename: ' + filename)
-                # print('label: ' + str(cartVal['label']))
-                if string_match < 3:
+               if cartVal['label'].lower() == filename.lower():
                     print('found match' + str(cartVal))
             
                     return_string = ''

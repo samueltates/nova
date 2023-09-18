@@ -31,7 +31,8 @@ openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 async def initialise_conversation(sessionID,convoID, params = None):
     ##session setup stuff should be somewhere else
-    eZprint('initialising conversation')
+    DEBUG_KEYS = ['INITIALISE', 'INITIALISE_CONVERSATION']
+    eZprint('initialising conversation', DEBUG_KEYS)
 
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
@@ -76,8 +77,8 @@ async def initialise_conversation(sessionID,convoID, params = None):
     
 
 async def initialiseCartridges(sessionID, convoID, loadout):
-    
-    eZprint('intialising cartridges')
+    DEBUG_KEYS = ['INITIALISE', 'INITIALISE_CARTRIDGES']
+    eZprint('intialising cartridges',DEBUG_KEYS)
     # print(current_loadout[sessionID])
     # if sessionID not in current_loadout:
     #     current_loadout[sessionID] = None
@@ -92,7 +93,8 @@ async def initialiseCartridges(sessionID, convoID, loadout):
 
 
 async def loadCartridges(sessionID, convoID, loadout = None):
-    eZprint('load cartridges called')
+    DEBUG_KEYS = ['INITIALISE', 'LOAD_CARTRIDGES']
+    eZprint('load cartridges called', DEBUG_KEYS)
     userID = novaSession[sessionID]['userID']
 
     cartridges = await prisma.cartridge.find_many(
@@ -111,7 +113,8 @@ async def loadCartridges(sessionID, convoID, loadout = None):
             await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
 
 async def runCartridges(sessionID,  convoID, loadout = None):
-    print('running cartridges')
+    DEBUG_KEYS = ['INITIALISE', 'RUN_CARTRIDGES']
+    eZprint('running cartridges', DEBUG_KEYS)
         
     # if sessionID in current_config:
     #     print('current config')
