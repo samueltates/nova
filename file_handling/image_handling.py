@@ -1,28 +1,31 @@
 import openai
 import os
 import requests
-from cartridges import addCartridge, update_cartridge_field
-from file_handling.s3 import write_file, read_file
 import tempfile
+import asyncio
+
+from core.cartridges import addCartridge, update_cartridge_field
+from file_handling.s3 import write_file, read_file
 
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 
 
-async def generate_images(prompts, sessionID, loadout):
-    images = ''
-    for prompt in prompts:
-        image = await generate_image(prompt, sessionID, loadout)
-        images+= image + ', '
-    return images
+async def generate_images(prompts, sessionID, convoID, loadout):
+
+    tasks = [generate_image(prompt, sessionID, convoID, loadout) for prompt in prompts]
+    images = await asyncio.gather(*tasks)
+    images_str = ', '.join(images)
+    return images_str
 
 
-async def generate_image(prompt, sessionID, loadout):
+async def generate_image(prompt, sessionID, convoID, loadout):
 
-    response = openai.Image.create(
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, lambda: openai.Image.create(
         prompt=prompt,
         n=1,
         size='1024x1024'
-        )
+        ))
     
     image_url = response['data'][0]['url']
     print(f'Image URL: {image_url}')
@@ -40,9 +43,9 @@ async def generate_image(prompt, sessionID, loadout):
         'enabled' : True,
     }
 
-    cartKey = await addCartridge(cartVal, sessionID, loadout )
+    cartKey = await addCartridge(cartVal, sessionID, loadout, convoID )
     url = await write_file(response.content, cartKey) 
     print(url)
-    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, loadout, True)
+    await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {'media_url': url}}, convoID, loadout, True)
 
     return name
