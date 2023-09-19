@@ -72,7 +72,7 @@ async def user_input(sessionData):
         
     await handle_message(convoID, content, 'user', user_name, sessionData['key'])
     await construct_query(convoID)
-    query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat'] 
+    query_object = current_prompt[convoID].get('prompt',[]) + current_prompt[convoID].get('chat',[]) 
 
     if 'emphasise' in current_prompt[convoID]:
         query_object += current_prompt[convoID]['emphasise']

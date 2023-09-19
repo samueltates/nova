@@ -10,7 +10,7 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_au
 from pydub import AudioSegment
 from pydub.silence import split_on_silence
 from datetime import datetime
-
+from quart import send_file
 # from chat import handle_message, return_to_GPT
 from core.cartridges import addCartridge
 from core.cartridges import addCartridge, update_cartridge_field
@@ -221,6 +221,8 @@ async def transcribe_chunk(chunk, chunk_file, chunk_time_ms, chunkID = 0):
             os.remove(chunk_file.name)
             return transcription
 
+async def get_file_download_link(filename):    
+    return await send_file(filename, attachment_filename=filename, as_attachment=True)
 
 
 async def convert_ms_to_hh_mm_ss(ms):

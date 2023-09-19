@@ -27,7 +27,7 @@ from tools.memory import summariseChatBlocks,get_summary_children_by_key
 from tools.keywords import get_summary_from_keyword, get_summary_from_insight
 from core.loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 from session.tokens import update_coin_count
-from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
+from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end, get_file_download_link
 
 
 app.session = session
@@ -433,7 +433,7 @@ async def process_message(parsed_data):
         await addCartridge(cartVal,sessionID, loadout, convoID, False)
         message = 'Cartridge ' + cartVal['label'] + ' added.'
         if log:
-            await handle_message(convoID, message, 'system', 'system', None,0, meta = 'terminal')
+            await handle_message(convoID, message, 'function', '', None,0, meta = 'terminal', function_name='add_cartridge')
             await return_to_GPT(convoID, 0)
 
     if(parsed_data['type']== 'updateCartridgeField'):
@@ -487,6 +487,7 @@ async def process_message(parsed_data):
         await handle_indexdoc_end(parsed_data["data"])
 
         ##REST OF FILE HANDLING STUFF
+
     elif parsed_data["type"] == "file_start":
         print('indexdoc_start')
         print(parsed_data["data"])
@@ -506,7 +507,12 @@ async def process_message(parsed_data):
             await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='upload')
             await return_to_GPT(convoID, 0)
 
-
+    elif parsed_data["type"] == "get_file_download_link":
+        eZprint('get_file_download_link route hit', ['FILE_HANDLING'])
+        filename = parsed_data["data"]["filename"]
+        # send_file = await get_file_download_link(filename)
+        # await websocket.send(json.dumps({'event':'get_file_download_link', 'payload': send_file}))
+        await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': filename}}))
 
 
     if(parsed_data["type"] == '__ping__'):
