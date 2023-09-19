@@ -232,7 +232,7 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
 async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
 
     DEBUG_KEYS = ['LOADOUT', 'UPDATE_SETTINGS']
-    eZprint('update settings in loadout triggered', DEBUG_KEYS)
+    eZprint('update settings in loadout triggered', DEBUG_KEYS, line_break=True)
     loadout = active_loadouts[loadout_key]
     if not loadout:
         return
@@ -255,7 +255,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
                 if 'settings' not in cart:
                     cart['settings'] = {}                
                 for settingsKey, settingsVal in settings.items():
-                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
+                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned', 'position']:
                         cart['settings'][settingsKey] = settingsVal
                 if 'softDelete' in settings and settings['softDelete'] == True:
                     loadout['convos'][convoID]['cartridges'].remove(cart)
@@ -268,7 +268,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
         for cart in loadout['cartridges']:
             if 'key' in cart and cart['key'] == cartridge:
                 for settingsKey, settingsVal in settings.items():
-                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned']:
+                    if settingsKey in ['enabled', 'minimised', 'softDelete', 'pinned',  'position']:
                         cart['settings'][settingsKey] = settingsVal 
         
     else:
@@ -300,8 +300,8 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
             "blob":Json({loadout_key:loadout})
             }
     )
-    # print('loadout updated')
-    # print(update)
+    eZprint('loadout updated', DEBUG_KEYS)
+    eZprint_anything(update, DEBUG_KEYS)
 
 
 async def clear_loadout(sessionID, convoID):

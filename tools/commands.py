@@ -115,6 +115,8 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     return command_return
         # if args.get('type') == 'web':
     if name == 'go_to_location':
+        # wait three seconds
+        await asyncio.sleep(3)
         if args.get('location'):
             location = args['location']
             # response = await go_to_location(name, args, sessionID, loadout, thread)

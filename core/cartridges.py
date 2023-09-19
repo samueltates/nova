@@ -10,13 +10,15 @@ from session.appHandler import app, websocket
 from session.prismaHandler import prisma
 from session.sessionHandler import novaConvo, active_loadouts, active_cartridges, chatlog, cartdigeLookup, novaSession
 from core.loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
-from tools.debug import eZprint
+from tools.debug import eZprint, eZprint_anything
+
 
 
 whole_cartridge_list = {}
 
 async def retrieve_loadout_cartridges(loadout_key, convoID):
-    print('retrieving loadout cartridges')
+    DEBUG_KEYS = ['CARTRIDGES', 'RETRIEVE_CARTRIDGES']
+    eZprint('retrieving loadout cartridges', DEBUG_KEYS, line_break=True)
 
     loadout_cartridges = []
     if convoID not in active_cartridges:
@@ -64,6 +66,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
             cartridges_to_add.update({cartKey:convo_cartridge})
 
     ## new idea, checks for loadout carts, differntiated on pin setting if cleanslate, then checks convo carts if they're popped, then adds through that.
+    eZprint_anything(loadout_cartridges, DEBUG_KEYS)
     for loadout_cartridge in loadout_cartridges:
 
         # has to find a lot of cartridges maybe unesarily
@@ -332,13 +335,10 @@ async def addCartridgeTrigger(input, client_loadout = None):
     return newCart
 
 async def update_cartridge_field(input, convoID, client_loadout= None, system = False):
+    DEBUG_KEYS = ['CARTRIDGES', 'UPDATE_CARTRIDGE']
     targetCartKey = input['cartKey']
-    sessionID = input['sessionID']
-    # print('update cartridge field ' + str(available_cartridges[sessionID][targetCartKey]))
-    print(input['fields'])
+    eZprint_anything(input['fields'], DEBUG_KEYS, line_break=True)
     
-    # if client_loadout != current_loadout[sessionID]:
-    #     return False
     matchedCart = await prisma.cartridge.find_first(
         where={
         'key':

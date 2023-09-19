@@ -36,7 +36,7 @@ async def unpack_cartridges(convoID):
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
             if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
-                cartridge_contents[cartVal['type']]['string'] += "\n-" + cartVal['label']
+                cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
                 if cartVal['type'] != 'prompt':
                     if cartVal.get('lastUpdated', None):
                         cartridge_contents[cartVal['type']]['string'] += ' | Last updated : ' + cartVal['lastUpdated']
@@ -44,9 +44,9 @@ async def unpack_cartridges(convoID):
                         cartridge_contents[cartVal['type']]['string'] += ' | Summary: ' + cartVal['summary']
                     if cartVal.get('text', None):
                         cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['text'][0:140] + ' ...\n'
-                    if cartVal.get('blocks', None):
-                        if cartVal['blocks'].get('overview', None):
-                            cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['blocks']['overview'][0:140] + ' ...\n'
+                    # if cartVal.get('blocks', None):
+                    #     if cartVal['blocks'].get('overview', None):
+                            # cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['blocks']['overview'][0:140] + ' ...\n'
                         # if cartVal['type'] == 'note' or cartVal['type'] == 'index':
                         #     if 'minimised' in cartVal and cartVal['minimised']:
                         #         cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
@@ -114,7 +114,6 @@ async def construct_system_string(prompt_objects, convoID):
     system_string = ''
 
     if 'prompt' in prompt_objects:    
-        system_string += "\n--Instructions--"
         system_string += prompt_objects['prompt']['string']
     # if 'summary' in prompt_objects:
     #     final_string += "\n--Past conversations--"
@@ -342,11 +341,17 @@ async def construct_objects(convoID, system_string = None, content_string = None
     # turns all strings into objects, and adds to list to send
     
 
+    final_system_string = ''
     if final_prompt_string != '':
-        list_to_send.append({"role": "user", 'content': final_prompt_string})
+        # list_to_send.append({"role": "system", 'content': final_prompt_string})
+        final_system_string += final_prompt_string
     
     if content_string != '':    
-        list_to_send.append({"role": "user", 'content': content_string})
+        # list_to_send.append({"role": "user", 'content': content_string})
+        final_system_string += content_string
+
+    if final_system_string != '':
+        list_to_send.append({"role": "system", 'content': final_system_string})
 
     if list_to_send != []:
         current_prompt[convoID]['prompt'] = list_to_send
