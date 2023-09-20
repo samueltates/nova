@@ -1,5 +1,5 @@
 [phases.setup]
-    nixPkgs = ["...", "redis", "ffmpeg", "fontconfig", "imagemagick"]
+    nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick"]
     paths = ['/etc/fonts/']
 
 [variables]
@@ -7,7 +7,7 @@
     FONTCONFIG_PATH = "${nixPkgs.fontconfig.out}/etc/fonts"
 
 [phases.install]
-    cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy', 'pipenv install prisma','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
+    cmds = ['curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash','PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
 
 [start]
     cmd = 'bash startup.sh'
