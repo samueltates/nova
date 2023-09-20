@@ -355,7 +355,7 @@ async def command_interface(command, convoID, threadRequested):
         novaConvo[convoID]['command-loop']= False
         novaConvo[convoID]['steps-taken'] = 0
     # eZprint('command response recieved from command')
-    # eZprint(command_response)
+    eZprint(command_response, DEBUG_KEYS)
     
     thread = 0
 

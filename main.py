@@ -320,6 +320,12 @@ async def process_message(parsed_data):
         # convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']    
         params = parsed_data['data']['params']
+
+        for key in params:
+            if 'DEBUG' in key:
+                os.environ[key] = params[key]
+
+        eZprint('params set to ' + str(params), ['INITIALISE'])
         await set_loadout(loadout, sessionID, True)
         # await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)

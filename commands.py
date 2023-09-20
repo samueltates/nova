@@ -132,32 +132,32 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     command_return['message'] = "Query can't be blank"
         #     return command_return
         # if args.get('type') == 'web':
-    if name == 'go_to_location':
-        if args.get('location'):
-            location = args['location']
-            # response = await go_to_location(name, args, sessionID, loadout, thread)
-            command_return['status'] = "Success."
-            command_return['message'] = "Location : " + str(location)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'location' missing"
-            return command_return
-    if name == 'go_to_tag':
-        print('going to tag')
-        command_return['status'] = "Success."
-        command_return['message'] = "Going to tag"
-        return command_return
-        if args.get('location'):
-            location = args['location']
-            # response = await go_to_location(name, args, sessionID, loadout, thread)
-            command_return['status'] = "Success."
-            command_return['message'] = "Location : " + str(location)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'location' missing"
-            return command_return
+    # if name == 'go_to_location':
+    #     if args.get('location'):
+    #         location = args['location']
+    #         # response = await go_to_location(name, args, sessionID, loadout, thread)
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "Location : " + str(location)
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "Arg 'location' missing"
+    #         return command_return
+    # if name == 'go_to_tag':
+    #     print('going to tag')
+    #     command_return['status'] = "Success."
+    #     command_return['message'] = "Going to tag"
+    #     return command_return
+    #     if args.get('location'):
+    #         location = args['location']
+    #         # response = await go_to_location(name, args, sessionID, loadout, thread)
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "Location : " + str(location)
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "Arg 'location' missing"
+    #         return command_return
 
     if name == 'query_website':
         if args.get('website_url'):
@@ -631,10 +631,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     command_return['status'] = "Error."
         #     command_return['message'] = "Website scrape failed"
         #     return command_return
-    else:
-        command_return['status'] = "Error."
-        command_return['message'] = "Command not recognised"
-        return command_return
+    # else:
+    #     command_return['status'] = "Error."
+    #     command_return['message'] = "Command not recognised"
+    #     return command_return
 
 
 async def open_file(name, args, sessionID, loadout):

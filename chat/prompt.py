@@ -9,6 +9,7 @@ from core.cartridges import update_cartridge_field
 from chat.query import sendChat
 from tools.memory import get_sessions, summarise_percent
 from tools.debug import eZprint_object_list, eZprint, check_debug, eZprint_key_value_pairs, eZprint_anything
+from chat.returnSchema import build_tree_str
 
 current_prompt = {}
 simple_agents = {}
@@ -24,20 +25,26 @@ async def construct_query(convoID, thread = 0):
     await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
+    
     # print(convoID)
+    DEBUG_KEYS = ['CARTRIDGES', 'UNPACK_CARTRIDGES']
+
     sorted_cartridges = await asyncio.to_thread(lambda: sorted(active_cartridges[convoID].values(), key=lambda x: x.get('position', float('inf'))))
     cartridge_contents = {} 
     simple_agents[convoID] = {}
-    # print('unpacking cartridges')
-    # print(sorted_cartridges)
+    eZprint('unpacking cartridges', DEBUG_KEYS, line_break=True)
+    eZprint_anything(sorted_cartridges, DEBUG_KEYS)
     for cartVal in sorted_cartridges:
         if cartVal.get('enabled', True):
             if cartVal['type'] not in cartridge_contents:
+                eZprint(f'creating {cartVal["type"]} cartridge', DEBUG_KEYS)
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
             if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
+                eZprint(f'adding label to {cartVal["type"]} cartridge', DEBUG_KEYS)
                 cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
                 if cartVal['type'] != 'prompt':
+                    eZprint(f'not a prompt cartridge, type strings', DEBUG_KEYS)
                     if cartVal.get('lastUpdated', None):
                         cartridge_contents[cartVal['type']]['string'] += ' | Last updated : ' + cartVal['lastUpdated']
                     if cartVal.get('summary', None):
@@ -56,10 +63,18 @@ async def unpack_cartridges(convoID):
                         #     cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
                         # cartridge_contents[cartVal['type']]['string'] +=  "\n"
             if 'prompt' in cartVal:
+                eZprint(f'adding to prompt object', DEBUG_KEYS)
                 cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
-            if 'blocks' in cartVal:
-                if 'overview' in cartVal['blocks']:
-                        cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['overview']) + "\n"
+            if cartVal.get('json', None):
+                eZprint(f'adding json to {cartVal["type"]} cartridge', DEBUG_KEYS)
+                eZprint_anything(cartVal['json'], DEBUG_KEYS + ['JSON'])
+                json_obj = json.loads(cartVal['json'], strict=False)
+                if json_obj:
+                    parsed_json = build_tree_str(json_obj)
+                    eZprint(f'ingesting {parsed_json}', DEBUG_KEYS + ['JSON'])
+                    cartridge_contents[cartVal['type']]['string'] += '\n' + parsed_json
+                    eZprint(f'string updated to read {cartridge_contents[cartVal["type"]]["string"]}', DEBUG_KEYS)
+
             # if 'minimised' in cartVal and cartVal['minimised'] == False:
             #     if 'text' in cartVal:
             #         cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['text'] + "\n--\n"
@@ -105,12 +120,13 @@ async def unpack_cartridges(convoID):
                 else:
                     simple_agents[convoID][cartVal['key']] = None
 
-    # print(cartridge_contents)
+    eZprint_anything(cartridge_contents, DEBUG_KEYS + ['CARTRIDGE_CONTENTS'])
     return cartridge_contents
 
 
 async def construct_system_string(prompt_objects, convoID):
     # print('constructing string')
+
     system_string = ''
 
     if 'prompt' in prompt_objects:    
@@ -229,7 +245,6 @@ async def construct_objects(convoID, system_string = None, content_string = None
     emphasise_string = ''
     final_prompt_string = ''
     give_context = False
-
 
     if system_string:
         final_prompt_string += system_string
