@@ -11,3 +11,4 @@
 
 [start]
     cmd = 'bash startup.sh'
+ 
