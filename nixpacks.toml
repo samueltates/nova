@@ -2,6 +2,7 @@
     nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick"]
     paths = ['/etc/fonts/']
 
+
 [variables]
     FONTCONFIG_FILE = "${nixPkgs.fontconfig.out}/etc/fonts/fonts.conf"
     FONTCONFIG_PATH = "${nixPkgs.fontconfig.out}/etc/fonts"
