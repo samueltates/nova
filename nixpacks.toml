@@ -2,6 +2,7 @@
     nixPkgs = ["...", "redis", "ffmpeg", "fontconfig", "imagemagick"]
     paths = ['/etc/fonts/']
     version = "1.15.0"
+    NIXPACKS_NODE_VERSION = "16"
 
 
 [variables]
