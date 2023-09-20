@@ -7,7 +7,7 @@ from datetime import datetime
 
 # from nova import getPromptEstimate, getChatEstimate
 from session.appHandler import app, websocket
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 from session.sessionHandler import novaConvo, active_loadouts, active_cartridges, chatlog, cartdigeLookup, novaSession
 from core.loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
 from tools.debug import eZprint, eZprint_anything

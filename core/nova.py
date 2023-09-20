@@ -12,7 +12,7 @@ from prisma import Json
 
 from session.appHandler import app, websocket
 from session.sessionHandler import novaConvo, active_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 from core.cartridges import copy_cartridges_from_loadout, update_cartridge_field
 from chat.chat import agent_initiate_convo, construct_query
 from session.tokens import update_coin_count
@@ -203,6 +203,7 @@ async def runCartridges(sessionID,  convoID, loadout = None):
 
 async def addNewUserCartridgeTrigger(sessionID, cartKey, cartVal):
     #special edge case for when new user, probablyt remove this
+    
     #TODO: replace this with better new user flow
     if sessionID not in active_cartridges:
         active_cartridges[sessionID] = {}

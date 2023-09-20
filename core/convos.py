@@ -5,7 +5,7 @@ import asyncio
 
 from session.appHandler import websocket
 from session.sessionHandler import novaConvo, novaSession, chatlog, available_convos, current_config, current_loadout
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 from core.loadout import update_loadout_field
 from tools.debug import eZprint, eZprint_anything
 

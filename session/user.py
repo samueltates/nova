@@ -2,7 +2,7 @@ from prisma import Json
 import json
 import datetime
 
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 
 async def GoogleSignOn(userInfo, token):
     userRecord = await prisma.user.find_first(

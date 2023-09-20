@@ -13,7 +13,7 @@ logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 from session.appHandler import app, websocket
 from session.sessionHandler import novaConvo, active_cartridges, cartdigeLookup
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 from core.cartridges import addCartridgeTrigger, update_cartridge_field, addCartridge, addCartridgePrompt
 from tools.debug import eZprint
 from tools.GoogleDocsReader import GoogleDocsReader 

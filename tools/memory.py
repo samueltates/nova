@@ -5,7 +5,7 @@ from prisma import Json
 import secrets
 from datetime import datetime
 
-from session.prismaHandler import prisma
+from prismaHandler import prisma
 from session.sessionHandler import novaConvo,novaSession, active_cartridges, chatlog, current_loadout
 from session.appHandler import websocket
 from core.cartridges import update_cartridge_field
