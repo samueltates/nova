@@ -2,7 +2,7 @@ from prisma import Json
 import json
 import datetime
 
-from prismaHandler import prisma
+from session.prismaHandler import prisma
 from session.appHandler import app, websocket
 from tools.debug import eZprint
 

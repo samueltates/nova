@@ -12,7 +12,7 @@ from prisma import Json
 
 from session.appHandler import app, websocket
 from session.sessionHandler import novaConvo, active_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
-from prismaHandler import prisma
+from session.prismaHandler import prisma
 from core.cartridges import copy_cartridges_from_loadout, update_cartridge_field
 from chat.chat import agent_initiate_convo, construct_query
 from session.tokens import update_coin_count

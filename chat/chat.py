@@ -9,7 +9,7 @@ from copy import deepcopy
 from session.appHandler import websocket
 from session.sessionHandler import novaConvo, novaSession, chatlog, system_threads
 from session.tokens import handle_token_use, check_tokens
-from prismaHandler import prisma
+from session.prismaHandler import prisma
 from core.cartridges import updateContentField
 from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
 from chat.query import sendChat

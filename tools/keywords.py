@@ -3,7 +3,7 @@ import json
 
 from session.appHandler import websocket
 from core.cartridges import update_cartridge_field
-from prismaHandler import prisma
+from session.prismaHandler import prisma
 from session.sessionHandler import novaConvo, active_cartridges, current_loadout, novaSession
 from tools.debug import eZprint
 

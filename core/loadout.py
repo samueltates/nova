@@ -2,7 +2,7 @@ import asyncio
 from prisma import Json
 import json
 
-from prismaHandler import prisma
+from session.prismaHandler import prisma
 from session.appHandler import app, websocket
 from session.sessionHandler import active_cartridges, novaConvo, current_loadout, available_loadouts, active_loadouts, current_config, available_convos, novaSession
 from tools.debug import eZprint, eZprint_anything

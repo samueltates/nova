@@ -20,7 +20,7 @@ from core.convos import get_loadout_logs,  start_new_convo, get_loadout_logs, se
 from core.cartridges import retrieve_loadout_cartridges, addCartridge, update_cartridge_field, updateContentField,get_cartridge_list, add_existing_cartridge, search_cartridges, active_cartridges
 from tools.gptindex import indexDocument, handleIndexQuery
 from session.googleAuth import logout, check_credentials,requestPermissions
-from prismaHandler import prismaConnect, prismaDisconnect
+from session.prismaHandler import prismaConnect, prismaDisconnect
 from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
