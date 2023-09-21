@@ -742,8 +742,15 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
                             
 
                 if 'query' in args:
+                    string_to_query = ''
+
                     if 'text' in cartVal:
-                        query_response = await quick_query(cartVal['text'], str(args['query']))
+                        string_to_query += cartVal['text']
+                    if 'json' in cartVal:
+                        string_to_query += str(cartVal['json'])
+
+                    if string_to_query != '':
+                        query_response = await quick_query(str(string_to_query), str(args['query']))
                         command_return['status'] = "Success."
                         command_return['message'] = "From " + filename  + ": "+ str(query_response)
                         print(command_return)
