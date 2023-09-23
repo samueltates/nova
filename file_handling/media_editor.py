@@ -9,6 +9,7 @@ import os
 import requests
 import cv2
 import ffmpeg
+import asyncio
 
 import subprocess
 import shlex
@@ -19,13 +20,245 @@ from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
 from tools.debug import eZprint, eZprint_anything
 
+
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
+
+
+
+async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout):
+    DEBUG_KEYS = ['OVERLAY']
+    eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
+    main_video_key = main_video_cartridge['aws_key']
+    video_file = await read_file(main_video_key)
+
+    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    processed_file.write(video_file)
+    processed_file.close()
+    composites = []
+
+
+
+    clip = VideoFileClip(processed_file.name)
+    rotated = await is_rotated(processed_file.name)
+
+    if rotated:
+        clip = clip.resize(clip.size[::-1])
+
+    clip_dimensions = clip.get_frame(0).shape
+    layout = await determine_orientation(clip_dimensions)
+
+    composites.append(clip)
+    
+
+    # for b_roll in b_roll_to_overlay:
+        
+    #     prompt = b_roll['prompt']        
+    #     loop = asyncio.get_event_loop()
+    #     response = await loop.run_in_executor(None, lambda: openai.Image.create(
+    #         prompt=prompt,
+    #         n=1,
+    #         size='1024x1024'
+    #         ))
+        
+    #     image_url = response['data'][0]['url']
+    #     response = requests.get(image_url)
+
+    #     processed_media = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    #     processed_media.write(response.content)
+    #     processed_media.close()
+
+    #     start, end = b_roll['start'], b_roll['end']
+    #     start = datetime.strptime(start, '%H:%M:%S.%f')
+    #     end = datetime.strptime(end, '%H:%M:%S.%f')
+    #     #get as  time delta
+    #     duration = end - start
+    #     duration = duration.total_seconds()
+    #     start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+    #     start = start_delta.total_seconds()
+        
+    #     image = cv2.imread(processed_media.name)
+    #     print(f'Initial image size: {image.shape}')
+
+    #     if layout == 'horizontal':
+    #         # Resize image based on orientation of clip
+    #         resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
+    #     else:
+    #         resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
+
+    #     # print('Resized image size:', resized_image.shape)
+    #     # print('Resized image size:', resized_image.shape)
+    #     # # Crop excess width/height if necessary
+    #     start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
+    #     start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
+    #     # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
+
+    #     print('Start x-value for cropping:', start_x)
+    #     print('Start y-value for cropping:', start_y)
+
+    #     # # Writing image
+    #     # print('Writing temporary image')
+    #     # resized_cropped_image = cv2.cvtColor(resized_cropped_image, cv2.COLOR_BGR2RGB)
+
+    #     resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
+
+    #     cv2.imwrite(processed_media.name, resized_image)
+
+    #     image_clip = ImageClip(resized_image)
+    #     image_clip = image_clip.set_duration(duration)
+    #     image_clip = image_clip.set_start(start)
+    #     #set default position
+    #     image_clip = image_clip.set_position('center')
+
+    #     # if 'zoom' in media:
+    #     #     start_zoom = float(media['zoom'].get('start_size', 1))
+    #     #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
+    #     #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
+
+
+    #     if 'position' in b_roll:
+    #         eZprint('position found', DEBUG_KEYS)
+    #         image_clip = image_clip.set_position(b_roll['position'])
+
+    #     if 'fade' in b_roll:
+    #         fadein_duration = float(b_roll['fade'].get('fadein', 0))
+    #         fadeout_duration = float(b_roll['fade'].get('fadeout', 0))
+    #         if fadein_duration:
+    #             image_clip = image_clip.crossfadein(fadein_duration)
+    #         if fadeout_duration:
+    #             image_clip = image_clip.crossfadeout(fadeout_duration)
+    #     # if 'position' in media:
+    #     #     start_pos = float(media['position'].get('start', 'center'))
+    #     #     end_pos = float(media['position'].get('end', start_pos))
+    #     #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
+
+    #     if 'pan' in b_roll:
+    #         # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
+    #         # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
+    #         direction = b_roll['pan']
+    #         if direction == 'left':
+    #             image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
+    #         elif direction == 'right':
+    #             image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
+
+
+    #         # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
+    #         # print('panning from', pan_from, 'to', pan_to)
+
+    #     composites.append(image_clip)
+    
+    json_object = None
+    transcript_object = None
+
+    if main_video_cartridge.get('json', None):
+        json_object = json.loads(main_video_cartridge['json'])
+
+    if json_object:
+        transcript_object = json_object.get('transcript', None)        
+        eZprint_anything([transcript_object], ['OVERLAY'])
+
+    if transcript_object:
+        transcript_object.sort(key=lambda x: x['chunkID'])
+        for line in transcript_object:
+            eZprint_anything([line], ['OVERLAY'])
+            start = line['start']
+            end = line['end']
+
+            start = datetime.strptime(start, '%H:%M:%S.%f')
+            end = datetime.strptime(end, '%H:%M:%S.%f')
+            #get as  time delta
+            duration = end - start
+            duration = duration.total_seconds()
+
+            ## splits lines up by appostrophe or and divides timestamp and time between them based on sections
+            text = line.get('transcript',{}).get('text', '')
+            if text != '':
+                line_sections = text.split(',')
+                
+
+                eZprint_anything([line_sections], ['OVERLAY'])
+                if len(line_sections) > 1:
+                    # line_section_duration = duration / len(line_sections)
+                    line_section_characters = len(text) - len(line_sections) + 1
+                    start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+                    start = start_delta.total_seconds()
+                    running_progress = start
+                    for line_section in line_sections:
+                        if line_section != '':
+                            ## checks if any line has more than 10 words and if so splits it up into sections
+                            line_section_percent = len(line_section) / line_section_characters
+                            line_section_duration = duration * line_section_percent
+                            line_section_start = running_progress
+                            line_section_end = line_section_start + line_section_duration
+                            duration_modifier = line_section_duration * .1
+                            running_progress = line_section_end
+                            line_section_text = line_section
+                            text = line_section_text.strip()
+                            size = clip_dimensions[1]* .8, None
+                            text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans-Bold')
+                            text_clip = text_clip.set_duration(line_section_duration - duration_modifier)
+                            text_clip = text_clip.set_start(line_section_start + duration_modifier)
+                            # set position so its centered on x and 80% down on y
+                            text_clip = text_clip.set_position((.1, 0.8), relative=True)
+                            composites.append(text_clip)
+                else:   
+                    eZprint_anything([text], ['OVERLAY'])
+                    start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+                    start = start_delta.total_seconds()
+                    size = clip_dimensions[1]* .8, None
+                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', kerning = 5, method='caption', bg_color='black', align='center', font = 'DejaVu-Sans-Bold')
+                    duration_modifier = duration * .2
+                    text_clip = text_clip.set_duration(duration - duration_modifier)
+                    text_clip = text_clip.set_start(start + duration_modifier)
+                    text_clip = text_clip.set_position((.1, 0.8), relative=True)
+                    composites.append(text_clip)
+
+    compositeClip = CompositeVideoClip(composites, size=clip.size)
+    compositeClip.audio = clip.audio
+    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
+    await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
+    # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
+       
+    name = main_video_cartridge['label'] + '_overlayed.mp4'
+    cartVal = {
+        'label' : name,
+        # 'text' : str(transcriptions),
+        # 'description' : 'Image generated by openAI with prompt: ' + prompt,
+        'fileName' : file_to_send.name,
+        'extension' : 'video/mp4',
+        # 'media_url' : url,
+        'type' : 'media',
+        'enabled' : True,
+    }
+
+    cartKey = await addCartridge(cartVal, sessionID, loadout, convoID )
+    aws_key = cartKey + '.mp4'
+    url = await write_file(file_to_send.file, aws_key) 
+
+    await update_cartridge_field(
+        {   
+            'sessionID': sessionID, 
+            'cartKey' : cartKey, 
+            'fields': {
+                'media_url': url, 
+                'aws_key': aws_key
+            }
+        }, convoID, loadout, True )
+    
+
+    eZprint(f'file {name} written to {url}', ['OVERLAY'])
+    # file_to_send.close()
+    compositeClip.close()
+    return name
+
 
 async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay, sessionID, convoID, loadout):
 
     eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
     main_video_key = main_video_cartridge['aws_key']
     video_file = await read_file(main_video_key)
+    
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(video_file)
     processed_file.close()
@@ -133,32 +366,33 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
 
         composites.append(image_clip)
     
-    # if text_to_overlay:
-    #     for text in text_to_overlay:
 
-    #         start, end = text.get('start',0), text.get('end',0)
-    #         size = text.get('size', (1,.5))
-    #         size_x = float(size[0])
-    #         # size_y = float(size[1])
-    #         font_size = int(text.get('font_size', 70))
-    #         text_value = text.get('text', '')
-    #         font = text.get('font', 'Arial-Bold')
-    #         position = text.get('position', 'bottom')
+    if text_to_overlay:
+        for text in text_to_overlay:
 
-    #         start = datetime.strptime(start, '%H:%M:%S.%f')
-    #         end = datetime.strptime(end, '%H:%M:%S.%f')
-    #         #get as  time delta
-    #         duration = end - start
-    #         duration = duration.total_seconds()
-    #         start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
-    #         start = start_delta.total_seconds()
-    #         size = clip_dimensions[1], None
-    #         text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font = 'DejaVu-Sans')
+            start, end = text.get('start',0), text.get('end',0)
+            size = text.get('size', (1,.5))
+            size_x = float(size[0])
+            # size_y = float(size[1])
+            font_size = int(text.get('font_size', 70))
+            text_value = text.get('text', '')
+            font = text.get('font', 'Arial-Bold')
+            position = text.get('position', 'bottom')
 
-    #         text_clip = text_clip.set_duration(duration)
-    #         text_clip = text_clip.set_start(start)
-    #         text_clip = text_clip.set_position(position)
-    #         composites.append(text_clip)
+            start = datetime.strptime(start, '%H:%M:%S.%f')
+            end = datetime.strptime(end, '%H:%M:%S.%f')
+            #get as  time delta
+            duration = end - start
+            duration = duration.total_seconds()
+            start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+            start = start_delta.total_seconds()
+            size = clip_dimensions[1], None
+            text_clip = TextClip(text_value, size = size, fontsize=font_size, color='white', method='caption', align='center', font = 'DejaVu-Sans')
+
+            text_clip = text_clip.set_duration(duration)
+            text_clip = text_clip.set_start(start)
+            text_clip = text_clip.set_position(position)
+            composites.append(text_clip)
 
     compositeClip = CompositeVideoClip(composites, size=clip.size)
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)

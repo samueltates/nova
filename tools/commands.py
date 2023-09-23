@@ -8,13 +8,11 @@ from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_
 from core.cartridges import whole_cartridge_list
 from web_handling.google_search import google_api_search
 from web_handling.url_scraper import advanced_scraper
-from file_handling.media_editor import split_video
-from file_handling.fileHandler import transcribe_file
+from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
+from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
-from file_handling.media_editor import overlay_video
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query
-from tools.keywords import get_summary_from_keyword, keywords_available
 from tools.debug import eZprint
 
 
@@ -471,6 +469,30 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "Arg 'prompts' missing"
             return command_return
         
+    if name == 'overlay_b_roll':
+        main_video_cartridge = None
+        if args.get('main_video'):
+            main_video = args['main_video']
+            for key, val in active_cartridges[convoID].items():
+                if 'label' in val and val['label'] == main_video:
+                    main_video_cartridge = val
+                    main_video_cartridge.update({'key' : key})
+                    print(main_video_cartridge)
+                    break
+        if args.get('b_roll'):
+            b_roll_to_overlay = args['b_roll']
+
+        overlay_video_name = await overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout)
+        if overlay_video_name:
+            command_return['status'] = "Success."
+            command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
+            return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "video overlay failed"
+            return command_return
+
+
     if 'overlay_video' in name:
         main_video_key = None
         main_video_cartridge = None
