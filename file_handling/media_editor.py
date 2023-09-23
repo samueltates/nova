@@ -18,6 +18,7 @@ import json
 from session.appHandler import app, websocket
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
+from file_handling.image_handling import generate_temp_image
 from tools.debug import eZprint, eZprint_anything
 
 
@@ -50,105 +51,94 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
     composites.append(clip)
     
+    tasks = []
+    for b_roll in b_roll_to_overlay:
+        prompt = b_roll['prompt']        
+        task = asyncio.create_task(generate_temp_image(prompt))
+        tasks.append(task)
+    images = await asyncio.gather(*tasks)
+    print('images', images)
+    counter = 0
+    for b_roll in b_roll_to_overlay:
+        processed_image = images[counter]
+        counter += 1
+        if processed_image :
 
-    # for b_roll in b_roll_to_overlay:
-        
-    #     prompt = b_roll['prompt']        
-    #     loop = asyncio.get_event_loop()
-    #     response = await loop.run_in_executor(None, lambda: openai.Image.create(
-    #         prompt=prompt,
-    #         n=1,
-    #         size='1024x1024'
-    #         ))
-        
-    #     image_url = response['data'][0]['url']
-    #     response = requests.get(image_url)
+            start, end = b_roll['start'], b_roll['end']
+            start = datetime.strptime(start, '%H:%M:%S.%f')
+            end = datetime.strptime(end, '%H:%M:%S.%f')
+            #get as  time delta
+            duration = end - start
+            duration = duration.total_seconds()
+            start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+            start = start_delta.total_seconds()
+            
+            image = cv2.imread(processed_image.name)
 
-    #     processed_media = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-    #     processed_media.write(response.content)
-    #     processed_media.close()
+            if layout == 'horizontal':
+                # Resize image based on orientation of clip
+                resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
+            else:
+                resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
 
-    #     start, end = b_roll['start'], b_roll['end']
-    #     start = datetime.strptime(start, '%H:%M:%S.%f')
-    #     end = datetime.strptime(end, '%H:%M:%S.%f')
-    #     #get as  time delta
-    #     duration = end - start
-    #     duration = duration.total_seconds()
-    #     start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
-    #     start = start_delta.total_seconds()
-        
-    #     image = cv2.imread(processed_media.name)
-    #     print(f'Initial image size: {image.shape}')
-
-    #     if layout == 'horizontal':
-    #         # Resize image based on orientation of clip
-    #         resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
-    #     else:
-    #         resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
-
-    #     # print('Resized image size:', resized_image.shape)
-    #     # print('Resized image size:', resized_image.shape)
-    #     # # Crop excess width/height if necessary
-    #     start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
-    #     start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
-    #     # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
-
-    #     print('Start x-value for cropping:', start_x)
-    #     print('Start y-value for cropping:', start_y)
-
-    #     # # Writing image
-    #     # print('Writing temporary image')
-    #     # resized_cropped_image = cv2.cvtColor(resized_cropped_image, cv2.COLOR_BGR2RGB)
-
-    #     resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
-
-    #     cv2.imwrite(processed_media.name, resized_image)
-
-    #     image_clip = ImageClip(resized_image)
-    #     image_clip = image_clip.set_duration(duration)
-    #     image_clip = image_clip.set_start(start)
-    #     #set default position
-    #     image_clip = image_clip.set_position('center')
-
-    #     # if 'zoom' in media:
-    #     #     start_zoom = float(media['zoom'].get('start_size', 1))
-    #     #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
-    #     #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
+            # print('Resized image size:', resized_image.shape)
+            # print('Resized image size:', resized_image.shape)
+            # # Crop excess width/height if necessary
+            start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
+            start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
+            # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
 
 
-    #     if 'position' in b_roll:
-    #         eZprint('position found', DEBUG_KEYS)
-    #         image_clip = image_clip.set_position(b_roll['position'])
+            resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
 
-    #     if 'fade' in b_roll:
-    #         fadein_duration = float(b_roll['fade'].get('fadein', 0))
-    #         fadeout_duration = float(b_roll['fade'].get('fadeout', 0))
-    #         if fadein_duration:
-    #             image_clip = image_clip.crossfadein(fadein_duration)
-    #         if fadeout_duration:
-    #             image_clip = image_clip.crossfadeout(fadeout_duration)
-    #     # if 'position' in media:
-    #     #     start_pos = float(media['position'].get('start', 'center'))
-    #     #     end_pos = float(media['position'].get('end', start_pos))
-    #     #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
+            cv2.imwrite(processed_image.name, resized_image)
 
-    #     if 'pan' in b_roll:
-    #         # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
-    #         # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
-    #         direction = b_roll['pan']
-    #         if direction == 'left':
-    #             image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
-    #         elif direction == 'right':
-    #             image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
+            image_clip = ImageClip(resized_image)
+            image_clip = image_clip.set_duration(duration)
+            image_clip = image_clip.set_start(start)
+            #set default position
+            image_clip = image_clip.set_position('center')
+
+            # if 'zoom' in media:
+            #     start_zoom = float(media['zoom'].get('start_size', 1))
+            #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
+            #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
 
 
-    #         # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
-    #         # print('panning from', pan_from, 'to', pan_to)
+            if 'position' in b_roll:
+                eZprint('position found', DEBUG_KEYS)
+                image_clip = image_clip.set_position(b_roll['position'])
 
-    #     composites.append(image_clip)
+            if 'fade' in b_roll:
+                fadein_duration = float(b_roll['fade'].get('fadein', 0))
+                fadeout_duration = float(b_roll['fade'].get('fadeout', 0))
+                if fadein_duration:
+                    image_clip = image_clip.crossfadein(fadein_duration)
+                if fadeout_duration:
+                    image_clip = image_clip.crossfadeout(fadeout_duration)
+            # if 'position' in media:
+            #     start_pos = float(media['position'].get('start', 'center'))
+            #     end_pos = float(media['position'].get('end', start_pos))
+            #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
+
+            if 'pan' in b_roll:
+                # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
+                # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
+                direction = b_roll['pan']
+                if direction == 'left':
+                    image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
+                elif direction == 'right':
+                    image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
+
+
+                # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
+                # print('panning from', pan_from, 'to', pan_to)
+
+        composites.append(image_clip)
     
     json_object = None
     transcript_object = None
+    transcript_lines = None
 
     if main_video_cartridge.get('json', None):
         json_object = json.loads(main_video_cartridge['json'])
@@ -158,8 +148,11 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
         eZprint_anything([transcript_object], ['OVERLAY'])
 
     if transcript_object:
-        transcript_object.sort(key=lambda x: x['chunkID'])
-        for line in transcript_object:
+        transcript_lines = transcript_object.get('lines', None)
+
+    if transcript_lines:
+        transcript_lines.sort(key=lambda x: x['chunkID'])
+        for line in transcript_lines:
             eZprint_anything([line], ['OVERLAY'])
             start = line['start']
             end = line['end']
@@ -169,54 +162,99 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #get as  time delta
             duration = end - start
             duration = duration.total_seconds()
+            text = line.get('text', '')
 
             ## splits lines up by appostrophe or and divides timestamp and time between them based on sections
-            text = line.get('transcript',{}).get('text', '')
-            if text != '':
-                line_sections = text.split(',')
-                
+    
+            eZprint_anything([text], ['OVERLAY', 'TRANSCRIBE'])
+            ## checks if any line has more than 5 words and if so splits it up into sections
 
-                eZprint_anything([line_sections], ['OVERLAY'])
-                if len(line_sections) > 1:
-                    # line_section_duration = duration / len(line_sections)
-                    line_section_characters = len(text) - len(line_sections) + 1
-                    start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
-                    start = start_delta.total_seconds()
-                    running_progress = start
-                    for line_section in line_sections:
-                        if line_section != '':
-                            ## checks if any line has more than 10 words and if so splits it up into sections
-                            line_section_percent = len(line_section) / line_section_characters
-                            line_section_duration = duration * line_section_percent
-                            line_section_start = running_progress
-                            line_section_end = line_section_start + line_section_duration
-                            duration_modifier = line_section_duration * .1
-                            running_progress = line_section_end
-                            line_section_text = line_section
-                            text = line_section_text.strip()
-                            size = clip_dimensions[1]* .8, None
-                            text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans-Bold')
-                            text_clip = text_clip.set_duration(line_section_duration - duration_modifier)
-                            text_clip = text_clip.set_start(line_section_start + duration_modifier)
-                            # set position so its centered on x and 80% down on y
-                            text_clip = text_clip.set_position((.1, 0.8), relative=True)
-                            composites.append(text_clip)
-                else:   
-                    eZprint_anything([text], ['OVERLAY'])
-                    start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
-                    start = start_delta.total_seconds()
+            # lines_split_by_apostophe = []
+            
+            # for new_line in lines_split_by_word_count:
+            #     eZprint('checking for apostrophe', ['OVERLAY', 'TRANSCRIBE'])
+            #     new_line_sections = new_line.split(',')
+            #     eZprint_anything([new_line_sections], ['OVERLAY'], line_break=True)
+            #     if len(new_line_sections) > 1:
+            #         eZprint('found apostrophe', ['OVERLAY', 'TRANSCRIBE'])
+            #         for new_line_section in new_line_sections:
+            #             if new_line_section != '':
+            #                 lines_split_by_apostophe.append(new_line_section)
+            #     else:
+            #         lines_split_by_apostophe.append(new_line)
+            
+            # eZprint('running line list', ['OVERLAY', 'TRANSCRIBE'])
+            # eZprint_anything([lines_split_by_apostophe], ['OVERLAY'], line_break=True)
+                        
+            # get total characters in line by finding how many newlines were added, 
+            lines_split_by_word_count = []
+
+            if len(text.split(' ')) > 6:
+                eZprint('splitting line as over 8', ['OVERLAY', 'TRANSCRIBE'])
+                split_text = text.split(' ')
+                word_count = len(split_text)
+                lines_needed = word_count / 6
+                # round up to int
+                lines_needed = int(lines_needed) 
+
+                eZprint(f'lines needed {lines_needed}', ['OVERLAY', 'TRANSCRIBE'])
+                if lines_needed > 1:
+                    wpl = int(len(split_text) / lines_needed)
+                    eZprint(f'words per line {wpl}', ['OVERLAY', 'TRANSCRIBE'])
+                    for i in range(lines_needed):
+                        new_line = ' '.join(split_text[i * wpl:(i * wpl)+wpl])
+                        # lines_split_by_word_count.append(new_line)
+                        ## if last line add the rest of the words
+                        if i == lines_needed - 1:
+                            new_line += " "
+                            new_line += ' '.join(split_text[(i * wpl)+wpl:])
+                        lines_split_by_word_count.append(new_line)
+                else:
+                    lines_split_by_word_count.append(text)
+            else:
+                lines_split_by_word_count.append(text)
+          
+            eZprint_anything([lines_split_by_word_count], ['OVERLAY', 'TRANSCRIBE'], line_break=True)
+
+            
+            line_characters = len(text) - (len(lines_split_by_word_count) - len(lines_split_by_word_count) ) + 1
+            start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+            start = start_delta.total_seconds()
+            running_progress = start
+
+            eZprint(f'line characters {line_characters}', ['OVERLAY', 'TRANSCRIBE'])
+
+            # for line in lines_split_by_apostophe:
+            #     eZprint_anything([line], ['OVERLAY'], line_break=True)
+            #     # line_section_duration = duration / len(line_sections)
+
+            #     if line != '':
+
+            for line in lines_split_by_word_count:
+                if line != '':
+                    
+                    line_percent = len(line) / line_characters
+                    line_duration = duration * line_percent
+                    line_start = running_progress
+                    line_end = line_start + line_duration
+                    # duration_modifier = line_duration * .1
+                    running_progress = line_end
+                    text = line.strip()
                     size = clip_dimensions[1]* .8, None
-                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', kerning = 5, method='caption', bg_color='black', align='center', font = 'DejaVu-Sans-Bold')
-                    duration_modifier = duration * .2
-                    text_clip = text_clip.set_duration(duration - duration_modifier)
-                    text_clip = text_clip.set_start(start + duration_modifier)
+                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans-Bold')
+                    text_clip = text_clip.set_duration(line_duration )
+                    text_clip = text_clip.set_start(line_start )
+                    # set position so its centered on x and 80% down on y
                     text_clip = text_clip.set_position((.1, 0.8), relative=True)
+                    eZprint(f'line start {line_start} line end {line_end} line duration {line_duration} line percent {line_percent}', ['OVERLAY', 'TRANSCRIBE'])
                     composites.append(text_clip)
-
+   
     compositeClip = CompositeVideoClip(composites, size=clip.size)
     compositeClip.audio = clip.audio
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-    compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
+    write_loop = asyncio.get_event_loop()
+    await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac'))
+    # compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
     # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
        

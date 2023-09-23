@@ -10,13 +10,34 @@ def build_tree_str(data, level=0, result=''):
                 id = v.get('id', '')
                 keywords = v.get('keywords', [])
                 if v.get('minimised', False) == False:
-                    result += '-' * level + f'{k} | id: {id} | {description} | keywords: {str(keywords)} | actions : {actions}\n'
+
+                    result += '-' * level + f'{k}'
+                    if id:
+                        result += f' | id: {id}'
+                    if description:
+                        result += f' | {description}'
+                    if keywords:
+                        result += f' | keywords: {str(keywords)}'
+                    if actions:
+                        result += f' | actions : {actions}'
+                    result += '\n'
+                     
                     if 'elements' in v:
                         result = build_tree_str(v['elements'], level+2, result)
                     else:
                         result = build_tree_str(v, level+2, result)
                 else:
-                    result += '-' * level + f'{k} | id: {id} | {description} | keywords: {str(keywords)}| actions : {actions}\n'
+                    result += '-' * level + f'{k}'
+                    if id:
+                        result += f' | id: {id}'
+                    if description:
+                        result += f' | {description}'
+                    if keywords:
+                        result += f' | keywords: {str(keywords)}'
+                    if actions:
+                        result += f' | actions : {actions}'
+                    result += '\n'
+                    
             elif isinstance(v, list):
                 for i in v:
                     result = build_tree_str(i, level, result)
