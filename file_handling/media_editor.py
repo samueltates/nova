@@ -241,7 +241,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     running_progress = line_end
                     text = line.strip()
                     size = clip_dimensions[1]* .8, None
-                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans-Bold')
+                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans')
                     text_clip = text_clip.set_duration(line_duration )
                     text_clip = text_clip.set_start(line_start )
                     # set position so its centered on x and 80% down on y
