@@ -110,7 +110,8 @@ async def loadCartridges(sessionID, convoID, loadout = None):
             for cartKey, cartVal in blob['blob'].items():
                 if 'softDelete' not in cartVal or cartVal['softDelete'] == False:
                     active_cartridges[convoID][cartKey] = cartVal
-            await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID': convoID }))
 
 async def runCartridges(sessionID,  convoID, loadout = None):
     DEBUG_KEYS = ['INITIALISE', 'RUN_CARTRIDGES']

@@ -192,7 +192,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
             'key':key,
             'fields': {'id' : id}
         }
-        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload, 'convoID': convoID})))
 
     if role == 'assistant' :
         # print('role not user')
@@ -213,7 +213,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
         else:
-            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage})))
+            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
@@ -229,11 +229,11 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     if meta == 'terminal':
         messageObject['convoID'] = convoID
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
 
     if meta == 'simple':
         messageObject['convoID'] = convoID
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject})))
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
     
     if function_call:
         asyncio.create_task(command_interface(function_call, convoID, thread))
@@ -298,7 +298,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     content = ''
     function_call = None
     if thread == 0:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing', 'convoID': convoID}}))
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': novaConvo[convoID]['agent-name'], 'state': 'typing'}, 'convoID': convoID}))
 
     agent_name = novaConvo[convoID]['agent-name']
 

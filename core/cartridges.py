@@ -55,7 +55,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
     #recalls cartridges in loadout
     if not loadout_cartridges and not convo_cartridges:
-        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+        await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID} ))
         return
     
     cartridges_to_add = {}
@@ -125,7 +125,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
     # print('cartridge list')
     # print(active_cartridges[convoID])
-    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID}))
 
 async def get_cartridge_list(sessionID):
     userID = novaSession[sessionID]['userID']
@@ -192,7 +192,7 @@ async def addCartridge(cartVal, sessionID, client_loadout = None, convoID = None
     
     # print('sending add cartridge event' + str(payload) + ' supplied loadout ' + str(client_loadout) +  ' curent loadout :  ' + str(current_loadout[convoID]))
     # if system:
-    await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload}))
+    await  websocket.send(json.dumps({'event':'add_cartridge', 'payload':payload, 'convoID':convoID}))
 
     return cartKey
 
@@ -402,8 +402,7 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
                         'fields': input['fields'], 
                         'convoID': convoID,
                             }
-            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
-
+            await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload, 'convoID':convoID}))
 
 
 async def updateContentField(input):

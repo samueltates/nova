@@ -330,7 +330,7 @@ async def clear_loadout(sessionID, convoID):
         #     # print(update_user)
 
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
-    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID]}))
+    await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID': convoID}))
 
 
 # async def add_loadout_to_session(loadout_key: str, sessionID):
