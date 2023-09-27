@@ -22,12 +22,13 @@ def check_debug(tags):
         # print('value found is ' + os.getenv('DEBUG', default=False))
         # print('returning true on debug')
         return True
-    for tag in tags:
-        # print('checking tag ' + tag)
-        if os.getenv('DEBUG_'+tag, default='False') == 'True':
-            # print('returning true on tag')
-            return True
-        
+    if tags:
+        for tag in tags:
+            # print('checking tag ' + tag)
+            if os.getenv('DEBUG_'+tag, default='False') == 'True':
+                # print('returning true on tag')
+                return True
+            
     # print('returning false')
     return False
 
@@ -37,13 +38,15 @@ def conj(string):
     else:
         return ', '
 
-def eZprint_key_value_pairs(data, tags = [], line_break= False, indent=''):
+def eZprint_key_value_pairs(data, tags = [], line_break= False, indent='', message = None):
     # print('eZprint_key_value_pairs')
     if not check_debug(tags):
         return
     if line_break:
         print('---------------------')
         if indent == '' :  print(tags)
+    if message:
+        print(f"{message}")
 
     string = ''
     if isinstance(data, dict):
@@ -60,7 +63,7 @@ def eZprint_key_value_pairs(data, tags = [], line_break= False, indent=''):
         string += f"{conj(string)}{data}"
     print(indent+string)
 
-def eZprint_object_list(data, tags = [], line_break= False, indent=''):
+def eZprint_object_list(data, tags = [], line_break= False, indent='', message = None):
     # print('eZprint_object_list')
     if not check_debug(tags):
         return
@@ -68,6 +71,8 @@ def eZprint_object_list(data, tags = [], line_break= False, indent=''):
         if line_break:
             print('---------------------')
             print(tags)
+    if message:
+        print(f"{message}")
     
     for item in data:
         if line_break:
@@ -80,21 +85,25 @@ def eZprint_object_list(data, tags = [], line_break= False, indent=''):
             print(f"{indent}{item}")
         
 
-def eZprint(string, tags = [], line_break=False):
+def eZprint(string, tags = [], line_break=False, message = None):
     # print('eZprint')
     if not check_debug(tags):
         return
     if line_break:
         print('---------------------')
+    if message:
+        print(f"{message}")
     print(string )
 
-def eZprint_anything(anything, tags = [], line_break= False, indent='', ) :
+def eZprint_anything(anything, tags = [], line_break= False, indent='', message = None) :
     # print('ezPrint_anything')
     if not check_debug(tags):
         return
     if line_break:
         print('---------------------')
         print(tags)
+    if message:
+        print(f"{message}")
         print('---------------------')
 
     if isinstance(anything, dict):

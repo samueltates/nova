@@ -251,6 +251,11 @@ async def set_convo(requested_convoID, sessionID):
                     log['summarised'] = False
                     log['minimised'] = False
                     log['muted'] = False
+                    if log['content'] == 'None':
+                        log['content'] = ''
+                    if log['function_call']:
+                        if log['arguments']:
+                            log['arguments'] == json.loads(log['arguments'], strict=False)
 
         if not summaries_present:
             for log in chatlog[requested_convoID]:

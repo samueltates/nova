@@ -13,10 +13,11 @@ from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query
-from tools.debug import eZprint
+from tools.debug import eZprint, eZprint_anything
 
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
+    DEBUG_KEYS = ['COMMANDS']
     # eZprint('handling command')
     sessionID = novaConvo[convoID]['sessionID']
     # loadout = novaConvo[convoID]['loadout']
@@ -215,7 +216,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     if name in 'open' or 'open' in name :
         response = await open_file(name, args, sessionID, convoID, loadout)
-        print(response)
+        eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
                 
    
@@ -635,14 +636,14 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
 async def open_file(name, args, sessionID, convoID, loadout):
     command_return = {"status": "", "name" :name, "message": ""}
-    eZprint('reading file')            
+    eZprint_anything(['reading file', args], ['COMMANDS', 'OPEN_FILE'])            
     if sessionID not in whole_cartridge_list:
         await get_cartridge_list(sessionID)
     if 'filename' in args:
         filename = args['filename']
+        eZprint_anything(['reading file', filename], ['COMMANDS', 'OPEN_FILE'])
         for cartKey, cartVal in whole_cartridge_list[sessionID].items():
-            if 'label' in cartVal:
-               if cartVal['label'].lower() == filename.lower():
+            if cartVal.get('label', '') == filename: 
                     print('found match' + str(cartVal))
             
                     return_string = ''
