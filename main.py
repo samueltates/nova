@@ -394,9 +394,9 @@ async def process_message(parsed_data):
             'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
             'summary': "new conversation",
         }
+        await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
         await retrieve_loadout_cartridges(loadout, convoID_full)
         await initialise_conversation(sessionID, convoID_full)
-        await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
 
 
     if(parsed_data['type'] == 'set_convo'):

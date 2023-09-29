@@ -134,7 +134,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                 # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
                 # print('panning from', pan_from, 'to', pan_to)
 
-        composites.append(image_clip)
+            composites.append(image_clip)
     
     json_object = None
     transcript_object = None
