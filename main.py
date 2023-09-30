@@ -25,7 +25,7 @@ from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
 from tools.keywords import get_summary_from_keyword, get_summary_from_insight
-from core.loadout import add_loadout, get_loadouts, set_loadout, delete_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
+from core.loadout import add_loadout, get_loadouts, set_loadout, drop_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
 
@@ -193,6 +193,7 @@ async def ws():
 
 async def process_message(parsed_data):
     
+    eZprint_anything(parsed_data, ['WEBSOCKET'], message='websocket hit') 
     ###AUTH BASED STUFF######
     if(parsed_data['type'] == 'login'):
         eZprint('login route hit', ['AUTH', 'INITIALISE'])
@@ -537,21 +538,19 @@ async def process_message(parsed_data):
         print(parsed_data['payload'])
         app.session['requesting'] = False
 
-
-
-
-    if(parsed_data['type']=='delete_loadout'):
-        eZprint('delete_loadout route hit')
+    if(parsed_data['type']=='drop_loadout'):
+        print('hellooo')
+        eZprint('drop_loadout route hit', ['LOADOUT'])
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
-        await delete_loadout(loadout, sessionID)
+        await drop_loadout(loadout, sessionID)
 
-        convoID_full = await handle_convo_switch(sessionID)
-        if not convoID_full:
-            convoID_full = await start_new_convo(sessionID)
+        # convoID_full = await handle_convo_switch(sessionID)
+        # if not convoID_full:
+        #     convoID_full = await start_new_convo(sessionID)
 
-        await loadCartridges(sessionID)
-        await runCartridges(sessionID)
+        # await loadCartridges(sessionID)
+        # await runCartridges(sessionID)
 
     if(parsed_data['type'] == 'set_read_only'):
         eZprint('read_only route hit')

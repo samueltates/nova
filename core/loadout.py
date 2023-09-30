@@ -45,6 +45,10 @@ async def get_loadouts(sessionID):
     for loadout in loadouts:
         blob = json.loads(loadout.json())['blob']
         for key, val in blob.items():
+            if val.get('config', {}) == {}:
+                continue
+            if val.get('config', {}).get('dropped', False):
+                continue
             if key == loadout.key:
                 available_loadouts[sessionID][key] = val
 
@@ -349,21 +353,14 @@ async def clear_loadout(sessionID, convoID):
 
 #     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
         
-async def delete_loadout(loadout_key: str, sessionID):
-    loadout = await prisma.loadout.find_first(
-        where={ "key": str(loadout_key) },
-    )
-    # print(loadout)
-    await prisma.loadout.update(
-        where={
-            'id': loadout.id
-        }
-    )
-
-    if sessionID in current_loadout:
-        current_loadout[sessionID] = None
-
-    await get_loadouts(sessionID)
+async def drop_loadout(loadout_key: str, sessionID):
+    DEBUG_KEYS = ['LOADOUT', 'DROP_LOADOUT']
+    eZprint('drop_loadout', DEBUG_KEYS)
+    await update_loadout_field(loadout_key, 'dropped', True)
+    active_loadouts.pop(loadout_key, None)
+    available_loadouts[sessionID].pop(loadout_key, None)
+    await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
+    
 
 async def set_read_only(loadout_key, read_only):
     loadout = await prisma.loadout.find_first(
@@ -402,25 +399,29 @@ async def update_loadout_field(loadout_key, field, value):
     DEBUG_KEYS = ['LOADOUT', 'UPDATE_LOADOUT_FIELD']
     eZprint('update_loadout_field', DEBUG_KEYS)
     # print(loadout_key, field, value)
-    active_loadout = active_loadouts[loadout_key]
-    if not active_loadout:
-        return
-    
-    eZprint(active_loadout, DEBUG_KEYS)
+    # active_loadout = active_loadouts[loadout_key]
+    eZprint(loadout_key, DEBUG_KEYS, message='update field')
 
-    if 'config' in active_loadout:
-        active_loadout['config'][field] = value
-
+    active_loadout = {} 
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
 
-    update = await prisma.loadout.update(
-        where = {
-            'id' : loadout.id
-        },
-        data={
-            "blob":Json({loadout_key:active_loadout})
-            }
-    )
-        # print(update)
+    if loadout:
+        
+        blob = json.loads(loadout.json())['blob']
+        for key, val in blob.items():
+            active_loadout = val
+            
+        if 'config' in active_loadout:
+            active_loadout['config'][field] = value
+
+        update = await prisma.loadout.update(
+            where = {
+                'id' : loadout.id
+            },
+            data={
+                "blob":Json({loadout_key:active_loadout})
+                }
+        )
+            # print(update)
