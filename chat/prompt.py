@@ -196,10 +196,21 @@ async def construct_chat(convoID, thread = 0):
                     log['role'] = 'user'
                 object.update({ "role":  log['role']})
                 if log.get('content'):
-                    object.update({'content': f"""{str(log['content'])}""" })
+                    if log['content'] != 'None':
+                        object.update({'content': f"""{str(log['content'])}""" })
+                    else:
+                        object.update({'content': ''})
+                else:
+                    object.update({'content': ''})
+
                 if log.get('function_call'):
                     if log['function_call'] != 'None':  
-                        object.update({'function_call': log['function_call'] })
+                        try :
+                            function_json = json.loads(log['function_call'], strict=False)
+                            object.update({'function_call': function_json })
+                        except:
+                            print('function call error')
+                            print(log['function_call'])
                 if log.get('role') == 'function':
                     object.update({"name": log['function_name']})
                 current_chat.append(object)

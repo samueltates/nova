@@ -628,10 +628,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     command_return['status'] = "Error."
         #     command_return['message'] = "Website scrape failed"
         #     return command_return
-    else:
-        command_return['status'] = "Error."
-        command_return['message'] = "Command not recognised"
-        return command_return
+    # else:
+    #     command_return['status'] = "Error."
+    #     command_return['message'] = "Command not recognised"
+    #     return command_return
 
 
 async def open_file(name, args, sessionID, convoID, loadout):
