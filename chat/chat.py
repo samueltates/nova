@@ -208,12 +208,19 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
                     copiedMessage['content'] = ""
                     copiedMessage['command'] = command
 
-                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+                for connected in novaSession[convoID]:    
+                    asyncio.create_task(connected.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
             else: 
-                asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+                for connected in novaSession[convoID]:    
+                    asyncio.create_task(connected.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
         else:
-            asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+            if 'connected' in novaSession and convoID in novaSession['connected']:
+                print('sending response to connected', novaSession['connected'][convoID])
+                for sessionID, sessionData in novaSession['connected'][convoID].items():
+                    print('sending response to connected', connected)
+                    # asyncio.create_task(connected.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+                sessionData['queue'].put_nowait({'message': copiedMessage, 'convoID': convoID})
 
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
@@ -233,7 +240,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     if meta == 'simple':
         messageObject['convoID'] = convoID
-        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
+        for connected in novaSession[convoID]:    
+            asyncio.create_task(connected.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
+
+            # asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
     
     if function_call:
         asyncio.create_task(command_interface(function_call, convoID, thread))

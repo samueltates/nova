@@ -163,7 +163,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return command_return
 
 
-    if 'query' in name or name in 'query':
+    if name == 'query':
         response = await broad_query(name, args, sessionID, thread, convoID, loadout)
         print(response)
         return response
@@ -724,11 +724,8 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
 
         for cartKey, cartVal in active_cartridges[convoID].items():
             all_text += str(cartVal)
-            string_match = distance(filename, str(cartVal['label']))
-            # print('distance: ' + str(string_match))
-            # print('filename: ' + filename)
-            # print('label: ' + str(cartVal['label']))
-            if string_match < 3:
+            if 'label' in cartVal and cartVal['label'].lower() == args['filename'].lower():            # print('distance: ' + str(string_match))
+
                 print('found match' + str(cartVal['label']))
                 if 'type' in cartVal and cartVal['type'] == 'index':
                     print('index query')

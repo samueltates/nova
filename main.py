@@ -1,5 +1,7 @@
 import os
 import asyncio
+from collections import defaultdict
+
 import json
 import base64
 
@@ -186,10 +188,32 @@ async def paymentSuccess():
 
 @app.websocket('/ws')
 async def ws():
+    novaSession = {}
+    websocket_rooms = defaultdict(dict)
     while True:
         data = await websocket.receive()
         parsed_data = json.loads(data)
+        eZprint_anything(parsed_data, ['WEBSOCKET'], message='websocket hit')
+        if parsed_data.get('data') and 'convoID' in parsed_data['data'] and 'sessionID' in parsed_data['data']:
+            convoID = parsed_data['data']['convoID']
+            sessionID = parsed_data['data']['sessionID']
+            eZprint_anything(convoID, ['WEBSOCKET'], message='websocket hit')
+            if 'connected' not in novaSession:
+                novaSession['connected'] = {}
+            if convoID not in novaSession['connected']:
+                novaSession['connected'][convoID] = {}
+                eZprint('new connection', ['WEBSOCKET, INITIALISE'])
+            if sessionID not in novaSession['connected'][convoID]:
+                novaSession['connected'][convoID][sessionID] = {}
+                novaSession['connected'][convoID][sessionID]['queue'] = asyncio.Queue()
+                asyncio.create_task(send_task(websocket, novaSession['connected'][convoID][sessionID]['queue']))
+            novaSession['connected'][convoID][sessionID]['queue'].put_nowait(parsed_data)
         asyncio.create_task(process_message(parsed_data))
+
+async def send_task(websocket, queue):
+    while True:
+        message = await queue.get()
+        await websocket.send(json.dumps({'event':'sendResponse', 'payload':message['message'], 'convoID': message['convoID']}))
 
 async def process_message(parsed_data):
     
