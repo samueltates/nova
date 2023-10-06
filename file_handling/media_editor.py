@@ -189,11 +189,11 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             # get total characters in line by finding how many newlines were added, 
             lines_split_by_word_count = []
 
-            if len(text.split(' ')) > 6:
-                eZprint('splitting line as over 8', ['OVERLAY', 'TRANSCRIBE'])
+            if len(text.split(' ')) > 2:
+                eZprint('splitting line as over 2', ['OVERLAY', 'TRANSCRIBE'])
                 split_text = text.split(' ')
                 word_count = len(split_text)
-                lines_needed = word_count / 6
+                lines_needed = word_count / 2
                 # round up to int
                 lines_needed = int(lines_needed) 
 

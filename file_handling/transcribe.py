@@ -53,8 +53,8 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
     avg_loudness = audio.dBFS
     
     # Try reducing these values to create smaller clips
-    silence_thresh = avg_loudness + (avg_loudness * 0.15)
-    min_silence_len = 1000
+    silence_thresh = avg_loudness + (avg_loudness * 0.2)
+    min_silence_len = 500
 
     chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
     leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
@@ -98,7 +98,7 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
         eZprint(f"chunk {result['chunkID']} start {result['start']} end {result['end']} text {result['text']}", ['FILE_HANDLING', 'TRANSCRIBE'])
         start = result['start']
         end = result['end']
-        transcript_text += f"[{start}] {result['text']} \n\n"
+        transcript_text += f"{start} --> {end}\n{result['text']} \n\n"
     # transcript text end time stap
     transcript_text += f"[{end}] End of transcription"
 
