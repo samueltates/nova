@@ -421,7 +421,15 @@ async def process_message(parsed_data):
     if(parsed_data['type']== 'updateContentField'):
         await updateContentField(parsed_data['data'])
 
-
+    if(parsed_data['type']== 'function_response'):
+        eZprint(parsed_data, ['FUNCTION'])
+        convoID = parsed_data['data']['convoID']
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+        role = parsed_data['data']['role']
+        function_name = parsed_data['data']['function_name']
+        await handle_message(convoID, parsed_data['data']['content'], role, '', None,0, meta = 'terminal', function_name=function_name)
+        await return_to_GPT(convoID, 0)
     # if(parsed_data['type']== 'newPrompt'):
     #     loadout = None
     #     convoID = parsed_data['data']['convoID']

@@ -113,34 +113,34 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         #     command_return['message'] = "Query can't be blank"
         #     return command_return
         # if args.get('type') == 'web':
-    if name == 'go_to_location':
-        # wait three seconds
-        await asyncio.sleep(3)
-        if args.get('location'):
-            location = args['location']
-            # response = await go_to_location(name, args, sessionID, loadout, thread)
-            command_return['status'] = "Success."
-            command_return['message'] = "Location : " + str(location)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'location' missing"
-            return command_return
-    if name == 'go_to_tag':
-        print('going to tag')
-        command_return['status'] = "Success."
-        command_return['message'] = "Going to tag"
-        return command_return
-        if args.get('location'):
-            location = args['location']
-            # response = await go_to_location(name, args, sessionID, loadout, thread)
-            command_return['status'] = "Success."
-            command_return['message'] = "Location : " + str(location)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'location' missing"
-            return command_return
+    # if name == 'go_to_location':
+    #     # wait three seconds
+    #     await asyncio.sleep(3)
+    #     if args.get('location'):
+    #         location = args['location']
+    #         # response = await go_to_location(name, args, sessionID, loadout, thread)
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "Location : " + str(location)
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "Arg 'location' missing"
+    #         return command_return
+    # if name == 'go_to_tag':
+    #     print('going to tag')
+    #     command_return['status'] = "Success."
+    #     command_return['message'] = "Going to tag"
+    #     return command_return
+        # if args.get('location'):
+        #     location = args['location']
+        #     # response = await go_to_location(name, args, sessionID, loadout, thread)
+        #     command_return['status'] = "Success."
+        #     command_return['message'] = "Location : " + str(location)
+        #     return command_return
+        # else:
+        #     command_return['status'] = "Error."
+        #     command_return['message'] = "Arg 'location' missing"
+        #     return command_return
 
     if name == 'query_website':
         if args.get('website_url'):
@@ -214,13 +214,13 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(command_return)
         return command_return
 
-    if name in 'open' or 'open' in name :
+    if name == 'open':
         response = await open_file(name, args, sessionID, convoID, loadout)
         eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
                 
    
-    if 'write' in name or name in 'write':
+    if name == 'write':
         eZprint('writing file')
         text = ''
         if 'text' in args:
@@ -360,7 +360,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             return command_return
                 
 
-    if name in 'close' or 'close' in name :
+    if name == 'close':
         eZprint('closing file')
         if 'filename' in args:
             filename = args['filename']
@@ -396,7 +396,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "Arg 'filename' missing"
             return command_return
 
-    if name in 'delete' or 'delete' in name :
+    if name == 'delete':
         eZprint('deleting file')
         if 'filename' in args:
             filename = args['filename']
@@ -553,7 +553,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     # if name == 'read_website':
 
     
-    if 'transcribe' in name or name in 'transcribe':
+    if name == 'transcribe':
         video_file_name = args['filename']
         video_file = None
         extension = None
