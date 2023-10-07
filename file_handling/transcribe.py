@@ -56,6 +56,9 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
     silence_thresh = avg_loudness + (avg_loudness * 0.2)
     min_silence_len = 500
 
+    eZprint(f"silence thresh {silence_thresh} and min silence len {min_silence_len} from average loudness of {avg_loudness}", ['FILE_HANDLING', 'TRANSCRIBE'])
+
+
     chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
     leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
     timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
@@ -80,10 +83,19 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
         #getting start and finish but adding a bit
         #this is with the actual start / finishes
         # task = asyncio.create_task(transcribe_chunk(chunk, timestamp[0], timestamp[1] , chunkID))
-        start = chunk_time_ms
-        end = chunk_time_ms + len(chunk)
-        if chunkID == 0:
-            start = int(leading_silence/ 2)
+
+        if (os.getenv('DEBUG_TRANSCRIBE_NO_GAPS') == 'True'):
+            start = chunk_time_ms
+            end = chunk_time_ms + len(chunk)
+            if chunkID == 0:
+                start = int(leading_silence/ 2)
+        if (os.getenv('DEBUG_TRANSCRIBE_START_GAP') == 'True'):
+            start = timestamp[0]
+            end = chunk_time_ms + len(chunk)
+        else:
+            start = timestamp[0]
+            end = timestamp[1]
+
         # if chunkID == len(chunks) - 1:
         task = asyncio.create_task(transcribe_chunk(chunk, start, end , chunkID))
         chunk_time_ms += len(chunk)
@@ -124,6 +136,8 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
 async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')
+
+
             eZprint(f'Saved to:{chunk_file.name} with start of {chunk_start} and length of {chunk_end, }', ['TRANSCRIBE_CHUNK']) # Confirm file path
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
             #write to local as audio file
@@ -137,6 +151,13 @@ async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
                 'end': end,
                 'text': transcript['text']
             }
+            eZprint(f"chunk {chunkID} start {start} end {end} text {transcript['text']}", ['FILE_HANDLING', 'TRANSCRIBE', 'DEBUG_TRANSCRIBE_CHUNK'])
+            # write each audio chunk to temp folder as mp3 for analysis using time and transcript as title
+            if os.getenv('DEBUG_TRANSCRIBE_CHUNK') == 'True':
+                temp_chunk = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False, prefix=f'{chunkID}_{start}_{end}_{transcript["text"]}')
+                chunk.export(temp_chunk.name, format='mp3')
+                temp_chunk.close()
+
             os.remove(chunk_file.name)
             return transcription
 

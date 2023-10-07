@@ -33,7 +33,8 @@ async def initialise_conversation(sessionID,convoID, params = None):
     ##session setup stuff should be somewhere else
     DEBUG_KEYS = ['INITIALISE', 'INITIALISE_CONVERSATION']
     eZprint('initialising conversation', DEBUG_KEYS)
-
+    print('initialising conversation')
+    print(params)
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
     if params:
@@ -41,6 +42,11 @@ async def initialise_conversation(sessionID,convoID, params = None):
         #     eZprint('fake user detected')
         #     novaSession[sessionID]['fake_user'] = True 
         #     novaSession[sessionID]['userName'] = "Archer"
+
+        for key in params:
+            if 'DEBUG' in key:
+                os.environ[key] = params[key]
+                print('setting os params ' + str(key) + ' to ' + str(params[key]))
 
         if 'agent_initiated' in params and params['agent_initiated'] == 'True':
             eZprint('agent initiated convo')

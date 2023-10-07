@@ -188,7 +188,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                         
             # get total characters in line by finding how many newlines were added, 
             lines_split_by_word_count = []
-
+            total_lines = 0
             if len(text.split(' ')) > 2:
                 eZprint('splitting line as over 2', ['OVERLAY', 'TRANSCRIBE'])
                 split_text = text.split(' ')
@@ -198,7 +198,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                 lines_needed = int(lines_needed) 
 
                 eZprint(f'lines needed {lines_needed}', ['OVERLAY', 'TRANSCRIBE'])
-                if lines_needed > 1:
+                if lines_needed > 1:    
                     wpl = int(len(split_text) / lines_needed)
                     eZprint(f'words per line {wpl}', ['OVERLAY', 'TRANSCRIBE'])
                     for i in range(lines_needed):
@@ -209,10 +209,13 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                             new_line += " "
                             new_line += ' '.join(split_text[(i * wpl)+wpl:])
                         lines_split_by_word_count.append(new_line)
+                        total_lines += 1
                 else:
                     lines_split_by_word_count.append(text)
+                    total_lines += 1
             else:
                 lines_split_by_word_count.append(text)
+                total_lines += 1
           
             eZprint_anything([lines_split_by_word_count], ['OVERLAY', 'TRANSCRIBE'], line_break=True)
 
@@ -230,10 +233,13 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
             #     if line != '':
 
+            if os.getenv('DEBUG_SPLIT_BY_WORDS', default=None) == 'True':
+                line_percent = 1/total_lines
+
             for line in lines_split_by_word_count:
                 if line != '':
-                    
-                    line_percent = len(line) / line_characters
+                    if not os.getenv('DEBUG_SPLIT_BY_WORDS', default=None) == 'True':
+                        line_percent = len(line) / line_characters
                     line_duration = duration * line_percent
                     line_start = running_progress
                     line_end = line_start + line_duration
@@ -241,11 +247,24 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     running_progress = line_end
                     text = line.strip()
                     size = clip_dimensions[1]* .8, None
-                    text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', bg_color='caption', kerning = 5, method='caption', align='center', font = 'DejaVu-Sans')
+                    # if os.getenv('DEBUG_LABEL', default=None) == 'True':
+                    #     text_clip = TextClip(text.upper(), size = size, fontsize=50, color='white', kerning = 5, method='label', align='west', font = 'Oswald-SemiBold', stroke_color='black', stroke_width=1)
+                    # else:
+
+                    ## set font size dynamically based on screen resolution
+
+                    screen_mod = (size[0] + size[0]) / (1920+1080)
+                    font_size = int(os.getenv('DEBUG_FONT_SIZE', default=50))
+                    font_size = font_size * screen_mod
+                    stroke_width = 4 * screen_mod
+                    interline = -20 * screen_mod
+                    kerning = 4 * screen_mod
+
+                    text_clip = TextClip(text.upper(), size = size, fontsize=font_size, color='white', kerning = kerning, method='caption', align='west', font = 'Oswald-Bold', stroke_color='black', stroke_width=stroke_width, interline=interline)
                     text_clip = text_clip.set_duration(line_duration )
                     text_clip = text_clip.set_start(line_start )
                     # set position so its centered on x and 80% down on y
-                    text_clip = text_clip.set_position((.1, 0.8), relative=True)
+                    text_clip = text_clip.set_position((.1, 0.7), relative=True)
                     eZprint(f'line start {line_start} line end {line_end} line duration {line_duration} line percent {line_percent}', ['OVERLAY', 'TRANSCRIBE'])
                     composites.append(text_clip)
    

@@ -1,5 +1,5 @@
 [phases.setup]
-    nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick"]
+    nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick", "google-fonts"]
     paths = ['/etc/fonts/']
 
 
