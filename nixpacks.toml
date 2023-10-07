@@ -1,12 +1,12 @@
 [phases.setup]
     nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick", "google-fonts"]
     paths = ['/etc/fonts/']
-    pkgs.google-fonts.overrideAttrs {fonts = "Oswald-Bold"}
-
+    
 
 [variables]
-    FONTCONFIG_FILE = "${nixPkgs.fontconfig.out}/etc/fonts/fonts.conf"
-    FONTCONFIG_PATH = "${nixPkgs.fontconfig.out}/etc/fonts"
+    FONTCONFIG_FILE = "/etc/fonts/fonts.conf"
+    FONTCONFIG_PATH = "/etc/fonts"
+    
 
 [phases.install]
     cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
