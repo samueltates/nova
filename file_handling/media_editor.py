@@ -254,7 +254,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     ## set font size dynamically based on screen resolution
 
                     screen_mod = (size[0] + size[0]) / (1920+1080)
-                    font_size = int(os.getenv('DEBUG_FONT_SIZE', default=50))
+                    font_size = int(os.getenv('DEBUG_FONT_SIZE', default=120))
                     font_size = font_size * screen_mod
                     stroke_width = 4 * screen_mod
                     interline = -20 * screen_mod

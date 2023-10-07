@@ -89,12 +89,17 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
             end = chunk_time_ms + len(chunk)
             if chunkID == 0:
                 start = int(leading_silence/ 2)
-        if (os.getenv('DEBUG_TRANSCRIBE_START_GAP') == 'True'):
+        elif (os.getenv('DEBUG_TRANSCRIBE_START_GAP') == 'True'):
             start = timestamp[0]
             end = chunk_time_ms + len(chunk)
-        else:
+        elif (os.getenv('DEBUG_TRANSCRIBE_START_END_GAP') == 'True'):
             start = timestamp[0]
             end = timestamp[1]
+        else:
+            ## currently my favourite, uses exact start, but clip end ...
+            start = timestamp[0]
+            end = chunk_time_ms + len(chunk)
+
 
         # if chunkID == len(chunks) - 1:
         task = asyncio.create_task(transcribe_chunk(chunk, start, end , chunkID))
