@@ -1,6 +1,6 @@
 [phases.setup]
     nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick", "google-fonts"]
-    
+    cmds = ['TONYTIME = $(nix-env -iA nixos.pkgs.google-fonts)', 'echo $TONYTIME']
     paths = ['/etc/fonts/']
 
 [variables]
@@ -10,7 +10,7 @@
 
 
 [phases.install]
-    cmds = ['fc-list','convert -list font','PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
+    cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
     
 
 [start]
