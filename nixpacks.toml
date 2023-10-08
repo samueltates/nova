@@ -6,9 +6,11 @@
 [variables]
     FONTCONFIG_FILE = "/nix/store/r5ri95x49gj619pjw73fzd1bk855rxyz-fontconfig-2.14.2/etc/fonts/fonts.conf"
     FONTCONFIG_PATH = "${nixPkgs.fontconfig.out}/etc/fonts"
+    MAGICK_FONT_PATH= "/nix/store/i6xqp4fk8wm20qvayvqgxl6hly21qhb0-google-fonts-unstable-2022-11-14/share/fonts/truetype"
+
 
 [phases.install]
-    cmds = ['PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
+    cmds = ['fc-list','convert -list font','PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy','pipenv run prisma generate','pipenv run python -m nltk.downloader averaged_perceptron_tagger', 'pipenv run python -m nltk.downloader averaged_perceptron_tagger']
     
 
 [start]
