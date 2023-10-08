@@ -1,6 +1,5 @@
 [phases.setup]
     nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick", "google-fonts"]
-    cmds = ['TONYTIME = $(nix-env -iA nixos.pkgs.google-fonts)', 'echo $TONYTIME']
     paths = ['/etc/fonts/']
 
 [variables]
