@@ -33,8 +33,6 @@ async def initialise_conversation(sessionID,convoID, params = None):
     ##session setup stuff should be somewhere else
     DEBUG_KEYS = ['INITIALISE', 'INITIALISE_CONVERSATION']
     eZprint('initialising conversation', DEBUG_KEYS)
-    print('initialising conversation')
-    print(params)
     if convoID not in novaConvo:
         novaConvo[convoID] = {}
     if params:
