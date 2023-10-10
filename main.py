@@ -704,8 +704,6 @@ if __name__ == '__main__':
     asyncio.run(serve(app, config))
 
     # find and print list.log
-    list = open("list.log", "r")
-    print(list.read())
  
 
     # app.run(debug=True, port=os.getenv("PORT", default=5000))
