@@ -254,12 +254,12 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     ## set font size dynamically based on screen resolution
 
                     screen_mod = (size[0] + size[0]) / (1920+1080)
-                    font_size = int(os.getenv('DEBUG_FONT_SIZE', default=120))
-                    font_type = os.getenv('DEBUG_FONT_TYPE', default='Oswald-Bold')
+                    font_size = int(os.getenv('DEBUG_FONT_SIZE', default=200))
+                    font_type = os.getenv('DEBUG_FONT_TYPE', default='Barlow-Bold')
                     font_size = font_size * screen_mod
                     stroke_width = 4 * screen_mod
                     interline = -20 * screen_mod
-                    kerning = 4 * screen_mod
+                    kerning = 2 * screen_mod
 
                     text_clip = TextClip(text.upper(), size = size, fontsize=font_size, color='white', kerning = kerning, method='caption', align='west', font = font_type, stroke_color='black', stroke_width=stroke_width, interline=interline)
                     eZprint(TextClip.search(font_type, 'font'), ['OVERLAY', 'TRANSCRIBE'])
