@@ -1,5 +1,5 @@
 [phases.setup]
-    nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick"]
+    nixPkgs = ["...", "nodejs", "redis", "ffmpeg", "fontconfig", "imagemagick", "barlow"]
 
 [phases.install]
     cmds = [
