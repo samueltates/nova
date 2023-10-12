@@ -334,7 +334,7 @@ async def process_message(parsed_data):
 
         if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
             convoID = await handle_convo_switch(sessionID)
-            if not convoID_full:
+            if not convoID:
                 convoID = await start_new_convo(sessionID)
         else:
             convoID = await start_new_convo(sessionID)

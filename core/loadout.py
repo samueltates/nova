@@ -137,7 +137,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
             if loadout_key not in active_loadouts:
                 active_loadouts[loadout_key] = val
             # loadout_cartridges = val['cartridges']
-            # config = val['config']
+            config = val['config']
 
     # sets the config to current - shiould just be 'configs[loadoutid]'
 
