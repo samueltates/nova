@@ -262,8 +262,8 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     kerning = 4 * screen_mod
 
                     text_clip = TextClip(text.upper(), size = size, fontsize=font_size, color='white', kerning = kerning, method='caption', align='west', font = font_type, stroke_color='black', stroke_width=stroke_width, interline=interline)
-                    eZprint(TextClip.search('Oswald', 'font'), ['OVERLAY', 'TRANSCRIBE'])
-                    eZprint(TextClip.list('font'), ['OVERLAY', 'TRANSCRIBE'])
+                    eZprint(TextClip.search(font_type, 'font'), ['OVERLAY', 'TRANSCRIBE'])
+                    # eZprint(TextClip.list('font'), ['OVERLAY', 'TRANSCRIBE'])
                     text_clip = text_clip.set_duration(line_duration )
                     text_clip = text_clip.set_start(line_start )
                     # set position so its centered on x and 80% down on y
