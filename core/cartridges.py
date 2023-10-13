@@ -26,14 +26,17 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
     # print(active_loadouts)
     #could possible clean slate check here and branch not sure
-    loadout_data = active_loadouts.get(loadout_key, None)
-
+    # loadout_data = active_loadouts.get(loadout_key, None)
+    loadout_record = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key) },
+    )
+    loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
     # print(loadout_data)
-    if not loadout_data:
+    if not loadout:
         return
     
-    config = loadout_data.get('config', {})
-    convos = loadout_data.get('convos', {})
+    config = loadout.get('config', {})
+    convos = loadout.get('convos', {})
     
     convo_cartridges = None
     loadout_cartridges = None
@@ -44,17 +47,18 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     if cleanSlate :
         if convoID in convos:
             convo_cartridges = convos[convoID].get('cartridges', None)
-        loadout_cartridges = loadout_data.get('cartridges', None) 
+        loadout_cartridges = loadout.get('cartridges', None) 
 
 
     else :
-        loadout_cartridges = loadout_data.get('cartridges', None)
+        loadout_cartridges = loadout.get('cartridges', None)
 
     # print(convo_cartridges, 'convo carts')
     # print(loadout_cartridges, 'loadout cartridges')
 
     #recalls cartridges in loadout
     if not loadout_cartridges and not convo_cartridges:
+        eZprint('no cartridges in loadout', DEBUG_KEYS)
         await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID} ))
         return
     
@@ -125,6 +129,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
 
     # print('cartridge list')
     # print(active_cartridges[convoID])
+    eZprint_anything(active_cartridges[convoID], DEBUG_KEYS, message = 'cartridges from server')
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID}))
 
 async def get_cartridge_list(sessionID):

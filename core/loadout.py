@@ -131,11 +131,12 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 
 
         # print(active_loadouts)
-
+        eZprint_anything(blob, ['LOADOUT', 'INITIALISE'], message='loadout pulled down')
+        eZprint_anything(active_loadouts, ['LOADOUT', 'INITIALISE'], message= 'loadouts in memory')
 
         for key, val in blob.items():
-            if loadout_key not in active_loadouts:
-                active_loadouts[loadout_key] = val
+            # if loadout_key not in active_loadouts:
+            active_loadouts[loadout_key] = val
             # loadout_cartridges = val['cartridges']
             config = val['config']
 
@@ -177,7 +178,10 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     DEBUG_KEYS = ['LOADOUT', 'ADD_CARTRIDGE']
     eZprint('add cartridge to loadout triggered', DEBUG_KEYS)
 
-    loadout = active_loadouts[loadout_key]
+    loadout_record = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key) },
+    )
+    loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
     if not loadout:
         return
     
@@ -237,7 +241,10 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
 
     DEBUG_KEYS = ['LOADOUT', 'UPDATE_SETTINGS']
     eZprint('update settings in loadout triggered', DEBUG_KEYS, line_break=True)
-    loadout = active_loadouts[loadout_key]
+    loadout_record = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key) },
+    )
+    loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
     if not loadout:
         return
     loadout_config = loadout.get('config', {})
