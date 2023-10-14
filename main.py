@@ -28,7 +28,7 @@ from tools.keywords import get_summary_from_keyword, get_summary_from_insight
 from core.loadout import add_loadout, get_loadouts, set_loadout, drop_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout
 from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
-
+from version import __version__
 
 
 app.session = session
@@ -108,6 +108,7 @@ async def startsession():
         'user_name': novaSession[sessionID]['user_name'],
         'show_onboarding': show_onboarding,
         'subscribed': novaSession[sessionID]['subscribed'],
+        'nova_version': __version__
     }
 
     # eZprint('Payload and session updated')
