@@ -287,6 +287,7 @@ async def handle_convo_switch(sessionID):
 
     elif sessionID in available_convos:
         eZprint('adding on available convos', ['CONVO', 'INITIALISE'])
+        eZprint_anything(available_convos[sessionID], ['CONVO', 'INITIALISE'])
         if len(available_convos[sessionID]) > 0:
             requested_convoID = available_convos[sessionID][-1]['sessionID']
 
