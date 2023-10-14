@@ -18,9 +18,9 @@ jobs:
           fetch-depth: 0  # this is IMPORTANT - it makes the action fetch all tags as well as branch commits 
     
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.8  # or whatever version you're using
+          python-version: 3.9  # or whatever version you're using
 
       - name: Create new tag
         run: |
