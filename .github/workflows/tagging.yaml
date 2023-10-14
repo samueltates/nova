@@ -1,0 +1,36 @@
+name: Auto tag
+on:
+  push:
+    branches:
+      - main  # or any other branch you want the action to trigger on
+      - staging
+      - easia-production
+      - easia-staging
+      
+jobs:
+  create_tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # this is IMPORTANT - it makes the action fetch all tags as well as branch commits 
+    
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8  # or whatever version you're using
+
+      - name: Create new tag
+        run: |
+          echo "fetching tags"
+          git fetch --tags
+          version=$(python -c "import version; print(version.__version__)")
+          echo "creating new tag with version ${version}"
+          git tag -a "v${version}" -m "Automated version tag"
+        
+      - name: Push tags
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Auto tagger"
+          git push --tags
