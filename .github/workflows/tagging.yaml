@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main  # or any other branch you want the action to trigger on
+      - production
       - staging
       - development
       - easia-production
