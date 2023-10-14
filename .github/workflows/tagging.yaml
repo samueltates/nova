@@ -4,6 +4,7 @@ on:
     branches:
       - main  # or any other branch you want the action to trigger on
       - staging
+      - development
       - easia-production
       - easia-staging
       
