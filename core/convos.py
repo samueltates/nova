@@ -12,7 +12,7 @@ from tools.debug import eZprint, eZprint_anything
 
 
 async def get_loadout_logs(loadout, sessionID ):
-
+    eZprint_anything(loadout, ['CONVO', 'INITIALISE'], message = 'loadout logs requested')
     ## finds logs connected to loadout
     if sessionID not in novaSession:
         novaSession[sessionID] = {}
@@ -27,8 +27,9 @@ async def get_loadout_logs(loadout, sessionID ):
 
     logs = None
 
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] and loadout != None:
+    if (sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] ) and loadout != None:
         eZprint('shared or owner', ['CONVO', 'INITIALISE'])
+        eZprint_anything(loadout, ['CONVO', 'INITIALISE'], message = 'loadout in shared')
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
@@ -125,7 +126,7 @@ async def set_convo(requested_convoID, sessionID):
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
 
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner'] :
 
         try:
             remote_summaries_from_convo = await prisma.summary.find_many(

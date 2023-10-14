@@ -30,7 +30,10 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     loadout_record = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
+    if loadout_record:
+        loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
+    else:
+        loadout = None
     # print(loadout_data)
     if not loadout:
         return
