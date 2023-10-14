@@ -175,11 +175,12 @@ async def set_convo(requested_convoID, sessionID):
             for key, val in json_summary.items():
                 # if val['epoch']<1:
                     summaries_found = True
-                    val['role'] = 'assistant'
-                    val['user_name']= 'summary'
+                    val['role'] = 'function'
+                    val['function_name']= 'conversation_summary'
                     # val['muted'] = False
                     # val['minimised'] = False
                     val['contentType'] = 'summary'
+                    val['content'] = val['title'] + ' : ' + val['body']
                     val['sources'] = val['sourceIDs']
                     val['id'] = summary.id
                     summaries.append(val)

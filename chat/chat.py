@@ -308,7 +308,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         response = await sendChat(promptObject, model, functions)
         eZprint_anything(response, ['CHAT', 'SEND_TO_GPT', 'RESPONSE'], line_break = True)
 
-        content = str(response["choices"][0]["message"]["content"])
+        content = response["choices"][0]["message"]["content"]
         if response["choices"][0]["message"].get('function_call'):
             function_call = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
