@@ -333,12 +333,12 @@ async def process_message(parsed_data):
         # await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
 
-        if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
-            convoID = await handle_convo_switch(sessionID)
-            if not convoID:
-                convoID = await start_new_convo(sessionID)
-        else:
-            convoID = await start_new_convo(sessionID)
+        # if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
+        #     # convoID = await handle_convo_switch(sessionID)
+        #     # if not convoID:
+        #     convoID = await start_new_convo(sessionID)
+        # else:
+        convoID = await start_new_convo(sessionID)
         
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID, params)
