@@ -294,9 +294,9 @@ async def process_message(parsed_data):
         await get_loadout_logs(None, sessionID)
 
         # gets or creates conversation - should this pick up last?
-        convoID = await handle_convo_switch(sessionID)
-        if not convoID:
-            convoID = await start_new_convo(sessionID)
+        # convoID = await handle_convo_switch(sessionID)
+        # if not convoID:
+        convoID = await start_new_convo(sessionID)
 
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, None)
