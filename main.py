@@ -296,7 +296,7 @@ async def process_message(parsed_data):
         # gets or creates conversation - should this pick up last?
         # convoID = await handle_convo_switch(sessionID)
         # if not convoID:
-        convoID = await start_new_convo(sessionID)
+        convoID = await start_new_convo(sessionID, None)
 
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, None)
@@ -312,7 +312,7 @@ async def process_message(parsed_data):
 
         convoID = await handle_convo_switch(sessionID)
         if not convoID:
-            convoID = await start_new_convo(sessionID)
+            convoID = await start_new_convo(sessionID, loadout)
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await runCartridges(sessionID, loadout)
@@ -338,7 +338,7 @@ async def process_message(parsed_data):
         #     # if not convoID:
         #     convoID = await start_new_convo(sessionID)
         # else:
-        convoID = await start_new_convo(sessionID)
+        convoID = await start_new_convo(sessionID, loadout)
         
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID, params)
@@ -354,7 +354,7 @@ async def process_message(parsed_data):
         await get_loadout_logs(loadout, sessionID)
         convoID = await handle_convo_switch(sessionID)
         if not convoID:
-            convoID = await start_new_convo(sessionID)
+            convoID = await start_new_convo(sessionID, loadout)
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID)
         await runCartridges(convoID, loadout)  
@@ -374,7 +374,7 @@ async def process_message(parsed_data):
         # gets or creates conversation - should this pick up last?
         convoID = await handle_convo_switch(sessionID)
         if not convoID:
-            convoID = await start_new_convo(sessionID)
+            convoID = await start_new_convo(sessionID, loadout)
 
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, None)

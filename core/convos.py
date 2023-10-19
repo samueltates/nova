@@ -300,11 +300,11 @@ async def handle_convo_switch(sessionID):
         
 
 
-async def start_new_convo(sessionID):
+async def start_new_convo(sessionID, loadout):
     eZprint('start_new_convo called', ['CONVO', 'INITIALISE'])
     #TODO: make 'add convo'wrapper (and set convo
     convoID = secrets.token_bytes(4).hex()
-    loadout = current_loadout[sessionID]
+    # loadout = current_loadout[sessionID]
     # await initialise_conversation(sessionID, convoID, params)
     convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
     eZprint('new convo convoID full ' + convoID_full, ['CONVO', 'INITIALISE'])
