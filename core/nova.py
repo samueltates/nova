@@ -88,10 +88,10 @@ async def initialiseCartridges(sessionID, convoID, loadout):
     #     current_loadout[sessionID] = None
     # if sessionID not in current_loadout or current_loadout[sessionID] == None:
         ## get rid of this, basically accounts for 'none' loadout which I want to scrap
-    if not loadout: 
-        await loadCartridges(sessionID, convoID)
-        novaSession[sessionID]['owner'] = True
-        await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
+    # if not loadout: 
+    #     await loadCartridges(sessionID, convoID)
+    #     novaSession[sessionID]['owner'] = True
+    #     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
  
     await runCartridges(sessionID, loadout)
 

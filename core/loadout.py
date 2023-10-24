@@ -55,7 +55,11 @@ async def get_loadouts(sessionID):
     user_details = await prisma.user.find_first(
         where={ "UserID": userID },
     )
-
+    # if not loadout: 
+        # await loadCartridges(sessionID, convoID)
+    novaSession[sessionID]['owner'] = True
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': {}, 'owner': novaSession[sessionID]['owner']}}))
+ 
     # if its a signed in user, checks what last loadout was, sets to that
     # otherwise sets current loadout to none
     # if user_details:
