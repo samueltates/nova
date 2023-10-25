@@ -14,6 +14,7 @@ from tools.debug import eZprint, eZprint_anything
 async def get_loadout_logs(loadout, sessionID ):
     eZprint_anything(loadout, ['CONVO', 'INITIALISE'], message = 'loadout logs requested')
     ## finds logs connected to loadout
+    await asyncio.sleep(.1)
     if sessionID not in novaSession:
         novaSession[sessionID] = {}
     
@@ -21,7 +22,7 @@ async def get_loadout_logs(loadout, sessionID ):
         novaSession[sessionID]['userID'] = None
     
     userID = novaSession[sessionID]['userID']
-
+    
 
     available_convos[sessionID] = []
 
