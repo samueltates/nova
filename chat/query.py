@@ -14,6 +14,12 @@ async def sendChat(promptObj, model, functions = None):
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
 
 
+
+async def getModels():
+
+    models = openai.Model.list()
+    return models
+
     # except:
     #     try:
     #         if functions:
