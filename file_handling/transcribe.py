@@ -175,7 +175,7 @@ async def convert_ms_to_hh_mm_ss(ms):
 recordings = {}
 
 async def handle_transcript_chunk(convoID, recordingID, chunkID, chunk):
-    eZprint(f"recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    eZprint(f"trainscript chunk recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
     if not recordings.get(convoID):
         recordings[convoID] = {}
     if not recordings[convoID].get(recordingID):
@@ -195,7 +195,7 @@ async def handle_transcript_end(convoID, recordingID):
         return
 
     base64_chunks = [chunk['base64_data'] for chunk in recordings[convoID][recordingID].values()]
-    eZprint(f"recording {recordingID} chunks {len(base64_chunks)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    eZprint(f"handle end recording {recordingID} chunks {len(base64_chunks)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
     combined_data = merge_and_decode_base64_chunks(base64_chunks)
     del recordings[convoID][recordingID]
     transcript_text = await handle_simple_transcript(combined_data)

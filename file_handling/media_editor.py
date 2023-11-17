@@ -120,16 +120,26 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #     start_pos = float(media['position'].get('start', 'center'))
             #     end_pos = float(media['position'].get('end', start_pos))
             #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
+# Assuming pan_speed is defined (pixels per second)
 
             if 'pan' in b_roll:
-                # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
-                # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
                 direction = b_roll['pan']
-                if direction == 'left':
-                    image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
-                elif direction == 'right':
-                    image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
 
+                if direction == 'left':
+                    # Panning from right to left; starting position is at the right edge of the viewport
+                    start_position = clip_dimensions[1] - 1
+                    image_clip = image_clip.set_position(
+                        lambda t, start_position=start_position, pan_speed=pan_speed, duration=duration: (
+                            max(0, start_position - pan_speed * t), 'center')
+                        if t < duration else (0, 'center'))
+                    
+                elif direction == 'right':
+                    # Panning from left to right; starting position is at the left edge of the viewport but off-screen
+                    start_position = -resized_image.shape[1]
+                    image_clip = image_clip.set_position(
+                        lambda t, start_position=start_position, pan_speed=pan_speed, duration=duration: (
+                            min(clip_dimensions[1] - resized_image.shape[1], start_position + pan_speed * t), 'center')
+                        if t < duration else (clip_dimensions[1] - resized_image.shape[1], 'center'))
 
                 # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
                 # print('panning from', pan_from, 'to', pan_to)
