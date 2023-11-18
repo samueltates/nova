@@ -10,7 +10,7 @@ import requests
 import cv2
 import ffmpeg
 import asyncio
-
+import random
 import subprocess
 import shlex
 import json
@@ -57,7 +57,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
         task = asyncio.create_task(generate_temp_image(prompt))
         tasks.append(task)
     images = await asyncio.gather(*tasks)
-    print('images', images)
+    # print('images', images)
     counter = 0
     for b_roll in b_roll_to_overlay:
         processed_image = images[counter]
@@ -70,7 +70,9 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #get as  time delta
             duration = end - start
             duration = duration.total_seconds()
-            # duration = min(duration, clip.duration)
+            if duration < 3:
+                duration = 3
+            
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
             
@@ -124,28 +126,40 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
 
 
+            scale_modifier = clip_width / 1920
+            pixels_per_second = 75 * scale_modifier
+            eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
+            directions = ['left', 'right']
+            #choose random direction
+            direction = random.choice(directions)   
+
             if 'pan' in b_roll:
                 # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
                 # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
-                direction = b_roll['pan']
-                scale_modifier = clip_width / 1920
-                pixels_per_second = 75 * scale_modifier
-                eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
+                if b_roll['pan'] == 'left':
+                    direction = 'left'
+                elif b_roll['pan'] == 'right':
+                    direction = 'right'
 
-                if direction == 'left':
-                    start_position = 0
-                    end_position = -start_x*2
+            # Where you set your position for the image clip
+            if direction == 'left':
+                start_position = 0
+                end_position = -start_x*2
 
-                    image_clip = image_clip.set_position(lambda t: (min( end_position, start_position +  pixels_per_second * t), 'center'),)
+                image_clip = image_clip.set_position(
+                    lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
+                    (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
+                )
 
-                    ## create paralell lambda to print position
-                    eZprint(f'panning from {start_position} to {end_position}', DEBUG_KEYS)
-                elif direction == 'right':
-                    start_position = -start_x*2
-                    end_position = 0
-                    image_clip = image_clip.set_position(lambda t: (min(end_position, start_position + pixels_per_second * t), 'center'))
-                    eZprint(f'panning from {start_position} to {end_position}', DEBUG_KEYS)
-                    
+            elif direction == 'right':
+                start_position = -start_x*2
+                end_position = 0
+
+                image_clip = image_clip.set_position(
+                    lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
+                    (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
+                )
+                
 
             composites.append(image_clip)
     
@@ -679,3 +693,18 @@ async def get_rotation(source):
 
     print(rotation)
     return rotation
+
+
+
+def calculate_pan_position(t, direction, start_position, end_position, pixels_per_second):
+    if direction == 'left':
+        position = start_position - pixels_per_second * t
+        # Clamp the position so that it does not go past the end_position
+        clamped_position = max(end_position, position) 
+    elif direction == 'right':
+        position = start_position + pixels_per_second * t
+        # Clamp the position to not exceed end_position
+        clamped_position = min(end_position, position)
+    
+    eZprint(f'panning {direction} to position {clamped_position}', ['OVERLAY'])
+    return clamped_position
