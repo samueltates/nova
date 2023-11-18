@@ -70,16 +70,18 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #get as  time delta
             duration = end - start
             duration = duration.total_seconds()
+            # duration = min(duration, clip.duration)
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
             
             image = cv2.imread(processed_image.name)
-
+            clip_width = clip_dimensions[1]
             if layout == 'horizontal':
                 # Resize image based on orientation of clip
                 resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
             else:
                 resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
+                clip_width = clip_dimensions[0]
 
             # print('Resized image size:', resized_image.shape)
             # print('Resized image size:', resized_image.shape)
@@ -121,18 +123,29 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #     end_pos = float(media['position'].get('end', start_pos))
             #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
 
+
             if 'pan' in b_roll:
                 # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
                 # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
                 direction = b_roll['pan']
+                scale_modifier = clip_width / 1920
+                pixels_per_second = 75 * scale_modifier
+                eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
+
                 if direction == 'left':
-                    image_clip = image_clip.set_position(lambda t: (0 + ((t / duration) * (-start_x)), 'center'))
+                    start_position = 0
+                    end_position = -start_x*2
+
+                    image_clip = image_clip.set_position(lambda t: (min( end_position, start_position +  pixels_per_second * t), 'center'),)
+
+                    ## create paralell lambda to print position
+                    eZprint(f'panning from {start_position} to {end_position}', DEBUG_KEYS)
                 elif direction == 'right':
-                    image_clip = image_clip.set_position(lambda t: ((-start_x*2) + ((t / duration) * (start_x)), 'center'))
-
-
-                # image_clip = image_clip.set_position(lambda t: (pan_from + ((t / duration) * (pan_from - pan_to)), 'center'))
-                # print('panning from', pan_from, 'to', pan_to)
+                    start_position = -start_x*2
+                    end_position = 0
+                    image_clip = image_clip.set_position(lambda t: (min(end_position, start_position + pixels_per_second * t), 'center'))
+                    eZprint(f'panning from {start_position} to {end_position}', DEBUG_KEYS)
+                    
 
             composites.append(image_clip)
     
