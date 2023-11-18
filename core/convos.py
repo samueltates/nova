@@ -320,7 +320,6 @@ async def start_new_convo(sessionID, loadout):
     }
     await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : convoID_full}}))
     await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
-
             
     return convoID_full
 

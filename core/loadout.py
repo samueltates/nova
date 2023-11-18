@@ -80,7 +80,7 @@ async def get_loadouts(sessionID):
 
 async def set_loadout(loadout_key: str, sessionID, referal = False):
 
-    eZprint('set_loadout' + loadout_key, ['LOADOUT', 'INITIALISE'])
+    eZprint('set_loadout' + str(loadout_key), ['LOADOUT', 'INITIALISE'])
 
     # gets remote loadout content - this includes the cartridges that loadout has, the configuration file with information like title and setup rules
     remote_loadout = await prisma.loadout.find_first(
@@ -413,6 +413,7 @@ async def get_latest_loadout_convo(loadout_key):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
+    
     if loadout:
         eZprint_anything(loadout, DEBUG_KEYS)
         blob = json.loads(loadout.json())['blob']

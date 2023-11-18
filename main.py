@@ -95,6 +95,21 @@ async def startsession():
         show_onboarding = True
 
     await check_credentials(sessionID)
+
+    #checks each variable and sets default if not available (failsafe)
+    if 'profileAuthed' not in novaSession[sessionID]:
+        novaSession[sessionID]['profileAuthed'] = False
+    if 'docsAuthed' not in novaSession[sessionID]:
+        novaSession[sessionID]['docsAuthed'] = False
+    if 'user_name' not in novaSession[sessionID]:
+        novaSession[sessionID]['user_name'] = 'Guest'
+    if 'userID' not in novaSession[sessionID]:
+        novaSession[sessionID]['userID'] = 'guest-'+sessionID
+    if 'new_login' not in novaSession[sessionID]:
+        novaSession[sessionID]['new_login'] = True
+    if 'subscribed' not in novaSession[sessionID]:
+        novaSession[sessionID]['subscribed'] = False
+
     if novaSession[sessionID]['profileAuthed']:
         if novaSession[sessionID]['new_login'] == True:
             novaSession[sessionID]['new_login'] = False
@@ -323,6 +338,7 @@ async def process_message(parsed_data):
         await get_loadout_logs(loadout, sessionID)
 
         convoID = await get_latest_loadout_convo(loadout)
+        
         if not convoID:
             convoID = await start_new_convo(sessionID, loadout)
 
@@ -367,7 +383,7 @@ async def process_message(parsed_data):
         loadout = parsed_data['data']['loadout']
         sessionID = parsed_data['data']['sessionID']
         await add_loadout(loadout, convoID)
-        # await get_loadout_logs(loadout, sessionID)
+        await get_loadout_logs(loadout, sessionID)
         # convoID = await handle_convo_switch(sessionID)
         # if not convoID:
         convoID = await start_new_convo(sessionID, loadout)
@@ -424,9 +440,9 @@ async def process_message(parsed_data):
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
         sessionID = parsed_data['data']['sessionID']
+        await set_convo(requestedConvoID, sessionID, loadout)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
-        await set_convo(requestedConvoID, sessionID, loadout)
 
 
     ## ALL BACK AND FORTH ###
@@ -532,9 +548,18 @@ async def process_message(parsed_data):
         if chunk:
             await websocket.send(json.dumps({'event':'file_chunk', 'id': chunk }))
     elif parsed_data["type"] == "file_end":
-        result = await handle_file_end(parsed_data["data"])
         await websocket.send(json.dumps({'event':'file_end'}))
+
+        # TODO : split file handler so upload eg as main, then transcribe etc as optional
+        convoID = parsed_data["data"]["convoID"]
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': 'transcribing'}, 'convoID': convoID}))
+
+        # await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
+
+        result = await handle_file_end(parsed_data["data"])
         # actions = parsed_data["data"]["actions"]
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
+
         if result:
             convoID = parsed_data["data"]["convoID"]
             await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='transcribe')
