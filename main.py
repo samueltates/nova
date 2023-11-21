@@ -679,6 +679,7 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         chunkID = parsed_data['data']['chunkID']
         chunk = parsed_data['data']['chunk']
+        await websocket.send(json.dumps({'event':'return_chunk_recieved', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID}))
         # transcript_text = await handle_simple_transcript(chunk, chunkID)
         transcript_text = await handle_transcript_chunk(convoID, recordingID, chunkID, chunk)
         await websocket.send(json.dumps({'event':'return_chunk_transcript', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID, 'transcript_text': transcript_text}))
