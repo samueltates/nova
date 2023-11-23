@@ -127,7 +127,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
 
             scale_modifier = clip_width / 1920
-            pixels_per_second = 75 * scale_modifier
+            pixels_per_second = 90 * scale_modifier
             eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
             directions = ['left', 'right']
             #choose random direction
