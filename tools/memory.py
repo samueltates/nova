@@ -1052,7 +1052,7 @@ async def summariseChatBlocks(input,  loadout = None):
     await  websocket.send(json.dumps({'event':'updateMessageFields', 'payload':payload}))
    #inject summary object into logs before messages it is summarising 
     injectPosition = chatlog[convoID].index(start_message) 
-    chatlog[convoID].insert(injectPosition, {'id':summaryID,'role':'function',  'function_name': 'conversation_summary', 'content':summarDict['title'] + summarDict['body'], 'timestamp':datetime.now(),'key':summaryKey})
+    chatlog[convoID].insert(injectPosition, {'id':summaryID,'role':'function',  'function_name': 'conversation_summary', 'content':summarDict['title'] +" : "+ summarDict['body'], 'timestamp':datetime.now(),'key':summaryKey})
     # print(chatlog[convoID])
     for log in messagesToSummarise:
         remoteMessage = await prisma.message.find_first(

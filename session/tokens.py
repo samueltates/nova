@@ -23,8 +23,9 @@ async def handle_token_use(userID, model, input_tokens, output_tokens):
         coin_cost = ((input_tokens / 1000) * 0.003) / dollars_per_NovaCoin
         coin_cost += ((output_tokens / 1000) * 0.004) / dollars_per_NovaCoin
     else:
-        raise ValueError('Invalid model name')
-    
+        coin_cost = ((input_tokens / 1000) * 0.003) / dollars_per_NovaCoin
+        coin_cost += ((output_tokens / 1000) * 0.004) / dollars_per_NovaCoin
+            
     await update_coin_count(userID, coin_cost)
 
 async def check_tokens(userID):

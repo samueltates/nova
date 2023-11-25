@@ -77,7 +77,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                 continue 
             
             image = cv2.imread(processed_image.name)
-            clip_width = clip_dimensions[1]
+
             if layout == 'horizontal':
                 # Resize image based on orientation of clip
                 resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
@@ -133,6 +133,14 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #choose random direction
             direction = random.choice(directions)   
 
+
+            scale_modifier = clip_width / 1920
+            pixels_per_second = 75 * scale_modifier
+            eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
+            directions = ['left', 'right']
+            #choose random direction
+            direction = random.choice(directions)   
+
             if 'pan' in b_roll:
                 # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
                 # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
@@ -154,7 +162,30 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             elif direction == 'right':
                 start_position = -start_x*2
                 end_position = 0
+                if b_roll['pan'] == 'left':
+                    direction = 'left'
+                elif b_roll['pan'] == 'right':
+                    direction = 'right'
 
+            # Where you set your position for the image clip
+            if direction == 'left':
+                start_position = 0
+                end_position = -start_x*2
+
+                image_clip = image_clip.set_position(
+                    lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
+                    (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
+                )
+
+            elif direction == 'right':
+                start_position = -start_x*2
+                end_position = 0
+
+                image_clip = image_clip.set_position(
+                    lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
+                    (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
+                )
+                
                 image_clip = image_clip.set_position(
                     lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
                     (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
@@ -707,4 +738,19 @@ def calculate_pan_position(t, direction, start_position, end_position, pixels_pe
         clamped_position = min(end_position, position)
     
     eZprint(f'panning {direction} to position {clamped_position}', ['OVERLAY'])
+    return clamped_position
+
+
+
+def calculate_pan_position(t, direction, start_position, end_position, pixels_per_second):
+    if direction == 'left':
+        position = start_position - pixels_per_second * t
+        # Clamp the position so that it does not go past the end_position
+        clamped_position = max(end_position, position) 
+    elif direction == 'right':
+        position = start_position + pixels_per_second * t
+        # Clamp the position to not exceed end_position
+        clamped_position = min(end_position, position)
+    
+    # eZprint(f'panning {direction} to position {clamped_position}', ['OVERLAY'])
     return clamped_position

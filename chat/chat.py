@@ -10,7 +10,8 @@ from session.appHandler import websocket
 from session.sessionHandler import novaConvo, novaSession, chatlog, system_threads
 from session.tokens import handle_token_use, check_tokens
 from session.prismaHandler import prisma
-from core.cartridges import updateContentField
+# from core.cartridges import updateContentField
+from core.loadout import update_loadout_field
 from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
 from chat.query import sendChat
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
@@ -258,6 +259,16 @@ async def logMessage(messageObject):
                 "batched": False,
             }
         )
+        convoID = messageObject['convoID']
+        splitID = convoID.split('-')
+        loadout = None
+        if len(splitID) > 1:
+            loadout = splitID[2]
+        if loadout:
+            await update_loadout_field(loadout, 'latest_convo', convoID)
+
+
+
 
     message = await prisma.message.create(
         data={
@@ -308,7 +319,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         response = await sendChat(promptObject, model, functions)
         eZprint_anything(response, ['CHAT', 'SEND_TO_GPT', 'RESPONSE'], line_break = True)
 
-        content = str(response["choices"][0]["message"]["content"])
+        content = response["choices"][0]["message"]["content"]
         if response["choices"][0]["message"].get('function_call'):
             function_call = response["choices"][0]["message"]["function_call"]
         completion_tokens = response["usage"]['completion_tokens']
@@ -331,6 +342,7 @@ async def command_interface(command, convoID, threadRequested):
     eZprint('running commands',DEBUG_KEYS)
     # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}, 'convoID': convoID}))
 
     command_response = None
     # def error_handler():
@@ -344,6 +356,7 @@ async def command_interface(command, convoID, threadRequested):
     # command_response = await asyncio.gather(*command_parser)
     # await websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
     command_response = await handle_commands(command, convoID, threadRequested)
+    await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}, 'convoID': convoID}))
 
     # except Exception as e:
     #     error_handler()

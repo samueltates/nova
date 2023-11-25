@@ -56,29 +56,32 @@ async def get_loadouts(sessionID):
     user_details = await prisma.user.find_first(
         where={ "UserID": userID },
     )
-
+    # if not loadout: 
+        # await loadCartridges(sessionID, convoID)
+    novaSession[sessionID]['owner'] = True
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': {}, 'owner': novaSession[sessionID]['owner']}}))
+ 
     # if its a signed in user, checks what last loadout was, sets to that
     # otherwise sets current loadout to none
-    # if user_details:
-    #     userBlob = json.loads(user_details.json())['blob']
-    #     # print(userBlob)
-    #     if 'current_loadout' not in userBlob:
-    #         current_loadout[sessionID] = None
-    #     else:
-    #         if userBlob['current_loadout']:
-    #             current_loadout[sessionID] = userBlob['current_loadout']
-    #             current_remote_loadout = current_loadout[sessionID]
-    #             await set_loadout(current_loadout[sessionID], sessionID)
-    #             await websocket.send(json.dumps({'event': 'set_loadout', 'payload': current_loadout[sessionID]}))
-    #         else: 
-    #             current_loadout[sessionID] = None
+    latest_loadout = None
+    if user_details:
+        userBlob = json.loads(user_details.json())['blob']
+        # print(userBlob)
+        if 'latest_loadout' not in userBlob:
+            latest_loadout = None
+        else:
+            if userBlob['latest_loadout']:
+                latest_loadout = userBlob['latest_loadout']
+            else: 
+                latest_loadout = None
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
+    return latest_loadout
 
 
 
 async def set_loadout(loadout_key: str, sessionID, referal = False):
 
-    eZprint('set_loadout' + loadout_key, ['LOADOUT', 'INITIALISE'])
+    eZprint('set_loadout' + str(loadout_key), ['LOADOUT', 'INITIALISE'])
 
     # gets remote loadout content - this includes the cartridges that loadout has, the configuration file with information like title and setup rules
     remote_loadout = await prisma.loadout.find_first(
@@ -90,17 +93,19 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     #TODO : REMOVE
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
+    if sessionID not in novaSession:
+        novaSession[sessionID] = {}
     current_loadout[sessionID] = loadout_key
 
     config = {}
 
     # if value is present unpacks it, figures out if its the owner which changes the behaviours
-    if remote_loadout:
+    if remote_loadout :
         
         blob = json.loads(remote_loadout.json())['blob']
         novaSession[sessionID]['owner'] = False
 
-        if novaSession[sessionID]['userID']:
+        if 'userID' in novaSession[sessionID]:
 
             if remote_loadout.UserID == novaSession[sessionID]['userID']:
                 novaSession[sessionID]['owner'] = True
@@ -112,7 +117,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 
             if user_details:
                 user_blob = json.loads(user_details.json())['blob']
-                user_blob['current_loadout'] = loadout_key
+                user_blob['latest_loadout'] = loadout_key
                 update_user = await prisma.user.update(
                     where = {
                         'id' : user_details.id
@@ -341,6 +346,7 @@ async def clear_loadout(sessionID, convoID):
 
         #     # print(update_user)
 
+
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': current_config[sessionID], 'owner': novaSession[sessionID]['owner']}}))
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID': convoID}))
 
@@ -402,6 +408,25 @@ async def set_loadout_title(loadout_key, title):
                 "blob":Json({key:val})
                 }
         )
+
+
+async def get_latest_loadout_convo(loadout_key):
+    DEBUG_KEYS = ['LOADOUT', 'GET_LATEST_LOADOUT_CONVO']
+    eZprint('get_latest_loadout_convo', DEBUG_KEYS)
+    loadout = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key) },
+    )
+    
+    if loadout:
+        eZprint_anything(loadout, DEBUG_KEYS)
+        blob = json.loads(loadout.json())['blob']
+        for key, val in blob.items():
+            if 'config' in val and 'latest_convo' in val['config']:
+                eZprint_anything(val['config']['latest_convo'], DEBUG_KEYS, message='latest convo')
+                await websocket.send(json.dumps({'event': 'set_convoID', 'payload':{'convoID': val['config']['latest_convo']}}))
+                return val['config']['latest_convo']
+    return None
+
 
 async def update_loadout_field(loadout_key, field, value):
     DEBUG_KEYS = ['LOADOUT', 'UPDATE_LOADOUT_FIELD']

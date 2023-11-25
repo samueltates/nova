@@ -46,7 +46,7 @@ async def handle_file_end(data):
     file_content = b''.join(file_chunks[tempKey]["content"])
     # Process the uploaded file
     # You might need to convert the content from a bytearray to the initial format (e.g., base64)
-    print(file_metadata)
+    # print(file_metadata)
     data = {
         'sessionID': file_metadata['sessionID'],
         'userID': file_metadata['userID'],

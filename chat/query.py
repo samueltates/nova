@@ -19,6 +19,12 @@ async def sendChat(promptObj, model, functions = None):
     return response
 
 
+
+async def getModels():
+
+    models = openai.Model.list()
+    return models
+
     # except:
     #     try:
     #         if functions:

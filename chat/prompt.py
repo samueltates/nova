@@ -207,10 +207,11 @@ async def construct_chat(convoID, thread = 0):
                     if log['function_call'] != 'None':  
                         try :
                             function_json = json.loads(log['function_call'], strict=False)
-                            object.update({'function_call': function_json })
                         except:
-                            print('function call error')
-                            print(log['function_call'])
+                            function_json = log['function_call']
+                        object.update({'function_call': function_json })
+                        #     print('function call error')
+                        #     print(log['function_call'])
                 if log.get('role') == 'function':
                     object.update({"name": log['function_name']})
                 current_chat.append(object)
@@ -262,13 +263,17 @@ async def construct_objects(convoID, system_string = None, content_string = None
 
     # print(prompt_objects)
     if prompt_objects.get('openAI_functions', None):
+        eZprint_anything(prompt_objects['openAI_functions'], ['FUNCTIONS', 'CONSTRUCT_OBJECTS'])
         
         novaConvo[convoID]['return_type'] = 'openAI'
         for value in prompt_objects['openAI_functions']['values']:
             if value.get('functions'):
-                if convoID not in current_prompt:
-                    current_prompt[convoID] = {}
                 openAI_functions = value['functions'][0]
+            if value.get('function_objects'):
+                for fc in value['function_objects']:
+                    eZprint_anything(fc, ['FUNCTIONS', 'CONSTRUCT_OBJECTS'])
+                    if fc.get('enabled', False):
+                        openAI_functions.append(fc['function'])
 
     # reset system values every time for loop so only applies values if cartridge present
 

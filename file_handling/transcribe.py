@@ -4,6 +4,8 @@ import os
 import tempfile
 import asyncio
 import json
+import base64
+import subprocess
 
 from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
@@ -13,8 +15,6 @@ from core.cartridges import  update_cartridge_field
 
 from file_handling.s3 import read_file
 from tools.debug import eZprint
-
-
 
 async def transcribe_file(file_content, file_key, file_name, file_type, sessionID, convoID, loadout):
     if not file_content:
@@ -146,8 +146,6 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
 async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
             chunk.export(chunk_file.name, format='mp3')
-
-
             eZprint(f'Saved to:{chunk_file.name} with start of {chunk_start} and length of {chunk_end, }', ['TRANSCRIBE_CHUNK']) # Confirm file path
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
             #write to local as audio file
@@ -177,3 +175,117 @@ async def convert_ms_to_hh_mm_ss(ms):
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     return ':'.join([str(hours).zfill(2), str(minutes).zfill(2), str(seconds).zfill(2)]) + '.' + str(ms).zfill(3) 
+
+
+recordings = {}
+
+async def setup_transcript_chunk(convoID, recordingID, chunkID, chunk):
+    ## splitting here so can handle making spot for each chunk and returning before waiting for transcript so can get return response
+    if not recordings.get(convoID):
+        recordings[convoID] = {}
+    if not recordings[convoID].get(recordingID):
+        recordings[convoID][recordingID] = {}
+    if not recordings[convoID][recordingID].get(chunkID):
+        recordings[convoID][recordingID][chunkID] = {}
+
+    recordings[convoID][recordingID][chunkID].update({
+        'base64_data': chunk,
+    })
+    return
+    
+
+async def handle_transcript_chunk(convoID, recordingID, chunkID, chunk):
+    eZprint(f"trainscript chunk recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    if not recordings.get(convoID):
+        recordings[convoID] = {}
+    if not recordings[convoID].get(recordingID):
+        recordings[convoID][recordingID] = {}
+    if not recordings[convoID][recordingID].get(chunkID):
+        recordings[convoID][recordingID][chunkID] = {}
+
+    decoded_chunk = base64.b64decode(chunk)
+    transcript_text = await handle_simple_transcript(decoded_chunk)
+    eZprint(f"chunk {chunkID} text {transcript_text}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    recordings[convoID][recordingID][chunkID].update({
+        'transcript_text': transcript_text
+    })
+    return transcript_text
+
+async def handle_transcript_end(convoID, recordingID):
+    if not recordings.get(convoID):
+        return
+    base64_chunks = []
+    for chunk in recordings[convoID][recordingID].values():
+        if chunk.get('base64_data'):
+            base64_chunks.append(chunk['base64_data'])
+    eZprint(f"handle end recording {recordingID} chunks {len(base64_chunks)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    combined_data = merge_and_decode_base64_chunks(base64_chunks)
+    del recordings[convoID][recordingID]
+    transcript_text = await handle_simple_transcript(combined_data, recordingID)
+    return transcript_text
+
+
+def merge_and_decode_base64_chunks(chunks):
+    # Step 1: Concatenate all base64 chunks into one string
+    decoded_chunks = [base64.b64decode(chunk) for chunk in chunks]
+
+    # Step 2: Decode the base64 string into bytes
+    combined_data = b"".join(decoded_chunks)
+
+    # Step 3: Write the bytes into a wav file
+    # with open('output-decode.webm', 'wb') as wav_file:
+    #     wav_file.write(combined_data)
+
+    return combined_data
+
+async def handle_simple_transcript(audio_bytes, id = None):
+    # Decode the base64 string to get the bytes
+
+    # output_name = 'output-handle.webm'
+    # if id:
+    #     output_name = f'output-handle-{id}.webm'
+    # with open(output_name, 'wb') as wav_file:
+
+    #     wav_file.write(audio_bytes)
+
+    # Use a temporary file to write the webm data
+    with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as tmp_webm_file:
+        tmp_webm_file.write(audio_bytes)
+        tmp_webm_file.close()  # Close the file so ffmpeg can read it
+
+        # Convert WebM to WAV using ffmpeg
+        tmp_wav_filename = os.path.splitext(tmp_webm_file.name)[0] + '.wav'
+        conversion_command = [
+            'ffmpeg',
+            '-i', tmp_webm_file.name,
+            '-vn',
+            '-acodec', 'pcm_s16le',
+            '-ar', '16000',
+            '-ac', '1',
+            tmp_wav_filename
+        ]
+        conversion_process = subprocess.run(
+            conversion_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        os.unlink(tmp_webm_file.name)  # Delete the temporary WebM file
+
+        if conversion_process.returncode != 0:
+            # Handle conversion error
+            print(f"FFmpeg Error: {conversion_process.stderr}")
+            return
+
+        # At this point, tmp_wav_filename is the path to the WAV file
+        # Now send the WAV file to OpenAI for transcription
+        with open(tmp_wav_filename, 'rb') as audio_file:
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, 
+                lambda: openai.Audio.transcribe('whisper-1', audio_file)
+            )
+            os.unlink(tmp_wav_filename)  # Delete the temporary WAV file
+
+        # Extract the transcript text from the response
+        transcription = response.get('text', '')
+        # eZprint(f"chunk {chunkID} text {transcription}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+
+
+    return transcription

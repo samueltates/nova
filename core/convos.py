@@ -12,8 +12,9 @@ from tools.debug import eZprint, eZprint_anything
 
 
 async def get_loadout_logs(loadout, sessionID ):
-
+    eZprint_anything(loadout, ['CONVO', 'INITIALISE'], message = 'loadout logs requested')
     ## finds logs connected to loadout
+    await asyncio.sleep(.1)
     if sessionID not in novaSession:
         novaSession[sessionID] = {}
     
@@ -21,24 +22,26 @@ async def get_loadout_logs(loadout, sessionID ):
         novaSession[sessionID]['userID'] = None
     
     userID = novaSession[sessionID]['userID']
-
+    
 
     available_convos[sessionID] = []
 
     logs = None
 
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] and loadout != None:
+    if (sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] ) and loadout != None:
         eZprint('shared or owner', ['CONVO', 'INITIALISE'])
+        eZprint_anything(loadout, ['CONVO', 'INITIALISE'], message = 'loadout in shared')
         logs = await prisma.log.find_many(
                 where={ "SessionID": {'contains':str(loadout)} },
             )
         # print(logs)
     else:
         eZprint('not shared or owner or no loadout', ['CONVO', 'INITIALISE'])
-        logs = await prisma.log.find_many(
-                where={ "UserID": userID, 
-                    "SessionID": {'contains':str(loadout)} },
-                )
+        if userID:
+            logs = await prisma.log.find_many(
+                    where={ "UserID": userID, 
+                        "SessionID": {'contains':str(loadout)} },
+                    )
         # print (logs)
             
     # print(logs)
@@ -117,7 +120,7 @@ async def populate_summaries(sessionID):
                     )
                     await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
 
-async def set_convo(requested_convoID, sessionID):
+async def set_convo(requested_convoID, sessionID, loadout):
     
     userID = novaSession[sessionID]['userID']
     eZprint(requested_convoID+ ' requested convoID', ['CONVO', 'INITIALISE'])
@@ -125,7 +128,7 @@ async def set_convo(requested_convoID, sessionID):
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
 
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner']:
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner'] :
 
         try:
             remote_summaries_from_convo = await prisma.summary.find_many(
@@ -175,11 +178,12 @@ async def set_convo(requested_convoID, sessionID):
             for key, val in json_summary.items():
                 # if val['epoch']<1:
                     summaries_found = True
-                    val['role'] = 'assistant'
-                    val['user_name']= 'summary'
+                    val['role'] = 'function'
+                    val['function_name']= 'conversation_summary'
                     # val['muted'] = False
                     # val['minimised'] = False
                     val['contentType'] = 'summary'
+                    val['content'] = val['title'] + ' : ' + val['body']
                     val['sources'] = val['sourceIDs']
                     val['id'] = summary.id
                     summaries.append(val)
@@ -264,6 +268,8 @@ async def set_convo(requested_convoID, sessionID):
                     log['muted'] = False
         
     await websocket.send(json.dumps({'event':'set_convo', 'payload':{'messages': chatlog[requested_convoID], 'convoID' : requested_convoID}}))
+    await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : requested_convoID}}))
+
         # print(chatlog[requested_convoID])
     
     novaSession[sessionID]['convoID'] = requested_convoID
@@ -271,38 +277,34 @@ async def set_convo(requested_convoID, sessionID):
     novaConvo[requested_convoID]['sessionID'] = sessionID
 
     #this is only for return to convo
-    # loadout = current_loadout[sessionID]
-    # if loadout:
-    #     print('updating loadout field' + str(loadout))
-    #     novaConvo[requested_convoID]['loadout'] = loadout
-    #     print(novaConvo[requested_convoID]['loadout'])
-    #     await update_loadout_field(loadout, 'convoID', requested_convoID)
+    if loadout:
+        await update_loadout_field(loadout, 'latest_convo', requested_convoID)
 
-async def handle_convo_switch(sessionID):
-    eZprint('handle_convo_switch called', ['CONVO', 'INITIALISE'])
-    requested_convoID = None
-    if sessionID in current_config and 'convoID' in current_config[sessionID]:
-        eZprint('adding on currentConfig', ['CONVO', 'INITIALISE'])
-        requested_convoID = current_config[sessionID]['convoID']
+# async def handle_convo_switch(sessionID):
+#     eZprint('handle_convo_switch called', ['CONVO', 'INITIALISE'])
+#     requested_convoID = None
 
-    elif sessionID in available_convos:
-        eZprint('adding on available convos', ['CONVO', 'INITIALISE'])
-        eZprint_anything(available_convos[sessionID], ['CONVO', 'INITIALISE'])
-        if len(available_convos[sessionID]) > 0:
-            requested_convoID = available_convos[sessionID][-1]['sessionID']
+#     if sessionID in current_config and 'convoID' in current_config[sessionID]:
+#         eZprint('adding on currentConfig', ['CONVO', 'INITIALISE'])
+#         requested_convoID = current_config[sessionID]['convoID']
 
-    if requested_convoID:
-        await set_convo(requested_convoID, sessionID)
+#     elif sessionID in available_convos:
+#         eZprint('adding on available convos', ['CONVO', 'INITIALISE'])
+#         eZprint_anything(available_convos[sessionID], ['CONVO', 'INITIALISE'])
+#         if len(available_convos[sessionID]) > 0:
+#             requested_convoID = available_convos[sessionID][-1]['sessionID']
+
+#     if requested_convoID:
+#         await set_convo(requested_convoID, sessionID)
     
-    return requested_convoID
-        
+#     return requested_convoID
 
 
-async def start_new_convo(sessionID):
+async def start_new_convo(sessionID, loadout):
     eZprint('start_new_convo called', ['CONVO', 'INITIALISE'])
     #TODO: make 'add convo'wrapper (and set convo
     convoID = secrets.token_bytes(4).hex()
-    loadout = current_loadout[sessionID]
+    # loadout = current_loadout[sessionID]
     # await initialise_conversation(sessionID, convoID, params)
     convoID_full = sessionID +'-'+convoID +'-'+ str(loadout)
     eZprint('new convo convoID full ' + convoID_full, ['CONVO', 'INITIALISE'])
@@ -317,8 +319,8 @@ async def start_new_convo(sessionID):
         'date' : datetime.now().strftime("%Y%m%d%H%M%S"),
         'summary': "new conversation",
     }
+    await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : convoID_full}}))
     await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))
-
             
     return convoID_full
 
