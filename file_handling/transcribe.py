@@ -126,8 +126,13 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
                 {
                 # 'text': transcript_text,
                 'json' : json.dumps({
-                    'transcript':{
-                        'description' : 'Transcription of ' + name,
+                    'transcript_text': {
+                        'description' : 'Complete transcription  of ' + name,
+                        'transcript_text' : transcript_text,
+                        'minimised': False
+                        },
+                    'transcript_object':{
+                        'description' : 'Transcription object lines ' + name,
                         'transcript_text' : transcript_text,
                         'lines' : results,
                         'minimised': True

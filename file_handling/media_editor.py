@@ -171,7 +171,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
         json_object = json.loads(main_video_cartridge['json'])
 
     if json_object:
-        transcript_object = json_object.get('transcript', None)        
+        transcript_object = json_object.get('transcript_object', None)        
         eZprint_anything([transcript_object], ['OVERLAY'])
 
     if transcript_object:

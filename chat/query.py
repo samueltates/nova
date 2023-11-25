@@ -4,6 +4,9 @@ import json
 import asyncio
 openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
 from session.tokens import check_tokens
+from tools.debug import eZprint
+
+DEBUG_KEYS = ['QUERY']
 
 async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
@@ -12,6 +15,8 @@ async def sendChat(promptObj, model, functions = None):
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
     else:
         response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+
+    return response
 
 
 
@@ -54,13 +59,13 @@ async def get_summary_with_prompt(prompt, textToSummarise, model = 'gpt-3.5-turb
     promptObject.append({"role": "user", "content": "Think about summary instructions and supplied content. Compose your answer and respond using the format specified above:"})
 
     
-    # print(textToSummarise)
+    eZprint(textToSummarise, DEBUG_KEYS, message='textToSummarise') 
     # model = app.session.get('model')
     # if model == None:
     #     model = 'gpt-3.5-turbo'
     response = await sendChat(promptObject, model)
 
-    # print(response)
+    eZprint(response, DEBUG_KEYS, message='response')
     content = response["choices"][0]["message"]["content"]
     # print(content)
     return content
