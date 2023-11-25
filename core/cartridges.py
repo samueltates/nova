@@ -93,6 +93,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     # print( 'cartridges to add', cartridges_to_add)
     for settingsKey, settingsValue in cartridges_to_add.items():
         cartKey = settingsValue.get('key', None)
+        cartridge = None
         if cartKey:
             cartridge = await prisma.cartridge.find_first(
                 where={ "key": cartKey },

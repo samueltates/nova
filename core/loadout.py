@@ -31,9 +31,10 @@ async def get_loadouts(sessionID):
 
     # if not a user sets to none (to ensure value there for check)
     if 'userID' not in novaSession[sessionID]:
-        novaSession[sessionID]['userID'] = None
+        novaSession[sessionID]['userID'] = 'Guest'
     userID = novaSession[sessionID]['userID']
 
+    
     # gets loadouts associated with that user
     loadouts = await prisma.loadout.find_many(
         where={ "UserID": userID },
