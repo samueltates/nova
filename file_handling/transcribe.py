@@ -145,7 +145,7 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
 
 async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
-            chunk.export(chunk_file.name, format='mp3')
+            # chunk.export(chunk_file.name, format='mp3')
 
 
             eZprint(f'Saved to:{chunk_file.name} with start of {chunk_start} and length of {chunk_end, }', ['TRANSCRIBE_CHUNK']) # Confirm file path

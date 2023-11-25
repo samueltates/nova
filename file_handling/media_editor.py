@@ -33,12 +33,9 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
     main_video_key = main_video_cartridge['aws_key']
     video_file = await read_file(main_video_key)
 
-    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
     processed_file.write(video_file)
-    processed_file.close()
     composites = []
-
-
 
     clip = VideoFileClip(processed_file.name)
     rotated = await is_rotated(processed_file.name)
@@ -75,6 +72,9 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
+            if start < 3:
+                # break out of this image
+                continue 
             
             image = cv2.imread(processed_image.name)
             clip_width = clip_dimensions[1]
@@ -95,7 +95,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
             resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
 
-            cv2.imwrite(processed_image.name, resized_image)
+            # cv2.imwrite(processed_image.name, resized_image)
 
             image_clip = ImageClip(resized_image)
             image_clip = image_clip.set_duration(duration)
@@ -300,7 +300,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
    
     compositeClip = CompositeVideoClip(composites, size=clip.size)
     compositeClip.audio = clip.audio
-    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
     write_loop = asyncio.get_event_loop()
     await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac'))
     # compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
@@ -515,7 +515,7 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
     
 
     eZprint(f'file {name} written to {url}', ['OVERLAY'])
-    # file_to_send.close()
+    file_to_send.close()
     compositeClip.close()
     return name
 
