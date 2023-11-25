@@ -92,17 +92,19 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
     #TODO : REMOVE
     if sessionID not in current_loadout:
         current_loadout[sessionID] = None
+    if sessionID not in novaSession:
+        novaSession[sessionID] = {}
     current_loadout[sessionID] = loadout_key
 
     config = {}
 
     # if value is present unpacks it, figures out if its the owner which changes the behaviours
-    if remote_loadout:
+    if remote_loadout :
         
         blob = json.loads(remote_loadout.json())['blob']
         novaSession[sessionID]['owner'] = False
 
-        if novaSession[sessionID]['userID']:
+        if 'userID' in novaSession[sessionID]:
 
             if remote_loadout.UserID == novaSession[sessionID]['userID']:
                 novaSession[sessionID]['owner'] = True

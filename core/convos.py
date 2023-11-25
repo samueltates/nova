@@ -37,10 +37,11 @@ async def get_loadout_logs(loadout, sessionID ):
         # print(logs)
     else:
         eZprint('not shared or owner or no loadout', ['CONVO', 'INITIALISE'])
-        logs = await prisma.log.find_many(
-                where={ "UserID": userID, 
-                    "SessionID": {'contains':str(loadout)} },
-                )
+        if userID:
+            logs = await prisma.log.find_many(
+                    where={ "UserID": userID, 
+                        "SessionID": {'contains':str(loadout)} },
+                    )
         # print (logs)
             
     # print(logs)

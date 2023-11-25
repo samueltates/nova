@@ -29,7 +29,7 @@ from tools.keywords import get_summary_from_keyword, get_summary_from_insight
 from core.loadout import add_loadout, get_loadouts, set_loadout, drop_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, get_latest_loadout_convo
 from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
-from file_handling.transcribe import handle_transcript_chunk, handle_transcript_end
+from file_handling.transcribe import handle_transcript_chunk, handle_transcript_end, setup_transcript_chunk
 from version import __version__
 
 
@@ -679,6 +679,7 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         chunkID = parsed_data['data']['chunkID']
         chunk = parsed_data['data']['chunk']
+        await setup_transcript_chunk(convoID, recordingID, chunkID, chunk)
         await websocket.send(json.dumps({'event':'return_chunk_recieved', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID}))
         # transcript_text = await handle_simple_transcript(chunk, chunkID)
         transcript_text = await handle_transcript_chunk(convoID, recordingID, chunkID, chunk)
