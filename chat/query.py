@@ -28,6 +28,18 @@ async def sendChat(promptObj, model, functions = None):
 
 
 async def text_to_speech(input_text):
+    #split by new line and then by full stop
+    text_lines = input_text.split('.')
+    line_index = 0
+
+    for line in text_lines:
+        eZprint(line, DEBUG_KEYS, message='line')
+        response = await get_audio(line, line_index)
+        line_index += 1
+
+
+async def get_audio(input_text, line_index):
+
     response = openai_client.audio.speech.create(
         model="tts-1",
         voice="nova",
@@ -35,7 +47,7 @@ async def text_to_speech(input_text):
         response_format="opus"
     )
 
-    chunk_index = 1
+    chunk_index = 0
     output_file_path = 'output.webm'
 
     # The stream_to_file function saves data to a file
@@ -67,7 +79,8 @@ async def text_to_speech(input_text):
                 payload = json.dumps({
                     'event': 'play_audio_chunk',
                     'payload': chunk_encoded,
-                    'index': chunk_index,
+                    'chunk_index': chunk_index,
+                    'line_index': line_index,
                     'timestamp': time.time()
                 })
 
@@ -76,25 +89,25 @@ async def text_to_speech(input_text):
                 await websocket.send(payload)
                 chunk_index += 1
                 
-            await websocket.send(json.dumps({'event': 'audio_chunks_finished'}))
-            
-        wait_time = 2
-        await asyncio.sleep(wait_time)
-        inspect_webm_file(stream_source.name)
 
+        # wait_time = 2
+        # await asyncio.sleep(wait_time)
+        # inspect_webm_file(stream_source.name)
+# 
         os.unlink(stream_source.name)
-
-def inspect_webm_file(file_path):
+    await websocket.send(json.dumps({'event': 'audio_chunks_finished', 'line_index': line_index}))
+        
+# def inspect_webm_file(file_path):
   
-    # Use ffprobe to get information about the webm file
-    command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', file_path]
-    result = subprocess.run(command, capture_output=True, text=True)
+#     # Use ffprobe to get information about the webm file
+#     command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', file_path]
+#     result = subprocess.run(command, capture_output=True, text=True)
     
-    if result.returncode == 0:
-        output = result.stdout
-        print(output)
-    else:
-        print(f"Error inspecting webm file: {result.stderr}")
+#     if result.returncode == 0:
+#         output = result.stdout
+#         print(output)
+#     else:
+#         print(f"Error inspecting webm file: {result.stderr}")
 
 
 

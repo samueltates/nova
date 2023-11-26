@@ -281,12 +281,12 @@ async def handle_simple_transcript(audio_bytes, id = None):
         with open(tmp_wav_filename, 'rb') as audio_file:
             response = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: client.audio.transcribe('whisper-1', audio_file)
+                lambda: client.audio.transcriptions.create(model='whisper-1', file=audio_file)
             )
             os.unlink(tmp_wav_filename)  # Delete the temporary WAV file
 
         # Extract the transcript text from the response
-        transcription = response.get('text', '')
+        transcription = response.text
         # eZprint(f"chunk {chunkID} text {transcription}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
 
 

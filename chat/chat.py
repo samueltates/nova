@@ -200,9 +200,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     if role == 'assistant' :
         # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal
-        if voice:
-            await text_to_speech(content)
-            
+
         if json_return:
             ## handles when expecting a JSON response, specifically for AUTOGPT commands
             ## thinking it should just send as content, or parse outside of this? 
@@ -220,6 +218,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
         else:
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+        
+        if voice:
+            await text_to_speech(content)
+            
 
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:

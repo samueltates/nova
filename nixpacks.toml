@@ -5,8 +5,9 @@
     cmds = [
         'PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy',
         'pipenv run prisma generate',
+        //unscructured
+        'pipenv run python -m nltk.downloader punkt',
         'pipenv run python -m nltk.downloader averaged_perceptron_tagger',
-        'pipenv run python -m nltk.downloader averaged_perceptron_tagger'
     ]
 
 [start]
