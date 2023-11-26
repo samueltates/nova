@@ -1,10 +1,18 @@
-import openai
+
 import os
 import json
 import asyncio
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
+import tempfile
 from session.tokens import check_tokens
 from tools.debug import eZprint
+from session.appHandler import app, websocket, openai_client
+import base64
+import time
+from pydub import AudioSegment
+import subprocess
+
+# import 
 
 DEBUG_KEYS = ['QUERY']
 
@@ -12,18 +20,93 @@ async def sendChat(promptObj, model, functions = None):
     loop = asyncio.get_event_loop()
     # try:
     if functions:
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
+        response = await loop.run_in_executor(None, lambda: openai_client.chat.completions.create(model=model,messages=promptObj, functions=functions))
     else:
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
+        response = await loop.run_in_executor(None, lambda: openai_client.chat.completions.create(model=model,messages=promptObj))
 
     return response
+
+
+async def text_to_speech(input_text):
+    response = openai_client.audio.speech.create(
+        model="tts-1",
+        voice="nova",
+        input=input_text,
+        response_format="opus"
+    )
+
+    chunk_index = 1
+    output_file_path = 'output.webm'
+
+    # The stream_to_file function saves data to a file
+    response.stream_to_file(output_file_path)
+    # Define a path for the output file
+
+
+    # Usage example:
+    with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as stream_source:
+        response.stream_to_file(stream_source.name, chunk_size=8192)
+
+        # Wait for some data to be written before starting to chunk
+        await asyncio.sleep(2) 
+
+        # Start reading from the stream and sending the data in chunks
+        with open(stream_source.name, 'rb') as file_stream:
+            while True:
+                chunk = file_stream.read(8192)
+                
+                if not chunk:
+                    break
+
+
+                # If you're using WebSocket binary frames, you don't need to encode to base64
+                # However, if you need to send as text data, you'll encode the chunk
+                chunk_encoded = base64.b64encode(chunk).decode('utf-8')
+
+                # Prepare the data payload for WebSocket
+                payload = json.dumps({
+                    'event': 'play_audio_chunk',
+                    'payload': chunk_encoded,
+                    'index': chunk_index,
+                    'timestamp': time.time()
+                })
+
+                # Send the chunk over WebSocket. If the websocket.send() is an async function,
+                # use 'await' to send data.
+                await websocket.send(payload)
+                chunk_index += 1
+                
+            await websocket.send(json.dumps({'event': 'audio_chunks_finished'}))
+            
+        wait_time = 2
+        await asyncio.sleep(wait_time)
+        inspect_webm_file(stream_source.name)
+
+        os.unlink(stream_source.name)
+
+def inspect_webm_file(file_path):
+  
+    # Use ffprobe to get information about the webm file
+    command = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', file_path]
+    result = subprocess.run(command, capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        output = result.stdout
+        print(output)
+    else:
+        print(f"Error inspecting webm file: {result.stderr}")
+
+
+
 
 
 
 async def getModels():
 
-    models = openai.Model.list()
-    return models
+    # TODO: The resource 'Engine' has been deprecated
+    # models = openai.Engine.list()
+    # models = openai_client.engine.list()
+    # return models
 
     # except:
     #     try:
@@ -41,7 +124,8 @@ async def getModels():
     #         response["choices"][0]["message"] = {}
     #         response["choices"][0]["message"]["content"] = str(e)
 
-    return response
+    # return response
+    return 
 
 
 
@@ -66,7 +150,7 @@ async def get_summary_with_prompt(prompt, textToSummarise, model = 'gpt-3.5-turb
     response = await sendChat(promptObject, model)
 
     eZprint(response, DEBUG_KEYS, message='response')
-    content = response["choices"][0]["message"]["content"]
+    content = response.choices[0].message.content
     # print(content)
     return content
 

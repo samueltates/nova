@@ -12,7 +12,7 @@ import stripe
 import secrets
 from random_word import RandomWords
 
-from session.appHandler import app, websocket
+from session.appHandler import app, websocket, openai_client
 from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
 from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat.chat import handle_message, user_input, return_to_GPT
@@ -96,6 +96,7 @@ async def startsession():
 
     await check_credentials(sessionID)
 
+    eZprint_anything(novaSession[sessionID], ['AUTH', 'INITIALISE'], message='novaSession[sessionID]')
     #checks each variable and sets default if not available (failsafe)
     if 'profileAuthed' not in novaSession[sessionID]:
         novaSession[sessionID]['profileAuthed'] = False
@@ -104,7 +105,7 @@ async def startsession():
     if 'user_name' not in novaSession[sessionID]:
         novaSession[sessionID]['user_name'] = 'Guest'
     if 'userID' not in novaSession[sessionID]:
-        novaSession[sessionID]['userID'] = 'guest-'+sessionID
+        novaSession[sessionID]['userID'] = 'guest-'+sessionID   
     if 'new_login' not in novaSession[sessionID]:
         novaSession[sessionID]['new_login'] = True
     if 'subscribed' not in novaSession[sessionID]:

@@ -105,7 +105,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         blob = json.loads(remote_loadout.json())['blob']
         novaSession[sessionID]['owner'] = False
 
-        if 'userID' in novaSession[sessionID]:
+        if 'userID' in novaSession[sessionID] and novaSession[sessionID]['userID']:
 
             if remote_loadout.UserID == novaSession[sessionID]['userID']:
                 novaSession[sessionID]['owner'] = True

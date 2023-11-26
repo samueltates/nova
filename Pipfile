@@ -50,5 +50,6 @@ bs4 = "*"
 ffmpeg-python = "*"
 ffprobe-python = "*"
 moviepy = "*"
+werkzeug = "==2.2.2"
 
 [dev-packages]

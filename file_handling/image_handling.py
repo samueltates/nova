@@ -1,25 +1,22 @@
-import openai
-import os
 import requests
 import tempfile
 import asyncio
 
+from session.appHandler import openai_client
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file, read_file
 from tools.debug import eZprint
 
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
 
 async def generate_temp_image(prompt):
     DEBUG_KEYS = ['FILE_HANDLING', 'IMAGE_GENERATION']
     eZprint(f'Generating image with prompt: {prompt}', DEBUG_KEYS)
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: openai.Image.create(
-            prompt=prompt,
-            n=1,
-            size='1024x1024'
-            ))
+        response = await loop.run_in_executor(None, lambda: openai_client.images.generate(prompt=prompt,
+        n=1,
+        size='1024x1024'))
     except Exception as e:
         eZprint(f'Error generating image: {e}', DEBUG_KEYS)
         return None
@@ -44,11 +41,9 @@ async def generate_images(prompts, sessionID, convoID, loadout):
 async def generate_image(prompt, sessionID, convoID, loadout):
 
     loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, lambda: openai.Image.create(
-        prompt=prompt,
-        n=1,
-        size='1024x1024'
-        ))
+    response = await loop.run_in_executor(None, lambda: client.images.generate(prompt=prompt,
+    n=1,
+    size='1024x1024'))
     
     image_url = response['data'][0]['url']
     print(f'Image URL: {image_url}')

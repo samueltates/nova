@@ -4,7 +4,7 @@ from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
 from quart import websocket,  request
 import tempfile
-import openai
+
 import os
 import requests
 import cv2
@@ -22,7 +22,7 @@ from file_handling.image_handling import generate_temp_image
 from tools.debug import eZprint, eZprint_anything
 
 
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
 
 
 
@@ -564,11 +564,9 @@ async def split_video(edit_plan, video_file):
             cut_at = datetime.strptime(cut_at, '%H:%M:%S.%f')
             
             # clip_size = clip1.size
-            response = openai.Image.create(
-            prompt=seq['b_roll'],
+            response = client.images.generate(prompt=seq['b_roll'],
             n=1,
-            size='1024x1024'
-            )
+            size='1024x1024')
             image_url = response['data'][0]['url']
             print(f'Image URL: {image_url}')
             response = requests.get(image_url)
