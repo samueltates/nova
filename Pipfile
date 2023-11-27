@@ -7,7 +7,6 @@ name = "pypi"
 python_version = "3.9"
 
 [packages]
-openai = "==0.27.2"
 click = "==8.0.3"
 itsdangerous = "==1.1.0"
 virtualenv = "*"
@@ -51,5 +50,7 @@ ffmpeg-python = "*"
 ffprobe-python = "*"
 moviepy = "*"
 werkzeug = "==2.2.2"
+openai = "*"
+pydantic = "*"
 
 [dev-packages]

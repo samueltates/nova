@@ -29,6 +29,8 @@ async def sendChat(promptObj, model, functions = None):
 
 async def text_to_speech(input_text):
     #split by new line and then by full stop
+    if input_text == None:
+        return
     text_lines = input_text.split('.')
     line_index = 0
 
@@ -39,6 +41,9 @@ async def text_to_speech(input_text):
 
 
 async def get_audio(input_text, line_index):
+
+    if input_text == None:
+        return
 
     response = openai_client.audio.speech.create(
         model="tts-1",

@@ -4,6 +4,8 @@ import asyncio
 import re
 import secrets
 from copy import deepcopy
+from pydantic import BaseModel  
+import openai
 
 from session.appHandler import websocket, openai_client
 from session.sessionHandler import novaConvo, novaSession, chatlog, system_threads
@@ -17,6 +19,12 @@ from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_o
 from tools.commands import handle_commands
 from tools.jsonfixes import correct_json
 
+
+
+class Object:
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, 
+            sort_keys=True, indent=4)
 
 async def agent_initiate_convo(sessionID, convoID, loadout):
     """
@@ -125,7 +133,12 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         chatlog[convoID] = []
 
     order = await getNextOrder(convoID)
-    
+    function_call_json = None
+    if function_call:
+        #  check if type of Function  object
+        # if isinstance(function_call, openai.api_resources.function.Function):
+        function_call_json = function_call.json()
+
     messageObject = {
         "key": key,
         "convoID": convoID,
@@ -133,7 +146,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         "userID": str(userID),
         "content": content,
         "function_name" : function_name,
-        "function_call":function_call,
+        "function_call":function_call_json,
         "role": role,
         "timestamp": str(datetime.now()),
         "order": order,
@@ -332,6 +345,9 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         
         if response.choices[0].message.function_call:
             function_call = response.choices[0].message.function_call
+            # handle no subscriptable function_call
+            # print('function call found') parse objet
+            function_call
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)

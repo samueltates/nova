@@ -208,6 +208,8 @@ async def handle_transcript_chunk(convoID, recordingID, chunkID, chunk):
     decoded_chunk = base64.b64decode(chunk)
     transcript_text = await handle_simple_transcript(decoded_chunk)
     eZprint(f"chunk {chunkID} text {transcript_text}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    if not recordings[convoID].get(recordingID):
+        return
     recordings[convoID][recordingID][chunkID].update({
         'transcript_text': transcript_text
     })
