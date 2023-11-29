@@ -52,5 +52,7 @@ moviepy = "*"
 werkzeug = "==2.2.2"
 openai = "*"
 pydantic = "*"
+unstructured-pytesseract = "*"
+unstructured-inference = "*"
 
 [dev-packages]
