@@ -22,6 +22,7 @@ from core.cartridges import retrieve_loadout_cartridges, addCartridge, update_ca
 from tools.gptindex import indexDocument, handleIndexQuery
 from session.googleAuth import logout, check_credentials,requestPermissions
 from session.prismaHandler import prismaConnect, prismaDisconnect
+from session.user import setTextToVoice, getTextToVoice
 from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
@@ -691,7 +692,15 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         updated_transcript = await handle_transcript_end(convoID, recordingID)
         await websocket.send(json.dumps({'event':'transcript_end', 'convoID': convoID, 'recordingID': recordingID, 'updated_transcript' : updated_transcript}))
-
+    if (parsed_data['type']=='set_text_to_voice'):
+        ttv = parsed_data['data']['ttv']
+        userID = parsed_data['data']['userID']
+        await setTextToVoice(userID, ttv)
+    if (parsed_data['type']=='get_text_to_voice'):
+        userID = parsed_data['data']['userID']
+        ttv = await getTextToVoice(userID)
+        await websocket.send(json.dumps({'event':'get_user_ttv', 'payload': ttv}))
+        # await websocket.send(json.dumps({'event':'set_text_to_voice', 'convoID': convoID, 'text': text}))
 
 
 file_chunks = {}
