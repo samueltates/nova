@@ -737,7 +737,7 @@ async def handle_indexdoc_end(data):
 
     sessionID = data['sessionID']
 
-    indexRecord = await indexDocument(data, file_metadata['loadout'])
+    indexRecordKey = await indexDocument(data, file_metadata['loadout'])
     # if indexRecord:
     #     payload = {
     #         'tempKey': data['tempKey'],
@@ -746,7 +746,7 @@ async def handle_indexdoc_end(data):
     # await  websocket.send(json.dumps({'event':'updateTempCart', 'payload':payload}))
     queryPackage = {
         'query': 'Give this document a short summary.',
-        'cartKey': indexRecord.key,
+        'cartKey': indexRecordKey,
         'sessionID': data['sessionID'],
         'userID': data['userID'],
     }
