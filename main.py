@@ -208,9 +208,12 @@ async def paymentSuccessClient():
     eZprint('paymentSuccessClient route hit', ['PAYMENT'])
     checkout_session = request.args.get('session_id')
     payment_request = payment_requests[request.args.get('session_id')]
+
+    sessionID = payment_requests[checkout_session]['sessionID']
+    return_url = request.args.get('return_url')
     payment_request['status'] = 'success'
     app.session.modified = True
-    return jsonify({'success': True})
+    return redirect(return_url)
 
 @app.websocket('/ws')
 async def ws():
@@ -270,18 +273,38 @@ async def process_message(parsed_data):
     if(parsed_data['type'] == 'create_checkout_client'):
         domain_url = os.getenv('NOVA_SERVER')
         return_url = parsed_data['return_url']
-        amount = parsed_data['amount']
-        checkout_session = stripe.checkout.Session.create(
-            success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url,
-            # cancel_url=domain_url + '/canceled.html',
-            mode='subscription',
-            # automatic_tax={'enabled': True},
-            line_items=[{
-                'price': os.getenv('NC_SUB'+str(amount)),
-                'quantity': 1,
-            }]
-        )
+        payment_type = parsed_data['payment_type']
+        eZprint_anything(parsed_data, ['PAYMENT'])
+        payment_ID = parsed_data['payment_ID']
+        if payment_type == 'subscription':
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url,
+                # cancel_url=domain_url + '/canceled.html',
+                mode='subscription',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': os.getenv('NC_SUB'+str(parsed_data['amount'])),
+                    'quantity': 1,
+                }]
+            ) 
 
+        else:
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url,
+                # cancel_url=domain_url + '/canceled.html',
+                mode='payment',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': payment_ID,
+                    'quantity': 1,
+                }]
+            )
+        await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
+        while payment_requests[checkout_session.id]['status'] == 'pending':
+            await asyncio.sleep(1)
+        await websocket.send(json.dumps({'event':'checkout_success', 'payload': True}))
+
+            
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
         amount = parsed_data['amount']
