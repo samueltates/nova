@@ -54,5 +54,8 @@ unstructured-pytesseract = "*"
 unstructured-inference = "*"
 llama-index = "*"
 langchain = "*"
+opencv-contrib-python = "*"
+pikepdf = "*"
+pypdf = "*"
 
 [dev-packages]

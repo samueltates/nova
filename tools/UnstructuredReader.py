@@ -33,10 +33,10 @@ class UnstructuredReader(BaseReader):
             self.api_key = kwargs["api_key"]
 
         # Prerequisite for Unstructured.io to work
-        import nltk
+        # import nltk
 
-        nltk.download("punkt")
-        nltk.download("averaged_perceptron_tagger")
+        # nltk.download("punkt")
+        # nltk.download("averaged_perceptron_tagger")
 
     """ Loads data usin Unstructured.io py
     
