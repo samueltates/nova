@@ -4,10 +4,10 @@ from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
 from quart import websocket,  request
 import tempfile
-import openai
+
 import os
 import requests
-import cv2
+# import cv2
 import ffmpeg
 import asyncio
 import random
@@ -22,12 +22,13 @@ from file_handling.image_handling import generate_temp_image
 from tools.debug import eZprint, eZprint_anything
 
 
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
 
 
 
 
 async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout):
+    return
     DEBUG_KEYS = ['OVERLAY']
     eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
     main_video_key = main_video_cartridge['aws_key']
@@ -171,7 +172,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
         json_object = json.loads(main_video_cartridge['json'])
 
     if json_object:
-        transcript_object = json_object.get('transcript', None)        
+        transcript_object = json_object.get('transcript_object', None)        
         eZprint_anything([transcript_object], ['OVERLAY'])
 
     if transcript_object:
@@ -564,11 +565,9 @@ async def split_video(edit_plan, video_file):
             cut_at = datetime.strptime(cut_at, '%H:%M:%S.%f')
             
             # clip_size = clip1.size
-            response = openai.Image.create(
-            prompt=seq['b_roll'],
+            response = client.images.generate(prompt=seq['b_roll'],
             n=1,
-            size='1024x1024'
-            )
+            size='1024x1024')
             image_url = response['data'][0]['url']
             print(f'Image URL: {image_url}')
             response = requests.get(image_url)

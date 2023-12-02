@@ -1,5 +1,7 @@
 
-import openai
+from openai import OpenAI
+
+client = OpenAI()
 import os
 import tempfile
 import asyncio
@@ -126,8 +128,13 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
                 {
                 # 'text': transcript_text,
                 'json' : json.dumps({
-                    'transcript':{
-                        'description' : 'Transcription of ' + name,
+                    'transcript_text': {
+                        'description' : 'Complete transcription  of ' + name,
+                        'transcript_text' : transcript_text,
+                        'minimised': False
+                        },
+                    'transcript_object':{
+                        'description' : 'Transcription object lines ' + name,
                         'transcript_text' : transcript_text,
                         'lines' : results,
                         'minimised': True
@@ -145,7 +152,7 @@ async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
             #write to local as audio file
             loop = asyncio.get_event_loop()
-            transcript =  await loop.run_in_executor(None, lambda: openai.Audio.transcribe('whisper-1', chunk_file))
+            transcript =  await loop.run_in_executor(None, lambda: client.audio.transcribe('whisper-1', chunk_file))
             start = await convert_ms_to_hh_mm_ss(chunk_start)
             end = await convert_ms_to_hh_mm_ss(chunk_end)
             transcription = {
@@ -174,31 +181,51 @@ async def convert_ms_to_hh_mm_ss(ms):
 
 recordings = {}
 
+async def setup_transcript_chunk(convoID, recordingID, chunkID, chunk):
+    ## splitting here so can handle making spot for each chunk and returning before waiting for transcript so can get return response
+    if not recordings.get(convoID):
+        recordings[convoID] = {}
+    if not recordings[convoID].get(recordingID):
+        recordings[convoID][recordingID] = {}
+    if not recordings[convoID][recordingID].get(chunkID):
+        recordings[convoID][recordingID][chunkID] = {}
+
+    recordings[convoID][recordingID][chunkID].update({
+        'base64_data': chunk,
+    })
+    return
+    
+
 async def handle_transcript_chunk(convoID, recordingID, chunkID, chunk):
     eZprint(f"trainscript chunk recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
     if not recordings.get(convoID):
         recordings[convoID] = {}
     if not recordings[convoID].get(recordingID):
         recordings[convoID][recordingID] = {}
-    
+    if not recordings[convoID][recordingID].get(chunkID):
+        recordings[convoID][recordingID][chunkID] = {}
+
     decoded_chunk = base64.b64decode(chunk)
     transcript_text = await handle_simple_transcript(decoded_chunk)
     eZprint(f"chunk {chunkID} text {transcript_text}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
-    recordings[convoID][recordingID][chunkID] = {
-        'base64_data': chunk,
+    if not recordings[convoID].get(recordingID):
+        return
+    recordings[convoID][recordingID][chunkID].update({
         'transcript_text': transcript_text
-    }
+    })
     return transcript_text
 
 async def handle_transcript_end(convoID, recordingID):
     if not recordings.get(convoID):
         return
-
-    base64_chunks = [chunk['base64_data'] for chunk in recordings[convoID][recordingID].values()]
+    base64_chunks = []
+    for chunk in recordings[convoID][recordingID].values():
+        if chunk.get('base64_data'):
+            base64_chunks.append(chunk['base64_data'])
     eZprint(f"handle end recording {recordingID} chunks {len(base64_chunks)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
     combined_data = merge_and_decode_base64_chunks(base64_chunks)
     del recordings[convoID][recordingID]
-    transcript_text = await handle_simple_transcript(combined_data)
+    transcript_text = await handle_simple_transcript(combined_data, recordingID)
     return transcript_text
 
 
@@ -210,17 +237,20 @@ def merge_and_decode_base64_chunks(chunks):
     combined_data = b"".join(decoded_chunks)
 
     # Step 3: Write the bytes into a wav file
-    with open('output-decode.webm', 'wb') as wav_file:
-        wav_file.write(combined_data)
+    # with open('output-decode.webm', 'wb') as wav_file:
+    #     wav_file.write(combined_data)
 
     return combined_data
 
-async def handle_simple_transcript(audio_bytes):
+async def handle_simple_transcript(audio_bytes, id = None):
     # Decode the base64 string to get the bytes
 
-    with open('output-handle.webm', 'wb') as wav_file:
+    # output_name = 'output-handle.webm'
+    # if id:
+    #     output_name = f'output-handle-{id}.webm'
+    # with open(output_name, 'wb') as wav_file:
 
-        wav_file.write(audio_bytes)
+    #     wav_file.write(audio_bytes)
 
     # Use a temporary file to write the webm data
     with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as tmp_webm_file:
@@ -253,12 +283,12 @@ async def handle_simple_transcript(audio_bytes):
         with open(tmp_wav_filename, 'rb') as audio_file:
             response = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: openai.Audio.transcribe('whisper-1', audio_file)
+                lambda: client.audio.transcriptions.create(model='whisper-1', file=audio_file)
             )
             os.unlink(tmp_wav_filename)  # Delete the temporary WAV file
 
         # Extract the transcript text from the response
-        transcription = response.get('text', '')
+        transcription = response.text
         # eZprint(f"chunk {chunkID} text {transcription}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
 
 

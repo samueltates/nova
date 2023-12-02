@@ -3,21 +3,28 @@ import json
 import asyncio
 import re
 import secrets
-import openai
 from copy import deepcopy
+from pydantic import BaseModel  
+import openai
 
-from session.appHandler import websocket
+from session.appHandler import websocket, openai_client
 from session.sessionHandler import novaConvo, novaSession, chatlog, system_threads
 from session.tokens import handle_token_use, check_tokens
 from session.prismaHandler import prisma
 # from core.cartridges import updateContentField
 from core.loadout import update_loadout_field
 from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
-from chat.query import sendChat
+from chat.query import sendChat, text_to_speech
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
 from tools.commands import handle_commands
 from tools.jsonfixes import correct_json
 
+
+
+class Object:
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, 
+            sort_keys=True, indent=4)
 
 async def agent_initiate_convo(sessionID, convoID, loadout):
     """
@@ -110,6 +117,9 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
+    voice = True
+    if 'voice' in novaSession[sessionID]:
+        voice = novaSession[sessionID]['voice']
     
     if novaConvo[convoID].get('command'):
         json_return = novaConvo[convoID]['command']
@@ -123,7 +133,12 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         chatlog[convoID] = []
 
     order = await getNextOrder(convoID)
-    
+    function_call_json = None
+    if function_call:
+        #  check if type of Function  object
+        # if isinstance(function_call, openai.api_resources.function.Function):
+        function_call_json = function_call.json()
+
     messageObject = {
         "key": key,
         "convoID": convoID,
@@ -131,7 +146,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         "userID": str(userID),
         "content": content,
         "function_name" : function_name,
-        "function_call":function_call,
+        "function_call":function_call_json,
         "role": role,
         "timestamp": str(datetime.now()),
         "order": order,
@@ -198,6 +213,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     if role == 'assistant' :
         # print('role not user')
         ## if its expecting JSON return it'll parse, otherwise keep it normal
+
         if json_return:
             ## handles when expecting a JSON response, specifically for AUTOGPT commands
             ## thinking it should just send as content, or parse outside of this? 
@@ -215,6 +231,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
         else:
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+        
+        if voice:
+            await text_to_speech(content)
+            
 
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
@@ -240,7 +260,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         asyncio.create_task(command_interface(function_call, convoID, thread))
 
 async def logMessage(messageObject):
-    print('logging message')
+    # print('logging message')
 
     log = await prisma.log.find_first(
         where={'SessionID': messageObject['convoID']}
@@ -318,12 +338,18 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         eZprint_anything(functions, ['CHAT', 'SEND_TO_GPT', 'FUNCTIONS'], line_break = True)
         response = await sendChat(promptObject, model, functions)
         eZprint_anything(response, ['CHAT', 'SEND_TO_GPT', 'RESPONSE'], line_break = True)
-
-        content = response["choices"][0]["message"]["content"]
-        if response["choices"][0]["message"].get('function_call'):
-            function_call = response["choices"][0]["message"]["function_call"]
-        completion_tokens = response["usage"]['completion_tokens']
-        prompt_tokens = response["usage"]['prompt_tokens']
+        # print(response)
+        # content = response['choices'][0]['message']['content']
+        content = response.choices[0].message.content
+        eZprint(str(content), ['CHAT', 'SEND_TO_GPT', 'CONTENT'])
+        
+        if response.choices[0].message.function_call:
+            function_call = response.choices[0].message.function_call
+            # handle no subscriptable function_call
+            # print('function call found') parse objet
+            function_call
+        completion_tokens = response.usage.completion_tokens
+        prompt_tokens = response.usage.prompt_tokens
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
 
     except Exception as e:
@@ -499,32 +525,32 @@ async def return_to_GPT(convoID, thread = 0):
         if 'user-interupt' in novaConvo[convoID]:
             novaConvo[convoID]['user-interupt'] = False
         
-async def get_thread_summary(convoID, thread ):
-    await construct_query(convoID, thread)
-    to_summarise = ''
-    content = ''
-    if thread in system_threads[convoID]:
-        for obj in system_threads[convoID][thread]:
-            to_summarise += obj['role'] +": " + obj['body'] + '\n'
+# async def get_thread_summary(convoID, thread ):
+#     await construct_query(convoID, thread)
+#     to_summarise = ''
+#     content = ''
+#     if thread in system_threads[convoID]:
+#         for obj in system_threads[convoID][thread]:
+#             to_summarise += obj['role'] +": " + obj['body'] + '\n'
 
-            query_object = [{"role": "user", "content": to_summarise}]
-            query_object.append({"role": "user", "content": "Return concise summary of above contents."})
-        try:
+#             query_object = [{"role": "user", "content": to_summarise}]
+#             query_object.append({"role": "user", "content": "Return concise summary of above contents."})
+#         try:
 
-            response = await sendChat(query_object, "gpt-3.5-turbo")
-            content = str(response["choices"][0]["message"]["content"])
+#             response = await sendChat(query_object, "gpt-3.5-turbo")
+#             content = str(response["choices"][0]["message"]["content"])
 
-        except Exception as e:
-            print(e)
-            print('trying again')
-            try: 
-                response = await sendChat(query_object, "gpt-3.5-turbo")
-                content = str(response["choices"][0]["message"]["content"])
+#         except Exception as e:
+#             print(e)
+#             print('trying again')
+#             try: 
+#                 response = await sendChat(query_object, "gpt-3.5-turbo")
+#                 content = str(response["choices"][0]["message"]["content"])
 
-            except Exception as e:
-                print(e)
-                content = e
-    return content
+#             except Exception as e:
+#                 print(e)
+#                 content = e
+#     return content
 
 
 simple_agent_counter = {}
@@ -600,14 +626,6 @@ async def simple_agent_response(convoID):
             query_object = current_prompt[convoID]['prompt'] + current_prompt[convoID]['chat']
             await send_to_GPT(convoID, query_object)
 
-
-async def sendChat(promptObj, model, functions = None):
-    loop = asyncio.get_event_loop()
-    if functions:
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
-    else:
-        response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))
-    return response
 
 
 async def getNextOrder(convoID):

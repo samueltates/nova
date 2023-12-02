@@ -10,7 +10,7 @@ from file_handling.s3 import write_file
 from file_handling.transcribe import transcribe_file
 from tools.debug import eZprint
 
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
 
 file_chunks = {}
 

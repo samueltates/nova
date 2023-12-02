@@ -209,6 +209,7 @@ async def construct_chat(convoID, thread = 0):
                             function_json = json.loads(log['function_call'], strict=False)
                         except:
                             function_json = log['function_call']
+                        
                         object.update({'function_call': function_json })
                         #     print('function call error')
                         #     print(log['function_call'])

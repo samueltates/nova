@@ -37,36 +37,38 @@ async def get_loadout_logs(loadout, sessionID ):
         # print(logs)
     else:
         eZprint('not shared or owner or no loadout', ['CONVO', 'INITIALISE'])
-        logs = await prisma.log.find_many(
-                where={ "UserID": userID, 
-                    "SessionID": {'contains':str(loadout)} },
-                )
+        if userID:
+            logs = await prisma.log.find_many(
+                    where={ "UserID": userID, 
+                        "SessionID": {'contains':str(loadout)} },
+                    )
         # print (logs)
             
     # print(logs)
-    for log in logs:
-        splitID = log.SessionID.split('-')
-    
-        if len(splitID) >=2:
-        #    
-            session ={
-                'id': log.id,
-                'sessionID' : log.SessionID,
-                'convoID' : splitID[1],
-                'date' : log.date,
-                'summary':log.summary,
-            }
-            available_convos[sessionID].append(session)
-        else:
-            session ={
-                'id': log.id,
-                'sessionID' : log.SessionID,
-                'convoID' : splitID,
-                'date' : log.date,
-                'summary': log.summary,
-            }
-            available_convos[sessionID].append(session)
-            # convos.append(splitID)
+    if logs:
+        for log in logs:
+            splitID = log.SessionID.split('-')
+        
+            if len(splitID) >=2:
+            #    
+                session ={
+                    'id': log.id,
+                    'sessionID' : log.SessionID,
+                    'convoID' : splitID[1],
+                    'date' : log.date,
+                    'summary':log.summary,
+                }
+                available_convos[sessionID].append(session)
+            else:
+                session ={
+                    'id': log.id,
+                    'sessionID' : log.SessionID,
+                    'convoID' : splitID,
+                    'date' : log.date,
+                    'summary': log.summary,
+                }
+                available_convos[sessionID].append(session)
+                # convos.append(splitID)
 
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
     asyncio.create_task( populate_summaries(sessionID))
