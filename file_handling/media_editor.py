@@ -28,6 +28,7 @@ from tools.debug import eZprint, eZprint_anything
 
 
 async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout):
+    # return
     DEBUG_KEYS = ['OVERLAY']
     eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
     main_video_key = main_video_cartridge['aws_key']
