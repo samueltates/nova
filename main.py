@@ -211,9 +211,10 @@ async def paymentSuccessClient():
 
     sessionID = payment_requests[checkout_session]['sessionID']
     return_url = request.args.get('return_url')
+    file_to_download = request.args.get('file_to_download')
     payment_request['status'] = 'success'
     app.session.modified = True
-    return redirect(return_url)
+    return redirect(return_url+'?file_to_download='+file_to_download)
 
 @app.websocket('/ws')
 async def ws():
@@ -276,9 +277,10 @@ async def process_message(parsed_data):
         payment_type = parsed_data['payment_type']
         eZprint_anything(parsed_data, ['PAYMENT'])
         payment_ID = parsed_data['payment_ID']
+        file_to_download = parsed_data['file_to_download']
         if payment_type == 'subscription':
             checkout_session = stripe.checkout.Session.create(
-                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url,
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url+'&file_to_download='+file_to_download,
                 # cancel_url=domain_url + '/canceled.html',
                 mode='subscription',
                 # automatic_tax={'enabled': True},
@@ -290,7 +292,7 @@ async def process_message(parsed_data):
 
         else:
             checkout_session = stripe.checkout.Session.create(
-                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url,
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url+'&file_to_download='+file_to_download,
                 # cancel_url=domain_url + '/canceled.html',
                 mode='payment',
                 # automatic_tax={'enabled': True},
@@ -299,6 +301,10 @@ async def process_message(parsed_data):
                     'quantity': 1,
                 }]
             )
+        sessionID = parsed_data['sessionID']
+        userID = novaSession[sessionID]['userID']
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
+        
         await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
         while payment_requests[checkout_session.id]['status'] == 'pending':
             await asyncio.sleep(1)
