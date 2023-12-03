@@ -232,8 +232,8 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         else:
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
         
-        if voice:
-            await text_to_speech(content)
+        # if voice:
+        #     await text_to_speech(content)
             
 
         if len(simple_agents) > 0 and thread == 0:
