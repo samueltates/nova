@@ -1,1 +1,1 @@
-__version__ = '0.5.7-patch'
+__version__ = '0.5.8-easia'
