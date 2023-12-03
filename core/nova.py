@@ -21,7 +21,7 @@ from file_handling.s3 import get_signed_urls
 from tools.debug import fakeResponse, eZprint
 
 agentName = "nova"
-openai.api_key = os.getenv('OPENAI_API_KEY', default=None)
+
 
  
 ##CARTRIDGE MANAGEMENT

@@ -1,5 +1,7 @@
 
-import openai
+from openai import OpenAI
+
+client = OpenAI()
 import os
 import tempfile
 import asyncio
@@ -150,7 +152,7 @@ async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
             chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
             #write to local as audio file
             loop = asyncio.get_event_loop()
-            transcript =  await loop.run_in_executor(None, lambda: openai.Audio.transcribe('whisper-1', chunk_file))
+            transcript =  await loop.run_in_executor(None, lambda: client.audio.transcribe('whisper-1', chunk_file))
             start = await convert_ms_to_hh_mm_ss(chunk_start)
             end = await convert_ms_to_hh_mm_ss(chunk_end)
             transcription = {
@@ -206,6 +208,8 @@ async def handle_transcript_chunk(convoID, recordingID, chunkID, chunk):
     decoded_chunk = base64.b64decode(chunk)
     transcript_text = await handle_simple_transcript(decoded_chunk)
     eZprint(f"chunk {chunkID} text {transcript_text}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+    if not recordings[convoID].get(recordingID):
+        return
     recordings[convoID][recordingID][chunkID].update({
         'transcript_text': transcript_text
     })
@@ -279,12 +283,12 @@ async def handle_simple_transcript(audio_bytes, id = None):
         with open(tmp_wav_filename, 'rb') as audio_file:
             response = await asyncio.get_event_loop().run_in_executor(
                 None, 
-                lambda: openai.Audio.transcribe('whisper-1', audio_file)
+                lambda: client.audio.transcriptions.create(model='whisper-1', file=audio_file)
             )
             os.unlink(tmp_wav_filename)  # Delete the temporary WAV file
 
         # Extract the transcript text from the response
-        transcription = response.get('text', '')
+        transcription = response.text
         # eZprint(f"chunk {chunkID} text {transcription}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
 
 

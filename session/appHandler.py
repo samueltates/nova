@@ -1,6 +1,9 @@
 import os
 from quart import Quart, render_template, websocket, request, jsonify
 from quart_cors import cors
+from openai import OpenAI
+
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', default=None))
 
 app = Quart(__name__)
 app.session = None

@@ -4,7 +4,9 @@ from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
 import tempfile
 # from file_handling.s3 import write_file, read_file
-import openai
+from openai import OpenAI
+
+client = OpenAI()
 import os
 import requests
 import cv2
@@ -60,11 +62,9 @@ async def  split_video(edit_plan, video_file):
             cut_at = datetime.strptime(cut_at, '%H:%M:%S.%f')
             
             # clip_size = clip1.size
-            response = openai.Image.create(
-            prompt=seq['b_roll'],
+            response = client.images.generate(prompt=seq['b_roll'],
             n=1,
-            size='1024x1024'
-            )
+            size='1024x1024')
             image_url = response['data'][0]['url']
             print(f'Image URL: {image_url}')
             response = requests.get(image_url)

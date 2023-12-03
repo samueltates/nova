@@ -26,7 +26,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if len(splitID) > 1:
         loadout = splitID[2]
 
-    # print(command_object)
+    print(command_object)
     if command_object:
         name = ''
         args = ''
@@ -35,13 +35,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             name = str(command_object['name'])
 
         else:
-            for key, val in command_object.items():
-                name = str(key)
 
-        if command_object.get('args'):
-            args = command_object['args']
-        if command_object.get('arguments'):
-            args = json.loads(command_object['arguments'], strict=False)
+            name = command_object.name
+            args = json.loads(command_object.arguments, strict=False)
+
+        if isinstance(command_object, dict): 
+            if command_object.get('args'):
+                args = command_object['args']
+            if command_object.get('arguments'):
+                args = json.loads(command_object['arguments'], strict=False)
 
     eZprint('parsing command')
     if convoID not in command_state:

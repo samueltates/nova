@@ -22,16 +22,10 @@ from tools.UnstructuredURLLoader import UnstructuredURLLoader
 
 from llama_index import (
     Document,
-    # GPTSimpleVectorIndex, 
-    GPTListIndex,
-    StringIterableReader,
-    download_loader,
-    SimpleDirectoryReader,
     LLMPredictor,
-    PromptHelper,
     StorageContext, load_index_from_storage,
     ServiceContext,
-    GPTVectorStoreIndex,
+    VectorStoreIndex,
     
 )
 from llama_index.node_parser import SimpleNodeParser
@@ -90,7 +84,7 @@ async def indexDocument(payload, client_loadout):
         file_type = payload['file_type']
         eZprint('reconstructing file')
         payload = { 'key':tempKey,'fields': {'status': 'file recieved, indexing'}}
-        await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))
+        await websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload, 'convoID':convoID}))
         # print(file_type)
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="."+file_type.split('/')[1])
         temp_file.write(file_content)
@@ -112,16 +106,17 @@ async def indexDocument(payload, client_loadout):
 
     index = None
 # if(indexType == 'Vector'):
-    index = GPTVectorStoreIndex.from_documents(document)
+    index = VectorStoreIndex.from_documents(document)
     eZprint('vector index created')
     # if(indexType == 'List'):
     #     index = GPTListIndex.from_documents(document)
     #     eZprint('list index created')
 
     # tmpfile = tempfile.NamedTemporaryFile(mode='w',delete=False, suffix=".json")
+    index.set_index_id(tempKey)
     tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
     index.storage_context.persist(tmpDir)
-    # print(tmpDir)
+    print(tmpDir)
     indexJson = dict()
     for file in os.listdir(tmpDir):
         if file.endswith(".json"):
@@ -132,12 +127,12 @@ async def indexDocument(payload, client_loadout):
 
     key = generate_id()
     index_store = None
-    vector_store = None
+    default__vector_store = None
     docstore = None
     if 'index_store.json' in indexJson:
         index_store = indexJson['index_store.json']
-    if 'vector_store.json' in indexJson:
-        vector_store = indexJson['vector_store.json']
+    if 'default__vector_store.json' in indexJson:
+        default__vector_store = indexJson['default__vector_store.json']
     if 'docstore.json' in indexJson:
         docstore = indexJson['docstore.json']    
 
@@ -155,41 +150,37 @@ async def indexDocument(payload, client_loadout):
                 'UserID' : userID,
                 'docstore': Json(docstore),
                 'index_store': Json(index_store),
-                'vector_store': Json(vector_store),
+                'vector_store': Json(default__vector_store),
                 'blob': Json(index_blob),
         }
     )
-
   
-    cartVal = {
-        'label' : documentTitle,
-        'type': 'index',
-        'description': 'a document indexed to be queriable by NOVA',
-        'enabled': True,
-        'blocks': {},
-        'index': key,
-        'status': 'index created, getting summary',
-        'position' : 99
-    }
 
     input = {
     'sessionID': sessionID,
-    'tempKey': tempKey,
-    'newCart': {tempKey:cartVal}
+    'cartKey': tempKey,
+    'fields': {
+        'label' : documentTitle,
+        'index': key,
+        'blocks': {},
+        'status': 'index created, getting summary',
+
     }
-    newCart = await addCartridgePrompt(input, convoID, client_loadout)
+    }
+
+    await update_cartridge_field(input, convoID, client_loadout, system=True)
     
-    return newCart
+    return tempKey
 
 async def QuickUrlQuery(url, query):
     print('quick url query')
     loader = UnstructuredURLLoader([url])
     document = loader.load()
-    index = GPTVectorStoreIndex.from_documents(document)
+    index = VectorStoreIndex.from_documents(document)
     response = await queryIndex(query, index)
     return response
 
-async def reconstructIndex(indexJson):
+async def reconstructIndex(indexJson, cartKey):
     tmpDir = tempfile.mkdtemp()
     # print(index)
     # nova.eZprint("reconstructIndex: tmpDir={}".format(tmpDir))
@@ -198,8 +189,16 @@ async def reconstructIndex(indexJson):
     service_context = ServiceContext.from_defaults(llama_logger=llama_logger)
     # service_context.set_global_service_context(service_context)
     # print(indexJson)
+    docstore = None
+    index_store = None
+    vector_store = None
     for key, val in indexJson.items():
-        if key == 'index_store' or key == 'vector_store' or key == 'docstore':
+        # if key == 'index_store': 
+        #     index_store = val
+        # if key == 'vector_store':
+        #     vector_store = val
+        # if key == 'docstore':
+        #     docstore = val
             # print(os.path.join(tmpDir, key))
             # eZprint("reconstructIndex: key={}".format(key))
             # print(val)
@@ -210,12 +209,14 @@ async def reconstructIndex(indexJson):
             try:
                 with open(os.path.join(tmpDir, key + '.json'), "w") as f:
                     json.dump(val, f)
+                    # eZprint("reconstructIndex: wrote file {}".format(os.path.join(tmpDir, key + '.json')))
             except Exception as e:
                 print(f"Error writing file: {str(e)}")
 
-    storage_context = StorageContext.from_defaults(persist_dir=tmpDir, )
-    storage_context.persist(tmpDir)
+    # eZprint("reconstructIndex: docstore={}".format(docstore), ['INDEX'])
+    storage_context = StorageContext.from_defaults(persist_dir=tmpDir)
     eZprint("reconstructIndex: storage_context={}".format(storage_context))
+    eZprint("cartkey: {}".format(cartKey))
     index = load_index_from_storage(storage_context)
    
 
@@ -239,7 +240,7 @@ async def quick_query(text, query):
     temp_file.seek(0)
     unstructured_reader = UnstructuredReader()
     document = unstructured_reader.load_data(temp_file.name)
-    index = GPTVectorStoreIndex.from_documents(document)
+    index = VectorStoreIndex.from_documents(document)
     response = await queryIndex(query, index)
     return response
 
@@ -249,7 +250,7 @@ def quicker_query(text, query, meta = '' ):
     document = Document(text, extra_info=meta)
     logger = LlamaLogger()
     logger.set_log_level(logging.DEBUG)
-    index = GPTVectorStoreIndex.from_documents([document])
+    index = VectorStoreIndex.from_documents([document])
     nodes = index.docstore.get_nodes()
     # print(nodes)
     query_engine = index.as_query_engine()
@@ -262,7 +263,7 @@ def quicker_query(text, query, meta = '' ):
 async def handle_nova_query(cartKey, cartVal, sessionID, query, convoID, loadout = None):
     index_key = cartVal['index']
     indexJson = await get_index_json(index_key)
-    index = await reconstructIndex(indexJson)
+    index = await reconstructIndex(indexJson, cartKey)
     insert = await queryIndex(query, index)
     if insert:
         cartVal['blocks'].append(insert)
@@ -331,7 +332,7 @@ async def triggerQueryIndex(sessionID, cartKey, cartVal, query, indexJson, index
         'loadout' : loadout
     }
     await update_cartridge_field(input, convoID,  loadout, system=True)
-    localIndex = await reconstructIndex(indexJson)
+    localIndex = await reconstructIndex(indexJson, cartKey)
     insert = await queryIndex(query, localIndex)
 
     indexJson = dict()  

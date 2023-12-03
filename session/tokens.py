@@ -55,6 +55,8 @@ async def check_tokens(userID):
 
 async def update_coin_count(userID, coins_used):
     # print('update coin count called')
+    if not userID:
+        return
     user = await prisma.user.find_first(
         where={
             'UserID': userID
