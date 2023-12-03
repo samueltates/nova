@@ -42,7 +42,7 @@ async def text_to_speech(input_text):
 
 async def get_audio(input_text, line_index):
 
-    if input_text == None:
+    if input_text == None or input_text == '':
         return
 
     response = openai_client.audio.speech.create(

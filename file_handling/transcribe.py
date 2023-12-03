@@ -145,31 +145,38 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
     await update_cartridge_field(payload,convoID, loadout, True)
     return transcript_text
 
-async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID = 0):
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
-            chunk.export(chunk_file.name, format='mp3')
-            eZprint(f'Saved to:{chunk_file.name} with start of {chunk_start} and length of {chunk_end, }', ['TRANSCRIBE_CHUNK']) # Confirm file path
-            chunk_file.seek(0)  # Rewind the file pointer to the beginning of the file
-            #write to local as audio file
-            loop = asyncio.get_event_loop()
-            transcript =  await loop.run_in_executor(None, lambda: client.audio.transcribe('whisper-1', chunk_file))
-            start = await convert_ms_to_hh_mm_ss(chunk_start)
-            end = await convert_ms_to_hh_mm_ss(chunk_end)
-            transcription = {
-                'chunkID': chunkID,
-                'start': start,
-                'end': end,
-                'text': transcript['text']
-            }
-            eZprint(f"chunk {chunkID} start {start} end {end} text {transcript['text']}", ['FILE_HANDLING', 'TRANSCRIBE', 'DEBUG_TRANSCRIBE_CHUNK'])
-            # write each audio chunk to temp folder as mp3 for analysis using time and transcript as title
-            if os.getenv('DEBUG_TRANSCRIBE_CHUNK') == 'True':
-                temp_chunk = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False, prefix=f'{chunkID}_{start}_{end}_{transcript["text"]}')
-                chunk.export(temp_chunk.name, format='mp3')
-                temp_chunk.close()
+async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID=0):
+    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
+        chunk.export(chunk_file.name, format='mp3')
+        eZprint(f'Saved to:{chunk_file.name} with start of {chunk_start} and length of {chunk_end}', ['TRANSCRIBE_CHUNK'])  # Confirm file path
 
-            os.remove(chunk_file.name)
-            return transcription
+        # As the file is already created and written to disk, just use the file name.
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, 
+            lambda: client.audio.transcriptions.create(model='whisper-1', file=open(chunk_file.name, 'rb'))
+        )
+        # Make sure to close the file pointer inside the lambda function once done.
+
+    os.unlink(chunk_file.name)  # Delete the temp file. Make sure this is outside of 'with' block and use the file name
+
+    start = await convert_ms_to_hh_mm_ss(chunk_start)
+    end = await convert_ms_to_hh_mm_ss(chunk_end)
+    if response:
+        transcription = {
+            'chunkID': chunkID,
+            'start': start,
+            'end': end,
+            'text': response.text
+        }
+        eZprint(f"chunk {chunkID} start {start} end {end} text {response.text}", ['FILE_HANDLING', 'TRANSCRIBE', 'DEBUG_TRANSCRIBE_CHUNK'])
+        # write each audio chunk to temp folder as mp3 for analysis using time and transcript as title
+        if os.getenv('DEBUG_TRANSCRIBE_CHUNK') == 'True':
+            temp_chunk = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False, prefix=f'{chunkID}_{start}_{end}_{response.text}')
+            chunk.export(temp_chunk.name, format='mp3')
+            temp_chunk.close()
+
+        # os.remove(chunk_file.name)
+        return transcription
 
 
 async def convert_ms_to_hh_mm_ss(ms):

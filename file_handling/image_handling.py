@@ -21,7 +21,7 @@ async def generate_temp_image(prompt):
         eZprint(f'Error generating image: {e}', DEBUG_KEYS)
         return None
     
-    image_url = response['data'][0]['url']
+    image_url = response.data[0].url
     response = requests.get(image_url)
     eZprint(f'Image URL: {image_url}', DEBUG_KEYS)
     processed_media = tempfile.NamedTemporaryFile(suffix=".png", delete=False)

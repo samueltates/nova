@@ -22,6 +22,7 @@ from core.cartridges import retrieve_loadout_cartridges, addCartridge, update_ca
 from tools.gptindex import indexDocument, handleIndexQuery
 from session.googleAuth import logout, check_credentials,requestPermissions
 from session.prismaHandler import prismaConnect, prismaDisconnect
+from session.user import setTextToVoice, getTextToVoice
 from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
@@ -202,6 +203,18 @@ async def paymentSuccess():
     app.session.modified = True
     return redirect(os.environ.get('NOVAHOME'))
 
+@app.route('/paymentSuccessClient', methods=['GET'])
+async def paymentSuccessClient():
+    eZprint('paymentSuccessClient route hit', ['PAYMENT'])
+    checkout_session = request.args.get('session_id')
+    payment_request = payment_requests[request.args.get('session_id')]
+
+    sessionID = payment_requests[checkout_session]['sessionID']
+    return_url = request.args.get('return_url')
+    file_to_download = request.args.get('file_to_download')
+    payment_request['status'] = 'success'
+    app.session.modified = True
+    return redirect(return_url+'?file_to_download='+file_to_download)
 
 @app.websocket('/ws')
 async def ws():
@@ -258,6 +271,46 @@ async def process_message(parsed_data):
         }
         await websocket.send(json.dumps({'event':'credentialState', 'payload': credentialState}))
 
+    if(parsed_data['type'] == 'create_checkout_client'):
+        domain_url = os.getenv('NOVA_SERVER')
+        return_url = parsed_data['return_url']
+        payment_type = parsed_data['payment_type']
+        eZprint_anything(parsed_data, ['PAYMENT'])
+        payment_ID = parsed_data['payment_ID']
+        file_to_download = parsed_data['file_to_download']
+        if payment_type == 'subscription':
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url+'&file_to_download='+file_to_download,
+                # cancel_url=domain_url + '/canceled.html',
+                mode='subscription',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': os.getenv('NC_SUB'+str(parsed_data['amount'])),
+                    'quantity': 1,
+                }]
+            ) 
+
+        else:
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + '/paymentSuccessClient?session_id={CHECKOUT_SESSION_ID}&return_url='+return_url+'&file_to_download='+file_to_download,
+                # cancel_url=domain_url + '/canceled.html',
+                mode='payment',
+                # automatic_tax={'enabled': True},
+                line_items=[{
+                    'price': payment_ID,
+                    'quantity': 1,
+                }]
+            )
+        sessionID = parsed_data['sessionID']
+        userID = novaSession[sessionID]['userID']
+        payment_requests[checkout_session.id] = {'status': 'pending', 'userID': userID, 'sessionID': sessionID}
+        
+        await websocket.send(json.dumps({'event':'checkout_url', 'payload': checkout_session.url}))
+        while payment_requests[checkout_session.id]['status'] == 'pending':
+            await asyncio.sleep(1)
+        await websocket.send(json.dumps({'event':'checkout_success', 'payload': True}))
+
+            
     if(parsed_data['type']=='createCheckoutSession'):
         domain_url = os.getenv('NOVA_SERVER')
         amount = parsed_data['amount']
@@ -275,7 +328,6 @@ async def process_message(parsed_data):
                 }]
             )
         else:
-                
             checkout_session = stripe.checkout.Session.create(
                 success_url=domain_url + '/paymentSuccess?session_id={CHECKOUT_SESSION_ID}',
                 # cancel_url=domain_url + '/canceled.html',
@@ -709,7 +761,15 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         updated_transcript = await handle_transcript_end(convoID, recordingID)
         await websocket.send(json.dumps({'event':'transcript_end', 'convoID': convoID, 'recordingID': recordingID, 'updated_transcript' : updated_transcript}))
-
+    if (parsed_data['type']=='set_text_to_voice'):
+        ttv = parsed_data['data']['ttv']
+        userID = parsed_data['data']['userID']
+        await setTextToVoice(userID, ttv)
+    if (parsed_data['type']=='get_text_to_voice'):
+        userID = parsed_data['data']['userID']
+        ttv = await getTextToVoice(userID)
+        await websocket.send(json.dumps({'event':'get_user_ttv', 'payload': ttv}))
+        # await websocket.send(json.dumps({'event':'set_text_to_voice', 'convoID': convoID, 'text': text}))
 
 
 file_chunks = {}
