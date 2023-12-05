@@ -82,10 +82,10 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             if layout == 'horizontal':
                 # Resize image based on orientation of clip
                 resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
-                clip_width = clip_dimensions[1]
+                clip_widest = clip_dimensions[1]
             else:
                 resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
-                clip_width = clip_dimensions[0]
+                clip_widest = clip_dimensions[0]
 
             # print('Resized image size:', resized_image.shape)
             # print('Resized image size:', resized_image.shape)
@@ -128,7 +128,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
 
 
-            scale_modifier = clip_width / 1920
+            scale_modifier = clip_widest / 1920
             pixels_per_second = 90 * scale_modifier
             eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
             directions = ['left', 'right']
@@ -136,7 +136,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             direction = random.choice(directions)   
 
 
-            scale_modifier = clip_width / 1920
+            scale_modifier = clip_widest / 1920
             pixels_per_second = 75 * scale_modifier
             eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
             directions = ['left', 'right']
