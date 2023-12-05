@@ -82,6 +82,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             if layout == 'horizontal':
                 # Resize image based on orientation of clip
                 resized_image = cv2.resize(image, (clip_dimensions[1], clip_dimensions[1]*image.shape[0]//image.shape[1]))
+                clip_width = clip_dimensions[1]
             else:
                 resized_image = cv2.resize(image, (clip_dimensions[0]*image.shape[1]//image.shape[0], clip_dimensions[0]))
                 clip_width = clip_dimensions[0]
