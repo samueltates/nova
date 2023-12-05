@@ -333,7 +333,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
    
     compositeClip = CompositeVideoClip(composites, size=clip.size)
     compositeClip.audio = clip.audio
-    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
+    file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     write_loop = asyncio.get_event_loop()
     await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac'))
     # compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
@@ -381,7 +381,7 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
     
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(video_file)
-    processed_file.close()
+    # processed_file.close()
     composites = []
     clip = VideoFileClip(processed_file.name)
     rotated = await is_rotated(processed_file.name)
@@ -548,8 +548,8 @@ async def overlay_video(main_video_cartridge, media_to_overlay, text_to_overlay,
     
 
     eZprint(f'file {name} written to {url}', ['OVERLAY'])
-    file_to_send.close()
-    compositeClip.close()
+    # file_to_send.close()
+    # compositeClip.close()
     return name
 
 async def split_video(edit_plan, video_file):
@@ -667,7 +667,7 @@ async def split_video(edit_plan, video_file):
     # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
 
-    file_to_send.close()
+    # file_to_send.close()
 
     # return final_clip   
 
