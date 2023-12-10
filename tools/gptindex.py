@@ -175,7 +175,7 @@ async def indexDocument(payload, client_loadout):
 async def QuickUrlQuery(url, query):
     print('quick url query')
     loader = UnstructuredURLLoader([url])
-    document = loader.load()
+    document = loader.load_data()
     index = VectorStoreIndex.from_documents(document)
     response = await queryIndex(query, index)
     return response

@@ -50,12 +50,38 @@ async def get_loadouts(sessionID):
                 continue
             if val.get('config', {}).get('dropped', False):
                 continue
+            val['config']['owned'] = True
             if key == loadout.key:
                 available_loadouts[sessionID][key] = val
+        
 
     user_details = await prisma.user.find_first(
         where={ "UserID": userID },
     )
+
+    other_loadouts = []
+    if user_details:
+        blob = json.loads(user_details.json())['blob']
+        if 'pinned_loadouts' in blob:
+            other_loadouts = blob['pinned_loadouts']
+
+
+    for loadout in other_loadouts:
+        loadout_record = await prisma.loadout.find_first(
+            where={ "key": str(loadout) },
+        )
+        blob = json.loads(loadout_record.json())['blob']
+        for key, val in blob.items():
+            if val.get('config', {}) == {}:
+                continue
+            if val.get('config', {}).get('dropped', False):
+                continue
+            val['config']['notPinned'] = False
+            if key == loadout:
+                available_loadouts[sessionID][key] = val
+
+            
+
     # if not loadout: 
         # await loadCartridges(sessionID, convoID)
     novaSession[sessionID]['owner'] = True
@@ -99,6 +125,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 
     config = {}
 
+    notPinned = True
+    owner = False
     # if value is present unpacks it, figures out if its the owner which changes the behaviours
     if remote_loadout :
         
@@ -109,6 +137,8 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 
             if remote_loadout.UserID == novaSession[sessionID]['userID']:
                 novaSession[sessionID]['owner'] = True
+                owner = True
+                notPinned = False
 
             
             user_details = await prisma.user.find_first(
@@ -118,6 +148,10 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
             if user_details:
                 user_blob = json.loads(user_details.json())['blob']
                 user_blob['latest_loadout'] = loadout_key
+                if 'pinned_loadouts' in user_blob:
+                    if loadout_key in user_blob['pinned_loadouts']:
+                        notPinned = False
+
                 update_user = await prisma.user.update(
                     where = {
                         'id' : user_details.id
@@ -139,22 +173,28 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         # print(active_loadouts)
         eZprint_anything(blob, ['LOADOUT', 'INITIALISE'], message='loadout pulled down')
         eZprint_anything(active_loadouts, ['LOADOUT', 'INITIALISE'], message= 'loadouts in memory')
-
+        loadout_values = {}
         for key, val in blob.items():
             # if loadout_key not in active_loadouts:
             active_loadouts[loadout_key] = val
+            loadout_values = val
             # loadout_cartridges = val['cartridges']
             config = val['config']
+            if notPinned:
+                config['notPinned'] = notPinned # sets this temporarily, its more a cosequence of whether its on the 'other loadouts' list - need a different way to verfiy
+            if owner:
+                config['owned'] = owner
 
+        await websocket.send(json.dumps({'event': 'add_loadout', 'payload': {loadout_key:loadout_values}}))
     # sets the config to current - shiould just be 'configs[loadoutid]'
-
-    if sessionID not in current_config:
-        current_config[sessionID] = {}
-    current_config[sessionID] = config
-    eZprint_anything(config, ['LOADOUT', 'INITIALISE'])
-    # sends config over to front end for that loadout 
-    # TODO : Switch to front end side dict of [loadouts][config] so can handle multiple + switching
-    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': novaSession[sessionID]['owner']}}))
+        # TODO : make it so no weird stored versions of these things on server
+        if sessionID not in current_config:
+            current_config[sessionID] = {}
+        current_config[sessionID] = config
+        eZprint_anything(config, ['LOADOUT', 'INITIALISE'])
+        # sends config over to front end for that loadout 
+        # TODO : Switch to front end side dict of [loadouts][config] so can handle multiple + switching
+        await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': owner}}))
     
 async def add_loadout(loadout: str, convoID):
     
@@ -178,6 +218,8 @@ async def add_loadout(loadout: str, convoID):
             "blob":Json({loadout:loadout_values})
         }
     )
+
+    await websocket.send(json.dumps({'event': 'add_loadout', 'payload': loadout_values}))
 
   
 async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
@@ -367,15 +409,62 @@ async def clear_loadout(sessionID, convoID):
 
 #     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
         
-async def drop_loadout(loadout_key: str, sessionID):
+async def drop_loadout(loadout_key: str, sessionID, userID):
     DEBUG_KEYS = ['LOADOUT', 'DROP_LOADOUT']
+
+    user_details = await prisma.user.find_first(
+        where={ "UserID": userID },
+    )
+
+    blob = json.loads(user_details.json())['blob']
+    if 'pinned_loadouts' in blob:
+        if loadout_key in blob['pinned_loadouts']:
+            blob['pinned_loadouts'].remove(loadout_key)
+            update_user = await prisma.user.update(
+                where = {
+                    'id' : user_details.id
+                },
+                data = {
+                    'blob': Json(blob)
+                    }
+            )
+
+            # print(update_user)
+
+
     eZprint('drop_loadout', DEBUG_KEYS)
-    await update_loadout_field(loadout_key, 'dropped', True)
+    # await update_loadout_field(loadout_key, 'dropped', True)
+
     active_loadouts.pop(loadout_key, None)
     available_loadouts[sessionID].pop(loadout_key, None)
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
     
+async def add_loadout_to_profile(loadout_key: str, userID):
+    DEBUG_KEYS = ['LOADOUT', 'ADD_LOADOUT_TO_USER']
+    eZprint('add_loadout_to_user', DEBUG_KEYS)
+    # print(loadout_key)
+    # print(sessionID)
+    # print(novaSession[sessionID]['userID'])
+    user_details = await prisma.user.find_first(
+        where={ "UserID": userID },
+    )
 
+    blob = json.loads(user_details.json())['blob']
+    if 'pinned_loadouts' not in blob:
+        blob['pinned_loadouts'] = []
+    if loadout_key not in blob['pinned_loadouts']:
+        blob['pinned_loadouts'].append(loadout_key)
+    if user_details:
+        update_user = await prisma.user.update(
+            where = {
+                'id' : user_details.id
+            },
+            data = {
+                'blob': Json(blob)
+                }
+        )
+
+        # print(update_user)
 async def set_read_only(loadout_key, read_only):
     loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
