@@ -91,6 +91,7 @@ async def startsession():
         novaSession[sessionID]['userID'] = 'guest-'+sessionID    
         novaSession[sessionID]['new_login'] = True
         novaSession[sessionID]['subscribed'] = False
+        novaSession[sessionID]['TTV'] = False
 
         show_onboarding = True
 
@@ -110,6 +111,8 @@ async def startsession():
         novaSession[sessionID]['new_login'] = True
     if 'subscribed' not in novaSession[sessionID]:
         novaSession[sessionID]['subscribed'] = False
+    if 'TTV' not in novaSession[sessionID]:
+        novaSession[sessionID]['TTV'] = False
 
     if novaSession[sessionID]['profileAuthed']:
         if novaSession[sessionID]['new_login'] == True:

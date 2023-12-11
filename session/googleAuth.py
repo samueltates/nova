@@ -183,10 +183,12 @@ async def getDocService(sessionID):
 
 async def logout(sessionID):
     credentials = None
-    if 'credentials' in novaSession[sessionID]:
-        credentials = novaSession[sessionID]['credentials']     
-        print(credentials)
-    creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
+    creds_obj = None
+    if sessionID in novaSession:
+        if 'credentials' in novaSession[sessionID]:
+            credentials = novaSession[sessionID]['credentials']     
+            print(credentials)
+        creds_obj = Credentials.from_authorized_user_info(json.loads(credentials))
     if creds_obj:
         access_token = creds_obj.token
         if revoke_token(access_token):
