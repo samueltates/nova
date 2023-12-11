@@ -712,7 +712,20 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         updated_transcript = await handle_transcript_end(convoID, recordingID)
         await websocket.send(json.dumps({'event':'transcript_end', 'convoID': convoID, 'recordingID': recordingID, 'updated_transcript' : updated_transcript}))
+    if (parsed_data['type']=='set_text_to_voice'):
+        ttv = parsed_data['data']['ttv']
+        userID = parsed_data['data']['userID']
+        sessionID = parsed_data['data']['sessionID']
+        novaSession[sessionID]['TTV'] = ttv
+        # await setTextToVoice(userID, ttv)
+    if (parsed_data['type']=='get_text_to_voice'):
+        userID = parsed_data['data']['userID']
+        ttv = novaSession[sessionID].get('TTV', False)
+            
+        # ttv = await getTextToVoice(userID)
 
+        await websocket.send(json.dumps({'event':'get_user_ttv', 'payload': ttv}))
+        # await websocket.send(json.dumps({'event':'set_text_to_voice', 'convoID': convoID, 'text': text}))
 
 
 file_chunks = {}
