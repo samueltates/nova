@@ -16,7 +16,7 @@ from core.loadout import update_loadout_field
 from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
 from chat.query import sendChat, text_to_speech
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
-from tools.commands import handle_commands
+from core.commands import handle_commands
 from tools.jsonfixes import correct_json
 
 
@@ -117,9 +117,9 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
-    voice = True
-    if 'voice' in novaSession[sessionID]:
-        voice = novaSession[sessionID]['voice']
+    voice = False
+    if 'TTV' in novaSession[sessionID]:
+        voice = novaSession[sessionID]['TTV']
     
     if novaConvo[convoID].get('command'):
         json_return = novaConvo[convoID]['command']
