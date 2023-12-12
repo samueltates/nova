@@ -12,7 +12,7 @@ from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from tools.memory import summarise_from_range, get_summary_children_by_key
-from tools.gptindex import handleIndexQuery, quick_query
+from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
 
 
@@ -158,8 +158,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['status'] = "Error."
             command_return['message'] = "Query can't be blank"
             return command_return
-        scraped_data = await advanced_scraper(website_url)
-        response = await quick_query(query, scraped_data)
+        
+        response = await QuickUrlQuery(website_url, query)
+        # scraped_data = await advanced_scraper(website_url)
+        # response = await quick_query(scraped_data, query)
         command_return['status'] = "Success."
         command_return['message'] = "Response : " + str(response)
         return command_return

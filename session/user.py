@@ -128,6 +128,7 @@ async def get_subscribed(userID):
             return blob['subscribed']
         
 
+<<<<<<< HEAD
 async def setTextToVoice(userID, textToVoice):
     user = await prisma.user.find_first(
         where={
@@ -146,6 +147,26 @@ async def setTextToVoice(userID, textToVoice):
             }
         )
         return user
+=======
+# async def setTextToVoice(userID, textToVoice):
+#     user = await prisma.user.find_first(
+#         where={
+#             'UserID': userID
+#         }
+#     )
+#     blob = json.loads(user.json())['blob']
+#     blob['textToVoice'] = textToVoice
+#     if(user):
+#         foundUser = await prisma.user.update(
+#             where={
+#                 'id': user.id
+#             },
+#             data= {
+#                 'blob': Json(blob)
+#             }
+#         )
+#         return user
+>>>>>>> main
     
 
 async def getTextToVoice(userID):

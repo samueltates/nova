@@ -27,7 +27,7 @@ from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
 from tools.keywords import get_summary_from_keyword, get_summary_from_insight
-from core.loadout import add_loadout, get_loadouts, set_loadout, drop_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, get_latest_loadout_convo
+from core.loadout import add_loadout, get_loadouts, set_loadout, drop_loadout, set_read_only,set_loadout_title, update_loadout_field,clear_loadout, get_latest_loadout_convo, add_loadout_to_profile
 from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
 from file_handling.transcribe import handle_transcript_chunk, handle_transcript_end, setup_transcript_chunk
@@ -93,6 +93,7 @@ async def startsession():
         novaSession[sessionID]['userID'] = 'guest-'+sessionID    
         novaSession[sessionID]['new_login'] = True
         novaSession[sessionID]['subscribed'] = False
+        novaSession[sessionID]['TTV'] = False
 
         show_onboarding = True
 
@@ -112,6 +113,8 @@ async def startsession():
         novaSession[sessionID]['new_login'] = True
     if 'subscribed' not in novaSession[sessionID]:
         novaSession[sessionID]['subscribed'] = False
+    if 'TTV' not in novaSession[sessionID]:
+        novaSession[sessionID]['TTV'] = False
 
     if novaSession[sessionID]['profileAuthed']:
         if novaSession[sessionID]['new_login'] == True:
@@ -240,8 +243,17 @@ async def process_message(parsed_data):
     if(parsed_data['type']== 'requestLogout'):
         eZprint('requestLogout route hit')
         sessionID = parsed_data['sessionID']    
+        if app.session.get('sessionID'):
+            app.session.pop('sessionID') 
+        if sessionID in novaSession:
+            novaSession.pop(sessionID)
 
-        app.session.pop('sessionID') 
+        if sessionID in current_loadout:
+            current_loadout.pop(sessionID)
+
+        if sessionID in current_config:
+            current_config.pop(sessionID)
+            
         logoutStatus = await logout(sessionID)    
         app.session.modified = True
         await websocket.send(json.dumps({'event':'logout', 'payload': logoutStatus}))
@@ -415,6 +427,7 @@ async def process_message(parsed_data):
                 os.environ[key] = params[key]
 
         eZprint('params set to ' + str(params), ['INITIALISE'])
+        await get_loadouts(sessionID)
         await set_loadout(loadout, sessionID, True)
         # await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
@@ -497,7 +510,13 @@ async def process_message(parsed_data):
         await set_convo(requestedConvoID, sessionID, loadout)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
-
+    if(parsed_data['type'] == 'add_loadout_to_profile'):
+        eZprint('add_loadout_to_profile route hit', ['LOADOUT'], line_break=True)
+        sessionID = parsed_data['data']['sessionID']
+        loadout = parsed_data['data']['loadout']
+        userID = parsed_data['data']['userID']
+        await add_loadout_to_profile(loadout, userID)
+        # await get_loadout_logs(loadout, sessionID)
 
     ## ALL BACK AND FORTH ###
 
@@ -661,11 +680,13 @@ async def process_message(parsed_data):
         app.session['requesting'] = False
 
     if(parsed_data['type']=='drop_loadout'):
-        print('hellooo')
+        # print('hellooo')
         eZprint('drop_loadout route hit', ['LOADOUT'])
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
-        await drop_loadout(loadout, sessionID)
+        userID = parsed_data['data']['userID']
+        await drop_loadout(loadout, sessionID, userID)
+
 
         # convoID_full = await handle_convo_switch(sessionID)
         # if not convoID_full:
@@ -765,10 +786,15 @@ async def process_message(parsed_data):
     if (parsed_data['type']=='set_text_to_voice'):
         ttv = parsed_data['data']['ttv']
         userID = parsed_data['data']['userID']
-        await setTextToVoice(userID, ttv)
+        sessionID = parsed_data['data']['sessionID']
+        novaSession[sessionID]['TTV'] = ttv
+        # await setTextToVoice(userID, ttv)
     if (parsed_data['type']=='get_text_to_voice'):
         userID = parsed_data['data']['userID']
-        ttv = await getTextToVoice(userID)
+        ttv = novaSession[sessionID].get('TTV', False)
+            
+        # ttv = await getTextToVoice(userID)
+
         await websocket.send(json.dumps({'event':'get_user_ttv', 'payload': ttv}))
         # await websocket.send(json.dumps({'event':'set_text_to_voice', 'convoID': convoID, 'text': text}))
 
