@@ -369,7 +369,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
     eZprint(f'file {name} written to {url}', ['OVERLAY'])
     # file_to_send.close()
-    compositeClip.close()
+    # compositeClip.close()
     return name
 
 

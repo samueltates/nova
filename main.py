@@ -22,7 +22,7 @@ from core.cartridges import retrieve_loadout_cartridges, addCartridge, update_ca
 from tools.gptindex import indexDocument, handleIndexQuery
 from session.googleAuth import logout, check_credentials,requestPermissions
 from session.prismaHandler import prismaConnect, prismaDisconnect
-from session.user import setTextToVoice, getTextToVoice
+# from session.user import setTextToVoice, getTextToVoice
 from tools.debug import eZprint, eZprint_anything
 from session.user import set_subscribed, get_subscribed
 from tools.memory import summariseChatBlocks,get_summary_children_by_key
