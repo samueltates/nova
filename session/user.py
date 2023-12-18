@@ -3,6 +3,8 @@ import json
 import datetime
 
 from session.prismaHandler import prisma
+from tools.debug import eZprint
+
 
 async def GoogleSignOn(userInfo, token):
     userRecord = await prisma.user.find_first(
@@ -163,3 +165,52 @@ async def getTextToVoice(userID):
     else:
         return False
     
+
+
+async def update_user_events(userID, field, value):
+    DEBUG_KEYS = ['USER', 'UPDATE_USER_EVENTS']
+    eZprint('update_user_events', DEBUG_KEYS)
+    # print(user_id, field, value)
+
+    user = await prisma.user.find_first(
+        where={"UserID": str(userID)},
+    )
+
+    if user:
+        blob = json.loads(user.json())['blob']
+        events = blob.get("events", {})
+
+        # Update the specific event field with the new value.
+        events[field] = value
+
+        # Update the blob with the new events object.
+        blob["events"] = events
+        
+        update = await prisma.user.update(
+            where={
+                'id': user.id
+            },
+            data={
+                "blob": json.dumps(blob)
+            }
+        )
+        # Optionally print update for debugging purposes.
+        # print(update)
+    
+
+async def get_user_events(userID):
+    DEBUG_KEYS = ['USER', 'GET_USER_EVENTS']
+    eZprint(f"Retrieving events for user {userID}", DEBUG_KEYS)
+
+    # Retrieve the user with the given id.
+    user = await prisma.user.find_first(
+        where={"UserID": str(userID)},
+    )
+
+    if user and user.blob:
+        blob = json.loads(user.json())['blob']
+        events = blob.get("events", {})
+        return events
+    else:
+        # Return an empty events object if blob isn't defined.
+        return {}

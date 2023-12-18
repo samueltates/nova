@@ -197,16 +197,18 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
         await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': owner}}))
     
 async def add_loadout(loadout: str, convoID):
-    
-    loadout_values = {
-        'cartridges':[],
-        'config': { 
+
+    config = { 
                 'title': '...',
                 'read_only': False,
                 'convo_summary': 'one_way',
                 'show_cartridges' : True,
                 'shared' : False,
                 }
+    
+    loadout_values = {
+        'cartridges':[],
+        'config':config
     }
 
     active_loadouts[loadout] = loadout_values
@@ -219,7 +221,9 @@ async def add_loadout(loadout: str, convoID):
         }
     )
 
-    await websocket.send(json.dumps({'event': 'add_loadout', 'payload': loadout_values}))
+    await websocket.send(json.dumps({'event': 'add_loadout', 'payload': {loadout:loadout_values}}))
+    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': True}}))
+
 
   
 async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
@@ -416,24 +420,25 @@ async def drop_loadout(loadout_key: str, sessionID, userID):
         where={ "UserID": userID },
     )
 
-    blob = json.loads(user_details.json())['blob']
-    if 'pinned_loadouts' in blob:
-        if loadout_key in blob['pinned_loadouts']:
-            blob['pinned_loadouts'].remove(loadout_key)
-            update_user = await prisma.user.update(
-                where = {
-                    'id' : user_details.id
-                },
-                data = {
-                    'blob': Json(blob)
-                    }
-            )
+    if user_details:
+        blob = json.loads(user_details.json())['blob']
+        if 'pinned_loadouts' in blob:
+            if loadout_key in blob['pinned_loadouts']:
+                blob['pinned_loadouts'].remove(loadout_key)
+                update_user = await prisma.user.update(
+                    where = {
+                        'id' : user_details.id
+                    },
+                    data = {
+                        'blob': Json(blob)
+                        }
+                )
 
-            # print(update_user)
+                # print(update_user)
 
 
-    eZprint('drop_loadout', DEBUG_KEYS)
-    # await update_loadout_field(loadout_key, 'dropped', True)
+        eZprint('drop_loadout', DEBUG_KEYS)
+        # await update_loadout_field(loadout_key, 'dropped', True)
 
     active_loadouts.pop(loadout_key, None)
     available_loadouts[sessionID].pop(loadout_key, None)
@@ -449,20 +454,22 @@ async def add_loadout_to_profile(loadout_key: str, userID):
         where={ "UserID": userID },
     )
 
-    blob = json.loads(user_details.json())['blob']
-    if 'pinned_loadouts' not in blob:
-        blob['pinned_loadouts'] = []
-    if loadout_key not in blob['pinned_loadouts']:
-        blob['pinned_loadouts'].append(loadout_key)
     if user_details:
-        update_user = await prisma.user.update(
-            where = {
-                'id' : user_details.id
-            },
-            data = {
-                'blob': Json(blob)
-                }
-        )
+            
+        blob = json.loads(user_details.json())['blob']
+        if 'pinned_loadouts' not in blob:
+            blob['pinned_loadouts'] = []
+        if loadout_key not in blob['pinned_loadouts']:
+            blob['pinned_loadouts'].append(loadout_key)
+        if user_details:
+            update_user = await prisma.user.update(
+                where = {
+                    'id' : user_details.id
+                },
+                data = {
+                    'blob': Json(blob)
+                    }
+            )
 
         # print(update_user)
 async def set_read_only(loadout_key, read_only):
