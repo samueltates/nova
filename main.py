@@ -14,6 +14,7 @@ from random_word import RandomWords
 
 from session.appHandler import app, websocket, openai_client
 from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
+from session.user import update_user_events, get_user_events
 from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat.chat import handle_message, user_input, return_to_GPT
 from chat.query import getModels
@@ -727,6 +728,17 @@ async def process_message(parsed_data):
         await websocket.send(json.dumps({'event':'get_user_ttv', 'payload': ttv}))
         # await websocket.send(json.dumps({'event':'set_text_to_voice', 'convoID': convoID, 'text': text}))
 
+    if (parsed_data['type']=='update_user_events'):
+        userID = parsed_data['data']['userID']
+        field = parsed_data['data']['field']
+        value = parsed_data['data']['value']
+        await update_user_events(userID, field, value)
+        events = await get_user_events(userID)
+        await websocket.send(json.dumps({'event':'get_user_events', 'payload': events}))
+    if (parsed_data['type']=='get_user_events'):
+        userID = parsed_data['data']['userID']
+        events = await get_user_events(userID)
+        await websocket.send(json.dumps({'event':'get_user_events', 'payload': events}))
 
 file_chunks = {}
 
