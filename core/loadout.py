@@ -1,6 +1,7 @@
 import asyncio
 from prisma import Json
 import json
+from datetime import datetime
 
 from session.prismaHandler import prisma
 from session.appHandler import app, websocket
@@ -180,12 +181,14 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
             loadout_values = val
             # loadout_cartridges = val['cartridges']
             config = val['config']
+            # config['last_accessed']= datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             if notPinned:
                 config['notPinned'] = notPinned # sets this temporarily, its more a cosequence of whether its on the 'other loadouts' list - need a different way to verfiy
             if owner:
                 config['owned'] = owner
 
-        await websocket.send(json.dumps({'event': 'add_loadout', 'payload': {loadout_key:loadout_values}}))
+        if referal:
+            await websocket.send(json.dumps({'event': 'add_loadout', 'payload': {loadout_key:loadout_values}}))
     # sets the config to current - shiould just be 'configs[loadoutid]'
         # TODO : make it so no weird stored versions of these things on server
         if sessionID not in current_config:
@@ -204,6 +207,7 @@ async def add_loadout(loadout: str, convoID):
                 'convo_summary': 'one_way',
                 'show_cartridges' : True,
                 'shared' : False,
+                
                 }
     
     loadout_values = {
@@ -554,3 +558,19 @@ async def update_loadout_field(loadout_key, field, value):
                 }
         )
             # print(update)
+
+async def quickset_loadout(loadout, sessionID):
+
+        await set_loadout(loadout, sessionID)
+        await get_loadout_logs(loadout, sessionID)
+
+        convoID = await get_latest_loadout_convo(loadout)
+        
+        if not convoID:
+            convoID = await start_new_convo(sessionID, loadout)
+
+        await retrieve_loadout_cartridges(loadout, convoID)
+        await set_convo(convoID, sessionID, loadout)
+
+        await initialise_conversation(sessionID, convoID, params)
+        await runCartridges(sessionID, loadout)

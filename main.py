@@ -100,6 +100,12 @@ async def startsession():
 
     await check_credentials(sessionID)
 
+    if novaSession[sessionID].get('needs_meet_nova'):
+        await handle_new_user_loadout(sessionID,'7531ab40afd82ba4')
+        novaSession[sessionID]['needs_meet_nova'] = False
+        
+
+
     eZprint_anything(novaSession[sessionID], ['AUTH', 'INITIALISE'], message='novaSession[sessionID]')
     #checks each variable and sets default if not available (failsafe)
     if 'profileAuthed' not in novaSession[sessionID]:
@@ -873,6 +879,21 @@ async def handle_indexdoc_end(data):
 
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]
+
+async def handle_new_user_loadout(sessionID, loadout):
+        await set_loadout(loadout, sessionID)
+        await get_loadout_logs(loadout, sessionID)
+
+        convoID = await get_latest_loadout_convo(loadout)
+        
+        if not convoID:
+            convoID = await start_new_convo(sessionID, loadout)
+
+        await retrieve_loadout_cartridges(loadout, convoID)
+        await set_convo(convoID, sessionID, loadout)
+
+        await initialise_conversation(sessionID, convoID)
+        await runCartridges(sessionID, loadout)
 
 if __name__ == '__main__':
 

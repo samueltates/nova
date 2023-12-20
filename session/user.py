@@ -3,10 +3,13 @@ import json
 import datetime
 
 from session.prismaHandler import prisma
+from session.sessionHandler import novaSession
 from tools.debug import eZprint
+from core.loadout import add_loadout_to_profile
+from core.convos import turn_guest_logs_to_user
 
 
-async def GoogleSignOn(userInfo, token):
+async def GoogleSignOn(userInfo, token, sessionID):
     userRecord = await prisma.user.find_first(
         where={
             'UserID': userInfo['id']
@@ -23,7 +26,24 @@ async def GoogleSignOn(userInfo, token):
                 'blob': Json(blob)
             }
         )
+        
+        if 'meet-nova-added' not in blob:
+            novaSession[sessionID]['needs-meet-nova'] = True
+            blob['meet-nova-added'] = True
+            foundUser = await prisma.user.update(
+                where={
+                    'id': userRecord.id
+                },
+                data= {
+                    'blob': Json(blob)
+                }
+            )
+
+
+            # await set_subscribed(userInfo['id'], False)
+        
         return foundUser
+
     else:
         newUser = await prisma.user.create(
             data= {
@@ -32,6 +52,19 @@ async def GoogleSignOn(userInfo, token):
                 'blob': Json({'credentials': token.to_json()})
             }
         )
+
+        novaSession[sessionID]['needs_meet_nova'] = True
+        blob = json.loads(newUser.json())['blob']
+        blob['meet-nova-added'] = True
+        foundUser = await prisma.user.update(
+            where={
+                'id': newUser.id
+            },
+            data= {
+                'blob': Json(blob)
+            }
+        )
+
         return newUser
 
 

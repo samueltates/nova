@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import os
 import asyncio
 import re
 import secrets
@@ -75,8 +76,8 @@ async def user_input(sessionData):
 
     # print(availableCartridges[convoID])
     
-    if 'command' in novaConvo[convoID]:
-        content = user_name + ': ' + content
+    # if 'command' in novaConvo[convoID]:
+    #     content = user_name + ': ' + content
         
     await handle_message(convoID, content, 'user', user_name, sessionData['key'])
     await construct_query(convoID)
@@ -333,6 +334,17 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
     agent_name = novaConvo[convoID]['agent-name']
 
+    #get key from os env
+    DEBUG_FAKE_AGENT = os.getenv('DEBUG_FAKE_AGENT')
+    if DEBUG_FAKE_AGENT:
+        content = 'fake agent response'
+        agent_name = 'fake agent'
+
+        await asyncio.sleep(3)
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
+        asyncio.create_task(handle_message(convoID, content, 'user', agent_name, None, thread, 'terminal'))
+        return
+
     try:
         eZprint_anything(promptObject, ['CHAT', 'SEND_TO_GPT', 'PROMPT'], line_break = True)
         eZprint_anything(functions, ['CHAT', 'SEND_TO_GPT', 'FUNCTIONS'], line_break = True)
@@ -347,7 +359,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
             function_call = response.choices[0].message.function_call
             # handle no subscriptable function_call
             # print('function call found') parse objet
-            function_call
+            # function_call
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
