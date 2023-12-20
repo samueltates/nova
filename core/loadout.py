@@ -559,18 +559,3 @@ async def update_loadout_field(loadout_key, field, value):
         )
             # print(update)
 
-async def quickset_loadout(loadout, sessionID):
-
-        await set_loadout(loadout, sessionID)
-        await get_loadout_logs(loadout, sessionID)
-
-        convoID = await get_latest_loadout_convo(loadout)
-        
-        if not convoID:
-            convoID = await start_new_convo(sessionID, loadout)
-
-        await retrieve_loadout_cartridges(loadout, convoID)
-        await set_convo(convoID, sessionID, loadout)
-
-        await initialise_conversation(sessionID, convoID, params)
-        await runCartridges(sessionID, loadout)

@@ -14,7 +14,7 @@ from random_word import RandomWords
 
 from session.appHandler import app, websocket, openai_client
 from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
-from session.user import update_user_events, get_user_events
+from session.user import update_user_events, get_user_events, set_user_value,get_user_value
 from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
 from chat.chat import handle_message, user_input, return_to_GPT
 from chat.query import getModels
@@ -100,10 +100,7 @@ async def startsession():
 
     await check_credentials(sessionID)
 
-    if novaSession[sessionID].get('needs_meet_nova'):
-        await handle_new_user_loadout(sessionID,'7531ab40afd82ba4')
-        novaSession[sessionID]['needs_meet_nova'] = False
-        
+
 
 
     eZprint_anything(novaSession[sessionID], ['AUTH', 'INITIALISE'], message='novaSession[sessionID]')
@@ -127,6 +124,8 @@ async def startsession():
         if novaSession[sessionID]['new_login'] == True:
             novaSession[sessionID]['new_login'] = False
             show_onboarding = True
+        
+        novaSession[sessionID]['met_nova'] = await get_user_value(novaSession[sessionID]['userID'], 'met_nova')
         novaSession[sessionID]['subscribed'] = await get_subscribed(novaSession[sessionID]['userID'])
 
     payload = {
@@ -374,17 +373,31 @@ async def process_message(parsed_data):
         # gets loadouts available to user
         eZprint('request_loadouts route hit', ['LOADOUT', 'INITIALISE'], line_break=True)
         sessionID = parsed_data['data']['sessionID']
-
         params = {}
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
+        
 
         latest_loadout = await get_loadouts(sessionID)
         if latest_loadout:
             await set_loadout(latest_loadout, sessionID)
             await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
             await get_loadout_logs(latest_loadout, sessionID)
+
+        ## initial attempt at adding loadout to new user
+        if sessionID in novaSession:
+            userID = None
+            if 'userID' in novaSession[sessionID]:
+                userID = novaSession[sessionID]['userID']
+                if 'met_nova' in novaSession[sessionID]:
+                    if not novaSession[sessionID]['met_nova']:
+                        await add_loadout_to_profile('7531ab40afd82ba4', userID)
+                        novaSession[sessionID]['needs_meet_nova'] = False
+                        await set_user_value(userID, 'met_nova', True)
+                        await set_loadout('7531ab40afd82ba4', sessionID)
+                        await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+                        
 
         # gets or creates conversation - should this pick up last?
         convoID = await get_latest_loadout_convo(latest_loadout)
@@ -880,20 +893,21 @@ async def handle_indexdoc_end(data):
     # Remove the stored file chunks upon completion
     del file_chunks[tempKey]
 
-async def handle_new_user_loadout(sessionID, loadout):
-        await set_loadout(loadout, sessionID)
-        await get_loadout_logs(loadout, sessionID)
+# async def handle_new_user_loadout(sessionID, loadout):
+#     await add_loadout_to_profile 
+#     await set_loadout(loadout, sessionID)
+#     await get_loadout_logs(loadout, sessionID)
 
-        convoID = await get_latest_loadout_convo(loadout)
-        
-        if not convoID:
-            convoID = await start_new_convo(sessionID, loadout)
+#     convoID = await get_latest_loadout_convo(loadout)
+    
+#     if not convoID:
+#         convoID = await start_new_convo(sessionID, loadout)
 
-        await retrieve_loadout_cartridges(loadout, convoID)
-        await set_convo(convoID, sessionID, loadout)
+#     await retrieve_loadout_cartridges(loadout, convoID)
+#     await set_convo(convoID, sessionID, loadout)
 
-        await initialise_conversation(sessionID, convoID)
-        await runCartridges(sessionID, loadout)
+#     await initialise_conversation(sessionID, convoID)
+#     await runCartridges(sessionID, loadout)
 
 if __name__ == '__main__':
 

@@ -4,18 +4,19 @@ import datetime
 
 from session.prismaHandler import prisma
 from session.sessionHandler import novaSession
-from tools.debug import eZprint
-from core.loadout import add_loadout_to_profile
+from tools.debug import eZprint, eZprint_anything
 from core.convos import turn_guest_logs_to_user
 
-
 async def GoogleSignOn(userInfo, token, sessionID):
+    eZprint('Google Sign On', ['USER', 'INITIALISE', 'GOOGLE_SIGN_ON'])
     userRecord = await prisma.user.find_first(
         where={
             'UserID': userInfo['id']
         }
     )
     if(userRecord):
+        eZprint('User found in database', ['USER','INITIALISE', 'GOOGLE_SIGN_ON'])
+        eZprint_anything(userRecord, ['USER','INITIALISE',  'GOOGLE_SIGN_ON'])
         blob = json.loads(userRecord.json())['blob']
         blob['credentials'] = token.to_json()
         foundUser = await prisma.user.update(
@@ -27,18 +28,6 @@ async def GoogleSignOn(userInfo, token, sessionID):
             }
         )
         
-        if 'meet-nova-added' not in blob:
-            novaSession[sessionID]['needs-meet-nova'] = True
-            blob['meet-nova-added'] = True
-            foundUser = await prisma.user.update(
-                where={
-                    'id': userRecord.id
-                },
-                data= {
-                    'blob': Json(blob)
-                }
-            )
-
 
             # await set_subscribed(userInfo['id'], False)
         
@@ -52,20 +41,14 @@ async def GoogleSignOn(userInfo, token, sessionID):
                 'blob': Json({'credentials': token.to_json()})
             }
         )
-
-        novaSession[sessionID]['needs_meet_nova'] = True
-        blob = json.loads(newUser.json())['blob']
-        blob['meet-nova-added'] = True
-        foundUser = await prisma.user.update(
-            where={
-                'id': newUser.id
-            },
-            data= {
-                'blob': Json(blob)
-            }
-        )
+        guestID = 'guest-' + str(sessionID)
+        turn_guest_logs_to_user(userInfo['id'], guestID, sessionID)
 
         return newUser
+
+
+
+
 
 
 async def addAuth(userID, credentials):
@@ -247,3 +230,43 @@ async def get_user_events(userID):
     else:
         # Return an empty events object if blob isn't defined.
         return {}
+    
+
+async def set_user_value(userID, field, value):
+    DEBUG_KEYS = ['USER', 'SET_USER_VALUE']
+    eZprint(f"Setting user value for user {userID}", DEBUG_KEYS)
+
+    # Retrieve the user with the given id.
+    user = await prisma.user.find_first(
+        where={"UserID": str(userID)},
+    )
+
+    if user:
+        blob = json.loads(user.json())['blob']
+        blob[field] = value
+        
+        update = await prisma.user.update(
+            where={
+                'id': user.id
+            },
+            data={
+                "blob": json.dumps(blob)
+            }
+        )
+        # Optionally print update for debugging purposes.
+        # print(update)
+
+async def get_user_value(userID, field):    
+    DEBUG_KEYS = ['USER', 'GET_USER_VALUE']
+    eZprint(f"Retrieving user value for user {userID}", DEBUG_KEYS)
+
+    # Retrieve the user with the given id.
+    user = await prisma.user.find_first(
+        where={"UserID": str(userID)},
+    )
+
+    if user and user.blob:
+        blob = json.loads(user.json())['blob']
+        return blob.get(field, None)
+    else:
+        return None
