@@ -7,6 +7,7 @@ import secrets
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+
 import google_auth_oauthlib.flow
 from googleapiclient import errors
 import googleapiclient.discovery as discovery
@@ -153,9 +154,10 @@ async def getUserInfo(sessionID):
     credentials = Credentials.from_authorized_user_info(json.loads(credentials))
     service = discovery.build('oauth2', 'v2', credentials=credentials)
     userInfo = service.userinfo().get().execute()
-    await GoogleSignOn(userInfo, credentials)
+    await GoogleSignOn(userInfo, credentials, sessionID)
     novaSession[sessionID]['userID'] =  userInfo['id']
     novaSession[sessionID]['user_name'] =  userInfo['name']
+
     return True
 
 async def getDocService(sessionID):

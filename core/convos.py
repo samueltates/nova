@@ -325,3 +325,61 @@ async def start_new_convo(sessionID, loadout):
             
     return convoID_full
 
+async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
+    eZprint('turn_guest_logs_to_user called', ['CONVO', 'INITIALISE'])
+    logs = await prisma.log.find_many(
+        where = {
+            'UserID' : guestID
+        }
+    )
+    for log in logs:
+        log = json.loads(log.json())
+        log['UserID'] = newUserID
+        log = json.dumps(log)
+        await prisma.log.update(
+            where = {
+                'id' : log['id']
+            },
+            data = {
+                'UserID' : newUserID
+            }
+        )
+
+    summaries = await prisma.summary.find_many(
+        where = {
+            'UserID' : guestID
+        }
+    )
+    for summary in summaries:
+        summary = json.loads(summary.json())
+        summary['UserID'] = newUserID
+        summary = json.dumps(summary)
+        await prisma.summary.update(
+            where = {
+                'id' : summary['id']
+            },
+            data = {
+                'UserID' : newUserID
+            }
+        )
+
+    messages = await prisma.message.find_many(
+        where = {
+            'UserID' : guestID
+        }
+    )
+    for message in messages:
+        message = json.loads(message.json())
+        message['UserID'] = newUserID
+        message = json.dumps(message)
+        await prisma.message.update(
+            where = {
+                'id' : message['id']
+            },
+            data = {
+                'UserID' : newUserID
+            }
+        )
+    await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
+    return True
+    #
