@@ -444,6 +444,31 @@ async def drop_loadout(loadout_key: str, sessionID, userID):
         eZprint('drop_loadout', DEBUG_KEYS)
         # await update_loadout_field(loadout_key, 'dropped', True)
 
+    loadout = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key),
+                "UserID": userID
+                },
+    )
+
+    if loadout: 
+        eZprint_anything(loadout, DEBUG_KEYS, message='user owned loadout found')
+        blob = json.loads(loadout.json())['blob']
+        for key, val in blob.items():
+            val['config']['dropped'] = True
+            update = await prisma.loadout.update(
+                where = {
+                    'id' : loadout.id
+                },
+                data={
+                    "blob":Json({key:val})
+                    }
+            )
+    else:
+        eZprint('no user owned loadout found', DEBUG_KEYS)
+
+
+            # print(update)
+
     active_loadouts.pop(loadout_key, None)
     available_loadouts[sessionID].pop(loadout_key, None)
     await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
