@@ -8,6 +8,7 @@ import asyncio
 import json
 import base64
 import subprocess
+import wave
 
 from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
@@ -17,6 +18,7 @@ from core.cartridges import  update_cartridge_field
 
 from file_handling.s3 import read_file
 from tools.debug import eZprint
+
 
 async def transcribe_file(file_content, file_key, file_name, file_type, sessionID, convoID, loadout):
     if not file_content:
@@ -188,18 +190,21 @@ async def convert_ms_to_hh_mm_ss(ms):
 
 recordings = {}
 
-async def setup_transcript_chunk(convoID, recordingID, chunkID, chunk):
+async def setup_transcript_chunk(convoID, recordingID, chunkID, chunk, sample_rate):
     ## splitting here so can handle making spot for each chunk and returning before waiting for transcript so can get return response
+    eZprint(f"setup chunk recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
+
     if not recordings.get(convoID):
         recordings[convoID] = {}
     if not recordings[convoID].get(recordingID):
         recordings[convoID][recordingID] = {}
     if not recordings[convoID][recordingID].get(chunkID):
         recordings[convoID][recordingID][chunkID] = {}
-
     recordings[convoID][recordingID][chunkID].update({
         'base64_data': chunk,
+        'sample_rate': sample_rate
     })
+    eZprint(f"complete setup chunk recording {recordingID} chunk {chunkID} length {len(chunk)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
     return
     
 
@@ -226,11 +231,17 @@ async def handle_transcript_end(convoID, recordingID):
     if not recordings.get(convoID):
         return
     base64_chunks = []
+    counter = 0
+    sample_rate = 48000
     for chunk in recordings[convoID][recordingID].values():
+        counter += 1
+        eZprint(f"hande {recordingID} chunk {counter}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
         if chunk.get('base64_data'):
             base64_chunks.append(chunk['base64_data'])
+        if chunk.get('sample_rate'):
+            sample_rate = chunk['sample_rate']
     eZprint(f"handle end recording {recordingID} chunks {len(base64_chunks)}", ['FILE_HANDLING', 'TRANSCRIBE', 'TRANSCRIBE_CHUNK'])
-    combined_data = merge_and_decode_base64_chunks(base64_chunks)
+    combined_data = merge_and_decode_base64_wav_chunks(base64_chunks, sample_rate)
     del recordings[convoID][recordingID]
     transcript_text = await handle_simple_transcript(combined_data, recordingID)
     return transcript_text
@@ -239,22 +250,52 @@ async def handle_transcript_end(convoID, recordingID):
 def merge_and_decode_base64_chunks(chunks):
     # Step 1: Concatenate all base64 chunks into one string
     decoded_chunks = [base64.b64decode(chunk) for chunk in chunks]
+    counter = 0
+    for chunk in decoded_chunks:
+        counter +=1
+        with open(f'output-decode{counter}.webm', 'ab') as wav_file:
+            wav_file.write(chunk)
 
     # Step 2: Decode the base64 string into bytes
     combined_data = b"".join(decoded_chunks)
 
     # Step 3: Write the bytes into a wav file
-    # with open('output-decode.webm', 'wb') as wav_file:
-    #     wav_file.write(combined_data)
+    with open('output-decode.webm', 'wb') as wav_file:
+        wav_file.write(combined_data)
+
+    return combined_data
+
+import wave
+import io
+
+def merge_and_decode_base64_wav_chunks(chunks, sampleRate):
+    # Step 1: Decode the base64 chunks and concatenate
+    combined_audio = b''.join([base64.b64decode(chunk)[44:] for chunk in chunks])  # 44 bytes for WAV header
+
+    # Steps 2 and 3: Write the combined audio to a new WAV file with a correct header
+    new_wav = io.BytesIO()
+    with wave.open(new_wav, 'wb') as wav_file:
+        # Example parameters, adjust as necessary
+        nchannels = 1
+        sampwidth = 2  # Typically 16-bit audio
+        framerate = 48000  # Depends on original audio
+        nframes = len(combined_audio) // (nchannels * sampwidth)
+        wav_file.setparams((nchannels, sampwidth, framerate, nframes, 'NONE', 'not compressed'))
+        wav_file.writeframes(combined_audio)
+        combined_data = new_wav.getvalue()
+
+    # Write the combined WAV file to disk (if needed)
+    # with open('combined_output.wav', 'wb') as f_out:
+    #     f_out.write(combined_data)
 
     return combined_data
 
 async def handle_simple_transcript(audio_bytes, id = None):
     # Decode the base64 string to get the bytes
 
-    # output_name = 'output-handle.webm'
+    # output_name = 'output-handle.wav'
     # if id:
-    #     output_name = f'output-handle-{id}.webm'
+    #     output_name = f'output-handle-{id}.wav'
     # with open(output_name, 'wb') as wav_file:
 
     #     wav_file.write(audio_bytes)

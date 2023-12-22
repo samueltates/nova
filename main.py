@@ -792,15 +792,17 @@ async def process_message(parsed_data):
         recordingID = parsed_data['data']['recordingID']
         chunkID = parsed_data['data']['chunkID']
         chunk = parsed_data['data']['chunk']
-        await setup_transcript_chunk(convoID, recordingID, chunkID, chunk)
+        sample_rate = parsed_data['data']['sample_rate']
+        await setup_transcript_chunk(convoID, recordingID, chunkID, chunk, sample_rate)
         await websocket.send(json.dumps({'event':'return_chunk_recieved', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID}))
         # transcript_text = await handle_simple_transcript(chunk, chunkID)
-        transcript_text = await handle_transcript_chunk(convoID, recordingID, chunkID, chunk)
-        await websocket.send(json.dumps({'event':'return_chunk_transcript', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID, 'transcript_text': transcript_text}))
+        # transcript_text = await handle_transcript_chunk(convoID, recordingID, chunkID, chunk)
+        # await websocket.send(json.dumps({'event':'return_chunk_transcript', 'convoID': convoID, 'recordingID': recordingID, 'chunkID' : chunkID, 'transcript_text': transcript_text}))
 
     if (parsed_data['type'] == 'handle_transcript_end'):
         convoID = parsed_data['data']['convoID']
         recordingID = parsed_data['data']['recordingID']
+        
         updated_transcript = await handle_transcript_end(convoID, recordingID)
         await websocket.send(json.dumps({'event':'transcript_end', 'convoID': convoID, 'recordingID': recordingID, 'updated_transcript' : updated_transcript}))
     if (parsed_data['type']=='set_text_to_voice'):
