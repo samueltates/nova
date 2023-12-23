@@ -640,8 +640,8 @@ async def process_message(parsed_data):
         - B-roll must illustrate the transcript's key events, objects, locations or activities.
         - B-roll must not illustrate specific people or animals named in the transcript.
         - Do not place b-roll in the first 3 seconds of any video.
-        - B-roll must appear every 5 seconds and be held for a total of 3 seconds.
-        - B-roll must appear on screen 1 second before its prompting word or phrase and end 2 seconds after.
+        - B-roll must appear every 5 seconds and be held for a total of 4 seconds.
+        - B-roll must appear on screen 1 second before its prompting word or phrase.
 
         IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
         IMPORTANT : Do not return b_roll in the first 3 seconds.

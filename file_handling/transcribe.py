@@ -113,13 +113,20 @@ async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey
     results = await asyncio.gather(*tasks)
     results.sort(key=lambda x: x['chunkID'])
     end = ''
+    transcript_text += f"[00:00:00.000] Start of clip \n\n"
     for result in results:
         eZprint(f"chunk {result['chunkID']} start {result['start']} end {result['end']} text {result['text']}", ['FILE_HANDLING', 'TRANSCRIBE'])
         start = result['start']
         end = result['end']
         transcript_text += f"{start} --> {end}\n{result['text']} \n\n"
     # transcript text end time stap
-    transcript_text += f"[{end}] End of transcription"
+    transcript_text += f"[{end}] End of clip \n\n"
+
+    clip_length_in_seconds = len(audio) / 1000
+    rounded_length = round(clip_length_in_seconds, 2)
+
+    transcript_text +=  "\nTotal video clip length : " + str(rounded_length) + "s"
+    # transcript_text += "\n b roll elements required : " + str(rounded_length / 10) 
 
     payload = {
             'sessionID': sessionID,
