@@ -68,14 +68,18 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             #get as  time delta
             duration = end - start
             duration = duration.total_seconds()
-            if duration < 3:
-                duration = 3
+            if duration < 4:
+                duration = 4
             
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
             if start < 3:
                 # break out of this image
                 continue 
+            if start > clip.duration-4:
+                # break out of this image
+                # duration = 3
+                continue
             
             image = cv2.imread(processed_image.name)
 

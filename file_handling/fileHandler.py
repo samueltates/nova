@@ -29,7 +29,7 @@ async def handle_file_start(data):
 
 
 async def handle_file_chunk(data):
-    print('file chunk')
+    # print('file chunk')
     tempKey = data["tempKey"]
     file_chunks[tempKey]["chunks_received"] += 1
     # Decode the base64-encoded chunkContent
