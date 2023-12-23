@@ -260,8 +260,8 @@ def merge_and_decode_base64_chunks(chunks):
     combined_data = b"".join(decoded_chunks)
 
     # Step 3: Write the bytes into a wav file
-    with open('output-decode.webm', 'wb') as wav_file:
-        wav_file.write(combined_data)
+    # with open('output-decode.webm', 'wb') as wav_file:
+    #     wav_file.write(combined_data)
 
     return combined_data
 

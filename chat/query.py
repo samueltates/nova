@@ -29,6 +29,7 @@ async def sendChat(promptObj, model, functions = None):
 
 async def text_to_speech(input_text):
     #split by new line and then by full stop
+    eZprint(input_text, DEBUG_KEYS, message='input_text')
     if input_text == None:
         return
     text_lines = input_text.split('.')
@@ -65,7 +66,7 @@ async def get_audio(input_text, line_index):
         response.stream_to_file(stream_source.name, chunk_size=8192)
 
         # Wait for some data to be written before starting to chunk
-        await asyncio.sleep(2) 
+        await asyncio.sleep(.1) 
 
         # Start reading from the stream and sending the data in chunks
         with open(stream_source.name, 'rb') as file_stream:
@@ -79,7 +80,6 @@ async def get_audio(input_text, line_index):
                 # If you're using WebSocket binary frames, you don't need to encode to base64
                 # However, if you need to send as text data, you'll encode the chunk
                 chunk_encoded = base64.b64encode(chunk).decode('utf-8')
-
                 # Prepare the data payload for WebSocket
                 payload = json.dumps({
                     'event': 'play_audio_chunk',

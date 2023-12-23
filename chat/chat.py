@@ -233,8 +233,8 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         else:
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
         
-        # if voice:
-        #     await text_to_speech(content)
+        if voice:
+            await text_to_speech(content)
             
 
         if len(simple_agents) > 0 and thread == 0:
@@ -342,7 +342,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 
         await asyncio.sleep(3)
         await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
-        asyncio.create_task(handle_message(convoID, content, 'user', agent_name, None, thread, 'terminal'))
+        asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread, 'terminal'))
         return
 
     try:
