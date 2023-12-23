@@ -50,19 +50,20 @@ async def get_audio(input_text, line_index):
         model="tts-1",
         voice="nova",
         input=input_text,
-        response_format="opus"
+        response_format="aac"
     )
 
     chunk_index = 0
-    output_file_path = 'output.webm'
+    # output_file_path = 'output.aac'
 
-    # The stream_to_file function saves data to a file
-    response.stream_to_file(output_file_path)
+    # # The stream_to_file function saves data to a file
+    # response.stream_to_file(output_file_path)
     # Define a path for the output file
 
+    # async for chunk in response.iter_content(chunk_size=8192):  # Streaming in chunks
 
     # Usage example:
-    with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as stream_source:
+    with tempfile.NamedTemporaryFile(suffix='.aac', delete=False) as stream_source:
         response.stream_to_file(stream_source.name, chunk_size=8192)
 
         # Wait for some data to be written before starting to chunk
