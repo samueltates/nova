@@ -9,6 +9,8 @@ from session.prismaHandler import prisma
 from core.loadout import update_loadout_field
 from tools.debug import eZprint, eZprint_anything
 
+DEBUG_KEYS = ['CONVOS'] 
+
 
 
 async def get_loadout_logs(loadout, sessionID ):
@@ -39,7 +41,8 @@ async def get_loadout_logs(loadout, sessionID ):
         eZprint('not shared or owner or no loadout', ['CONVO', 'INITIALISE'])
         if userID:
             logs = await prisma.log.find_many(
-                    where={ "UserID": userID, 
+                    where={ 
+                        "UserID": userID, 
                         "SessionID": {'contains':str(loadout)} },
                     )
         # print (logs)
@@ -73,16 +76,21 @@ async def get_loadout_logs(loadout, sessionID ):
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
     asyncio.create_task( populate_summaries(sessionID))
 
-
+# async def check_convos(sessionID):
+#     ## pass through the convos, check if messages are unsumarised, or if there are unsumarised messages in the convo
+#     # if messages then if unsumarised -  
 
 async def populate_summaries(sessionID):
-     
     userID = novaSession[sessionID]['userID']
-
+    DEBUG_KEYS.append('POPULATE_SUMMARY')
+    eZprint('populating summaries', DEBUG_KEYS )
+    eZprint_anything(available_convos[sessionID], DEBUG_KEYS, message='convos log')
     for log in available_convos[sessionID]:
+        eZprint_anything(log, DEBUG_KEYS, message='each log')
         if log['summary'] == '':
+            eZprint('summary is empty', DEBUG_KEYS)
             splitID = log['sessionID'].split('-')
-            if len(splitID) >1:
+            if len(splitID) > 1:
                 splitID = splitID[1]
             try:
                 remote_summaries_from_convo = await prisma.summary.find_many(
@@ -91,21 +99,31 @@ async def populate_summaries(sessionID):
                         'SessionID' : splitID
                         }
                 )
+                if remote_summaries_from_convo:
+                    eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo with split ID')
+
                 if not remote_summaries_from_convo:
+
                     remote_summaries_from_convo = await prisma.summary.find_many(
                     where = {
                         'UserID' : userID,
                         'SessionID' : log['sessionID']
                         }
-                )
+                    )
+                    eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo without split id')
+                    
+                    # eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
             except:
+                eZprint('summary search failed')
                 remote_summaries_from_convo = None
                 
             summary = ''
 
             if remote_summaries_from_convo:
+                eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
                 for summary in remote_summaries_from_convo:
-                    # print(summary)
+                    eZprint(summary, DEBUG_KEYS, message= 'summary found')
+
                     summary = json.loads(summary.json())['blob']
                     for key, val in summary.items():
                         summary = val['title']
@@ -119,6 +137,7 @@ async def populate_summaries(sessionID):
                             'summary' : summary
                         }
                     )
+                    eZprint_anything(updated_log, DEBUG_KEYS, message = 'updated log')
                     await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
 
 async def set_convo(requested_convoID, sessionID, loadout):
@@ -171,21 +190,30 @@ async def set_convo(requested_convoID, sessionID, loadout):
     # summaries_found = False
     summaries = []
     messages = []
+
     if remote_summaries_from_convo:
-        # print('remote summaries found')
+        eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS + ['SUMMARY'], message = 'remote summaries found')
         # print(remote_summaries_from_convo)
         for summary in remote_summaries_from_convo:
             json_summary = json.loads(summary.json())['blob']
             for key, val in json_summary.items():
                 # if val['epoch']<1:
                     summaries_found = True
-                    val['role'] = 'function'
-                    val['function_name']= 'conversation_summary'
+                    val['role'] = 'system'
+                    # val['function_name']= 'conversation_summary'
                     # val['muted'] = False
                     # val['minimised'] = False
                     val['contentType'] = 'summary'
-                    val['content'] = val['title'] + ' : ' + val['body']
+                    val['content'] = 'Conversation Summary : '
+                    if val.get('timestamp',None):
+                        val['content'] += val['timestamp'] + '\n'
+                    val['content'] += val['title'] + ' : ' + val['body']
                     val['sources'] = val['sourceIDs']
+                    meta = val.get('meta', None)
+                    if meta:
+                        trigger = meta.get('trigger', None)
+                        if trigger:
+                            val['trigger'] = trigger
                     val['id'] = summary.id
                     summaries.append(val)
 
@@ -226,12 +254,19 @@ async def set_convo(requested_convoID, sessionID, loadout):
 
     for log in chatlog[requested_convoID]:
         if 'sourceIDs' in log:
-            for source in log['sourceIDs']:
-                for log in chatlog[requested_convoID]:
-                    if log['id'] == source:
-                        log['summarised'] = True
-                        log['minimised'] = True
-                        log['muted'] = True
+            eZprint_anything(log, ['CONVO', 'INITIALISE', 'SUMMARY'], message = 'summary-log')
+            if log.get('trigger', None) != 'cartridge':
+                # eZprint('trigger source : ' + str(log['trigger']), ['CONVO', 'INITIALISE', 'SUMMARY'])
+                for source in log['sourceIDs']:
+                    for log in chatlog[requested_convoID]:
+                        if log['id'] == source:
+                            log['summarised'] = True
+                            log['minimised'] = True
+                            log['muted'] = True
+            # else:
+                            #thinking here how to control basically the body of the summary is minimised, only title BECAUSE the summary is expanded (showing children
+            #     # eZprint('trigger source : ' + str(log['trigger']), ['CONVO', 'INITIALISE', 'SUMMARY'])
+            #     log['minimised']=True
 
   
 

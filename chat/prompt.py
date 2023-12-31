@@ -22,7 +22,7 @@ async def construct_query(convoID, thread = 0):
     content_string = await construct_content_string(cartridges, convoID)
     await construct_objects(convoID, system_string,content_string, cartridges)
     await construct_chat(convoID, thread)
-    await handle_token_limit(convoID)
+    # await handle_token_limit(convoID)
 
 async def unpack_cartridges(convoID):
     
@@ -322,6 +322,9 @@ async def construct_objects(convoID, system_string = None, content_string = None
             if 'model' in value:
                 # print(value['model'])
                 novaConvo[convoID]['model'] = value['model']
+
+
+
                 if novaConvo[convoID]['model'] == 'gpt-4':
                     novaConvo[convoID]['token_limit'] = 8000
                 else:
@@ -520,6 +523,8 @@ async def handle_token_limit(convoID):
     # await summarise_at_limit(current_prompt[convoID]['emphasise'], .25, convoID, 'emphasise')
     # print (novaConvo[convoID]['auto-summarise'])
     if convoID in novaConvo and 'auto-summarise' in novaConvo[convoID] and novaConvo[convoID]['auto-summarise']:
+        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'summarising'}, 'convoID': convoID}))
+
         summarise_at = .8
         if 'summarise-at' in novaConvo[convoID]:
             summarise_at = novaConvo[convoID]['summarise-at']
@@ -527,6 +532,7 @@ async def handle_token_limit(convoID):
             novaConvo[convoID]['summarise-at'] = .6
         prompt_too_long = await summarise_at_limit(prompt_to_check + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
         if prompt_too_long and not novaConvo[convoID].get('summarising', False): 
+            eZprint('summarising', ['SUMMARY', 'HANDLE_TOKEN_LIMIT'], line_break=True)
             novaConvo[convoID]['summarising'] = True
             if convoID in chatlog:
                 try:
@@ -537,6 +543,8 @@ async def handle_token_limit(convoID):
                 await construct_chat(convoID,0)
                 await summarise_at_limit(prompt_to_check, .25, convoID, 'prompt')
                 await summarise_at_limit(current_prompt[convoID]['chat'], .75, convoID, 'chat')
+                await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}, 'convoID': convoID}))
+
 
 
         
@@ -623,4 +631,172 @@ next_command = """next: shows next page,"""
 
 quit_command = """quit: quits thread,"""
 
+async def get_model_limit(modelID):
 
+    if models.get(modelID, None):
+        return models[modelID]['context_window']
+    else:
+        return 4096
+
+models = {
+    "gpt-4-1106-preview": {
+        "description": "Latest GPT-4 model with improved features, not suited for production traffic.",
+        "context_window": 128000,
+        "training_data": "Up to Apr 2023",
+        "category": "Language"
+    },
+    "gpt-4-vision-preview": {
+        "description": "GPT-4 Turbo with vision abilities, not suited for production traffic.",
+        "context_window": 128000,
+        "training_data": "Up to Apr 2023",
+        "category": "Multimodal"
+    },
+    "gpt-4": {
+        "description": "Currently points to gpt-4-0613 with continuous upgrades.",
+        "context_window": 8192,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-4-32k": {
+        "description": "Points to gpt-4-32k-0613 with continuous upgrades.",
+        "context_window": 32768,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-4-0613": {
+        "description": "Snapshot of gpt-4 from June 13th 2023 with function calling support.",
+        "context_window": 8192,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-4-32k-0613": {
+        "description": "Snapshot of gpt-4-32k from June 13th 2023 with function calling support.",
+        "context_window": 32768,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-3.5-turbo-1106": {
+        "description": "Updated GPT 3.5 Turbo with improved features, not suited for legacy completions.",
+        "context_window": 16385,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-3.5-turbo": {
+        "description": "Currently points to gpt-3.5-turbo-0613.",
+        "context_window": 4096,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "gpt-3.5-turbo-16k": {
+        "description": "Currently points to gpt-3.5-turbo-0613.",
+        "context_window": 16385,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "text-davinci-003": {
+        "description": "Legacy model better for language tasks than older models, to be deprecated.",
+        "context_window": 4096,
+        "training_data": "Up to Jun 2021",
+        "category": "Language"
+    },
+    "text-davinci-002": {
+        "description": "Legacy model trained with supervised fine-tuning, to be deprecated.",
+        "context_window": 4096,
+        "training_data": "Up to Jun 2021",
+        "category": "Language"
+    },
+    "code-davinci-002": {
+        "description": "Optimized for code-completion tasks, to be deprecated.",
+        "context_window": 8001,
+        "training_data": "Up to Jun 2021",
+        "category": "Code"
+    },
+    "text-curie-001": {
+        "description": "Very capable, faster, and lower cost than Davinci models.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "text-babbage-001": {
+        "description": "Good at straightforward tasks, very fast and lower cost.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "text-ada-001": {
+        "description": "Capable of simple tasks, usually fastest GPT-3 model at lowest cost.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "davinci": {
+        "description": "Most capable GPT-3 model for a variety of tasks with high quality.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "curie": {
+        "description": "Very capable GPT-3 model, faster and lower cost than Davinci.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "babbage": {
+        "description": "Capable of straightforward tasks very fast and lower cost.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "ada": {
+        "description": "Fastest GPT-3 model capable of simple tasks at lowest cost.",
+        "max_tokens": 2049,
+        "training_data": "Up to Oct 2019",
+        "category": "Language"
+    },
+    "babbage-002": {
+        "description": "Replacement for GPT-3 ada and babbage models.",
+        "max_tokens": 16384,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "davinci-002": {
+        "description": "Replacement for GPT-3 curie and davinci models.",
+        "max_tokens": 16384,
+        "training_data": "Up to Sep 2021",
+        "category": "Language"
+    },
+    "dall-e-3": {
+        "description": "The latest DALL·E model creates realistic images and art from natural language descriptions.",
+        "category": "Image Generation"
+    },
+    "dall-e-2": {
+        "description": "Generates realistic images, edits existing images or creates variations at higher resolution.",
+        "category": "Image Generation"
+    },
+    "tts-1": {
+        "description": "Text-to-speech conversion optimized for real-time use.",
+        "category": "Text-to-Speech"
+    },
+    "tts-1-hd": {
+        "description": "Text-to-speech conversion optimized for quality.",
+        "category": "Text-to-Speech"
+    },
+    "whisper-1": {
+        "description": "General-purpose speech recognition with multilingual support for recognition, translation, and identification.",
+        "category": "Speech Recognition"
+    },
+    "text-embedding-ada-002": {
+        "description": "Numerical representation of text for measuring relatedness between texts.",
+        "category": "Embeddings"
+    },
+    "text-moderation-latest": {
+        "description": "Latest moderation model for content compliance with OpenAI's policies.",
+        "max_tokens": 32768,
+        "category": "Moderation"
+    },
+    "text-moderation-stable": {
+        "description": "Stable moderation model for content compliance, slightly older than the latest.",
+        "max_tokens": 32768,
+        "category": "Moderation"
+    }
+}

@@ -13,7 +13,7 @@ summaries_available = {}
 keywords_available = {}
 notes_available = {}
 
-async def get_keywords_from_summaries(sessionID, cartKey, cartVal, client_loadout = None, target_loadout = None):
+async def get_keywords_from_summaries(convoID, sessionID, cartKey, cartVal, client_loadout = None, target_loadout = None):
 
     # eZprint('getting keywords for ' + convoID + ' ' + cartKey)
     userID = novaSession[sessionID]['userID']
@@ -33,7 +33,7 @@ async def get_keywords_from_summaries(sessionID, cartKey, cartVal, client_loadou
         'loadout' : client_loadout 
     }
 
-    await update_cartridge_field(input, client_loadout, system=True)
+    await update_cartridge_field(input,convoID, client_loadout, system=True)
 
 
     summaries = await prisma.summary.find_many(
@@ -135,9 +135,9 @@ async def get_keywords_from_summaries(sessionID, cartKey, cartVal, client_loadou
             },
         'loadout' : client_loadout 
     }
-    await update_cartridge_field(input, client_loadout, system=True)
+    await update_cartridge_field(input, convoID, client_loadout, system=True)
 
-async def get_summary_from_keyword(key, sessionID, cartKey, client_loadout = None, target_loadout= None, user_requested = False):
+async def get_summary_from_keyword(key,convoID, sessionID, cartKey, client_loadout = None, target_loadout= None, user_requested = False):
 
     sources_to_return = []
     keyword =''
@@ -158,7 +158,7 @@ async def get_summary_from_keyword(key, sessionID, cartKey, client_loadout = Non
         payload = { 'parent': {keyword:{'title':keyword}}, 'children': sources_to_return, 'source': 'keyword'}    
         await  websocket.send(json.dumps({'event':'send_preview_content', 'payload':payload}))  
 
-async def get_summary_from_insight(object, sessionID, cartKey,  client_loadout = None, target_loadout= None, user_requested = False):
+async def get_summary_from_insight(object, convoID, sessionID, cartKey,  client_loadout = None, target_loadout= None, user_requested = False):
     sources_to_return = []
 
     if 'key' in object:

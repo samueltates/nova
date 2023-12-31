@@ -405,9 +405,14 @@ async def process_message(parsed_data):
             convoID = await start_new_convo(sessionID, latest_loadout)
 
         await retrieve_loadout_cartridges(latest_loadout, convoID)
+        await set_convo(convoID, sessionID, latest_loadout)
+
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, latest_loadout)
-        await set_convo(convoID, sessionID, latest_loadout)
+
+        # async def handle_loadout_actions(sessionID, convoID, target_loadout):
+
+
 
 
     if(parsed_data['type'] == 'set_loadout'):
@@ -432,7 +437,7 @@ async def process_message(parsed_data):
         await set_convo(convoID, sessionID, loadout)
 
         await initialise_conversation(sessionID, convoID, params)
-        await runCartridges(sessionID, loadout)
+        await runCartridges(sessionID, convoID, loadout)
 
 
     if(parsed_data['type'] == 'loadout_referal'):
@@ -765,6 +770,7 @@ async def process_message(parsed_data):
         key = parsed_data['data']['key']
         cartKey = parsed_data['data']['cartKey']
         type = parsed_data['data']['type']
+        convoID = parsed_data['data']['convoID']
         if 'client-loadout' in parsed_data['data']:
             client_loadout = parsed_data['data']['client-loadout']
         else:
@@ -778,11 +784,11 @@ async def process_message(parsed_data):
             loadout = current_loadout[sessionID]
 
         if type == 'summary':
-            await get_summary_children_by_key(key, sessionID, cartKey, client_loadout)
+            await get_summary_children_by_key(key, convoID, sessionID, cartKey, client_loadout)
         elif type == 'keyword':
-            await get_summary_from_keyword(key, sessionID, cartKey, client_loadout, target_loadout, True)
+            await get_summary_from_keyword(key, convoID, sessionID, cartKey, client_loadout, target_loadout, True)
         elif type == 'insight':
-            await get_summary_from_insight(key, sessionID, cartKey, client_loadout, target_loadout, True)
+            await get_summary_from_insight(key, convoID, sessionID, cartKey, client_loadout, target_loadout, True)
 
     if (parsed_data['type'] == 'get_models'):
         models = await getModels()

@@ -14,7 +14,7 @@ from session.tokens import handle_token_use, check_tokens
 from session.prismaHandler import prisma
 # from core.cartridges import updateContentField
 from core.loadout import update_loadout_field
-from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents
+from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents, handle_token_limit
 from chat.query import sendChat, text_to_speech
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
 from core.commands import handle_commands
@@ -363,7 +363,6 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
         await handle_token_use(userID, model, completion_tokens, prompt_tokens)
-
     except Exception as e:
         eZprint('error in send to GPT')
         eZprint(e)
@@ -372,6 +371,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': agent_name, 'state': ''}, 'convoID': convoID}))
     asyncio.create_task(handle_message(convoID, content, 'assistant', agent_name, None, thread, '', function_call = function_call))
+    await handle_token_limit(convoID)
 
 
 async def command_interface(command, convoID, threadRequested):

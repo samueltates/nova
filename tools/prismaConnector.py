@@ -20,6 +20,29 @@ async def deleteSummaries(userID):
     summaries = await prisma.summary.delete_many(
         where = {'UserID' : userID,}
     )
+async def find_summaries_by_ID(userID, ID):
+    summaries = await prisma.summary.find_many(
+        where = {'UserID': userID}
+    )
+
+    for summary in summaries:
+        if ID in summary.SessionID:
+            print(summary)
+         
+
+
+async def delete_summaries_by_ID(userID, ID):
+    summaries = await prisma.summary.find_many(
+        where = {'UserID': userID}
+    )
+
+    for summary in summaries:
+        if ID == summary.SessionID:
+            # print(summary)
+            delete_summary = await prisma.summary.delete(
+                where = {'id' : summary.id }
+            ) 
+            print(delete_summary)
 
 async def deleteMessages(userID):
     messages = await prisma.message.delete_many(
@@ -177,6 +200,25 @@ async def find_and_delete_messages():
                 where={'id': message.id}
             )
         
+    
+async def findmessages__set_unsummarised_by_session(userID, sessionID):
+    print('starting find')
+    messages = await prisma.message.find_many(
+    where = {'UserID' : userID,
+                }
+    )  
+    for message in messages:
+        if sessionID == message.SessionID:
+            # print('message')
+            # if(message.minimised):
+            print('message found by sessionID : ', message )
+            updatedMessage = await prisma.message.update(
+                where={'id': message.id},
+                data={'summarised': False,
+                    'minimised': False,
+                    'muted' : False
+                    }
+            )
 
 
 async def findMessages_set_unsummarised(userID):
@@ -192,7 +234,9 @@ async def findMessages_set_unsummarised(userID):
     for message in messages:
         updatedMessage = await prisma.message.update(
             where={'id': message.id},
-            data={'summarised': False}
+            data={
+                'summarised': False
+                  }
         )
         # print(updatedMessage)
         # message_counter += 1
@@ -497,12 +541,13 @@ async def portUser():
     # delete = await prisma.cartridge.delete_many(
 
 #     users
-async def findLogSummaries():
+async def findLogSummaries(userID,sessionID):
     logs = await prisma.log.find_many(
-        where = {'UserID' : '110327569930296986874',}
+        where = {'UserID' : userID,}
     )
     for log in logs:
-        print(f'{log.summary}')
+        if sessionID in log.SessionID:
+            print('summary :'+  log.summary + '--'  + log.SessionID)
 
 
 async def findBatches():
@@ -818,20 +863,23 @@ async def main() -> None:
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
-    await get_messages_report_aggregate(datetime.date(2023, 11, 25), datetime.date(2023, 12, 10), '110327569930296986874')
+    # await get_messages_report_aggregate(datetime.date(2023, 11, 25), datetime.date(2023, 12, 10), '110327569930296986874')
     # await retrieve_logs_and_messages()
     # await write_recovered_messages()
     # await delete_logs_and_messages()
     # await delete_summaries_in_range()
-    await find_users()
+    # await find_users()
     # await clear_user_history( '108238407115881872743')
     # await findIndexes('108238407115881872743')
     # await findBatches()
-    # await findLogSummaries()
     # await add_nova_coin_to_user('112850279287928312114')
 
     # await findLogs('108238407115881872743')
+    await delete_summaries_by_ID('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
+    await findmessages__set_unsummarised_by_session('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
+    # await find_summaries_by_ID('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
     # await findSummaries('110327569930296986874')
+    # await findLogSummaries('110327569930296986874', '04f101f0c836520d')
     # await findMessages('110327569930296986874')
     # await find_messages_after(5286)
     # await deleteMessages('108238407115881872743')

@@ -121,35 +121,23 @@ async def get_audio(input_text, line_index):
 
 
 async def getModels():
-
-    # TODO: The resource 'Engine' has been deprecated
-    # models = openai.Engine.list()
-    # models = openai_client.engine.list()
-    # return models
-
-    # except:
-    #     try:
-    #         if functions:
-    #             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj, functions=functions))
-    #         else:
-    #             response = await loop.run_in_executor(None, lambda: openai.ChatCompletion.create(model=model,messages=promptObj))        
-    #     except Exception as e:
-    #         print(e)
-    #         # print(promptObj)
-    #         response = None
-    #         response = {}
-    #         response["choices"] = []
-    #         response["choices"].append({})
-    #         response["choices"][0]["message"] = {}
-    #         response["choices"][0]["message"]["content"] = str(e)
-
-    # return response
-    return 
-
+    models = openai_client.models.list()
+    eZprint(models.data, DEBUG_KEYS, message='models')
+    serializable_models = []
+    # models_info = []
+    for model in models.data:
+        # eZprint(model, DEBUG_KEYS, message='model')
+        # info= openai_client.models.retrieve(model.id)
+        # eZprint(info, DEBUG_KEYS, message='info')
+        # models_info.append(info)
+        
+        serializable_models.append(model.id)
+    return serializable_models
 
 
 async def get_summary_with_prompt(prompt, textToSummarise, model = 'gpt-3.5-turbo', userID = ''):
-
+    DEBUG_KEYS.append('SUMMARY')
+    eZprint('attempting summary' + str(textToSummarise[0:100]), DEBUG_KEYS)
     if userID:
         tokens = await check_tokens(userID)
         if not tokens:
