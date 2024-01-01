@@ -39,32 +39,30 @@ async def unpack_cartridges(convoID):
             if cartVal['type'] not in cartridge_contents:
                 eZprint(f'creating {cartVal["type"]} cartridge', DEBUG_KEYS)
                 cartridge_contents[cartVal['type']] = {'string': '', 'values': []}
-            if 'label' in cartVal and cartVal['type'] != 'system' and cartVal['type'] != 'command':
+            
+            if cartVal.get('type', None) == 'prompt':
+                if cartVal.get('label', None):
+                    cartridge_contents[cartVal['type']]['string'] += "\n### " + cartVal['label'] + "\n"
+            if 'prompt' in cartVal and cartVal['prompt'] != '':
+                eZprint(f'adding to prompt object', DEBUG_KEYS)
+                cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt']
+                
+            if cartVal['type'] != 'system' and cartVal['type'] != 'command' and cartVal['type'] != 'prompt' and cartVal['type'] != 'summary':
                 ##CREATING TITLE STRING, IMPORTANT TO DELINIATE FILES
                 eZprint(f'adding label to {cartVal["type"]} cartridge', DEBUG_KEYS)
-                cartridge_contents[cartVal['type']]['string'] += "\n" + cartVal['label']
-                if cartVal['type'] != 'prompt':
-                    eZprint(f'not a prompt cartridge, type strings', DEBUG_KEYS)
-                    if cartVal.get('lastUpdated', None):
-                        cartridge_contents[cartVal['type']]['string'] += ' | Last updated : ' + cartVal['lastUpdated']
-                    if cartVal.get('summary', None):
-                        cartridge_contents[cartVal['type']]['string'] += ' | Summary: ' + cartVal['summary']
-                    if cartVal.get('text', None):
-                        cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['text'][0:140] + ' ...\n'
-                    # if cartVal.get('blocks', None):
-                    #     if cartVal['blocks'].get('overview', None):
-                            # cartridge_contents[cartVal['type']]['string'] += '\n' + cartVal['blocks']['overview'][0:140] + ' ...\n'
-                        # if cartVal['type'] == 'note' or cartVal['type'] == 'index':
-                        #     if 'minimised' in cartVal and cartVal['minimised']:
-                        #         cartridge_contents[cartVal['type']]['string'] +="\n[STATE : CLOSED]\n"
-                        #     else:
-                        #         cartridge_contents[cartVal['type']]['string'] += "\n[STATE : OPEN]\n"
-                        # if cartVal['type']=='summary' or cartVal['type']=='index':
-                        #     cartridge_contents[cartVal['type']]['string'] += "\n[STATE : QUERIABLE] \n"
-                        # cartridge_contents[cartVal['type']]['string'] +=  "\n"
-            if 'prompt' in cartVal:
-                eZprint(f'adding to prompt object', DEBUG_KEYS)
-                cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['prompt'] + "\n"
+                if 'label' in cartVal :
+                    cartridge_contents[cartVal['type']]['string'] += "\n- **" + cartVal['label'] + "**"
+                if cartVal.get('lastUpdated', None):
+                    cartridge_contents[cartVal['type']]['string'] += ' | _Last updated_: ' + cartVal['lastUpdated']
+                key = ''
+                if cartVal.get('key', None):
+                    key = cartVal['key']
+                cartridge_contents[cartVal['type']]['string'] += f" | [Read]({key}) | [Query]({key})" 
+                if cartVal.get('summary', None):
+                    cartridge_contents[cartVal['type']]['string'] += '\n    - Summary : ' + cartVal['summary']
+                eZprint(f'string updated to read {cartridge_contents[cartVal["type"]]["string"]}', DEBUG_KEYS)
+
+             
             if cartVal.get('json', None):
                 eZprint(f'adding json to {cartVal["type"]} cartridge', DEBUG_KEYS)
                 eZprint_anything(cartVal['json'], DEBUG_KEYS + ['JSON'])
@@ -75,41 +73,32 @@ async def unpack_cartridges(convoID):
                     cartridge_contents[cartVal['type']]['string'] += '\n' + parsed_json
                     eZprint(f'string updated to read {cartridge_contents[cartVal["type"]]["string"]}', DEBUG_KEYS)
 
-            # if 'minimised' in cartVal and cartVal['minimised'] == False:
-            #     if 'text' in cartVal:
-            #         cartridge_contents[cartVal['type']]['string'] += "\n"+cartVal['text'] + "\n--\n"
-            #     if 'blocks' in cartVal:
-            #         #THINKING BLOCKS IS FOR STORED BUT NOT IN CONTEXT (BUT QUERIABLE)
-            #         #THOUGH AT A CERTAIN POINT IT WOULD BE SAME ISSUE WITH NOTES, SO PROBABLY JUST NEED RULE FOR CERTAIN LENGTH
-            #         if 'blocks' in cartVal:
-            #             if 'summaries' in cartVal['blocks']:
-            #                 for summary in cartVal['blocks']['summaries']:
-            #                     for key, value in summary.items():
-            #                         if 'title' in value:
-            #                             cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['title']) 
-            #                             if 'timestamp' in value:
-            #                                 cartridge_contents[cartVal['type']]['string'] += " - " + str(value['timestamp'])
-            #                             if 'epoch' in value:
-            #                                 cartridge_contents[cartVal['type']]['string'] += " - layer " + str(value['epoch'])
-            #                             # if 'minimised' in value:
-            #                             #     if value['minimised']:
-            #                             #         cartridge_contents[cartVal['type']]['string'] += " [CLOSED]"
-            #                             #     else:
-            #                             #         cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
-            #                             #         # if 'body' in value:
-            #                             #         #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
-            #                             # else:
-            #                             #     cartridge_contents[cartVal['type']]['string'] += " [OPEN]"
-            #                                 # if 'body' in value:
-            #                                 #     cartridge_contents[cartVal['type']]['string'] += "\n"+ str(value['body']) + "\n"
-            #                             cartridge_contents[cartVal['type']]['string'] += "\n"
-            #             if 'queries' in cartVal['blocks']:
-            #                 if 'minimised' in cartVal and not cartVal['minimised']:
-            #                     if 'query' in cartVal['blocks']['queries']:
-            #                         cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
-            #                     if 'response' in cartVal['blocks']['queries']:
-            #                         cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
-            #                     # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+            if 'blocks' in cartVal and 'summaries' in cartVal['blocks']:    
+                for summary in cartVal['blocks']['summaries']:
+                    for key, value in summary.items():
+                        if 'title' in value:
+                            cartridge_contents[cartVal['type']]['string'] += "\n- **" + str(value['title']) + "**"
+                        
+                        if 'timestamp' in value:
+                            try:
+                                timestamped = datetime.fromtimestamp(value['timestamp'])
+                                cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(timestamped)
+                            except:
+                                eZprint('timestamp error', DEBUG_KEYS)                        
+                                cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(value['timestamp'])
+                        cartridge_contents[cartVal['type']]['string'] += f" | [Expand]({key}) | [Query]({key})" 
+                        cartridge_contents[cartVal['type']]['string'] += "\n    - "
+                        if 'epoch' in value:
+                            cartridge_contents[cartVal['type']]['string'] += "Level : " + str(value['epoch'])
+                        if 'keywords' in value:
+                            cartridge_contents[cartVal['type']]['string'] += " | Keywords : " + str(value['keywords'])
+                    # if 'queries' in cartVal['blocks']:
+                    #     if 'minimised' in cartVal and not cartVal['minimised']:
+                    #         if 'query' in cartVal['blocks']['queries']:
+                    #             cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
+                    #         if 'response' in cartVal['blocks']['queries']:
+                    #             cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
+                            # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'] = cartVal['values']
             if cartVal['type'] == 'simple-agent':
@@ -154,47 +143,53 @@ async def construct_content_string(prompt_objects, convoID):
     content_string = ''
 
     if 'index' in prompt_objects:
-        content_string += "\nEmbedded documents:"
+        content_string += '\n\n### Files\n_Files can be queried using natural language_ \n'
         content_string += prompt_objects['index']['string'] 
-        content_string += '\n[Embedded documents can be queried, or closed.]\n'
     if 'note' in prompt_objects:
-        content_string += "\nNotes:"
+        content_string += '\n\n### Notes\n _Notes can be written, appended, read, queried or closed_\n'
         content_string += prompt_objects['note']['string']
-        content_string += '\n[Notes can be written, appended, read, queried or closed.]\n'
     if 'media' in prompt_objects:
-        content_string += "\nMedia:"
+        content_string += "\n### Media"
+        content_string += '\n_Media can be analysed, closed or queried_'
         content_string += prompt_objects['media']['string']
-        content_string += '\n[Media can be opened, closed or queried.]\n'
 
     if 'dtx' in prompt_objects:
-        content_string += "\nDigital twin schemas:"
+        content_string += "\n### Digital twin schemas"
+        content_string += '\n_Dtx can be queried or closed_'
         content_string += prompt_objects['dtx']['string']
-        content_string += '\n[Dtx can be queried or closed.]\n'
 
     if content_string != '':
-        content_string = "\n--Files available--"+content_string
+        content_string = "\n***"+content_string
 
     if 'summary' in prompt_objects:
-        content_string += "\n--Past conversations--"
+        content_string += "\n***\n"
+        content_string += "\n### Recent Conversations"
         content_string += prompt_objects['summary']['string'] 
-        content_string += '\n[The summary can be queried or read for more detail.]\n'
 
-
-        
     return content_string
 
 async def construct_chat(convoID, thread = 0):
-    eZprint_object_list(chatlog[convoID], ['CHAT', 'CONSTRUCT_CHAT'], line_break=True)
     current_chat = []
     if convoID in chatlog:
+        eZprint_object_list(chatlog[convoID], ['CHAT', 'CONSTRUCT_CHAT'], line_break=True)
         for log in chatlog[convoID]:
-
-
             if 'muted' not in log or log['muted'] == False:
                 object = {}
                 if 'role' not in log:
                     log['role'] = 'user'
                 object.update({ "role":  log['role']})
+                if log['role'] == 'system':
+                    if log.get('contentType') == 'summary':
+                        content_string = '### Conversation section\n'
+                        if log.get('timestamp'):
+                            content_string += f"""_Time range_: {str(log['timestamp'])}"""
+                        if log.get('title'):
+                            content_string += f"""### {log['title']}"""
+                        if log.get('minimised') == False:
+                            if log.get('body'):
+                                content_string += f""" : {str(log['body'])}"""
+                        object.update({'content': f"""{str(content_string)}""" })
+
                 if log.get('content'):
                     if log['content'] != 'None':
                         object.update({'content': f"""{str(log['content'])}""" })
@@ -239,9 +234,10 @@ async def construct_context(convoID):
     # print(novaConvo[convoID])
     if 'agent-name' not in novaConvo[convoID]:
         novaConvo[convoID]['agent-name'] = 'Nova'
-    session_string = f"""Your name is {novaConvo[convoID]['agent-name']}.\n"""
-    session_string += f"""You are speaking with {novaSession[sessionID]['user_name']}.\n"""
-    session_string += f"""Today's date is {datetime.now()}.\n"""
+    session_string = f"""\n\n***\n\n### Important information\n"""
+    session_string += f"""\n- **Your name**: {novaConvo[convoID]['agent-name']}"""
+    session_string += f"""\n- **You are speaking with**: {novaSession[sessionID]['user_name']}"""
+    session_string += f"""\n- **Today's date**: {datetime.now()}"""
     if 'sessions' in novaSession[sessionID]:
         if novaSession[sessionID]['sessions'] > 0:
             session_string += "You have spoken " + str(novaSession[sessionID]['sessions']) + "times.\n"
@@ -523,7 +519,6 @@ async def handle_token_limit(convoID):
     # await summarise_at_limit(current_prompt[convoID]['emphasise'], .25, convoID, 'emphasise')
     # print (novaConvo[convoID]['auto-summarise'])
     if convoID in novaConvo and 'auto-summarise' in novaConvo[convoID] and novaConvo[convoID]['auto-summarise']:
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'summarising'}, 'convoID': convoID}))
 
         summarise_at = .8
         if 'summarise-at' in novaConvo[convoID]:
@@ -532,6 +527,7 @@ async def handle_token_limit(convoID):
             novaConvo[convoID]['summarise-at'] = .6
         prompt_too_long = await summarise_at_limit(prompt_to_check + current_prompt[convoID]['chat'], summarise_at, convoID, 'combined')
         if prompt_too_long and not novaConvo[convoID].get('summarising', False): 
+            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'summarising'}, 'convoID': convoID}))
             eZprint('summarising', ['SUMMARY', 'HANDLE_TOKEN_LIMIT'], line_break=True)
             novaConvo[convoID]['summarising'] = True
             if convoID in chatlog:

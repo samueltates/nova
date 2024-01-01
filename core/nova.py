@@ -14,7 +14,7 @@ from session.appHandler import app, websocket
 from session.sessionHandler import novaConvo, active_cartridges, chatlog, cartdigeLookup, novaSession, current_loadout, current_config
 from session.prismaHandler import prisma
 from core.cartridges import copy_cartridges_from_loadout, update_cartridge_field
-from chat.chat import agent_initiate_convo, construct_query
+from chat.chat import agent_initiate_convo, construct_query, get_prompt_object
 from session.tokens import update_coin_count
 from tools.memory import run_summary_cartridges
 from file_handling.s3 import get_signed_urls
@@ -72,7 +72,7 @@ async def initialise_conversation(sessionID,convoID, params = None):
     userID = novaSession[sessionID]['userID']
 
     await update_coin_count(userID,0)
-
+    await get_prompt_object(convoID)
     novaConvo[convoID]['token_limit'] = 4000
     
     # novaConvo[convoID]['agent-name'] = agentName
@@ -141,9 +141,9 @@ async def runCartridges(sessionID,  convoID, loadout = None):
                     eZprint('running summary cartridge on loadout ' + str(loadout), ['SUMMARY'])
                     # if cartVal['state'] != 'loading':
                     #     eZprint('running summary cartridge' + str(cartVal), ['SUMMARY'])
-                    if 'running' in cartVal:
-                        eZprint(cartVal['running'], ['SUMMARY'], message='running value')
-                    # if 'running' not in cartVal or cartVal['running'] == False:
+                    # if 'running' in cartVal:
+                    #     eZprint(cartVal['running'], ['SUMMARY'], message='running value')
+                    # if cartVal.get('running', False) == False or 'running' not in cartVal:
                     try : 
 
                         eZprint('attempting summarisation cycle', ['SUMMARY'])
@@ -156,6 +156,16 @@ async def runCartridges(sessionID,  convoID, loadout = None):
                         }
                         await update_cartridge_field(input, convoID, loadout, system = True)
                         asyncio.create_task(run_summary_cartridges(convoID, sessionID, cartKey, cartVal, loadout))
+                                            
+                        input = {
+                            'cartKey': cartKey,
+                            'sessionID': sessionID,
+                            'fields': {
+                                'running': False,
+                            }
+                        }
+                        await update_cartridge_field(input, convoID, loadout, system = True)
+
                     except Exception as e:
                         eZprint_anything(e, ['SUMMARY'], 'summary failed')
                         # eZprint('attempting summarisation cycle', ['SUMMARY'])
@@ -168,8 +178,9 @@ async def runCartridges(sessionID,  convoID, loadout = None):
                             }
                         }
                         await update_cartridge_field(input, convoID, loadout, system = True)
-                        
-            
+
+                    
+        
                     # else:
                     #     cartVal['state'] = ''
                     #     cartVal['status'] = ''

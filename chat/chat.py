@@ -14,7 +14,7 @@ from session.tokens import handle_token_use, check_tokens
 from session.prismaHandler import prisma
 # from core.cartridges import updateContentField
 from core.loadout import update_loadout_field
-from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents, handle_token_limit
+from chat.prompt import construct_query, construct_chat, current_prompt, simple_agents, handle_token_limit, summarise_at_limit
 from chat.query import sendChat, text_to_speech
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
 from core.commands import handle_commands
@@ -60,6 +60,14 @@ async def agent_initiate_convo(sessionID, convoID, loadout):
         # print ('model: ' + model)
     await send_to_GPT(convoID, query_object, 0, model)
 
+async def get_prompt_object(convoID):
+    await construct_query(convoID)
+    query_object = current_prompt[convoID].get('prompt',[]) + current_prompt[convoID].get('chat',[]) 
+    await websocket.send(json.dumps({'event': 'send_prompt_object', 'payload': query_object}))
+    await summarise_at_limit(str(current_prompt[convoID].get('prompt',[])), .25, convoID, 'prompt')
+    await summarise_at_limit(str(current_prompt[convoID].get('chat',[])), .75, convoID, 'chat')
+    
+
 
 async def user_input(sessionData):
 
@@ -101,7 +109,7 @@ async def user_input(sessionData):
         if json_object != None:
             command = await get_json_val(json_object, 'command')
             if command:
-                await command_interface(command, convoID, 0)
+                await command_interface(command, convoID, 0, source = 'user')
                 print('command found from user')
                 return
 
@@ -374,7 +382,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
     await handle_token_limit(convoID)
 
 
-async def command_interface(command, convoID, threadRequested):
+async def command_interface(command, convoID, threadRequested, source = 'assistant'):
     #handles commands from user input
     DEBUG_KEYS = ['CHAT', 'COMMAND_INTERFACE']
     eZprint('running commands',DEBUG_KEYS)
@@ -478,10 +486,10 @@ async def command_interface(command, convoID, threadRequested):
             
             command_object = json.dumps(command_object)
 
-
             await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
 
-        await return_to_GPT(convoID, thread)
+        if source == 'assistant':
+            await return_to_GPT(convoID, thread)
  
 
 async def return_to_GPT(convoID, thread = 0):

@@ -27,8 +27,8 @@ async def find_summaries_by_ID(userID, ID):
 
     for summary in summaries:
         if ID in summary.SessionID:
+            # print('epoch is ',summary.epoch, 'title is ', summary.title, 'timestampe is ', summary.timestamp )
             print(summary)
-         
 
 
 async def delete_summaries_by_ID(userID, ID):
@@ -209,7 +209,7 @@ async def findmessages__set_unsummarised_by_session(userID, sessionID):
     )  
     for message in messages:
         if sessionID == message.SessionID:
-            # print('message')
+            print('message')
             # if(message.minimised):
             print('message found by sessionID : ', message )
             updatedMessage = await prisma.message.update(
@@ -220,6 +220,13 @@ async def findmessages__set_unsummarised_by_session(userID, sessionID):
                     }
             )
 
+async def find_summary_by_key(key):
+    summaries = await prisma.summary.find_many(
+        where = {'key' : key,
+                }
+    )  
+    for summary in summaries:
+        print(summary)
 
 async def findMessages_set_unsummarised(userID):
     messages = await prisma.message.find_many(
@@ -875,9 +882,11 @@ async def main() -> None:
     # await add_nova_coin_to_user('112850279287928312114')
 
     # await findLogs('108238407115881872743')
-    await delete_summaries_by_ID('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
-    await findmessages__set_unsummarised_by_session('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
-    # await find_summaries_by_ID('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
+    # await delete_summaries_by_ID('110327569930296986874', 'b44d5b67d5345f4b-0b22b216-04f101f0c836520d')
+    # await findmessages__set_unsummarised_by_session('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
+    await find_summary_by_key('4831b822')
+
+    # await find_summaries_by_ID('110327569930296986874', '04f101f0c836520d')
     # await findSummaries('110327569930296986874')
     # await findLogSummaries('110327569930296986874', '04f101f0c836520d')
     # await findMessages('110327569930296986874')

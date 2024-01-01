@@ -19,15 +19,8 @@ DEBUG_KEYS = ['SUMMARY']
 
 async def run_summary_cartridges(convoID, sessionID, cartKey, cartVal, client_loadout = None):
     userID = novaSession[sessionID]['userID']
-    # return
     eZprint('run summary cartridges triggered', DEBUG_KEYS)
-    # print('current loadout' + str(client_loadout))
-    # print('current loadout convoID' + str(current_loadout[convoID]))
-    # print(current_loadout[convoID])
-    # if cartVal['state'] == 'loading':
-    #     return
     if novaSession[sessionID]['owner']:
-        # if client_loadout == current_loadout[sessionID]:                
         if 'blocks' not in cartVal:
             cartVal['blocks'] = {}
 
@@ -39,7 +32,6 @@ async def run_summary_cartridges(convoID, sessionID, cartKey, cartVal, client_lo
             target_loadout = client_loadout
         # if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
         await summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout, target_loadout)
-        # await handle_convo_summary(convoID, userID, sessionID, client_loadout, target_loadout)
         await get_summaries(userID, sessionID, target_loadout)
         await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
         # await get_overview(convoID, sessionID, cartKey, cartVal, client_loadout)
@@ -79,8 +71,7 @@ async def summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout=
         await update_cartridge_field(input, convoID, client_loadout, system=True)
         await summarise_messages(userID, sessionID, client_loadout, target_loadout)
         # print('summarise messages finished')
-        # await summarise_epochs(userID, sessionID, client_loadout, target_loadout)
-        # await collapse_epochs(userID, convoID, target_loadout)
+        await summarise_epochs(userID, sessionID, client_loadout, target_loadout)
         
   
 ##LOG SUMMARY FLOWS
@@ -218,7 +209,7 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
 
 
 async def handle_convo_summary(convoID, userID, sessionID, client_loadout, target_loadout):
-
+    ## TODO : make it use only one summary record per convo, and let it pile up to one, write / rewrite that record
     convo_summarised =  False
     eZprint('checking summaries for first time', DEBUG_KEYS)
     while convo_summarised == False:
@@ -240,6 +231,10 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
                 # print('key and val' + str(key) + str(val))
                 if 'summarised' in val:
                     if val['summarised'] == True:
+                        continue
+                    # if val.get('epoch-summarised'):
+                    #     continue
+                    if val.get('convo-summarised'):
                         continue
                     eZprint('found summary candidate' + str(val), DEBUG_KEYS)
                     val.update({'id': candidate.id})
@@ -266,7 +261,7 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
                     'type' : 'summary',
                     'corpus' : 'loadout-conversations',
                     'docID' : str(convoID),
-                    'trigger' : 'cartridge'
+                    'trigger' : 'convo-summarised'
                 }
             toSummarise += str(summaryObj['content']) + '\n'
             ids.append(summary['id'])
@@ -314,11 +309,24 @@ async def update_record(record_ID, record_type, docID, loadout = None, trigger =
     summarised = True
     minimised = True
     muted = True
+    trigger_value = False
+    if trigger == 'convo-summarised':
+        summarised = False
+        minimised = False
+        muted = False
+        trigger_value = True
 
     if trigger == 'cartridge':
         # summarised = False
         minimised = False
         muted = False
+        trigger_value = True
+
+    if trigger == 'epoch-summarised':
+        summarised = False
+        minimised = False
+        muted = False
+        trigger_value = True
 
     if record_type == 'message':
         # print('record type is message')
@@ -354,6 +362,7 @@ async def update_record(record_ID, record_type, docID, loadout = None, trigger =
                 val['summarised'] = summarised
                 val['minimised'] = minimised
                 val['muted'] = muted
+                val[trigger] = trigger_value
 
             updated_summary = await prisma.summary.update(
                 where={ 'id': target_summary.id },
@@ -514,16 +523,15 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
 
     while epoch_in_window == False:
         epochs = {}
-        print('getting epochs')
+        eZprint('getting epochs', DEBUG_KEYS)
 
 
         candidates = await prisma.summary.find_many(
             where={
             'UserID': userID,
-            'summarised': False,
             }
         ) 
-        print('got candidates')
+        eZprint('got candidates for epochs', DEBUG_KEYS)
 
         loadout_candidates = []
         for candidate in candidates:
@@ -538,7 +546,7 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                 # print('adding on a none loadout')
                 loadout_candidates.append(candidate)
 
-        print('setting epoch_in_window to true')
+        eZprint('setting epoch_in_window to true', DEBUG_KEYS)
         epoch_in_window = True
         for candidate in loadout_candidates:
             summary = json.loads(candidate.json())['blob']
@@ -548,14 +556,17 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                 if 'summarised' in val:
                     if val['summarised'] == True:
                         continue
-                    # print('found summary candidate' + str(val))
-                    epoch_no = 'epoch_' + str(val['epoch'])
-                    val.update({'id': candidate.id})
-                    # eZprint('found summary candidate')
-                    if epoch_no not in epochs:
-                        # eZprint('creating epoch ' + str(epoch_no))
-                        epochs[epoch_no] = []
-                    epochs[epoch_no].append(val)
+                if 'epoch-summarised' in val:
+                    if val['epoch-summarised'] == True:
+                        continue
+                eZprint('found summary candidate' + str(val), DEBUG_KEYS)
+                epoch_no = 'epoch_' + str(val['epoch'])
+                val.update({'id': candidate.id})
+                # eZprint('found summary candidate')
+                if epoch_no not in epochs:
+                    eZprint('creating epoch ' + str(epoch_no), DEBUG_KEYS)
+                    epochs[epoch_no] = []
+                epochs[epoch_no].append(val)
         ## number of pieces of content per window 
 
         resolution = 2
@@ -594,7 +605,8 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                         'first-doc' : timestamp,
                         'type' : 'summary',
                         'corpus' : 'loadout-conversations',
-                        'docID' : str(target_loadout)
+                        'docID' : str(target_loadout),
+                        'trigger': 'epoch-summarised'
                     }
                 toSummarise += str(summaryObj['content']) + '\n'
                 ids.append(summary['id'])
@@ -665,17 +677,30 @@ async def get_summaries( userID, sessionID, target_loadout):
         summaryObj = dict(summary.blob)
 
         for key, val in summaryObj.items():
+            eZprint_anything(val, DEBUG_KEYS, message = 'summary object')
             if 'summarised' in val:
                 if val['summarised'] == True:
+                    # skips if regular sumarise (now only live summaries)
                     continue
+            if val.get('trigger') == 'cartridge':
+                #skips if trigger for summary was cartridge  (only convo chunks)
+                continue
+            if val.get('convo-summarised'):
+                #skips if summarised by convo summariser
+                continue
+            if val.get('epoch-summarised'):
+                #skips if summarised by epoch summariser
+                continue
+
+                #leaving only unsumarised top of convo and epoch summaries
                 # eZprint('found summary candidate')
 
-                val.update({'key': summary.key})
-                epoch_no = 'epoch_' + str(val['epoch'])
-                if val['epoch'] not in epochs:
-                    # eZprint('creating epoch ' + str(epoch_no))
-                    epochs[val['epoch']] = []
-                epochs[val['epoch']].append(val)
+            val.update({'key': summary.key})
+            epoch_no = 'epoch_' + str(val['epoch'])
+            if val['epoch'] not in epochs:
+                # eZprint('creating epoch ' + str(epoch_no))
+                epochs[val['epoch']] = []
+            epochs[val['epoch']].append(val)
         
     if userID not in windows:
         windows[userID+sessionID] = []
@@ -687,7 +712,8 @@ async def get_summaries( userID, sessionID, target_loadout):
     for epochs in sorted_epochs:
         (epoch_no, summaries) = epochs
         counter = 0
-        for summary in summaries:
+        reversed_summaries = summaries[::-1]
+        for summary in reversed_summaries:
             # print(summary)
             window.append(summary)
             counter += 1
@@ -742,7 +768,7 @@ Combine the below conversation summaries into one single summary in JSON format,
 
 {
     "title": "[Short unique overview of topics in this period]",
-    "timestamp" : "[Time, Date, or Date Range]",
+    "timestamp" : "[first timestamp] - [last timestamp]",
     "body": "[Synthesis of topics, decisions, and discoveries across conversations]", 
     "keywords": ["Keyword1", "Keyword2", "Keyword3"],
     "notes": {
@@ -1039,10 +1065,8 @@ past_convo_prompts = """These are summaries of past conversations, return a shor
 
 
 
-
-
 async def get_summary_children_by_key(childKey,convoID, sessionID, cartKey, client_loadout = None):
-    # print('get summary children by key triggered')
+    eZprint('get summary children by key triggered', DEBUG_KEYS +['TRAVERSE'])
     # userID = novaSession[sessionID]['userID']   
     if client_loadout == current_loadout[sessionID]:
         summary = await get_summary_by_key(childKey, sessionID, client_loadout)
@@ -1134,6 +1158,7 @@ async def get_summary_by_key(key, sessionID, client_loadout = None):
             }   
         )
 
+        
         if summary == None:
 
             # print('trying int key')

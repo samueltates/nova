@@ -2,6 +2,7 @@
 from Levenshtein import distance
 import asyncio
 import json
+import re
 
 from session.sessionHandler import active_cartridges, current_loadout, novaConvo, novaSession, system_threads, command_loops, command_state
 from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
@@ -15,9 +16,9 @@ from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
 
+DEBUG_KEYS = ['COMMANDS']
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
-    DEBUG_KEYS = ['COMMANDS']
     # eZprint('handling command')
     sessionID = novaConvo[convoID]['sessionID']
     # loadout = novaConvo[convoID]['loadout']
@@ -174,43 +175,43 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
     if name == 'read':
         for key, val in active_cartridges[convoID].items():
-            if 'label' in val:
-                print(val['label'])
-                if val['label'].lower() == args['filename'].lower():
-                    new_page = 0
-                    text_to_read = ''
-                    if val.get('text', None):
-                        text_to_read = val['text']
-                    if text_to_read == '':
-                        text_to_read = str(val)
-                    if 'page' not in args:
-                        response = await read_text(name, val['label'], str(text_to_read), convoID, thread,0)
-                    if 'page' in args:
-                        new_page = args['page']
-                        response = await read_text(name, val['label'],  str(text_to_read), convoID, thread, args['page'])
-                    new_page = int(new_page) + 1
+            eZprint(val['label'], ['COMMANDS', 'READ'])
+            if val.get('label', '').lower() == args['filename'].lower():
+                new_page = 0
+                text_to_read = ''
+                if val.get('text', None):
+                    text_to_read = val['text']
+                if text_to_read == '':
+                    text_to_read = str(val)
 
-                    if 'status' in response:
-                        if response['status'] == 'Success.':
-                            new_page = 0
 
-                    payload = {
-                        'cartKey' : key,
-                        'sessionID' : sessionID,
-                        'fields' : {
-                            'page' : new_page
-                        }
-                        }
-                        
-                    # if text_to_read == '':
-                    #     command_return['status'] = "Error."
-                    #     command_return['message'] = "Text empty."
-                    #     print(command_return)
-                    #     return command_return
+                if 'page' not in args:
+                    response = await read_text(name, val['label'], str(text_to_read), convoID, thread,0)
+                if 'page' in args:
+                    new_page = args['page']
+                    response = await read_text(name, val['label'],  str(text_to_read), convoID, thread, args['page'])
+                # sections
+                if 'status' in response:
+                    if response['status'] == 'Success.':
+                        new_page = 0
+
+                payload = {
+                    'cartKey' : key,
+                    'sessionID' : sessionID,
+                    'fields' : {
+                        'page' : new_page
+                    }
+                    }
                     
-                    await update_cartridge_field(payload, convoID)
-                    return response           
-        
+                # if text_to_read == '':
+                #     command_return['status'] = "Error."
+                #     command_return['message'] = "Text empty."
+                #     print(command_return)
+                #     return command_return
+                
+                await update_cartridge_field(payload, convoID)
+                return response           
+            # else 
         # wait 1 ms
         await asyncio.sleep(0.001)
         command_return['status'] = "Error."
@@ -816,6 +817,7 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
 
 
 async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
+
     text_to_query = ''
     to_open = ''
     closest = 0
@@ -837,27 +839,30 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
                 to_open = summaryKey
         if to_open:
             # print('opening ' + str(to_open))
-            children = await get_summary_children_by_key(to_open, sessionID, cartKey, loadout)
-            if children:
-                for child in children:
-                    # print('child' + str(child))
-                    text_to_query += "\n Source: " + str(child['source']) + "\n"
-                    if 'title' in child:
-                        text_to_query += child['title'] + ": "
-                    if 'body' in child:
-                        text_to_query += child['body'] + "\n"
-                    else:
-                        text_to_query += str(child) + "\n"
-                    text_to_query += "\n"
-                    if child not in blocks['summaries']:
-                        # print('optimistically adding child')
-                        blocks['summaries'].append(child)
-                        input = {
-                            'cartKey' : cartKey,
-                            'sessionID' : sessionID,
-                            'blocks' : blocks
-                        }
-                        update_cartridge_field(input, convoID, loadout)
+            node = await get_summary_children_by_key(to_open, convoID, sessionID, cartKey, loadout)
+            eZprint_anything(node, ['COMMANDS', 'TRAVERSE'])
+            if node:
+                if node.get('children'):
+                    for child in node['children']:
+                        eZprint('child' + str(child), DEBUG_KEYS + ['TRAVERSE'])
+                        if 'title' in child:
+                            text_to_query += '-## '+ child['title']
+                        if 'body' in child:
+                            text_to_query += "\n"+ child['body'] + "\n"
+                        else:
+                            text_to_query += str(child) + "\n"
+                if node.get('source'):
+                    text_to_query += "\n Source: " + str(node['source']) + "\n"
+                    ## originaly wrote to blocks, definitely could be useful to build out / navigate tree, but will just return response for now
+                    # if child not in blocks['summaries']:
+                    #     # print('optimistically adding child')
+                    #     blocks['summaries'].append(child)
+                    #     input = {
+                    #         'cartKey' : cartKey,
+                    #         'sessionID' : sessionID,
+                    #         'blocks' : blocks
+                    #     }
+                    #     update_cartridge_field(input, convoID, loadout)
     # if 'insights' in blocks:
     #     print('insights')
     #     text_to_query += "Insights: \n"
@@ -889,27 +894,27 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
     #                 else:
     #                     text_to_query += str(child) + "\n"
     #     print('text to query: ' + text_to_query)
-    if 'keywords' in blocks:
-        closest = 0
-        to_open = ''
-        for key, val in blocks['keywords'].items():
-            similarity = distance(str(query), str(key))
-            # print('checking for matches ' + str(query) + ' ' + str(key) + ' ' + str(similarity))
-            if similarity > closest:
-                closest = similarity
-                for element in val:
-                    to_open = element['source']
+    # if 'keywords' in blocks:
+    #     closest = 0
+    #     to_open = ''
+    #     for key, val in blocks['keywords'].items():
+    #         similarity = distance(str(query), str(key))
+    #         # print('checking for matches ' + str(query) + ' ' + str(key) + ' ' + str(similarity))
+    #         if similarity > closest:
+    #             closest = similarity
+    #             for element in val:
+    #                 to_open = element['source']
 
-        if to_open:
-            children = await get_summary_children_by_key(to_open, sessionID, key, loadout)
-            if children:
-                for child in children:
-                    if 'title' in child:
-                        text_to_query += child['title'] + ": "
-                    if 'body' in child:
-                        text_to_query += child['body'] + "\n"
-                    else:
-                        text_to_query += str(child) + "\n"
+    #     if to_open:
+    #         node = await get_summary_children_by_key(to_open, convoID, sessionID, key, loadout)
+    #         if node:
+    #             for child in node:
+    #                 if 'title' in child:
+    #                     text_to_query += child['title'] + ": "
+    #                 if 'body' in child:
+    #                     text_to_query += child['body'] + "\n"
+    #                 else:
+    #                     text_to_query += str(child) + "\n"
         # print('text to query: ' + text_to_query)
         response = await quick_query(text_to_query, str(query))
         response = str(response)
@@ -917,13 +922,17 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
         return response
 
 async def read_text(name, text_title, text_body, convoID, thread = 0, page = 0):
+
     command_return = {"status": "", "name" :name, "message": ""}
     if text_body == '':
         command_return['status'] = "Error."
         command_return['message'] = "No text supplied"
         return command_return
     
+
+                    
     if len(text_body) > 2000:
+        eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
         command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page)
         return command_return
     
@@ -1098,11 +1107,29 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
 
     if page != -1:
         loop = int(page)
-    
 
     if loop == 0 or 'sections' not in command_loops[convoID][thread][command][title]:
-        
-        eZprint('loop 0')
+        # paginated_content = break_and_paginate_sections(string)
+
+        # # Generate table of contents
+        # toc = ["Table of Contents:"]
+        # for index, page in enumerate(paginated_content):
+        #     for line in page.split('\n'):
+        #         if re.match(r'^#+ ', line):
+        #             toc.append(f"{line.strip()} - Page {index + 1}")
+
+        # # Paginate the TOC if necessary
+        # toc_pages = paginate_text('\n'.join(toc))
+
+        # # Prepend TOC to the paginated content
+        # final_paginated_content = toc_pages + paginated_content
+
+        # sections = break_into_sections(string)
+        # eZprint_anything(['sections', sections], ['COMMANDS', 'READ'], message= 'sections returned')
+        # paginated_sections = {section: paginate_text('\n'.join(content)) for section, content in sections.items()}
+        # eZprint_anything(final_paginated_content, ['COMMANDS', 'READ'], message= 'paginated_sections returned')
+            
+        eZprint('loop 0', ['COMMANDS', 'READ'])
         sections = []
         range = 1000
         i = 0
@@ -1116,11 +1143,14 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         # eZprint(sections)
         # eZprint(len(sections))
         command_loops[convoID][thread][command][title]['sections'] = sections
+        # command_loops[convoID][thread][command][title]['paginated_sections'] = final_paginated_content
+
 
     else:
         eZprint('loop not 0 sections retrieved')
 
         sections = command_loops[convoID][thread][command][title]['sections']
+        
     
     eZprint('large document loop' + str(loop) + ' ' + str(thread))
 
@@ -1129,11 +1159,25 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
     # print(sections)
     # print(len(sections))
     # print(loop)
+
+    
+
+    # if loop == 0:
+    #     eZprint('returning sections based on loop')
+    #     command_return['status'] = ''
+    #     message = command_loops[convoID][thread][command][title]['overview'] + "\n\n" + "\n\n Page " + str(loop) + " of " + str(len(paginated_sections)) 
+    #     command_return['message'] = message + "\n\nUse " + command + " for next page, or " + command + " section_name or page_number for a specific section."
+    #     command_return['name'] = command
+    #     print(command_return)
+    #     return command_return
     if loop < len(sections):
         eZprint('returning sections based on loop')
         command_return['status'] = 'in-progress'
-        
-        message = title + ":\n\n Page " + str(loop) + " of " + str(len(sections)) + "\n\n" + str(sections[loop])
+        if loop == 0:
+            message = "\n## "+ title + "\n\n " + str(sections[loop])
+        else:
+            message = "\n#### " + title + str(sections[loop])
+        message += "\n\n     Page " + str(loop) + " of " + str(len(sections))
         command_return['message'] = message + "\n\nUse " + command + " for next page."""
         command_return['name'] = command
         print(command_return)
@@ -1148,3 +1192,102 @@ async def large_document_loop(title, string, command = '', convoID= '', thread =
         return command_return
 
 
+
+
+def break_into_sections(text):
+    sections = {}
+    sections['Overview'] = []
+    current_section = 'Introduction'
+    sections[current_section] = []
+
+    for line in text.split('\n'):
+        if re.match(r'^#+ ', line):  # Matches markdown headings
+            current_section = line.strip()
+            sections[current_section] = []
+            sections['Overview'].append(line.strip())
+        else:
+            sections[current_section].append(line.strip())
+
+
+    return sections
+
+# def paginate_text(text, max_words_per_page=500):
+#     words = re.split(r'\s+', text)
+#     pages = []
+#     current_page = []
+#     current_word_count = 0
+
+#     for word in words:
+#         current_page.append(word)
+#         current_word_count += 1
+#         if current_word_count >= max_words_per_page:
+#             pages.append(' '.join(current_page))
+#             current_page = []
+#             current_word_count = 0
+
+#     # Add the last page if there are any remaining words
+#     if current_word_count > 0:
+#         pages.append(' '.join(current_page))
+
+#     return pages
+
+# # This is your text input. For this example, it's just a dummy text.
+# # You would replace this with the actual text content.
+# text_input = """
+# # Section 1
+# Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+
+# ## Subsection 1.1
+# Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+# ## Subsection 1.2
+# Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi.
+
+# # Section 2
+# Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+# """
+
+# sections = break_into_sections(text_input)
+# paginated_sections = {section: paginate_text('\n'.join(content)) for section, content in sections.items()}
+
+# print(paginated_sections)
+
+
+def paginate_text(text, max_words_per_page=500):
+    words = re.split(r'\s+', text)
+    pages = []
+    current_page = []
+    current_word_count = 0
+
+    for word in words:
+        current_page.append(word)
+        current_word_count += 1
+        if current_word_count >= max_words_per_page:
+            pages.append(' '.join(current_page))
+            current_page = []
+            current_word_count = 0
+
+    if current_page:
+        pages.append(' '.join(current_page))
+
+    return pages
+
+
+def break_and_paginate_sections(unsorted_text, max_words_per_page=500):
+    # Split the text into sections
+    sections_pattern = re.compile(r'(#{1,6}\s[^\n]+)')
+    sections_parts = sections_pattern.split(unsorted_text)
+    
+    # Pair section headings with their content and strip extra spaces
+    sections = [(sections_parts[i].strip(), sections_parts[i+1].strip())
+                for i in range(0, len(sections_parts), 2) if sections_parts[i]]
+
+    # Generate a flat list of section texts for pagination
+    combined_sections_text = ""
+    for section, content in sections:
+        combined_sections_text += '\n' + section + '\n' + content + '\n'
+    
+    # Paginate the combined text
+    pages = paginate_text(combined_sections_text, max_words_per_page)
+
+    return pages

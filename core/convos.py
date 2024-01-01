@@ -207,13 +207,16 @@ async def set_convo(requested_convoID, sessionID, loadout):
                     val['content'] = 'Conversation Summary : '
                     if val.get('timestamp',None):
                         val['content'] += val['timestamp'] + '\n'
-                    val['content'] += val['title'] + ' : ' + val['body']
+                    # val['content'] += val['title'] + ' : ' + val['body']
                     val['sources'] = val['sourceIDs']
                     meta = val.get('meta', None)
                     if meta:
                         trigger = meta.get('trigger', None)
                         if trigger:
+                            if trigger == 'convo-summarised':
+                                break    
                             val['trigger'] = trigger
+                        
                     val['id'] = summary.id
                     summaries.append(val)
 
@@ -263,6 +266,13 @@ async def set_convo(requested_convoID, sessionID, loadout):
                             log['summarised'] = True
                             log['minimised'] = True
                             log['muted'] = True
+            elif log['trigger'] == 'cartridge':
+                eZprint('trigger source : ' + str(log['trigger']), ['CONVO', 'INITIALISE', 'SUMMARY'])
+                # log['summarised'] = True
+                log['minimised'] = True
+                # log['muted'] = True
+                log['childrenShow'] = True
+
             # else:
                             #thinking here how to control basically the body of the summary is minimised, only title BECAUSE the summary is expanded (showing children
             #     # eZprint('trigger source : ' + str(log['trigger']), ['CONVO', 'INITIALISE', 'SUMMARY'])
