@@ -1264,7 +1264,7 @@ def break_and_paginate_sections(unsorted_text, max_words_per_page=500):
     # Pair section headings with their content and strip extra spaces
     section_titles = []
     sections = []
-    current_section = None
+    current_section = ' '
     for part in sections_parts:
         eZprint('part is' + str(part), ['COMMANDS', 'PAGINATE'])
         if part.startswith('#'):
