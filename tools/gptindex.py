@@ -19,9 +19,9 @@ from tools.debug import eZprint
 from llama_index import download_loader
 
 from tools.GoogleDocsReader import GoogleDocsReader 
-# from tools.UnstructuredReader import UnstructuredReader
+from tools.UnstructuredReader import UnstructuredReader
 from tools.UnstructuredURLLoader import UnstructuredURLLoader
-UnstructuredReader = download_loader('UnstructuredReader')
+# UnstructuredReader = download_loader('UnstructuredReader')
 
 from llama_index import (
     Document,
@@ -95,7 +95,7 @@ async def indexDocument(payload, client_loadout):
         # Read and process the reconstructed file
         temp_file.close()
         
-        unstructured_reader = UnstructuredReader()
+        unstructured_reader = UnstructuredReader(type='pdf')
         document = unstructured_reader.load_data(temp_file.name)
     # Cleanup: delete the temporary file after processing
         os.unlink(temp_file.name)
@@ -241,7 +241,7 @@ async def quick_query(text, query):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
     temp_file.write(text.encode())
     temp_file.seek(0)
-    unstructured_reader = UnstructuredReader()
+    unstructured_reader = UnstructuredReader(type = 'text')
     document = unstructured_reader.load_data(temp_file.name)
     index = VectorStoreIndex.from_documents(document)
     response = await queryIndex(query, index)

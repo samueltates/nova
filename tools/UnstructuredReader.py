@@ -32,6 +32,8 @@ class UnstructuredReader(BaseReader):
         if "api_key" in kwargs:
             self.api_key = kwargs["api_key"]
 
+        if "type" in kwargs:
+            self.type = kwargs["type"]
         # Prerequisite for Unstructured.io to work
         import nltk
 
@@ -63,13 +65,23 @@ class UnstructuredReader(BaseReader):
                 api_key=self.api_key,
                 api_url=self.server_url + "/general/v0/general",
             )
-        else:
-            """Parse file locally"""
-            from unstructured.partition.auto import partition
+        # else:
+        #     """Parse file locally"""
+        #     from unstructured.partition.auto import partition
 
-            elements = partition(filename=str(file))
+        #     elements = partition(filename=str(file))
 
         """ Process elements """
+        if self.type: 
+            if self.type == "text":
+                from unstructured.partition.text import partition_text
+                elements = [partition_text(el) for el in elements]
+            if self.type == "pdf":
+                from unstructured.partition.pdf import partition_pdf
+                elements = [partition_pdf(el) for el in elements]
+            else: 
+                return []
+
         docs = []
         if split_documents:
             for node in elements:
