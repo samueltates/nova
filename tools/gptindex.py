@@ -16,9 +16,12 @@ from session.sessionHandler import novaConvo, active_cartridges, cartdigeLookup
 from session.prismaHandler import prisma
 from core.cartridges import addCartridgeTrigger, update_cartridge_field, addCartridge, addCartridgePrompt
 from tools.debug import eZprint
+from llama_index import download_loader
+
 from tools.GoogleDocsReader import GoogleDocsReader 
-from tools.UnstructuredReader import UnstructuredReader
+# from tools.UnstructuredReader import UnstructuredReader
 from tools.UnstructuredURLLoader import UnstructuredURLLoader
+UnstructuredReader = download_loader('UnstructuredReader')
 
 from llama_index import (
     Document,
