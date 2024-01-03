@@ -75,12 +75,12 @@ class UnstructuredReader(BaseReader):
         if self.type: 
             if self.type == "text":
                 from unstructured.partition.text import partition_text
-                elements = [partition_text(el) for el in elements]
+                elements = partition_text(filename=str(file))
             if self.type == "pdf":
                 from unstructured.partition.pdf import partition_pdf
-                elements = [partition_pdf(el) for el in elements]
-            else: 
-                return []
+                elements = partition_pdf(filename=str(file))
+            # else: 
+            #     return []
 
         docs = []
         if split_documents:
