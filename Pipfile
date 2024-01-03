@@ -56,5 +56,6 @@ langchain = "*"
 opencv-contrib-python = "*"
 pikepdf = "*"
 pypdf = "*"
+torch = "*"
 
 [dev-packages]
