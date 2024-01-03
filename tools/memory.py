@@ -229,16 +229,15 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
             summary = json.loads(candidate.json()).get('blob', None)
             for key, val in summary.items():
                 # print('key and val' + str(key) + str(val))
-                if 'summarised' in val:
-                    if val['summarised'] == True:
-                        continue
-                    # if val.get('epoch-summarised'):
-                    #     continue
-                    if val.get('convo-summarised'):
-                        continue
-                    eZprint('found summary candidate' + str(val), DEBUG_KEYS)
-                    val.update({'id': candidate.id})
-                    summary_candidates.append(val)
+                if val.get('summarised') == True:
+                    continue
+                if val.get('epoch-summarised') == True:
+                    continue
+                if val.get('convo-summarised') == True:
+                    continue
+                eZprint('found summary candidate' + str(val), DEBUG_KEYS)
+                val.update({'id': candidate.id})
+                summary_candidates.append(val)
         if len(summary_candidates) <= 1:
             convo_summarised = True
             break
@@ -303,7 +302,7 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
         await summarise_batches(batches, userID, sessionID, client_loadout, target_loadout, summary_batch_prompt)
 
 
-async def update_record(record_ID, record_type, docID, loadout = None, trigger = None):
+async def update_record(record_ID, record_type, docID, loadout = None, trigger = 'live'):
     eZprint('updating record with ID ' + str(record_ID) + ' and type ' + str(record_type), DEBUG_KEYS)
 
     summarised = True
@@ -311,18 +310,21 @@ async def update_record(record_ID, record_type, docID, loadout = None, trigger =
     muted = True
     trigger_value = False
     if trigger == 'convo-summarised':
+        eZprint('convo summarised', DEBUG_KEYS)
         summarised = False
         minimised = False
         muted = False
         trigger_value = True
 
     if trigger == 'cartridge':
+        eZprint('cartridge summarised', DEBUG_KEYS)
         # summarised = False
         minimised = False
         muted = False
         trigger_value = True
 
     if trigger == 'epoch-summarised':
+        eZprint('epoch summarised', DEBUG_KEYS)
         summarised = False
         minimised = False
         muted = False
@@ -661,10 +663,9 @@ async def get_summaries( userID, sessionID, target_loadout):
         # print(summary)
         splitID = str(summary.SessionID).split('-')
         # print(splitID)
-        if(len(splitID) >= 3):
-            if splitID[2] == target_loadout:
-                # print('loadout ID found')
-                summary_candidates.append(summary)
+        if target_loadout in summary.SessionID:
+            summary_candidates.append(summary)
+
         elif target_loadout == None:
             # print('adding on a none loadout')
             summary_candidates.append(summary)
@@ -677,23 +678,22 @@ async def get_summaries( userID, sessionID, target_loadout):
         summaryObj = dict(summary.blob)
 
         for key, val in summaryObj.items():
-            eZprint_anything(val, DEBUG_KEYS, message = 'summary object')
-            if 'summarised' in val:
-                if val['summarised'] == True:
-                    # skips if regular sumarise (now only live summaries)
+            eZprint_anything(val, DEBUG_KEYS, message = 'summary found')
+            if val.get('summarised') == True:
                     continue
             if val.get('trigger') == 'cartridge':
                 #skips if trigger for summary was cartridge  (only convo chunks)
                 continue
-            if val.get('convo-summarised'):
+            if val.get('convo-summarised') == True:
                 #skips if summarised by convo summariser
                 continue
-            if val.get('epoch-summarised'):
-                #skips if summarised by epoch summariser
+            if val.get('epoch-summarised') == True:
+            #     #skips if summarised by epoch summariser
                 continue
 
                 #leaving only unsumarised top of convo and epoch summaries
-                # eZprint('found summary candidate')
+            # eZprint('found summary candidate')
+            eZprint_anything(val, DEBUG_KEYS, message = 'summary to show')
 
             val.update({'key': summary.key})
             epoch_no = 'epoch_' + str(val['epoch'])

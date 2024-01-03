@@ -213,7 +213,7 @@ async def set_convo(requested_convoID, sessionID, loadout):
                     if meta:
                         trigger = meta.get('trigger', None)
                         if trigger:
-                            if trigger == 'convo-summarised':
+                            if trigger == 'convo-summarised' or trigger == 'epoch-summarised':
                                 break    
                             val['trigger'] = trigger
                         
