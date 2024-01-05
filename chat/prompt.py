@@ -575,6 +575,8 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
     # print(novaConvo[convoID])
     # print(convoID)
     # print(novaConvo)
+    if 'token_limit' not in novaConvo[convoID]:
+        novaConvo[convoID]['token_limit'] = 4000
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 

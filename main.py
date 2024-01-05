@@ -400,9 +400,9 @@ async def process_message(parsed_data):
                         
 
         # gets or creates conversation - should this pick up last?
-        convoID = await get_latest_loadout_convo(latest_loadout)
-        if not convoID:
-            convoID = await start_new_convo(sessionID, latest_loadout)
+        # convoID = await get_latest_loadout_convo(latest_loadout)
+        # if not convoID:
+        convoID = await start_new_convo(sessionID, latest_loadout)
 
         await retrieve_loadout_cartridges(latest_loadout, convoID)
         await set_convo(convoID, sessionID, latest_loadout)
@@ -428,10 +428,10 @@ async def process_message(parsed_data):
         await set_loadout(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
 
-        convoID = await get_latest_loadout_convo(loadout)
+        # convoID = await get_latest_loadout_convo(loadout)
         
-        if not convoID:
-            convoID = await start_new_convo(sessionID, loadout)
+        # if not convoID:
+        convoID = await start_new_convo(sessionID, loadout)
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await set_convo(convoID, sessionID, loadout)
@@ -647,39 +647,50 @@ async def process_message(parsed_data):
             await websocket.send(json.dumps({'event':'file_chunk', 'id': chunk }))
     elif parsed_data["type"] == "file_end":
         await websocket.send(json.dumps({'event':'file_end'}))
-
-        # TODO : split file handler so upload eg as main, then transcribe etc as optional
         convoID = parsed_data["data"]["convoID"]
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': 'transcribing'}, 'convoID': convoID}))
-
-        # await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
-
         result = await handle_file_end(parsed_data["data"])
-        # actions = parsed_data["data"]["actions"]
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
-
-
-        action_modiier = """
-
-        To note
-        - B-roll must illustrate the transcript's key events, objects, locations or activities.
-        - B-roll must not illustrate specific people or animals named in the transcript.
-        - Do not place b-roll in the first 3 seconds of any video.
-        - B-roll must appear every 5 seconds and be held for a total of 3 seconds.
-        - B-roll must appear on screen 1 second before its prompting word or phrase and end 2 seconds after.
-
-        IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
-        IMPORTANT : Do not return b_roll in the first 3 seconds.
-        IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
-        IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
-
-        """
-        result += action_modiier
 
         if result:
             convoID = parsed_data["data"]["convoID"]
-            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='transcribe')
-            await return_to_GPT(convoID, 0)
+            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
+            # await return_to_GPT(convoID, 0)
+
+    ## EASIA VARIANT            
+    # elif parsed_data["type"] == "file_end":
+    #     await websocket.send(json.dumps({'event':'file_end'}))
+
+    #     # TODO : split file handler so upload eg as main, then transcribe etc as optional
+    #     convoID = parsed_data["data"]["convoID"]
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': 'transcribing'}, 'convoID': convoID}))
+
+    #     # await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
+
+    #     result = await handle_file_end(parsed_data["data"])
+    #     # actions = parsed_data["data"]["actions"]
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
+
+
+    #     action_modiier = """
+
+    #     To note
+    #     - B-roll must illustrate the transcript's key events, objects, locations or activities.
+    #     - B-roll must not illustrate specific people or animals named in the transcript.
+    #     - Do not place b-roll in the first 3 seconds of any video.
+    #     - B-roll must appear every 5 seconds and be held for a total of 3 seconds.
+    #     - B-roll must appear on screen 1 second before its prompting word or phrase and end 2 seconds after.
+
+    #     IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
+    #     IMPORTANT : Do not return b_roll in the first 3 seconds.
+    #     IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
+    #     IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
+
+    #     """
+    #     result += action_modiier
+
+    #     if result:
+    #         convoID = parsed_data["data"]["convoID"]
+    #         await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='transcribe')
+    #         await return_to_GPT(convoID, 0)
 
     elif parsed_data["type"] == "get_file_download_link":
         eZprint('get_file_download_link route hit', ['FILE_HANDLING'])
