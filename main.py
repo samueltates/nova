@@ -378,6 +378,7 @@ async def process_message(parsed_data):
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
         
+        latest_loadout = None
         if sessionID in novaSession:
             userID = None
             if 'userID' in novaSession[sessionID]:
@@ -387,17 +388,16 @@ async def process_message(parsed_data):
                     novaSession[sessionID]['needs_meet_nova'] = False
                     await set_user_value(userID, 'met_nova', True)
                     await set_loadout('7531ab40afd82ba4', sessionID)
-                    # latest_loadout = '7531ab40afd82ba4'
-                    # await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
-                        
-        latest_loadout = await get_loadouts(sessionID)
-        if latest_loadout:
-            await set_loadout(latest_loadout, sessionID)
-            await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
-            await get_loadout_logs(latest_loadout, sessionID)
+                    latest_loadout = '7531ab40afd82ba4'
+                    await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
 
-        ## initial attempt at adding loadout to new user
-
+        if not latest_loadout:
+            latest_loadout = await get_loadouts(sessionID)
+            if latest_loadout:
+                await set_loadout(latest_loadout, sessionID)
+                await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+                await get_loadout_logs(latest_loadout, sessionID)
+       
 
         # gets or creates conversation - should this pick up last?
         # convoID = await get_latest_loadout_convo(latest_loadout)
