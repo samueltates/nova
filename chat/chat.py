@@ -80,8 +80,10 @@ async def user_input(sessionData):
     convoID = sessionData['convoID']
     content = sessionData['content']
     sessionID = sessionData['sessionID']
-    user_name = novaSession[sessionID]['user_name']
-
+    if 'user_name' in sessionData:
+        user_name = novaSession[sessionID]['user_name']
+    else :
+        user_name = 'user'
     # print(availableCartridges[convoID])
     
     # if 'command' in novaConvo[convoID]:
