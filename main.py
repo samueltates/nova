@@ -378,7 +378,18 @@ async def process_message(parsed_data):
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
         
-
+        if sessionID in novaSession:
+            userID = None
+            if 'userID' in novaSession[sessionID]:
+                userID = novaSession[sessionID]['userID']
+                if not 'met_nova' in novaSession[sessionID] or not novaSession[sessionID]['met_nova']:
+                    await add_loadout_to_profile('7531ab40afd82ba4', userID)
+                    novaSession[sessionID]['needs_meet_nova'] = False
+                    await set_user_value(userID, 'met_nova', True)
+                    await set_loadout('7531ab40afd82ba4', sessionID)
+                    # latest_loadout = '7531ab40afd82ba4'
+                    # await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+                        
         latest_loadout = await get_loadouts(sessionID)
         if latest_loadout:
             await set_loadout(latest_loadout, sessionID)
@@ -386,18 +397,7 @@ async def process_message(parsed_data):
             await get_loadout_logs(latest_loadout, sessionID)
 
         ## initial attempt at adding loadout to new user
-        if sessionID in novaSession:
-            userID = None
-            if 'userID' in novaSession[sessionID]:
-                userID = novaSession[sessionID]['userID']
-                if 'met_nova' in novaSession[sessionID]:
-                    if not novaSession[sessionID]['met_nova']:
-                        await add_loadout_to_profile('7531ab40afd82ba4', userID)
-                        novaSession[sessionID]['needs_meet_nova'] = False
-                        await set_user_value(userID, 'met_nova', True)
-                        await set_loadout('7531ab40afd82ba4', sessionID)
-                        await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
-                        
+
 
         # gets or creates conversation - should this pick up last?
         # convoID = await get_latest_loadout_convo(latest_loadout)

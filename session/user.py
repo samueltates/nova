@@ -42,7 +42,7 @@ async def GoogleSignOn(userInfo, token, sessionID):
             }
         )
         guestID = 'guest-' + str(sessionID)
-        turn_guest_logs_to_user(userInfo['id'], guestID, sessionID)
+        await turn_guest_logs_to_user(userInfo['id'], guestID, sessionID)
 
         return newUser
 

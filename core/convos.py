@@ -301,9 +301,10 @@ async def set_convo(requested_convoID, sessionID, loadout):
                     log['summarised'] = False
                     log['minimised'] = False
                     log['muted'] = False
-                    if log['content'] == 'None':
-                        log['content'] = ''
-                    if log['function_call']:
+                    if log.get('content', None):
+                        if log['content'] == 'None':
+                            log['content'] = ''
+                    if log.get('function_call', None):
                         if log['arguments']:
                             log['arguments'] == json.loads(log['arguments'], strict=False)
 
@@ -377,13 +378,11 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
             'UserID' : guestID
         }
     )
+    eZprint_anything(logs, ['CONVO', 'INITIALISE'], message='logs found')
     for log in logs:
-        log = json.loads(log.json())
-        log['UserID'] = newUserID
-        log = json.dumps(log)
         await prisma.log.update(
             where = {
-                'id' : log['id']
+                'id' : log.id
             },
             data = {
                 'UserID' : newUserID
@@ -396,12 +395,10 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
         }
     )
     for summary in summaries:
-        summary = json.loads(summary.json())
-        summary['UserID'] = newUserID
-        summary = json.dumps(summary)
+
         await prisma.summary.update(
             where = {
-                'id' : summary['id']
+                'id' : summary.id
             },
             data = {
                 'UserID' : newUserID
@@ -414,17 +411,17 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
         }
     )
     for message in messages:
-        message = json.loads(message.json())
-        message['UserID'] = newUserID
-        message = json.dumps(message)
+
         await prisma.message.update(
             where = {
-                'id' : message['id']
+                'id' : message.id
             },
             data = {
                 'UserID' : newUserID
             }
         )
-    await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
+
+    
+    # await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
     return True
     #
