@@ -80,7 +80,7 @@ async def user_input(sessionData):
     convoID = sessionData['convoID']
     content = sessionData['content']
     sessionID = sessionData['sessionID']
-    if 'user_name' in sessionData:
+    if sessionID in novaSession and 'user_name' in novaSession[sessionID]:
         user_name = novaSession[sessionID]['user_name']
     else :
         user_name = 'user'
