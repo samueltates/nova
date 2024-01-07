@@ -406,7 +406,7 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
         )
         # print('updated cart' + str(updatedCart.id))
         if system:
-            print('system update')
+            # print('system update')
             payload = { 'key':targetCartKey,
                         'fields': input['fields'], 
                         'convoID': convoID,

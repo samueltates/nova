@@ -120,6 +120,7 @@ async def startsession():
     if 'TTV' not in novaSession[sessionID]:
         novaSession[sessionID]['TTV'] = False
 
+
     if novaSession[sessionID]['profileAuthed']:
         if novaSession[sessionID]['new_login'] == True:
             novaSession[sessionID]['new_login'] = False
@@ -127,7 +128,12 @@ async def startsession():
         
         novaSession[sessionID]['met_nova'] = await get_user_value(novaSession[sessionID]['userID'], 'met_nova')
         novaSession[sessionID]['subscribed'] = await get_subscribed(novaSession[sessionID]['userID'])
+        novaSession[sessionID]['met_sam'] = await get_user_value(novaSession[sessionID]['userID'], 'met_sam')
 
+    else :
+        # novaSession[sessionID]['met_nova'] = False
+        novaSession[sessionID]['met_sam'] = False
+        # novaSession[sessionID]['subscribed'] = False
     payload = {
         'sessionID': sessionID,
         # 'convoID': convoID,
@@ -390,7 +396,10 @@ async def process_message(parsed_data):
                     await set_loadout('7531ab40afd82ba4', sessionID)
                     latest_loadout = '7531ab40afd82ba4'
                     await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+                    await get_loadout_logs(latest_loadout, sessionID)
 
+                    
+              
         if not latest_loadout:
             latest_loadout = await get_loadouts(sessionID)
             if latest_loadout:
@@ -398,9 +407,14 @@ async def process_message(parsed_data):
                 await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
                 await get_loadout_logs(latest_loadout, sessionID)
        
+        if not 'met_sam' in novaSession[sessionID] or not novaSession[sessionID]['met_sam'] and latest_loadout == '7531ab40afd82ba4':
+            # events = await get_user_events(userID)
+
+            await websocket.send(json.dumps({'event': 'set_met_sam', 'payload':False}))
 
         # gets or creates conversation - should this pick up last?
         # convoID = await get_latest_loadout_convo(latest_loadout)
+        # convoID = await get_latest_convo(userID)
         # if not convoID:
         convoID = await start_new_convo(sessionID, latest_loadout)
 
@@ -531,7 +545,19 @@ async def process_message(parsed_data):
         requestedConvoID = parsed_data['data']['requestedConvoID']
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
+        userID = parsed_data['data']['userID']
         sessionID = parsed_data['data']['sessionID']
+        if requestedConvoID == 'welcome-message':
+            requestedConvoID = await start_new_convo(sessionID, loadout)
+            await handle_message(requestedConvoID, 
+            """Hey sam here, I'm the (human) developer of nova. Wanted to start a thread where you can ask me questions, give feedback or make requests. There's a lot of different ways to configure agents in nova and if I can help you get the most out of it I'd love to.
+            """, 'user', 'sam', None, 0, meta = 'notification')
+            if not 'met_sam' in novaSession[sessionID] or not novaSession[sessionID]['met_sam']:
+                novaSession[sessionID]['needs_meet_sam'] = False
+                await set_user_value(userID, 'met_sam', True)
+                await websocket.send(json.dumps({'event': 'set_met_sam', 'payload': {'met_sam':True}}))
+
+
         await set_convo(requestedConvoID, sessionID, loadout)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 

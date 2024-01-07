@@ -50,7 +50,6 @@ async def run_summary_cartridges(convoID, sessionID, cartKey, cartVal, client_lo
         await update_cartridge_field(input,convoID, client_loadout, system=True)
 
 
-
 async def summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout= None, target_loadout = None):
 
     eZprint('summarising convos')
@@ -73,7 +72,109 @@ async def summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout=
         # print('summarise messages finished')
         await summarise_epochs(userID, sessionID, client_loadout, target_loadout)
         
-  
+async def summarise_messages_by_convo(userID, sessionID, convoID ):
+    eZprint_anything(convoID, DEBUG_KEYS, message = 'summarising convo')
+    messages = []
+    remote_messages = await prisma.message.find_many(
+            where={
+            'SessionID': { 'contains': str(convoID) },
+            # 'summarised': False
+            }
+    )
+    eZprint_anything(remote_messages, DEBUG_KEYS, message = 'remote messages')
+    normalised_convos = []
+    meta = ' '
+
+    # print(messages)
+    ids = []
+
+    conversation_string = ''
+    for message in remote_messages:
+        eZprint('message getting scanned' + str(message), DEBUG_KEYS)
+        if meta == ' ':
+            format = '%Y-%m-%dT%H:%M:%S.%f%z'
+            # date = datetime.strptime(message.timestamp, format)
+            meta = {        
+                'docID': convoID,
+                'timestamp': message.timestamp,
+                'type' : 'message',
+                'corpus' : 'loadout-conversations',
+                'trigger': 'cartridge'
+            }
+
+        
+        if message.name:
+            conversation_string += str(message.name) 
+        if message.body:
+            conversation_string += ': '+ str(message.body)
+        if message.content:
+            conversation_string += ': ' + str(message.content)
+        if message.timestamp:
+            conversation_string += '\n' + str(message.timestamp) + '\n\n'
+        ids.append(message.id)
+
+        if len(conversation_string) > 7000:
+            eZprint_anything(message, DEBUG_KEYS, message = '7000 char to summarise')
+
+            # convoSplitID = conversation.SessionID.split('-')
+            # docID = convoSplitID
+            # if len(convoSplitID) >1:
+            #     docID = convoSplitID[1]
+
+            i = 0
+            range = 7000
+            last_text = ''
+            while i < len(conversation_string):
+                ## get the 7000 char range
+                target = conversation_string[i:i+range]
+                # print(str(len(conversation_string)) +"  target range and remainder -> "+ str(i + range))
+                if (len(conversation_string) - (i + range) < 3000):
+                    # print('remainder is less than 3000')
+                    target += conversation_string[i+range:len(conversation_string)]
+                    # print(str(len(target)))
+                    i += range
+
+                normalised_convos.append({
+                    'ids': ids,
+                    'toSummarise': target,
+                    'epoch' : 0,
+                    'meta' : meta,
+                    'docID' : convoID
+                })
+
+                i += range
+                
+            conversation_string = ''
+            ids = []
+            meta = ' '
+    #resetting after each conversation so that each is blob is only one convo
+    eZprint(str(len(conversation_string)), ['SUMMARY'], message = 'length of string at end of convo')
+
+    # removing as not summarising last chunk if not big enough
+    if conversation_string != '':
+        # eZprint('logging conversation with unsumarised messages\n' + f'{conversation_string}')
+            # print('adding on last bit of convo')
+            # print(str(len(conversation_string)))
+            # convoSplitID = conversation.SessionID.split('-')
+            # docID = convoSplitID
+            # if len(convoSplitID) >1:
+            #     docID = convoSplitID[1]
+            normalised_convos.append({
+                'ids': ids,
+                'toSummarise': conversation_string,
+                'epoch' : 0,
+                'meta' : meta,
+                'docID' : convoID
+
+            })
+    conversation_string = ''
+    ids = []
+    meta = ' '
+
+    await summarise_batches(normalised_convos, userID, sessionID,  conversation_summary_prompt)
+    await handle_convo_summary(convoID, userID, sessionID)
+
+
 ##LOG SUMMARY FLOWS
 ## gets messages normalised into 'candidates' with all data needed for summary
 async def summarise_messages(userID, sessionID, client_loadout = None, target_loadout = None):  
@@ -148,11 +249,6 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
                 if len(conversation_string) > 7000:
                     eZprint_anything(message, DEBUG_KEYS, message = '7000 char to summarise')
 
-                    # convoSplitID = conversation.SessionID.split('-')
-                    # docID = convoSplitID
-                    # if len(convoSplitID) >1:
-                    #     docID = convoSplitID[1]
-
                     i = 0
                     range = 7000
                     last_text = ''
@@ -203,12 +299,12 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
         ids = []
         meta = ' '
 
-    await summarise_batches(normalised_convos, userID, sessionID, client_loadout, target_loadout, conversation_summary_prompt)
+    await summarise_batches(normalised_convos, userID, sessionID, conversation_summary_prompt)
     for conversation in conversations:
         await handle_convo_summary(conversation.SessionID, userID, sessionID, client_loadout, target_loadout)
 
 
-async def handle_convo_summary(convoID, userID, sessionID, client_loadout, target_loadout):
+async def handle_convo_summary(convoID, userID, sessionID):
     ## TODO : make it use only one summary record per convo, and let it pile up to one, write / rewrite that record
     convo_summarised =  False
     eZprint('checking summaries for first time', DEBUG_KEYS)
@@ -225,21 +321,48 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
         #     break
         eZprint('multiple convo summaries found', DEBUG_KEYS)
         summary_candidates = []
+        log_summary = ''
         for candidate in convo_summaries:
+            eZprint_anything(candidate, DEBUG_KEYS, message = 'candidate')
             summary = json.loads(candidate.json()).get('blob', None)
             for key, val in summary.items():
                 # print('key and val' + str(key) + str(val))
-                if val.get('summarised') == True:
-                    continue
                 if val.get('epoch-summarised') == True:
+                    if 'title' in val:
+                        log_summary = val['title']
+                    continue
+                if 'title' in val:
+                    log_summary = val['title']
+                if val.get('summarised') == True:
                     continue
                 if val.get('convo-summarised') == True:
                     continue
                 eZprint('found summary candidate' + str(val), DEBUG_KEYS)
                 val.update({'id': candidate.id})
                 summary_candidates.append(val)
+        eZprint_anything(summary_candidates, DEBUG_KEYS, message = 'summary candidates')
         if len(summary_candidates) <= 1:
             convo_summarised = True
+            if len(summary_candidates) == 1:
+                summary_record = summary_candidates[0]
+                eZprint('found single summary candidate' + str(summary), DEBUG_KEYS)
+                if 'title' in summary_record:
+                    log_summary = summary_record['title']
+            if log_summary != '':
+                eZprint('updating log with summary', DEBUG_KEYS)
+                log = await prisma.log.find_first(
+                    where = { 'SessionID' : convoID }
+                )
+
+                updated_log = await prisma.log.update(
+                    where = {
+                        'id' : log.id
+                        },
+                    data = {
+                        'summary' : log_summary
+                    }
+                )
+    
             break
         # print(convos_to_summarise)
         batches = []
@@ -299,10 +422,11 @@ async def handle_convo_summary(convoID, userID, sessionID, client_loadout, targe
             ids = []
             meta = ''
 
-        await summarise_batches(batches, userID, sessionID, client_loadout, target_loadout, summary_batch_prompt)
+        await summarise_batches(batches, userID, sessionID, summary_batch_prompt)
 
 
-async def update_record(record_ID, record_type, docID, loadout = None, trigger = 'live'):
+
+async def update_record(record_ID, record_type,  trigger = 'live'):
     eZprint('updating record with ID ' + str(record_ID) + ' and type ' + str(record_type), DEBUG_KEYS)
 
     summarised = True
@@ -376,15 +500,14 @@ async def update_record(record_ID, record_type, docID, loadout = None, trigger =
             # print(updated_summary)
  
 ##GROUP SUMMARY FLOWS
-async def summarise_batches(batches, userID, sessionID, client_loadout = None, target_loadout = None, prompt = "Summarise this text."):
+async def summarise_batches(batches, userID, sessionID, prompt = "Summarise this text."):
     eZprint('summarising batches, number of batches ' + str(len(batches)), DEBUG_KEYS)
     ##takes normalised text from different sources, runs through assuming can be summarised, and creates summary records (this allows for summaries of summaries for the time being)
     
     counter = 0
     for batch in batches:
         # print('batch number ' + str(counter))
-        if client_loadout != current_loadout[sessionID]:                
-            return
+
         counter += 1
         epoch = batch['epoch'] +1
         userID = novaSession[sessionID]['userID']
@@ -392,7 +515,7 @@ async def summarise_batches(batches, userID, sessionID, client_loadout = None, t
         summaryKey = secrets.token_bytes(4).hex()
         # eZprint('summary complete')
         # print(summary)
-        await create_summary_record(userID, batch['ids'], summaryKey, summary, epoch, batch['meta'], sessionID, target_loadout)
+        await create_summary_record(userID, batch['ids'], summaryKey, summary, epoch, batch['meta'])
 
 
         # except:
@@ -400,7 +523,7 @@ async def summarise_batches(batches, userID, sessionID, client_loadout = None, t
 
 
 
-async def create_summary_record( userID, sourceIDs, summaryKey, summary, epoch, meta = {}, sessionID = '', loadout =None):
+async def create_summary_record( userID, sourceIDs, summaryKey, summary, epoch, meta = {}):
     eZprint_anything(summary, DEBUG_KEYS, message= 'creating summary record')
     print()
     # print(summary)
@@ -446,7 +569,7 @@ async def create_summary_record( userID, sourceIDs, summaryKey, summary, epoch, 
     summaryID = summary.id
     # if success:
     for id in sourceIDs:
-        await update_record(id, meta['type'], docID, loadout, trigger)    
+        await update_record(id, meta['type'], trigger)    
     return summaryID
 
 ##MOST GENERIC SUMMARY FUNCTIONS
@@ -629,9 +752,9 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                     toSummarise = ''
                     ids = []
                     meta = ''
-            print('epoch summarised looped')
+            # print('epoch summarised looped')
             if len(batches) > 0:
-                await summarise_batches(batches, userID, sessionID, client_loadout, target_loadout, summary_batch_prompt)
+                await summarise_batches(batches, userID, sessionID, summary_batch_prompt)
                 batches = []
                 print('summarising batches so setting to false to trigger reloop')
                 epoch_in_window = False
