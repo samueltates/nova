@@ -362,6 +362,14 @@ async def handle_convo_summary(convoID, userID, sessionID):
                         'summary' : log_summary
                     }
                 )
+                session ={
+                    'id': log.id,
+                    'sessionID' : log.SessionID,
+                    'convoID' : convoID,
+                    'date' : log.date,
+                    'summary': log.summary,
+                }
+            await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': session}))
     
             break
         # print(convos_to_summarise)

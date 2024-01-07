@@ -9,10 +9,8 @@ from session.prismaHandler import prisma
 from core.loadout import update_loadout_field
 from tools.debug import eZprint, eZprint_anything
 from tools.memory import summarise_messages_by_convo
-# from session.user import set_user_value, get_user_value
 
 DEBUG_KEYS = ['CONVOS'] 
-
 
 
 async def get_loadout_logs(loadout, sessionID ):
@@ -430,8 +428,3 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
     # await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
     return True
     #
-# async def get_latest_convo(userID):
-#     eZprint('get_latest_convo called', ['CONVO', 'INITIALISE'])
-#     latest_convo = await get_user_value(userID, 'latest_convo')
-#     eZprint('latest convo' + str(latest_convo), ['CONVO', 'INITIALISE'])
-#     return latest_convo

@@ -20,7 +20,7 @@ from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_o
 from core.commands import handle_commands
 from tools.jsonfixes import correct_json
 from tools.memory import summarise_messages_by_convo
-
+from session.user import set_user_value
 
 
 class Object:
@@ -145,7 +145,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     if convoID not in chatlog:
         chatlog[convoID] = []
 
-    if len(chatlog[convoID]) == 3:
+    if len(chatlog[convoID]) == 5:
         await summarise_messages_by_convo(userID, sessionID, convoID)
 
     order = await getNextOrder(convoID)
@@ -304,7 +304,7 @@ async def logMessage(messageObject):
             loadout = splitID[2]
         if loadout:
             await update_loadout_field(loadout, 'latest_convo', convoID)
-
+        set_user_value(messageObject['userID'], 'latest_convo-'+loadout, convoID)
 
 
 

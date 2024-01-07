@@ -383,7 +383,7 @@ async def process_message(parsed_data):
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
-        
+
         latest_loadout = None
         if sessionID in novaSession:
             userID = None
@@ -404,8 +404,11 @@ async def process_message(parsed_data):
             latest_loadout = await get_loadouts(sessionID)
             if latest_loadout:
                 await set_loadout(latest_loadout, sessionID)
-                await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
-                await get_loadout_logs(latest_loadout, sessionID)
+            else
+                latest_loadout = '7531ab40afd82ba4'
+            await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+            await get_loadout_logs(latest_loadout, sessionID)
+
        
         if not 'met_sam' in novaSession[sessionID] or not novaSession[sessionID]['met_sam'] and latest_loadout == '7531ab40afd82ba4':
             # events = await get_user_events(userID)
@@ -415,11 +418,12 @@ async def process_message(parsed_data):
         # gets or creates conversation - should this pick up last?
         # convoID = await get_latest_loadout_convo(latest_loadout)
         # convoID = await get_latest_convo(userID)
-        # if not convoID:
-        convoID = await start_new_convo(sessionID, latest_loadout)
+        convoID = await get_user_value(userID, 'latest_convo-' + latest_loadout)
+        if not convoID:
+            convoID = await start_new_convo(sessionID, latest_loadout)
 
-        await retrieve_loadout_cartridges(latest_loadout, convoID)
         await set_convo(convoID, sessionID, latest_loadout)
+        await retrieve_loadout_cartridges(latest_loadout, convoID)
 
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, latest_loadout)
@@ -434,6 +438,7 @@ async def process_message(parsed_data):
         # sets to client specified loadout ... (or sets as active?)
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
+        userID = parsed_data['data']['userID']
         params = {}
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
@@ -443,9 +448,9 @@ async def process_message(parsed_data):
         await get_loadout_logs(loadout, sessionID)
 
         # convoID = await get_latest_loadout_convo(loadout)
-        
-        # if not convoID:
-        convoID = await start_new_convo(sessionID, loadout)
+        convoID = await get_user_value(userID, 'latest_convo-' + loadout)
+        if not convoID:
+            convoID = await start_new_convo(sessionID, loadout)
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await set_convo(convoID, sessionID, loadout)
@@ -470,7 +475,7 @@ async def process_message(parsed_data):
         await set_loadout(loadout, sessionID, True)
         # await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
-
+        
         # if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
         #     # convoID = await handle_convo_switch(sessionID)
         #     # if not convoID:
@@ -559,6 +564,7 @@ async def process_message(parsed_data):
 
 
         await set_convo(requestedConvoID, sessionID, loadout)
+        await set_user_value(userID, 'latest_convo-' + loadout, requestedConvoID)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
     if(parsed_data['type'] == 'add_loadout_to_profile'):
