@@ -302,7 +302,7 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
 
     await summarise_batches(normalised_convos, userID, sessionID, conversation_summary_prompt)
     for conversation in conversations:
-        await handle_convo_summary(conversation.SessionID, userID, sessionID, client_loadout, target_loadout)
+        await handle_convo_summary(conversation.SessionID, userID, sessionID)
 
 
 async def handle_convo_summary(convoID, userID, sessionID):
