@@ -19,7 +19,8 @@ from chat.query import sendChat, text_to_speech
 from tools.debug import eZprint, check_debug, eZprint_key_value_pairs, eZprint_object_list, eZprint_anything
 from core.commands import handle_commands
 from tools.jsonfixes import correct_json
-
+from tools.memory import summarise_messages_by_convo
+from session.user import set_user_value
 
 
 class Object:
@@ -80,8 +81,10 @@ async def user_input(sessionData):
     convoID = sessionData['convoID']
     content = sessionData['content']
     sessionID = sessionData['sessionID']
-    user_name = novaSession[sessionID]['user_name']
-
+    if sessionID in novaSession and 'user_name' in novaSession[sessionID]:
+        user_name = novaSession[sessionID]['user_name']
+    else :
+        user_name = 'user'
     # print(availableCartridges[convoID])
     
     # if 'command' in novaConvo[convoID]:
@@ -126,6 +129,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     sessionID = novaConvo[convoID]['sessionID']
     userID = novaSession[sessionID]['userID']
+
     voice = False
     if 'TTV' in novaSession[sessionID]:
         voice = novaSession[sessionID]['TTV']
@@ -140,6 +144,9 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
 
     if convoID not in chatlog:
         chatlog[convoID] = []
+
+    if len(chatlog[convoID]) == 5:
+        await summarise_messages_by_convo(userID, sessionID, convoID)
 
     order = await getNextOrder(convoID)
     function_call_json = None
@@ -218,6 +225,8 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
             'fields': {'id' : id}
         }
         asyncio.create_task(websocket.send(json.dumps({'event':'updateMessageFields', 'payload':update_message_payload, 'convoID': convoID})))
+    if meta == 'notification':
+        asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
 
     if role == 'assistant' :
         # print('role not user')
@@ -295,7 +304,7 @@ async def logMessage(messageObject):
             loadout = splitID[2]
         if loadout:
             await update_loadout_field(loadout, 'latest_convo', convoID)
-
+        set_user_value(messageObject['userID'], 'latest_convo-'+loadout, convoID)
 
 
 

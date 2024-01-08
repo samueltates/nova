@@ -120,6 +120,7 @@ async def startsession():
     if 'TTV' not in novaSession[sessionID]:
         novaSession[sessionID]['TTV'] = False
 
+
     if novaSession[sessionID]['profileAuthed']:
         if novaSession[sessionID]['new_login'] == True:
             novaSession[sessionID]['new_login'] = False
@@ -127,7 +128,12 @@ async def startsession():
         
         novaSession[sessionID]['met_nova'] = await get_user_value(novaSession[sessionID]['userID'], 'met_nova')
         novaSession[sessionID]['subscribed'] = await get_subscribed(novaSession[sessionID]['userID'])
+        novaSession[sessionID]['met_sam'] = await get_user_value(novaSession[sessionID]['userID'], 'met_sam')
 
+    else :
+        # novaSession[sessionID]['met_nova'] = False
+        novaSession[sessionID]['met_sam'] = False
+        # novaSession[sessionID]['subscribed'] = False
     payload = {
         'sessionID': sessionID,
         # 'convoID': convoID,
@@ -377,35 +383,49 @@ async def process_message(parsed_data):
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
-        
+        userID = None
 
-        latest_loadout = await get_loadouts(sessionID)
-        if latest_loadout:
-            await set_loadout(latest_loadout, sessionID)
+        latest_loadout = None
+        if sessionID in novaSession:
+            if 'userID' in novaSession[sessionID]:
+                userID = novaSession[sessionID]['userID']
+                if not 'met_nova' in novaSession[sessionID] or not novaSession[sessionID]['met_nova']:
+                    await add_loadout_to_profile('7531ab40afd82ba4', userID)
+                    novaSession[sessionID]['needs_meet_nova'] = False
+                    await set_user_value(userID, 'met_nova', True)
+                    await set_loadout('7531ab40afd82ba4', sessionID)
+                    latest_loadout = '7531ab40afd82ba4'
+                    await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
+                    await get_loadout_logs(latest_loadout, sessionID)
+
+                    
+              
+        if not latest_loadout:
+            latest_loadout = await get_loadouts(sessionID)
+            if latest_loadout:
+                await set_loadout(latest_loadout, sessionID)
+            # else:
+                # latest_loadout = '7531ab40afd82ba4'
             await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
             await get_loadout_logs(latest_loadout, sessionID)
 
-        ## initial attempt at adding loadout to new user
-        if sessionID in novaSession:
-            userID = None
-            if 'userID' in novaSession[sessionID]:
-                userID = novaSession[sessionID]['userID']
-                if 'met_nova' in novaSession[sessionID]:
-                    if not novaSession[sessionID]['met_nova']:
-                        await add_loadout_to_profile('7531ab40afd82ba4', userID)
-                        novaSession[sessionID]['needs_meet_nova'] = False
-                        await set_user_value(userID, 'met_nova', True)
-                        await set_loadout('7531ab40afd82ba4', sessionID)
-                        await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
-                        
+       
+        if not 'met_sam' in novaSession[sessionID] or not novaSession[sessionID]['met_sam'] and latest_loadout == '7531ab40afd82ba4':
+            # events = await get_user_events(userID)
+
+            await websocket.send(json.dumps({'event': 'set_met_sam', 'payload':False}))
 
         # gets or creates conversation - should this pick up last?
-        convoID = await get_latest_loadout_convo(latest_loadout)
+        # convoID = await get_latest_loadout_convo(latest_loadout)
+        # convoID = await get_latest_convo(userID)
+        convoID = None
+        if userID:
+            convoID = await get_user_value(userID, 'latest_convo-' + latest_loadout)
         if not convoID:
             convoID = await start_new_convo(sessionID, latest_loadout)
 
-        await retrieve_loadout_cartridges(latest_loadout, convoID)
         await set_convo(convoID, sessionID, latest_loadout)
+        await retrieve_loadout_cartridges(latest_loadout, convoID)
 
         await initialise_conversation(sessionID, convoID, params)
         await initialiseCartridges(sessionID, convoID, latest_loadout)
@@ -420,6 +440,7 @@ async def process_message(parsed_data):
         # sets to client specified loadout ... (or sets as active?)
         sessionID = parsed_data['data']['sessionID']
         loadout = parsed_data['data']['loadout']
+        userID = parsed_data['data']['userID']
         params = {}
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
@@ -428,13 +449,13 @@ async def process_message(parsed_data):
         await set_loadout(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
 
-        convoID = await get_latest_loadout_convo(loadout)
-        
+        # convoID = await get_latest_loadout_convo(loadout)
+        convoID = await get_user_value(userID, 'latest_convo-' + loadout)
         if not convoID:
             convoID = await start_new_convo(sessionID, loadout)
 
-        await retrieve_loadout_cartridges(loadout, convoID)
         await set_convo(convoID, sessionID, loadout)
+        await retrieve_loadout_cartridges(loadout, convoID)
 
         await initialise_conversation(sessionID, convoID, params)
         await runCartridges(sessionID, convoID, loadout)
@@ -456,7 +477,7 @@ async def process_message(parsed_data):
         await set_loadout(loadout, sessionID, True)
         # await add_loadout_to_session(loadout, sessionID)
         await get_loadout_logs(loadout, sessionID)
-
+        
         # if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared']:
         #     # convoID = await handle_convo_switch(sessionID)
         #     # if not convoID:
@@ -531,8 +552,21 @@ async def process_message(parsed_data):
         requestedConvoID = parsed_data['data']['requestedConvoID']
         convoID = parsed_data['data']['convoID']
         loadout = parsed_data['data']['loadout']
+        userID = parsed_data['data']['userID']
         sessionID = parsed_data['data']['sessionID']
+        if requestedConvoID == 'welcome-message':
+            requestedConvoID = await start_new_convo(sessionID, loadout)
+            await handle_message(requestedConvoID, 
+            """Hey sam here, I'm the (human) developer of nova. Wanted to start a thread where you can ask me questions, give feedback or make requests. There's a lot of different ways to configure agents in nova and if I can help you get the most out of it I'd love to.
+            """, 'user', 'sam', None, 0, meta = 'notification')
+            if not 'met_sam' in novaSession[sessionID] or not novaSession[sessionID]['met_sam']:
+                novaSession[sessionID]['needs_meet_sam'] = False
+                await set_user_value(userID, 'met_sam', True)
+                await websocket.send(json.dumps({'event': 'set_met_sam', 'payload': {'met_sam':True}}))
+
+
         await set_convo(requestedConvoID, sessionID, loadout)
+        await set_user_value(userID, 'latest_convo-' + loadout, requestedConvoID)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
 
     if(parsed_data['type'] == 'add_loadout_to_profile'):
@@ -647,39 +681,50 @@ async def process_message(parsed_data):
             await websocket.send(json.dumps({'event':'file_chunk', 'id': chunk }))
     elif parsed_data["type"] == "file_end":
         await websocket.send(json.dumps({'event':'file_end'}))
-
-        # TODO : split file handler so upload eg as main, then transcribe etc as optional
         convoID = parsed_data["data"]["convoID"]
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': 'transcribing'}, 'convoID': convoID}))
-
-        # await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
-
         result = await handle_file_end(parsed_data["data"])
-        # actions = parsed_data["data"]["actions"]
-        await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
-
-
-        action_modiier = """
-
-        To note
-        - B-roll must illustrate the transcript's key events, objects, locations or activities.
-        - B-roll must not illustrate specific people or animals named in the transcript.
-        - Do not place b-roll in the first 3 seconds of any video.
-        - B-roll must appear every 5 seconds and be held for a total of 3 seconds.
-        - B-roll must appear on screen 1 second before its prompting word or phrase and end 2 seconds after.
-
-        IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
-        IMPORTANT : Do not return b_roll in the first 3 seconds.
-        IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
-        IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
-
-        """
-        result += action_modiier
 
         if result:
             convoID = parsed_data["data"]["convoID"]
-            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='transcribe')
-            await return_to_GPT(convoID, 0)
+            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
+            # await return_to_GPT(convoID, 0)
+
+    ## EASIA VARIANT            
+    # elif parsed_data["type"] == "file_end":
+    #     await websocket.send(json.dumps({'event':'file_end'}))
+
+    #     # TODO : split file handler so upload eg as main, then transcribe etc as optional
+    #     convoID = parsed_data["data"]["convoID"]
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': 'transcribing'}, 'convoID': convoID}))
+
+    #     # await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
+
+    #     result = await handle_file_end(parsed_data["data"])
+    #     # actions = parsed_data["data"]["actions"]
+    #     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
+
+
+    #     action_modiier = """
+
+    #     To note
+    #     - B-roll must illustrate the transcript's key events, objects, locations or activities.
+    #     - B-roll must not illustrate specific people or animals named in the transcript.
+    #     - Do not place b-roll in the first 3 seconds of any video.
+    #     - B-roll must appear every 5 seconds and be held for a total of 3 seconds.
+    #     - B-roll must appear on screen 1 second before its prompting word or phrase and end 2 seconds after.
+
+    #     IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
+    #     IMPORTANT : Do not return b_roll in the first 3 seconds.
+    #     IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
+    #     IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
+
+    #     """
+    #     result += action_modiier
+
+    #     if result:
+    #         convoID = parsed_data["data"]["convoID"]
+    #         await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='transcribe')
+    #         await return_to_GPT(convoID, 0)
 
     elif parsed_data["type"] == "get_file_download_link":
         eZprint('get_file_download_link route hit', ['FILE_HANDLING'])

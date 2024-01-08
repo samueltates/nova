@@ -3,7 +3,7 @@ import json
 import datetime
 
 from session.prismaHandler import prisma
-from session.sessionHandler import novaSession
+from session.sessionHandler import novaSession, current_loadout
 from tools.debug import eZprint, eZprint_anything
 from core.convos import turn_guest_logs_to_user
 
@@ -42,7 +42,16 @@ async def GoogleSignOn(userInfo, token, sessionID):
             }
         )
         guestID = 'guest-' + str(sessionID)
-        turn_guest_logs_to_user(userInfo['id'], guestID, sessionID)
+        await turn_guest_logs_to_user(userInfo['id'], guestID, sessionID)
+        convoID = None
+        if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
+            convoID = novaSession[sessionID]['convoID']
+
+        loadout = None
+        if sessionID in current_loadout and 'loadout' in current_loadout[sessionID]:
+            loadout = current_loadout[sessionID]['loadout']
+        if convoID and loadout:
+            await set_user_value(userInfo['id'], 'latest_convo-'+loadout, convoID)
 
         return newUser
 
@@ -235,7 +244,7 @@ async def get_user_events(userID):
 async def set_user_value(userID, field, value):
     DEBUG_KEYS = ['USER', 'SET_USER_VALUE']
     eZprint(f"Setting user value for user {userID}", DEBUG_KEYS)
-
+    eZprint_anything(value, DEBUG_KEYS, 'value')
     # Retrieve the user with the given id.
     user = await prisma.user.find_first(
         where={"UserID": str(userID)},
@@ -265,8 +274,12 @@ async def get_user_value(userID, field):
         where={"UserID": str(userID)},
     )
 
+    eZprint_anything(user, DEBUG_KEYS, 'user')
+
     if user and user.blob:
         blob = json.loads(user.json())['blob']
-        return blob.get(field, None)
+        value = blob.get(field, None)
+        eZprint_anything(value, DEBUG_KEYS, 'value')
+        return value
     else:
         return None

@@ -126,7 +126,7 @@ async def runCartridges(sessionID,  convoID, loadout = None):
     #     # print(current_config[convoID])
     #     if 'agent_initiated' in current_config[sessionID] and current_config[sessionID]['agent_initiated'] == True:
     #         await agent_initiate_convo(sessionID, convoID, loadout)
-    eZprint(active_cartridges,  ['SUMMARY'], message = 'active cartridges')
+    # eZprint(active_cartridges,  ['SUMMARY'], message = 'active cartridges')
 
     if convoID in active_cartridges:
         for cartKey, cartVal in active_cartridges[convoID].items():

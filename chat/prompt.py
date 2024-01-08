@@ -234,6 +234,8 @@ async def construct_context(convoID):
     # print(novaConvo[convoID])
     if 'agent-name' not in novaConvo[convoID]:
         novaConvo[convoID]['agent-name'] = 'Nova'
+    if 'user_name' not in novaSession[sessionID]:
+        novaSession[sessionID]['user_name'] = 'User'
     session_string = f"""\n\n***\n\n### Important information\n"""
     session_string += f"""\n- **Your name**: {novaConvo[convoID]['agent-name']}"""
     session_string += f"""\n- **You are speaking with**: {novaSession[sessionID]['user_name']}"""
@@ -575,6 +577,8 @@ async def summarise_at_limit(string_to_check, limit, convoID, element = 'prompt'
     # print(novaConvo[convoID])
     # print(convoID)
     # print(novaConvo)
+    if 'token_limit' not in novaConvo[convoID]:
+        novaConvo[convoID]['token_limit'] = 4000
     limit = novaConvo[convoID]['token_limit'] * limit
     token_usage[convoID][element] = tokens
 

@@ -8,9 +8,9 @@ from session.sessionHandler import novaConvo, novaSession, chatlog, available_co
 from session.prismaHandler import prisma
 from core.loadout import update_loadout_field
 from tools.debug import eZprint, eZprint_anything
+from tools.memory import summarise_messages_by_convo
 
 DEBUG_KEYS = ['CONVOS'] 
-
 
 
 async def get_loadout_logs(loadout, sessionID ):
@@ -83,63 +83,36 @@ async def get_loadout_logs(loadout, sessionID ):
 async def populate_summaries(sessionID):
     userID = novaSession[sessionID]['userID']
     DEBUG_KEYS.append('POPULATE_SUMMARY')
-    eZprint('populating summaries', DEBUG_KEYS )
-    eZprint_anything(available_convos[sessionID], DEBUG_KEYS, message='convos log')
-    for log in available_convos[sessionID]:
-        eZprint_anything(log, DEBUG_KEYS, message='each log')
-        if log['summary'] == '':
-            eZprint('summary is empty', DEBUG_KEYS)
-            splitID = log['sessionID'].split('-')
-            if len(splitID) > 1:
-                splitID = splitID[1]
+    POPULATE_KEYS = DEBUG_KEYS + ['POPULATE_SUMMARY']
+    eZprint('populating summaries', POPULATE_KEYS )
+    # eZprint_anything(available_convos[sessionID], POPULATE_KEYS, message='convos log')
+    reverse_list = available_convos[sessionID][::-1]
+    for log in reverse_list:
+        if log['summary'] == '' and log['date'] > '20240000000000':
+            ## check if made in 2024
+            eZprint('summary is empty', POPULATE_KEYS)
             try:
-                remote_summaries_from_convo = await prisma.summary.find_many(
+                updated_log = await prisma.log.update(
                     where = {
-                        'UserID' : userID,
-                        'SessionID' : splitID
-                        }
+                        'id' : log['id']
+                        },
+                    data = {
+                        'summary' : 'loading'
+                    }
                 )
-                if remote_summaries_from_convo:
-                    eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo with split ID')
-
-                if not remote_summaries_from_convo:
-
-                    remote_summaries_from_convo = await prisma.summary.find_many(
-                    where = {
-                        'UserID' : userID,
-                        'SessionID' : log['sessionID']
-                        }
-                    )
-                    eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo without split id')
-                    
-                    # eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
+                await summarise_messages_by_convo(userID, sessionID, log['sessionID'])
+                eZprint('summary complete', DEBUG_KEYS)
             except:
                 eZprint('summary search failed')
-                remote_summaries_from_convo = None
-                
-            summary = ''
-
-            if remote_summaries_from_convo:
-                eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
-                for summary in remote_summaries_from_convo:
-                    eZprint(summary, DEBUG_KEYS, message= 'summary found')
-
-                    summary = json.loads(summary.json())['blob']
-                    for key, val in summary.items():
-                        summary = val['title']
-                    log['summary'] = summary
-
-                    updated_log = await prisma.log.update(
-                        where = {
-                            'id' : log['id']
-                            },
-                        data = {
-                            'summary' : summary
-                        }
-                    )
-                    eZprint_anything(updated_log, DEBUG_KEYS, message = 'updated log')
-                    await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
-
+                updated_log = await prisma.log.update(
+                    where = {
+                        'id' : log['id']
+                        },
+                    data = {
+                        'summary' : ''
+                    }
+                )
+  
 async def set_convo(requested_convoID, sessionID, loadout):
     
     userID = novaSession[sessionID]['userID']
@@ -301,9 +274,10 @@ async def set_convo(requested_convoID, sessionID, loadout):
                     log['summarised'] = False
                     log['minimised'] = False
                     log['muted'] = False
-                    if log['content'] == 'None':
-                        log['content'] = ''
-                    if log['function_call']:
+                    if log.get('content', None):
+                        if log['content'] == 'None':
+                            log['content'] = ''
+                    if log.get('function_call', None):
                         if log['arguments']:
                             log['arguments'] == json.loads(log['arguments'], strict=False)
 
@@ -325,6 +299,8 @@ async def set_convo(requested_convoID, sessionID, loadout):
     #this is only for return to convo
     if loadout:
         await update_loadout_field(loadout, 'latest_convo', requested_convoID)
+    # await set_user_value(userID, 'latest_convo', requested_convoID)
+    
 
 # async def handle_convo_switch(sessionID):
 #     eZprint('handle_convo_switch called', ['CONVO', 'INITIALISE'])
@@ -377,13 +353,11 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
             'UserID' : guestID
         }
     )
+    eZprint_anything(logs, ['CONVO', 'INITIALISE'], message='logs found')
     for log in logs:
-        log = json.loads(log.json())
-        log['UserID'] = newUserID
-        log = json.dumps(log)
         await prisma.log.update(
             where = {
-                'id' : log['id']
+                'id' : log.id
             },
             data = {
                 'UserID' : newUserID
@@ -396,12 +370,10 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
         }
     )
     for summary in summaries:
-        summary = json.loads(summary.json())
-        summary['UserID'] = newUserID
-        summary = json.dumps(summary)
+
         await prisma.summary.update(
             where = {
-                'id' : summary['id']
+                'id' : summary.id
             },
             data = {
                 'UserID' : newUserID
@@ -414,17 +386,17 @@ async def turn_guest_logs_to_user(newUserID, guestID, sessionID):
         }
     )
     for message in messages:
-        message = json.loads(message.json())
-        message['UserID'] = newUserID
-        message = json.dumps(message)
+
         await prisma.message.update(
             where = {
-                'id' : message['id']
+                'id' : message.id
             },
             data = {
                 'UserID' : newUserID
             }
         )
-    await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
+
+    
+    # await websocket.send(json.dumps({'event':'set_convoID', 'payload':{'convoID' : sessionID}}))
     return True
     #
