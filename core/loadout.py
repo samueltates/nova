@@ -42,7 +42,7 @@ async def get_loadouts(sessionID):
     )
     
     # stores loadouts for session - does this get used much? 
-    available_loadouts[sessionID] = {}
+    available_loadouts= {}
 
     for loadout in loadouts:
         blob = json.loads(loadout.json())['blob']
@@ -53,7 +53,7 @@ async def get_loadouts(sessionID):
                 continue
             val['config']['owned'] = True
             if key == loadout.key:
-                available_loadouts[sessionID][key] = val
+                available_loadouts[key] = val
         
 
     user_details = await prisma.user.find_first(
@@ -79,7 +79,7 @@ async def get_loadouts(sessionID):
                 continue
             val['config']['notPinned'] = False
             if key == loadout:
-                available_loadouts[sessionID][key] = val
+                available_loadouts[key] = val
 
             
 
@@ -101,7 +101,7 @@ async def get_loadouts(sessionID):
                 latest_loadout = userBlob['latest_loadout']
             else: 
                 latest_loadout = None
-    await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
+    await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts}))
     return latest_loadout
 
 
@@ -109,7 +109,7 @@ async def get_loadouts(sessionID):
 async def set_loadout(loadout_key: str, sessionID, referal = False):
 
     eZprint('set_loadout' + str(loadout_key), ['LOADOUT', 'INITIALISE'])
-
+    
     # gets remote loadout content - this includes the cartridges that loadout has, the configuration file with information like title and setup rules
     remote_loadout = await prisma.loadout.find_first(
         where={ "key": str(loadout_key)}
@@ -202,7 +202,7 @@ async def set_loadout(loadout_key: str, sessionID, referal = False):
 async def add_loadout(loadout: str, convoID):
 
     config = { 
-                'title': '...',
+                'title': 'untitled loadout',
                 'read_only': False,
                 'convo_summary': 'one_way',
                 'show_cartridges' : True,
@@ -224,6 +224,7 @@ async def add_loadout(loadout: str, convoID):
             "blob":Json({loadout:loadout_values})
         }
     )
+    
 
     await websocket.send(json.dumps({'event': 'add_loadout', 'payload': {loadout:loadout_values}}))
     await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': config, 'owner': True}}))
@@ -470,8 +471,8 @@ async def drop_loadout(loadout_key: str, sessionID, userID):
             # print(update)
 
     active_loadouts.pop(loadout_key, None)
-    available_loadouts[sessionID].pop(loadout_key, None)
-    await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
+    # available_loadouts[sessionID].pop(loadout_key, None)
+    # await websocket.send(json.dumps({'event': 'populate_loadouts', 'payload': available_loadouts[sessionID]}))
     
 async def add_loadout_to_profile(loadout_key: str, userID):
     DEBUG_KEYS = ['LOADOUT', 'ADD_LOADOUT_TO_USER']

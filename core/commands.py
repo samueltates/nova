@@ -12,6 +12,7 @@ from web_handling.url_scraper import advanced_scraper
 from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
+from file_handling.video_editor import cut_video
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
@@ -559,7 +560,24 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
     # if name == 'read_website':
 
+    if name == 'cut_video':
+        video_file = args['target_video']
+        extension = None
+        for key, val in active_cartridges[convoID].items():
+            # if 'type' in val and val['type'] == 'media':
+            if 'label' in val and val['label'] == video_file:
+                eZprint_anything(val, ['COMMANDS', 'VIDEO'], message='found target' )
+                video_file = val['key']
+                # extension = val['extension']
+                break
+        edited_video = await cut_video(video_file,args, sessionID, convoID, loadout )
+        eZprint_anything(edited_video)
+        command_return['status'] = "Success."
+        command_return['message'] = "video edited" 
+        print(command_return)
+        return command_return
     
+
     if name == 'transcribe':
         video_file_name = args['filename']
         video_file = None
@@ -578,12 +596,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             if transcript:
                 command_return['status'] = "Success."
                 command_return['message'] = "video transcript:\n" + str(transcript)
-                eZprint(command_return)
+                eZprint_anything(command_return, ['COMMANDS', 'TRANSCRIBE'], message = 'transcript return')
                 return command_return
             else:
                 command_return['status'] = "Error."
                 command_return['message'] = "video transcript failed"
-                eZprint(command_return)
+                eZprint_anything(command_return, ['COMMANDS', 'TRANSCRIBE'], message = 'transcript return')
                 return command_return
         else:
             command_return['status'] = "Error."

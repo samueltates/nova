@@ -27,15 +27,10 @@ async def transcribe_file(file_content, file_key, file_name, file_type, sessionI
     processed_file.write(file_content)
     processed_file.close()
     transcript_text = ''
-    if file_type == 'video/mp4':
+    if file_type == 'video/mp4' or file_type == 'video/quicktime' or file_type == 'video/x-matroska' or file_type == 'mkv' or file_type == 'mov' or file_type == 'mp4' or file_type == 'webm':
         transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
-    elif file_type == 'video/quicktime':
-        print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key )
-    elif file_type == 'video/x-matroska':
-        print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key )
-    elif file_type == 'audio/mpeg':
+   
+    elif file_type == 'audio/mpeg' or file_type == 'audio/mp3' or file_type == 'audio/wav' or file_type == 'wav' or file_type == 'mp3':
         print('audio requested')
         transcript_text = await transcribe_audio_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
 

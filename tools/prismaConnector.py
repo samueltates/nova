@@ -10,16 +10,115 @@ prisma = Prisma()
 import pytz
 utc=pytz.UTC
 
+async def find_loadouts_and_convos(exlude_user = None):
+    #get loadouts created in the past week, use ID to find and sort logs by user name and loadout, then find messages by log
+    if not exlude_user:
+        loadouts = await prisma.loadout.find_many(
+            where = {'id': {'gt': '2024-12-01T00:00:00.000Z'}},
+        )
+    else:
+        loadouts = await prisma.loadout.find_many(
+            where = {'UserID': {'not': exlude_user},
+                    'id': {'gt': 8500},
+                     },
+        )
+
+    print(len(loadouts))
+    # return
+    for loadout in loadouts:
+        print('------\nloadout found \n')
+        print(loadout)
+        # print('\n')
+
+        # if not loadout.UserID:
+        #     return
+        user = await prisma.user.find_first(
+            where={'UserID': loadout.UserID}
+        )
+        if user:
+            print(user.name)
+            # print('\n')
+
+        logs = await prisma.log.find_many(
+            where = {'SessionID': {'contains':loadout.key}},
+        )
+
+        for log in logs:
+            print('\n------\n')
+            print(log.date)
+
+            messages = await prisma.message.find_many(
+                where = {'SessionID': log.SessionID},
+            )
+            for message in messages:
+                print(message.content)
+                print('\n')
+
+
+async def find_user(userID):
+    user = await prisma.user.find_first(
+        where={'UserID': userID}
+    )
+    print(user)
+
 async def clear_user_history(userID):
+    await deleteLogs(userID)
     await deleteLoadouts(userID)
     await deleteCartridges(userID)
     await deleteSummaries(userID)
     await deleteMessages(userID)
 
-async def deleteSummaries(userID):
-    summaries = await prisma.summary.delete_many(
+async def delete_user(userID):
+    user_to_delete = await prisma.user.find_first(
+        where={'UserID': userID}
+    )
+    if user_to_delete:
+        deleted_user = await prisma.user.delete(
+            where={'id': user_to_delete.id}
+        )   
+        print(deleted_user)
+
+
+async def deleteLogs(userID):
+    logs = await prisma.log.find_many(
         where = {'UserID' : userID,}
     )
+
+    if logs:
+        for log in logs:
+            deleted_logs = await prisma.log.delete(
+                where={'id': log.id}
+            )
+            print(deleted_logs)
+
+
+
+async def deleteSummaries(userID):
+    summaries = await prisma.summary.find_many(
+        where = {'UserID' : userID,}
+    )
+
+    if summaries:
+        for summary in summaries:
+            deleted_summaries = await prisma.summary.delete(
+                where={'id': summary.id}
+            )
+            print(deleted_summaries)
+
+
+async def deleteMessages(userID):
+    messages = await prisma.message.find_many(
+        where = {'UserID' : userID,}
+    )
+
+    if messages:
+        for messages in messages:
+            deleted_messages = await prisma.message.delete(
+                where={'id': messages.id}
+            )
+            print(deleted_messages)
+
+
 async def find_summaries_by_ID(userID, ID):
     summaries = await prisma.summary.find_many(
         where = {'UserID': userID}
@@ -33,21 +132,18 @@ async def find_summaries_by_ID(userID, ID):
 
 async def delete_summaries_by_ID(userID, ID):
     summaries = await prisma.summary.find_many(
-        where = {'UserID': userID}
+        # where = {'UserID': userID}
     )
 
     for summary in summaries:
-        if ID == summary.SessionID:
+        if ID in summary.SessionID:
             # print(summary)
             delete_summary = await prisma.summary.delete(
                 where = {'id' : summary.id }
             ) 
             print(delete_summary)
 
-async def deleteMessages(userID):
-    messages = await prisma.message.delete_many(
-        where = {'UserID' : userID,}
-    )
+
 
 async def deleteLoadouts(userID):
     loadouts = await prisma.loadout.delete_many(
@@ -175,6 +271,17 @@ async def find_logs(userID):
         print(log)
         print('\n')
 
+async def find_messages_by_ID(ID):
+    messages = await prisma.message.find_many(
+        where = {'SessionID' : ID,
+                 }
+    )
+    print(messages)
+    print('\n')
+    for message in messages:
+        if ID in message.SessionID:
+            print(message)
+            print('\n')
 
 async def findMessages(userID):
     messages = await prisma.message.find_many(
@@ -200,25 +307,33 @@ async def find_and_delete_messages():
                 where={'id': message.id}
             )
         
-    
+
 async def findmessages__set_unsummarised_by_session(userID, sessionID):
     print('starting find')
     messages = await prisma.message.find_many(
-    where = {'UserID' : userID,
+    where = {'SessionID' : {'contains': sessionID},
+             'summarised' : True,
                 }
     )  
+    counter = 0
+    print(len(messages))
     for message in messages:
-        if sessionID == message.SessionID:
-            print('message')
-            # if(message.minimised):
-            print('message found by sessionID : ', message )
-            updatedMessage = await prisma.message.update(
-                where={'id': message.id},
-                data={'summarised': False,
-                    'minimised': False,
-                    'muted' : False
-                    }
-            )
+        # if sessionID in message.SessionID:
+            # counter += 1
+            # if counter > 100:
+            #     print('100 messages reset')
+            #     counter = 0
+        # print('message')
+        # if(message.minimised):
+        # print('message found by sessionID : ', message )
+        updatedMessage = await prisma.message.update(
+            where={'id': message.id},
+            data={'summarised': False,
+                'minimised': False,
+                'muted' : False
+                }
+        )
+        print(updatedMessage)
 
 async def find_summary_by_key(key):
     summaries = await prisma.summary.find_many(
@@ -605,11 +720,11 @@ async def findLogs(userID):
         print(log)
         print('\n')
 
-async def find_messages(userID):
+async def find_messages_by_user(userID):
     messages = await prisma.message.find_many(
         where = {
             'UserID' : userID,
-            'id': {'gt': 3000}     
+            # 'id': {'gt': 3000}     
             }
     )
     for message in messages:
@@ -857,7 +972,7 @@ async def add_nova_coin_to_user(userID):
     print(user)
     blob = json.loads(user.json())['blob']
     print(blob)
-    blob['tokensUsed'] = -1500
+    blob['tokensUsed'] = -100
     print(blob)
     update = await prisma.user.update(
         where={'id': user.id},
@@ -870,22 +985,29 @@ async def main() -> None:
     # await delete_summary_with_content()
     # await get_daily_messages_report()
     # await get_messages_report(datetime.date(2023, 7, 11), datetime.date(2023, 8, 11), '110327569930296986874')
-    # await get_messages_report_aggregate(datetime.date(2023, 11, 25), datetime.date(2023, 12, 10), '110327569930296986874')
+    # await get_messages_report_aggregate(datetime.date(2023, 12, 10), datetime.date(2024, 1, 7), '110327569930296986874')
     # await retrieve_logs_and_messages()
     # await write_recovered_messages()
     # await delete_logs_and_messages()
     # await delete_summaries_in_range()
     # await find_users()
-    # await clear_user_history( '108238407115881872743')
+
+    # await find_user('116777617360760933319')
+    # await find_loadouts_and_convos('110327569930296986874')
+
+    await clear_user_history( '116777617360760933319')
+    await delete_user('116777617360760933319')
+    
     # await findIndexes('108238407115881872743')
     # await findBatches()
-    # await add_nova_coin_to_user('112850279287928312114')
+    # await add_nova_coin_to_user('115938550830353942191')
+    # await find_messages_by_ID('e5d9aec575d36df0-b9d3be40-7531ab40afd82ba4')
+    # await find_messages_by_user('116777617360760933319')
 
     # await findLogs('108238407115881872743')
-    # await delete_summaries_by_ID('110327569930296986874', 'b44d5b67d5345f4b-0b22b216-04f101f0c836520d')
-    # await findmessages__set_unsummarised_by_session('110327569930296986874', '0bfcfd16e38d789f-b4c7b7ad-04f101f0c836520d')
-    await find_summary_by_key('4831b822')
-
+    # await delete_summaries_by_ID('110327569930296986874', '7531ab40afd82ba4')
+    # await findmessages__set_unsummarised_by_session('110327569930296986874', '7531ab40afd82ba4')
+    # await find_summary_by_key('4831b822')
     # await find_summaries_by_ID('110327569930296986874', '04f101f0c836520d')
     # await findSummaries('110327569930296986874')
     # await findLogSummaries('110327569930296986874', '04f101f0c836520d')
@@ -896,7 +1018,6 @@ async def main() -> None:
     # await deleteCartridges( '108238407115881872743')
     # await findMessages_set_unsummarised('110327569930296986874')
     # await update_summaries_for_testing('110327569930296986874')
-    # await find_messages('110327569930296986874')
     # await findLogs('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')

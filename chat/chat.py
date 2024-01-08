@@ -304,7 +304,7 @@ async def logMessage(messageObject):
             loadout = splitID[2]
         if loadout:
             await update_loadout_field(loadout, 'latest_convo', convoID)
-        set_user_value(messageObject['userID'], 'latest_convo-'+loadout, convoID)
+        await set_user_value(messageObject['userID'], 'latest_convo-'+loadout, convoID)
 
 
 

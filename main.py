@@ -404,8 +404,8 @@ async def process_message(parsed_data):
             latest_loadout = await get_loadouts(sessionID)
             if latest_loadout:
                 await set_loadout(latest_loadout, sessionID)
-            # else:
-                # latest_loadout = '7531ab40afd82ba4'
+            else:
+                latest_loadout = '7531ab40afd82ba4'
             await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
             await get_loadout_logs(latest_loadout, sessionID)
 
@@ -484,6 +484,7 @@ async def process_message(parsed_data):
         #     convoID = await start_new_convo(sessionID)
         # else:
         convoID = await start_new_convo(sessionID, loadout)
+        await set_convo(convoID, sessionID, loadout)
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID, params)
@@ -496,10 +497,14 @@ async def process_message(parsed_data):
         loadout = parsed_data['data']['loadout']
         sessionID = parsed_data['data']['sessionID']
         await add_loadout(loadout, convoID)
+        await set_loadout(loadout, sessionID)
+
         await get_loadout_logs(loadout, sessionID)
         # convoID = await handle_convo_switch(sessionID)
         # if not convoID:
         convoID = await start_new_convo(sessionID, loadout)
+        await set_convo(convoID, sessionID, loadout)
+
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID)
         await runCartridges(convoID, loadout)  
