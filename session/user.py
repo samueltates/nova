@@ -48,10 +48,16 @@ async def GoogleSignOn(userInfo, token, sessionID):
             convoID = novaSession[sessionID]['convoID']
 
         loadout = None
-        if sessionID in current_loadout and 'loadout' in current_loadout[sessionID]:
-            loadout = current_loadout[sessionID]['loadout']
+        if sessionID in current_loadout:
+            loadout = current_loadout[sessionID]
         if convoID and loadout:
             await set_user_value(userInfo['id'], 'latest_convo-'+loadout, convoID)
+
+        if temporary_user_events and userInfo['id'] in temporary_user_events:
+            events = temporary_user_events[userInfo['id']]
+            for key in events:
+                await update_user_events(userInfo['id'], key, events[key])
+            del temporary_user_events[userInfo['id']]
 
         return newUser
 
@@ -191,7 +197,7 @@ async def getTextToVoice(userID):
         return False
     
 
-
+temporary_user_events = {}
 async def update_user_events(userID, field, value):
     DEBUG_KEYS = ['USER', 'UPDATE_USER_EVENTS']
     eZprint('update_user_events', DEBUG_KEYS)
@@ -221,6 +227,11 @@ async def update_user_events(userID, field, value):
         )
         # Optionally print update for debugging purposes.
         # print(update)
+    else:
+        # Create a temporary events object if blob isn't defined.
+        if not userID in temporary_user_events:
+            temporary_user_events[userID] = {}
+        temporary_user_events[userID][field] = value
     
 
 async def get_user_events(userID):
@@ -237,6 +248,8 @@ async def get_user_events(userID):
         events = blob.get("events", {})
         return events
     else:
+        if userID in temporary_user_events:
+            return temporary_user_events[userID]
         # Return an empty events object if blob isn't defined.
         return {}
     

@@ -994,8 +994,10 @@ async def main() -> None:
 
     # await find_user('116777617360760933319')
     # await find_loadouts_and_convos('110327569930296986874')
-    # await clear_user_history( '116777617360760933319')
-    # await delete_user('116777617360760933319')
+
+    await clear_user_history( '116777617360760933319')
+    await delete_user('116777617360760933319')
+    
     # await findIndexes('108238407115881872743')
     # await findBatches()
     # await add_nova_coin_to_user('115938550830353942191')
@@ -1003,8 +1005,8 @@ async def main() -> None:
     # await find_messages_by_user('116777617360760933319')
 
     # await findLogs('108238407115881872743')
-    await delete_summaries_by_ID('110327569930296986874', '7531ab40afd82ba4')
-    await findmessages__set_unsummarised_by_session('110327569930296986874', '7531ab40afd82ba4')
+    # await delete_summaries_by_ID('110327569930296986874', '7531ab40afd82ba4')
+    # await findmessages__set_unsummarised_by_session('110327569930296986874', '7531ab40afd82ba4')
     # await find_summary_by_key('4831b822')
     # await find_summaries_by_ID('110327569930296986874', '04f101f0c836520d')
     # await findSummaries('110327569930296986874')
