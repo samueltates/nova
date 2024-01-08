@@ -73,15 +73,16 @@ async def summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout=
         await summarise_epochs(userID, sessionID, client_loadout, target_loadout)
         
 async def summarise_messages_by_convo(userID, sessionID, convoID ):
-    eZprint_anything(convoID, DEBUG_KEYS, message = 'summarising convo')
+    POPULATE_KEYS = ['POPULATE_SUMMARY']
+    eZprint_anything(convoID, POPULATE_KEYS, message = 'summarising convo')
     messages = []
     remote_messages = await prisma.message.find_many(
             where={
-            'SessionID': { 'contains': str(convoID) },
-            # 'summarised': False
+            'SessionID': convoID,
+            'summarised': False
             }
     )
-    eZprint_anything(remote_messages, DEBUG_KEYS, message = 'remote messages')
+    eZprint_anything(remote_messages, POPULATE_KEYS, message = 'remote messages')
     normalised_convos = []
     meta = ' '
 
@@ -328,8 +329,6 @@ async def handle_convo_summary(convoID, userID, sessionID):
             for key, val in summary.items():
                 # print('key and val' + str(key) + str(val))
                 if val.get('epoch-summarised') == True:
-                    if 'title' in val:
-                        log_summary = val['title']
                     continue
                 if 'title' in val:
                     log_summary = val['title']
@@ -369,8 +368,7 @@ async def handle_convo_summary(convoID, userID, sessionID):
                     'date' : log.date,
                     'summary': log.summary,
                 }
-            await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': session}))
-    
+                await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': session}))
             break
         # print(convos_to_summarise)
         batches = []

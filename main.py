@@ -383,10 +383,10 @@ async def process_message(parsed_data):
         # eZprint( 'current loadout is ' + str(current_loadout[sessionID]), ['LOADOUT', 'INITIALISE'])
         if 'params' in parsed_data['data']:
             params = parsed_data['data']['params']
+        userID = None
 
         latest_loadout = None
         if sessionID in novaSession:
-            userID = None
             if 'userID' in novaSession[sessionID]:
                 userID = novaSession[sessionID]['userID']
                 if not 'met_nova' in novaSession[sessionID] or not novaSession[sessionID]['met_nova']:
@@ -404,8 +404,8 @@ async def process_message(parsed_data):
             latest_loadout = await get_loadouts(sessionID)
             if latest_loadout:
                 await set_loadout(latest_loadout, sessionID)
-            else
-                latest_loadout = '7531ab40afd82ba4'
+            # else:
+                # latest_loadout = '7531ab40afd82ba4'
             await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
             await get_loadout_logs(latest_loadout, sessionID)
 
@@ -418,7 +418,9 @@ async def process_message(parsed_data):
         # gets or creates conversation - should this pick up last?
         # convoID = await get_latest_loadout_convo(latest_loadout)
         # convoID = await get_latest_convo(userID)
-        convoID = await get_user_value(userID, 'latest_convo-' + latest_loadout)
+        convoID = None
+        if userID:
+            convoID = await get_user_value(userID, 'latest_convo-' + latest_loadout)
         if not convoID:
             convoID = await start_new_convo(sessionID, latest_loadout)
 
@@ -452,8 +454,8 @@ async def process_message(parsed_data):
         if not convoID:
             convoID = await start_new_convo(sessionID, loadout)
 
-        await retrieve_loadout_cartridges(loadout, convoID)
         await set_convo(convoID, sessionID, loadout)
+        await retrieve_loadout_cartridges(loadout, convoID)
 
         await initialise_conversation(sessionID, convoID, params)
         await runCartridges(sessionID, convoID, loadout)

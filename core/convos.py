@@ -83,64 +83,36 @@ async def get_loadout_logs(loadout, sessionID ):
 async def populate_summaries(sessionID):
     userID = novaSession[sessionID]['userID']
     DEBUG_KEYS.append('POPULATE_SUMMARY')
-    eZprint('populating summaries', DEBUG_KEYS )
-    eZprint_anything(available_convos[sessionID], DEBUG_KEYS, message='convos log')
-    for log in available_convos[sessionID]:
-        if log['summary'] == '':
-            await summarise_messages_by_convo(userID, sessionID, log['sessionID'])
-            eZprint_anything(log, DEBUG_KEYS, message='each log')
-        #     eZprint('summary is empty', DEBUG_KEYS)
-        #     splitID = log['sessionID'].split('-')
-        #     if len(splitID) > 1:
-        #         splitID = splitID[1]
-        #     try:
-        #         remote_summaries_from_convo = await prisma.summary.find_many(
-        #             where = {
-        #                 'UserID' : userID,
-        #                 'SessionID' : splitID
-        #                 }
-        #         )
-        #         if remote_summaries_from_convo:
-        #             eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo with split ID')
-
-        #         if not remote_summaries_from_convo:
-
-        #             remote_summaries_from_convo = await prisma.summary.find_many(
-        #             where = {
-        #                 'UserID' : userID,
-        #                 'SessionID' : log['sessionID']
-        #                 }
-        #             )
-        #             eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message  = 'summaries from convo without split id')
-                    
-        #             # eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
-        #     except:
-        #         eZprint('summary search failed')
-        #         remote_summaries_from_convo = None
-                
-        #     summary = ''
-
-        #     if remote_summaries_from_convo:
-        #         eZprint_anything(remote_summaries_from_convo, DEBUG_KEYS, message='found remote summary')
-        #         for summary in remote_summaries_from_convo:
-        #             eZprint(summary, DEBUG_KEYS, message= 'summary found')
-
-        #             summary = json.loads(summary.json())['blob']
-        #             for key, val in summary.items():
-        #                 summary = val['title']
-        #             log['summary'] = summary
-
-        #             updated_log = await prisma.log.update(
-        #                 where = {
-        #                     'id' : log['id']
-        #                     },
-        #                 data = {
-        #                     'summary' : summary
-        #                 }
-        #             )
-        #             eZprint_anything(updated_log, DEBUG_KEYS, message = 'updated log')
-        #             await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': log}))
-
+    POPULATE_KEYS = DEBUG_KEYS + ['POPULATE_SUMMARY']
+    eZprint('populating summaries', POPULATE_KEYS )
+    # eZprint_anything(available_convos[sessionID], POPULATE_KEYS, message='convos log')
+    reverse_list = available_convos[sessionID][::-1]
+    for log in reverse_list:
+        if log['summary'] == '' and log['date'] > '20240000000000':
+            ## check if made in 2024
+            eZprint('summary is empty', POPULATE_KEYS)
+            try:
+                updated_log = await prisma.log.update(
+                    where = {
+                        'id' : log['id']
+                        },
+                    data = {
+                        'summary' : 'loading'
+                    }
+                )
+                await summarise_messages_by_convo(userID, sessionID, log['sessionID'])
+                eZprint('summary complete', DEBUG_KEYS)
+            except:
+                eZprint('summary search failed')
+                updated_log = await prisma.log.update(
+                    where = {
+                        'id' : log['id']
+                        },
+                    data = {
+                        'summary' : ''
+                    }
+                )
+  
 async def set_convo(requested_convoID, sessionID, loadout):
     
     userID = novaSession[sessionID]['userID']
