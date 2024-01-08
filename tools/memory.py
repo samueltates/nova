@@ -34,10 +34,10 @@ async def run_summary_cartridges(convoID, sessionID, cartKey, cartVal, client_lo
         await summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout, target_loadout)
         await get_summaries(userID, sessionID, target_loadout)
         await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
-        # await get_overview(convoID, sessionID, cartKey, cartVal, client_loadout)
-        # await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
-        # await get_keywords_from_summaries(convoID, sessionID, cartKey, cartVal, client_loadout,
-        #     target_loadout)
+        await get_overview(convoID, sessionID, cartKey, cartVal, client_loadout)
+        await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
+        await get_keywords_from_summaries(convoID, sessionID, cartKey, cartVal, client_loadout,
+            target_loadout)
         
 
         input = {
@@ -531,7 +531,7 @@ async def summarise_batches(batches, userID, sessionID, prompt = "Summarise this
 
 async def create_summary_record( userID, sourceIDs, summaryKey, summary, epoch, meta = {}):
     eZprint_anything(summary, DEBUG_KEYS, message= 'creating summary record')
-    print()
+    # print()
     # print(summary)
     summarDict = await parse_json_string(summary)
     success = True
@@ -648,7 +648,8 @@ async def summary_into_candidate(summarDict ):
 
 async def summarise_epochs(userID, sessionID, client_loadout = None, target_loadout = None):
     ##number of groups holding pieces of content at different echelons, goes through echelons, summarises in batches if too full (bubbles up) and restarts
-    eZprint('starting epoch summary')
+    EPOCH_KEYS = DEBUG_KEYS + ['EPOCH']
+    eZprint('starting epoch summary', EPOCH_KEYS)
 
     epoch_in_window = False
 
@@ -660,26 +661,27 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
         candidates = await prisma.summary.find_many(
             where={
             'UserID': userID,
+            'SessionID': { 'contains': str(target_loadout) }
             }
         ) 
-        eZprint('got candidates for epochs', DEBUG_KEYS)
+        eZprint('got candidates for epochs', EPOCH_KEYS)
 
-        loadout_candidates = []
-        for candidate in candidates:
-            # print(candidate.SessionID)
-            splitID = candidate.SessionID.split('-')
-            # print(splitID)
-            if len(splitID) >= 3:
-                if splitID[2] == target_loadout:
-                    # print('found loadout candidate')
-                    loadout_candidates.append(candidate)
-            elif target_loadout  == None:
-                # print('adding on a none loadout')
-                loadout_candidates.append(candidate)
+        # loadout_candidates = []
+        # for candidate in candidates:
+        #     # print(candidate.SessionID)
+        #     splitID = candidate.SessionID.split('-')
+        #     # print(splitID)
+        #     if len(splitID) >= 3:
+        #         if splitID[2] == target_loadout:
+        #             # print('found loadout candidate')
+        #             loadout_candidates.append(candidate)
+        #     elif target_loadout  == None:
+        #         # print('adding on a none loadout')
+        #         loadout_candidates.append(candidate)
 
-        eZprint('setting epoch_in_window to true', DEBUG_KEYS)
+        eZprint('setting epoch_in_window to true', EPOCH_KEYS)
         epoch_in_window = True
-        for candidate in loadout_candidates:
+        for candidate in candidates:
             summary = json.loads(candidate.json())['blob']
 
             for key, val in summary.items():
@@ -687,15 +689,18 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                 if 'summarised' in val:
                     if val['summarised'] == True:
                         continue
+                if 'cono-summarised' in val:
+                    if val['convo-summarised'] == True:
+                        continue
                 if 'epoch-summarised' in val:
                     if val['epoch-summarised'] == True:
                         continue
-                eZprint('found summary candidate' + str(val), DEBUG_KEYS)
+                eZprint('found summary candidate' + str(val), EPOCH_KEYS)
                 epoch_no = 'epoch_' + str(val['epoch'])
                 val.update({'id': candidate.id})
                 # eZprint('found summary candidate')
                 if epoch_no not in epochs:
-                    eZprint('creating epoch ' + str(epoch_no), DEBUG_KEYS)
+                    eZprint('creating epoch ' + str(epoch_no), EPOCH_KEYS)
                     epochs[epoch_no] = []
                 epochs[epoch_no].append(val)
         ## number of pieces of content per window 
@@ -723,27 +728,44 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
             x = 0
             meta = ''
             # print('epoch len ' + str(len(epoch)))
-            for summary in epoch:
-                x += 1
-                ##goes through and creates batches in reverse
-                # eZprint('creating candidate  ' + str(x) + ' of epoch ' + str(key))
-                summaryObj = await summary_into_candidate(summary)
-                timestamp = ''
-                if 'timestamp' in summaryObj:
-                    timestamp = summaryObj['timestamp']
-                if meta == '':
-                    meta = {
-                        'first-doc' : timestamp,
-                        'type' : 'summary',
-                        'corpus' : 'loadout-conversations',
-                        'docID' : str(target_loadout),
-                        'trigger': 'epoch-summarised'
-                    }
-                toSummarise += str(summaryObj['content']) + '\n'
-                ids.append(summary['id'])
-                # print(summary)
+            if len(epoch) > 1:
+                for summary in epoch:
+                    x += 1
+                    ##goes through and creates batches in reverse
+                    # eZprint('creating candidate  ' + str(x) + ' of epoch ' + str(key))
+                    summaryObj = await summary_into_candidate(summary)
+                    timestamp = ''
+                    if 'timestamp' in summaryObj:
+                        timestamp = summaryObj['timestamp']
+                    if meta == '':
+                        meta = {
+                            'first-doc' : timestamp,
+                            'type' : 'summary',
+                            'corpus' : 'loadout-conversations',
+                            'docID' : str(target_loadout),
+                            'trigger': 'epoch-summarised'
+                        }
+                    toSummarise += str(summaryObj['content']) + '\n'
+                    ids.append(summary['id'])
+                    # print(summary)
 
-                if len(toSummarise) > 7000:
+                    if len(toSummarise) > 7000:
+                        # print('adding to batch')
+                        meta['last-doc'] = timestamp
+                        batches.append({
+                            'toSummarise' : toSummarise,
+                            'ids' : ids,
+                            'meta' : meta,
+                            'epoch' : summaryObj['epoch'],
+                            'docID' : target_loadout
+
+                        })
+                        timestamp = ''
+                        toSummarise = ''
+                        ids = []
+                        meta = ''
+                # print('epoch summarised looped')
+                if toSummarise != '':
                     # print('adding to batch')
                     meta['last-doc'] = timestamp
                     batches.append({
@@ -758,13 +780,13 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                     toSummarise = ''
                     ids = []
                     meta = ''
-            # print('epoch summarised looped')
             if len(batches) > 0:
                 await summarise_batches(batches, userID, sessionID, summary_batch_prompt)
                 batches = []
-                print('summarising batches so setting to false to trigger reloop')
+                eZprint('summarising batches so setting to false to trigger reloop', EPOCH_KEYS)
                 epoch_in_window = False
                 break
+                
 
 
     # for key, val in epochs.items():
