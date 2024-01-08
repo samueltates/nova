@@ -76,6 +76,33 @@ async def summarise_messages_by_convo(userID, sessionID, convoID ):
     POPULATE_KEYS = ['POPULATE_SUMMARY']
     eZprint_anything(convoID, POPULATE_KEYS, message = 'summarising convo')
     messages = []
+
+    log = await prisma.log.find_first(
+            where={
+            'SessionID': convoID,
+            }
+    )
+    if log:
+        if log.summary == 'loading':
+            return
+        #set log summary value to loading
+        updated_log = await prisma.log.update(
+            where={
+                'id': log.id,
+            },
+            data={
+                'summary': 'loading',
+            }
+        )
+        session ={
+            'id': log.id,
+            'sessionID' : log.SessionID,
+            'convoID' : convoID,
+            'date' : log.date,
+            'summary': 'loading',
+        }
+        await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': session}))
+
     remote_messages = await prisma.message.find_many(
             where={
             'SessionID': convoID,
@@ -366,7 +393,7 @@ async def handle_convo_summary(convoID, userID, sessionID):
                     'sessionID' : log.SessionID,
                     'convoID' : convoID,
                     'date' : log.date,
-                    'summary': log.summary,
+                    'summary': log_summary,
                 }
                 await websocket.send(json.dumps({'event': 'update_convo_tab', 'payload': session}))
             break

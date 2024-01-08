@@ -73,6 +73,7 @@ async def unpack_cartridges(convoID):
                     cartridge_contents[cartVal['type']]['string'] += '\n' + parsed_json
                     eZprint(f'string updated to read {cartridge_contents[cartVal["type"]]["string"]}', DEBUG_KEYS)
 
+        
             if 'blocks' in cartVal and 'summaries' in cartVal['blocks']:    
                 for summary in cartVal['blocks']['summaries']:
                     for key, value in summary.items():

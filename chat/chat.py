@@ -145,8 +145,6 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     if convoID not in chatlog:
         chatlog[convoID] = []
 
-    if len(chatlog[convoID]) == 5:
-        await summarise_messages_by_convo(userID, sessionID, convoID)
 
     order = await getNextOrder(convoID)
     function_call_json = None
@@ -276,6 +274,9 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     
     if function_call:
         asyncio.create_task(command_interface(function_call, convoID, thread))
+    if len(chatlog[convoID]) == 5:
+        asyncio.create_task( summarise_messages_by_convo(userID, sessionID, convoID))
+
 
 async def logMessage(messageObject):
     # print('logging message')

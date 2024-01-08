@@ -85,8 +85,8 @@ async def get_loadouts(sessionID):
 
     # if not loadout: 
         # await loadCartridges(sessionID, convoID)
-    novaSession[sessionID]['owner'] = True
-    await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': {}, 'owner': novaSession[sessionID]['owner']}}))
+    # novaSession[sessionID]['owner'] = True
+    # await websocket.send(json.dumps({'event': 'set_config', 'payload':{'config': {}, 'owner': novaSession[sessionID]['owner']}}))
  
     # if its a signed in user, checks what last loadout was, sets to that
     # otherwise sets current loadout to none
@@ -375,7 +375,7 @@ async def update_settings_in_loadout(convoID, cartridge, settings, loadout_key):
 async def clear_loadout(sessionID, convoID):
     DEBUG_KEYS = ['LOADOUT', 'CLEAR_LOADOUT']
     current_loadout[sessionID] = None
-    novaSession[sessionID]['owner'] = True
+    # novaSession[sessionID]['owner'] = True
     active_cartridges[convoID] = {}
 
     # if novaSession[sessionID]['userID']:

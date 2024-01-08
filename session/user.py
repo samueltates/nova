@@ -53,11 +53,11 @@ async def GoogleSignOn(userInfo, token, sessionID):
         if convoID and loadout:
             await set_user_value(userInfo['id'], 'latest_convo-'+loadout, convoID)
 
-        if temporary_user_events and userInfo['id'] in temporary_user_events:
-            events = temporary_user_events[userInfo['id']]
+        if temporary_user_events and guestID in temporary_user_events:
+            events = temporary_user_events[guestID]
             for key in events:
                 await update_user_events(userInfo['id'], key, events[key])
-            del temporary_user_events[userInfo['id']]
+            del temporary_user_events[guestID]
 
         return newUser
 

@@ -91,27 +91,8 @@ async def populate_summaries(sessionID):
         if log['summary'] == '' and log['date'] > '20240000000000':
             ## check if made in 2024
             eZprint('summary is empty', POPULATE_KEYS)
-            try:
-                updated_log = await prisma.log.update(
-                    where = {
-                        'id' : log['id']
-                        },
-                    data = {
-                        'summary' : 'loading'
-                    }
-                )
-                await summarise_messages_by_convo(userID, sessionID, log['sessionID'])
-                eZprint('summary complete', DEBUG_KEYS)
-            except:
-                eZprint('summary search failed')
-                updated_log = await prisma.log.update(
-                    where = {
-                        'id' : log['id']
-                        },
-                    data = {
-                        'summary' : ''
-                    }
-                )
+            await summarise_messages_by_convo(userID, sessionID, log['sessionID'])
+
   
 async def set_convo(requested_convoID, sessionID, loadout):
     

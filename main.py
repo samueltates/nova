@@ -394,6 +394,7 @@ async def process_message(parsed_data):
                     novaSession[sessionID]['needs_meet_nova'] = False
                     await set_user_value(userID, 'met_nova', True)
                     await set_loadout('7531ab40afd82ba4', sessionID)
+                    await get_loadouts(sessionID)
                     latest_loadout = '7531ab40afd82ba4'
                     await websocket.send(json.dumps({'event': 'set_loadout', 'payload': latest_loadout}))
                     await get_loadout_logs(latest_loadout, sessionID)
