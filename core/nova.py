@@ -135,7 +135,7 @@ async def runCartridges(sessionID,  convoID, loadout = None):
                 if cartVal.get('aws_key'):
                     file_to_request = cartVal['aws_key']
                 url = await get_signed_urls(file_to_request)
-                await update_cartridge_field({'cartKey': cartKey, 'sessionID': sessionID, 'fields': {'url': url}}, loadout)
+                await update_cartridge_field({'cartKey': cartKey, 'sessionID': sessionID, 'fields': {'media_url': url}}, convoID, system = True)
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     eZprint('running summary cartridge on loadout ' + str(loadout), ['SUMMARY'])

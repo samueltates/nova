@@ -102,7 +102,7 @@ async def set_convo(requested_convoID, sessionID, loadout):
     if len(splitConvoID) > 1:
         splitConvoID = splitConvoID[1]
 
-    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or novaSession[sessionID]['owner'] :
+    if sessionID in current_config and 'shared' in current_config[sessionID] and current_config[sessionID]['shared'] or 'owner' in novaSession[sessionID] and novaSession[sessionID]['owner'] :
 
         try:
             remote_summaries_from_convo = await prisma.summary.find_many(

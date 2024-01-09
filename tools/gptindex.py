@@ -165,6 +165,7 @@ async def indexDocument(payload, client_loadout):
     'fields': {
         'label' : documentTitle,
         'index': key,
+        'text':document,
         'blocks': {},
         'status': 'index created, getting summary',
 

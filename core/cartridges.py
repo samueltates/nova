@@ -136,7 +136,7 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     eZprint_anything(active_cartridges[convoID], DEBUG_KEYS, message = 'cartridges from server')
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID}))
 
-async def get_cartridge_list(sessionID):
+async def get_cartridge_list(sessionID, target_loadout = None):
     userID = novaSession[sessionID]['userID']
     print('get cartridge list triggered')
     cartridges = await prisma.cartridge.find_many(
@@ -522,11 +522,26 @@ async def search_cartridges(search_query, sessionID):
             if len(str(value)) and search_query in str(value):
                 match_index = str(value).index(search_query)
                 # print(match_index)
-                start = max(0, match_index - 100) # slice bounds handling
+                start = max(0, match_index - 120) # slice bounds handling
                 # print(start)
-                end = min(len(str(value)), match_index + 100)
+                end = min(len(str(value)), match_index + 120)
                 # print(end)
                 snippet = str(value)[start:end]
+                #remove starting and trailing words
+                snippet = snippet.split(' ')
+                
+                if len(snippet) > 1:
+                    snippet.pop(0)
+                    if len(snippet) > 3:
+                        snippet.pop(len(snippet) - 1)
+                    snippet = ' '.join(snippet)
+                else:
+                    snippet = snippet[0]
+                snippet = snippet.strip()
+                # strip formatting, returns, anything funky
+                snippet = snippet.replace('\n', ' ')
+                # find matching word and add bold markdown 
+                snippet = snippet.replace(search_query, '**' + search_query + '**')
                 # print(snippet)
                 val['snippet'] = snippet
                 # print(val)

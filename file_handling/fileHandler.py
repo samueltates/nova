@@ -8,9 +8,10 @@ from quart import send_file
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file
 from file_handling.transcribe import transcribe_file
-from tools.debug import eZprint
-
-
+from tools.debug import eZprint, eZprint_anything
+#named temporary
+from tempfile import NamedTemporaryFile
+from unstructured.staging.base import convert_to_dict
 
 file_chunks = {}
 
@@ -90,7 +91,8 @@ async def handle_file_end(data):
         file_name_split = file_name.split('.')
         extension = file_name_split[len(file_name_split) - 1]
         cartVal['extension'] = extension
-        
+    elements = []
+
     if extension == 'quicktime':
         extension = 'mov'
     if extension == 'x-matroska':
@@ -99,9 +101,30 @@ async def handle_file_end(data):
         extension = 'mp3'
     if extension == 'plain':
         extension = 'txt'
+        from unstructured.partition.text import partition_text
+        with NamedTemporaryFile(suffix='.'+extension, delete=False) as stream_source:
+            stream_source.write(file_content)
+            stream_source.seek(0)
+            elements = partition_text(filename=stream_source.name)
+            elements = convert_to_dict(elements)
+    if extension == 'pdf':
+        #make named temporary file
+        #write file content to it
+        #pass to unstructured reader
+        
+        from unstructured.partition.pdf import partition_pdf
+        
+        with NamedTemporaryFile(suffix='.'+extension, delete=False) as stream_source:
+            stream_source.write(file_content)
+            stream_source.seek(0)
 
-        # if extension 
+            elements = partition_pdf(filename=stream_source.name)
+            elements = convert_to_dict(elements)
 
+            # Wait for some data to be written before starting to chunk
+            
+
+        eZprint_anything(elements, ['FILE_HANDLING'], message='elements')
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     file_name_to_write = cartKey + '.' + extension
@@ -114,7 +137,8 @@ async def handle_file_end(data):
 
     await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {
         'media_url': url,
-        'aws_key': file_name_to_write
+        'aws_key': file_name_to_write,
+        'elements': elements
         }}, convoID, loadout, True)
     
     del file_chunks[tempKey]
