@@ -2,7 +2,6 @@
 from Levenshtein import distance
 import asyncio
 import json
-import re
 
 from session.sessionHandler import active_cartridges, current_loadout, novaConvo, novaSession, system_threads, command_loops, command_state
 from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
@@ -13,10 +12,10 @@ from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from file_handling.video_editor import cut_video
+from file_handling.text_handler import large_document_loop
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-
 DEBUG_KEYS = ['COMMANDS']
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
@@ -108,44 +107,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 command_return['message'] = "Query can't be blank"
                 return command_return
      
-            # else:
-            #     command_return['status'] = "Error."
-            #     command_return['message'] = "type can't be blank"
-            #     return command_return
-        # else:
-        #     command_return['status'] = "Error."
-        #     command_return['message'] = "Query can't be blank"
-        #     return command_return
-        # if args.get('type') == 'web':
-    # if name == 'go_to_location':
-    #     # wait three seconds
-    #     await asyncio.sleep(3)
-    #     if args.get('location'):
-    #         location = args['location']
-    #         # response = await go_to_location(name, args, sessionID, loadout, thread)
-    #         command_return['status'] = "Success."
-    #         command_return['message'] = "Location : " + str(location)
-    #         return command_return
-    #     else:
-    #         command_return['status'] = "Error."
-    #         command_return['message'] = "Arg 'location' missing"
-    #         return command_return
-    # if name == 'go_to_tag':
-    #     print('going to tag')
-    #     command_return['status'] = "Success."
-    #     command_return['message'] = "Going to tag"
-    #     return command_return
-        # if args.get('location'):
-        #     location = args['location']
-        #     # response = await go_to_location(name, args, sessionID, loadout, thread)
-        #     command_return['status'] = "Success."
-        #     command_return['message'] = "Location : " + str(location)
-        #     return command_return
-        # else:
-        #     command_return['status'] = "Error."
-        #     command_return['message'] = "Arg 'location' missing"
-        #     return command_return
-
     if name == 'query_website':
         if args.get('website_url'):
             website_url = args['website_url']
@@ -179,23 +140,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             eZprint(val['label'], ['COMMANDS', 'READ'])
             if val.get('label', '').lower() == args['filename'].lower():
                 new_page = 0
-                text_to_read = ''
-                elements = None
-                if val.get('text', None):
-                    text_to_read = val['text']
-                # if text_to_read == '':
-                #     text_to_read = str(val)
+                page = args.get('page', None)
+                text_to_read = val.get('text', '')
+                elements = val.get('elements', None)
 
-                if val.get('elements', None):
-                    elements = val['elements']
-
-
-                if 'page' not in args:
-                    response = await read_text(name, val['label'], str(text_to_read), convoID, thread,-1, elements)
-                if 'page' in args:
-                    new_page = args['page']
-                    response = await read_text(name, val['label'],  str(text_to_read), convoID, thread, args['page'], elements)
-                
+                response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements)
+        
                 new_page = int(new_page) + 1
                 
                 if 'status' in response:
@@ -209,21 +159,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                         'page' : new_page
                     }
                     }
-                    
-                # if text_to_read == '':
-                #     command_return['status'] = "Error."
-                #     command_return['message'] = "Text empty."
-                #     print(command_return)
-                #     return command_return
-                
+ 
                 await update_cartridge_field(payload, convoID)
                 return response           
-            # else 
-        # wait 1 ms
-        await asyncio.sleep(0.001)
+        # await asyncio.sleep(0.001)
         command_return['status'] = "Error."
         command_return['message'] = "File not found."
-        print(command_return)
         return command_return
 
     if name == 'open':
@@ -231,7 +172,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
                 
-   
     if name == 'write':
         eZprint('writing file')
         text = ''
@@ -945,7 +885,7 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
         print(response)
         return response
 
-async def read_text(name, text_title, text_body, convoID, thread = 0, page = 0, elements = None):
+async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None):
 
     command_return = {"status": "", "name" :name, "message": ""}
     # if text_body == '':
@@ -955,19 +895,19 @@ async def read_text(name, text_title, text_body, convoID, thread = 0, page = 0, 
     
 
                     
-    if len(text_body) > 2000 or len(str(elements)) > 2000:
-        eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
-        command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
-        return command_return
-    
-    else:
+    # if len(text_body) > 2000 or len(str(elements)) > 2000:
+    eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
+    command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
+    return command_return
 
-        command_return['status'] = "Success."
-        command_return['message'] = text_title + '\n' + text_body
-        if elements:
-            element_text = parse_elements(elements, 2000)
-            command_return['elements'] = element_text
-        return command_return
+    # else:
+
+    #     command_return['status'] = "Success."
+    #     command_return['message'] = text_title + '\n' + text_body
+    #     if elements:
+    #         element_text = parse_elements(elements, 2000)
+    #         command_return['elements'] = element_text
+    #     return command_return
     
 
 
@@ -1029,15 +969,11 @@ async def list_files(name, sessionID, loadout, convoID, thread = 0):
         command_return['message'] = string
         return command_return
     
-    if len(string) > 2000:
-        command_return = await large_document_loop("Files available", string, name, sessionID, thread)
-        return command_return
-
-    string = '\nFile List:\n' + string
-    command_return['status'] = "Success."
-    command_return['message'] = string
-    print(command_return)
+    # if len(string) > 2000:
+    command_return = await large_document_loop("Files available", string, name, sessionID, thread)
     return command_return
+
+
 
 async def search_files(name, args, sessionID, loadout, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
@@ -1109,311 +1045,3 @@ async def continue_command(convoID, thread):
         if thread in command_loops[convoID]:
             command_return = large_document_loop('','','',convoID, thread)
             return command_return
-
-async def large_document_loop(title, string, command = '', convoID= '', thread = 0, page = -1, elements = None, break_into_sections = False):
-
-    command_return = {"status": "", "name" : command, "message": ""}
-
-    if convoID not in command_loops:
-        command_loops[convoID] = {}
-    if thread not in command_loops[convoID]:
-        command_loops[convoID][thread] = {}
-    if command not in command_loops[convoID][thread]:
-        command_loops[convoID][thread][command] = {}
-        
-    if title not in command_loops[convoID][thread][command]:
-        command_loops[convoID][thread][command][title] = {}
-
-    if 'loop' not in command_loops[convoID][thread][command][title]:
-        command_loops[convoID][thread][command][title]['loop'] = 0
-    
-    eZprint('large document loop ' + str(command_loops[convoID][thread][command][title]['loop']) + ' ' + str(thread), ['COMMANDS', 'READ'])
-    loop = command_loops[convoID][thread][command][title]['loop']
-
-    if page != -1:
-        loop = int(page)
-    paginated_content = []
-    combined_sections_text = ''
-    if loop == 0 or 'paginated_sections' not in command_loops[convoID][thread][command][title]:
-        if break_into_sections:
-            if string:
-                combined_sections_text = parse_sections(string)
-            if elements:
-                parsed_elements_text = parse_elements(elements)
-                eZprint_anything(elements, ['COMMANDS', 'READ'], message= 'elements returned')
-                if parsed_elements_text:
-                    # paginated_content += elements
-                    combined_sections_text += parsed_elements_text
-            eZprint_anything(combined_sections_text, ['COMMANDS', 'PAGINATE'], message= 'combined_sections_text returned')
-        else:
-            combined_sections_text = string
-
-        pages = paginate_text(combined_sections_text, 500)
-        eZprint_anything(pages, ['COMMANDS', 'PAGINATE'], message= 'pages returned')
-
-        command_loops[convoID][thread][command][title]['paginated_sections'] = pages
-
-    else:
-        eZprint('loop not 0 sections retrieved', ['COMMANDS', 'READ'])
-
-        paginated_sections = command_loops[convoID][thread][command][title]['paginated_sections']
-    
-    eZprint('large document loop' + str(loop) + ' ' + str(thread), ['COMMANDS', 'READ'])
-
-    paginated_sections = command_loops[convoID][thread][command][title]['paginated_sections']
-    command_loops[convoID][thread][command][title]['loop'] += 1
-
-    # if loop == 0:
-    #     eZprint('returning sections based on loop')
-    #     command_return['status'] = ''
-    #     message = command_loops[convoID][thread][command][title]['overview'] + "\n\n" + "\n\n Page " + str(loop) + " of " + str(len(paginated_sections)) 
-    #     command_return['message'] = message + "\n\nUse " + command + " for next page, or " + command + " section_name or page_number for a specific section."
-    #     command_return['name'] = command
-    #     print(command_return)
-    #     return command_return
-    if loop == 0:
-        message = "\n## "+ title + "\n\n " + str(paginated_sections[loop])
-    else:
-        message = "\n#### " + title + " \n\n " +str(paginated_sections[loop])
-    if len(paginated_sections ) > 1:
-        message += "\n\n#### Page " + str(loop+1) + " of " + str(len(paginated_sections))
-    if loop < len(paginated_sections)-1:
-        eZprint('returning sections based on loop', ['COMMANDS', 'READ'])
-        command_return['status'] = 'Result returned.'
-        command_return['message'] = message + "\n\n_Use '" + command + " " + title + "' for next page or include page for a specific page._"
-        command_return['name'] = command
-
-        print(command_return)
-        return command_return
-    
-    else:
-
-        command_return['status'] = "Success."
-        command_return['message'] = message + "\n\n**" + command + " " +title + " is complete.**" 
-        if len(paginated_sections   ) > 1:
-          command_return['message']  += "\n\n_Use '" + command + " " + title + "' to restart or or include page for a specific page._"
-        command_loops[convoID][thread][command][title]['loop'] = 0
-
-        print(command_return)
-
-        return command_return
-
-
-
-
-def break_into_sections(text):
-    sections = {}
-    sections['Overview'] = []
-    current_section = 'Introduction'
-    sections[current_section] = []
-
-    for line in text.split('\n'):
-        if re.match(r'^#+ ', line):  # Matches markdown headings
-            current_section = line.strip()
-            sections[current_section] = []
-            sections['Overview'].append(line.strip())
-        else:
-            sections[current_section].append(line.strip())
-
-
-    return sections
-
-def get_section_titles(text):
-    titles = []
-    for line in text.split('\n'):
-        if re.match(r'^#+ ', line):  # Matches markdown headings
-            titles.append("- " + line.strip())
-    return titles
-
-
-# def paginate_text(text, max_words_per_page=500):
-#     words = re.split(r'\s+', text)
-#     pages = []
-#     current_page = []
-#     current_word_count = 0
-
-#     for word in words:
-#         current_page.append(word)
-#         current_word_count += 1
-#         if current_word_count >= max_words_per_page:
-#             pages.append(' '.join(current_page))
-#             current_page = []
-#             current_word_count = 0
-
-#     # Add the last page if there are any remaining words
-#     if current_word_count > 0:
-#         pages.append(' '.join(current_page))
-
-#     return pages
-
-# # This is your text input. For this example, it's just a dummy text.
-# # You would replace this with the actual text content.
-# text_input = """
-# # Section 1
-# Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-
-# ## Subsection 1.1
-# Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-# ## Subsection 1.2
-# Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi.
-
-# # Section 2
-# Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-# """
-
-# sections = break_into_sections(text_input)
-# paginated_sections = {section: paginate_text('\n'.join(content)) for section, content in sections.items()}
-
-# print(paginated_sections)
-
-
-def paginate_text(text, max_words_per_page=500):
-    eZprint('paginating text', ['COMMANDS', 'PAGINATE'])
-    lines = text.splitlines()
-    eZprint_anything(lines, ['COMMANDS', 'PAGINATE'], message= 'lines returned')
-
-    pages = []
-    current_page = []
-    current_word_count = 0
-
-    for line in lines:
-        words_in_line = len(line.split())
-        if current_word_count + words_in_line > max_words_per_page:
-            pages.append('\n'.join(current_page))
-            current_page = [line]
-            current_word_count = words_in_line
-        else:
-            current_page.append(line)
-            current_word_count += words_in_line
-
-    if current_page:
-        pages.append('\n'.join(current_page))
-
-    eZprint(str(pages), ['COMMANDS', 'PAGINATE'], message= 'pages returned')
-
-    return pages
-
-def parse_elements(elements ):
-    sections = []
-    section_titles = []
-
-    current_section = ' '
-    for element in elements:
-        eZprint_anything(element, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element returned')
-        if element.get('type') == 'Title':
-
-            current_section = element.get('text')
-            new_header = adjust_header_depth(current_section, 4)
-            # new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
-            section_titles.append(new_header)
-            eZprint_anything(new_header, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'new_header returned')
-        if element.get('type') == 'ListItem':
-            eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
-            sections.append((current_section, element.get('text')))
-        if element.get('type') == 'NarrativeText':
-            eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
-            sections.append((current_section, element.get('text')))
-    # ez
-    combined_sections_text = "### Overview\n"
-    for title in section_titles:
-        # change heading level from current to -###
-        combined_sections_text += title + '\n'
-        #preview 
-        # if len(sections[0][1]) > 200:
-        #     combined_sections_text += sections[0][1][0:200] + '...\n'
-        # else:
-        #     combined_sections_text += sections[0][1] + '\n'
-    for section, content in sections:
-        combined_sections_text += '\n' + section + '\n' + content + '\n'
-    
-    return combined_sections_text
-
-        
-
-def parse_sections(unsorted_text):
-    # Split the text into sections
-    sections_pattern = re.compile(r'(#{1,6}\s[^\n]+)')
-    eZprint_anything(unsorted_text, ['COMMANDS', 'PAGINATE'], message= 'unsorted_text returned')
-    sections_parts = sections_pattern.split(unsorted_text)
-    eZprint_anything(sections_parts, ['COMMANDS', 'PAGINATE'], message= 'sections_parts returned')
-    # Pair section headings with their content and strip extra spaces
-    section_titles = []
-    sections = []
-    current_section = ' '
-    for part in sections_parts:
-        eZprint('part is' + str(part), ['COMMANDS', 'PAGINATE'])
-        if part.startswith('#'):
-            current_section = part.strip()
-            new_header = adjust_header_depth(current_section, 4)
-            new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
-            eZprint('new_header is' + str(new_header), ['COMMANDS', 'PAGINATE'])
-            
-            # eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
-            section_titles.append(new_header)
-        elif current_section:
-            eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
-            sections.append((current_section, part))
-
-    # Generate a flat list of section texts for pagination
-    combined_sections_text = "### Overview\n"
-    for title in section_titles:
-        # change heading level from current to -###
-        combined_sections_text += title + '\n'
-        #preview 
-        # if len(sections[0][1]) > 200:
-        #     combined_sections_text += sections[0][1][0:200] + '...\n'
-        # else:
-        #     combined_sections_text += sections[0][1] + '\n'
-    for section, content in sections:
-        combined_sections_text += '\n' + section + '\n' + content + '\n'
-    
-
-    return combined_sections_text
-
-
-def adjust_header_depth(markdown_text, target_depth):
-    lines = markdown_text.splitlines()
-    adjusted_lines = []
-
-    for line in lines:
-        # Increase header depth
-        if line.startswith('#'):
-            current_depth = len(line) - len(line.lstrip('#'))
-            depth_difference = target_depth - current_depth
-            adjusted_line = '#' * depth_difference + line if depth_difference > 0 else line
-        else:
-            adjusted_line = line
-        adjusted_lines.append(adjusted_line)
-
-    return '\n'.join(adjusted_lines)
-
-
-def adjust_list_items(markdown_text, indent_depth=None, list_signifier=None, add_check=False, remove_check=False):
-    lines = markdown_text.splitlines()
-    adjusted_lines = []
-
-    for line in lines:
-        stripped_line = line.lstrip()
-        is_list_item = stripped_line.startswith(('-', '*', '+'))
-        is_checked = stripped_line.startswith('- [x]') or stripped_line.startswith('- [ ]')
-        
-        # Adjust indentation
-        new_indent = ' ' * (2 * indent_depth) if indent_depth is not None else ''
-        # Change the list bullet signifier if requested
-        if list_signifier:
-
-            bullet, rest_of_line = stripped_line.split(' ', 1)
-            if not is_checked or add_check or remove_check:
-                stripped_line = list_signifier + ' ' + rest_of_line
-        # Add or remove task checkboxes if requested
-        if add_check and not is_checked:
-            stripped_line = '- [ ] ' + stripped_line.lstrip('-*+ ')
-        if remove_check and is_checked:
-            stripped_line = '- ' + stripped_line[5:]
-        # Combine the new indent with the updated line
-        line = new_indent + stripped_line
-            
-        adjusted_lines.append(line)
-
-    return '\n'.join(adjusted_lines)
