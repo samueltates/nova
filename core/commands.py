@@ -102,6 +102,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
                 eZprint('found file '+ val.get('label','') + ' to write to', WRITE_DEBUG_KEYS)
                 current_text = val.get('text', None)
+                eZprint_anything(current_text, WRITE_DEBUG_KEYS, message = 'current text')
 
 
                 # TODO : can probably compress this all so less calls
@@ -109,15 +110,16 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     eZprint('no curent text starting new doc', WRITE_DEBUG_KEYS)
                     json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
                 
-                if current_text and isinstance(str, current_text):
-                    eZprint('current text is string', WRITE_DEBUG_KEYS)
-                    new_text = current_text + new_text
-                    eZprint_anything(new_text, WRITE_DEBUG_KEYS, message='text to transform')
-                    json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
-                
-                if current_text and isinstance(dict, current_text):
-                    eZprint('current text is object', WRITE_DEBUG_KEYS)
-                    json_object = update_json_doc(new_text, current_text, WRITE_DEBUG_KEYS)
+                if current_text:
+                    if isinstance(current_text, dict):
+                        eZprint('current text is object', WRITE_DEBUG_KEYS)
+                        json_object = update_json_doc(new_text, current_text, WRITE_DEBUG_KEYS)
+                    elif isinstance(current_text, str):
+                        eZprint('current text is string', WRITE_DEBUG_KEYS)
+                        new_text = current_text + new_text
+                        eZprint_anything(new_text, WRITE_DEBUG_KEYS, message='text to transform')
+                        json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
+
                 eZprint_anything(json_object, WRITE_DEBUG_KEYS, message = 'final object to write')
                 
                 payload = {
@@ -147,7 +149,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         'minimised' : False,
         }
 
-        print(cartVal)
         await addCartridge(cartVal, sessionID, loadout, convoID, True)
 
         command_return['status'] = "Success."

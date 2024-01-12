@@ -238,9 +238,10 @@ async def add_cartridge_to_loadout(convoID, cartridge, loadout_key):
     loadout_record = await prisma.loadout.find_first(
         where={ "key": str(loadout_key) },
     )
-    loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
-    if not loadout:
-        return
+    if loadout_record:
+        loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
+        if not loadout:
+            return
     
     loadout_config = loadout.get('config', {})
     cleanSlate = loadout_config.get('cleanSlate', False)
