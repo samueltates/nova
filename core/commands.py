@@ -12,7 +12,7 @@ from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from file_handling.video_editor import cut_video
-from file_handling.text_handler import large_document_loop
+from file_handling.text_handler import large_document_loop, parse_text_to_json, create_json_doc, update_json_doc
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
@@ -54,6 +54,108 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return = {"status": "Error", "name" : '', "message": "No command supplied"}
         return False
     
+    command_return = {"status": "", "name" : name, "message": ""}
+    print( 'command name: ' + name + ' args: ' + str(args))
+
+
+    if name == 'read':
+        for key, val in active_cartridges[convoID].items():
+            eZprint(val['label'], ['COMMANDS', 'READ'])
+            if val.get('label', '').lower() == args['filename'].lower():
+                new_page = 0
+                page = args.get('page', None)
+                text_to_read = val.get('text', '')
+                elements = val.get('elements', None)
+
+                response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements)
+        
+                new_page = int(new_page) + 1
+                
+                if 'status' in response:
+                    if response['status'] == 'Success.':
+                        new_page = 0
+
+                payload = {
+                    'cartKey' : key,
+                    'sessionID' : sessionID,
+                    'fields' : {
+                        'page' : new_page
+                    }
+                    }
+ 
+                await update_cartridge_field(payload, convoID)
+                return response           
+        # await asyncio.sleep(0.001)
+        command_return['status'] = "Error."
+        command_return['message'] = "File not found."
+        return command_return
+    
+    if name == 'write':
+        WRITE_DEBUG_KEYS = DEBUG_KEYS + ['WRITE']
+        new_text = args.get('text', '')
+        filename = args.get('filename', '')
+        eZprint('writing file ' + filename + ' with content ' + new_text, WRITE_DEBUG_KEYS)
+
+        for key, val in active_cartridges[convoID].items():
+            string_match = distance(filename, str(val['label']))
+            if string_match < 3:
+
+                eZprint('found file '+ val.get('label','') + ' to write to', WRITE_DEBUG_KEYS)
+                current_text = val.get('text', None)
+
+
+                # TODO : can probably compress this all so less calls
+                if current_text is None:
+                    eZprint('no curent text starting new doc', WRITE_DEBUG_KEYS)
+                    json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
+                
+                if current_text and isinstance(str, current_text):
+                    eZprint('current text is string', WRITE_DEBUG_KEYS)
+                    new_text = current_text + new_text
+                    eZprint_anything(new_text, WRITE_DEBUG_KEYS, message='text to transform')
+                    json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
+                
+                if current_text and isinstance(dict, current_text):
+                    eZprint('current text is object', WRITE_DEBUG_KEYS)
+                    json_object = update_json_doc(new_text, current_text, WRITE_DEBUG_KEYS)
+                eZprint_anything(json_object, WRITE_DEBUG_KEYS, message = 'final object to write')
+                
+                payload = {
+                    'sessionID': sessionID,
+                    'cartKey' : key,
+                    'fields':
+                            {'text': json_object}
+                            }
+                
+                await update_cartridge_field(payload, convoID, loadout, True)
+                command_return['status'] = "Success."
+                command_return['message'] = "file '" +filename  + "' exists, so appending to file"
+                print(command_return)
+                return command_return
+            
+        eZprint_anything(new_text, WRITE_DEBUG_KEYS,message = 'no existing file found, creating new')
+        # json_object = parse_text_to_json(new_text)
+        json_object = create_json_doc(new_text, WRITE_DEBUG_KEYS)
+
+        eZprint_anything(json_object, WRITE_DEBUG_KEYS, message = 'final object to write')
+
+        cartVal = {
+        'label' : filename,
+        'text' :json_object,
+        'type' : 'note',
+        'enabled' : True,
+        'minimised' : False,
+        }
+
+        print(cartVal)
+        await addCartridge(cartVal, sessionID, loadout, convoID, True)
+
+        command_return['status'] = "Success."
+        command_return['message'] = "file '" + filename  + "' written"
+        # print(command_return)
+        return command_return
+        
+
     if  name in 'list_files':
         response = await list_files(name, sessionID, loadout, convoID)
         print('back at list parent function')
@@ -69,9 +171,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         response = await return_from_thread(args, convoID, thread)
         return response
     
-    command_return = {"status": "", "name" : name, "message": ""}
-    print( 'command name: ' + name + ' args: ' + str(args))
-
     if name.lower() == 'none':
         return 
 
@@ -135,94 +234,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(response)
         return response
     
-    if name == 'read':
-        for key, val in active_cartridges[convoID].items():
-            eZprint(val['label'], ['COMMANDS', 'READ'])
-            if val.get('label', '').lower() == args['filename'].lower():
-                new_page = 0
-                page = args.get('page', None)
-                text_to_read = val.get('text', '')
-                elements = val.get('elements', None)
-
-                response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements)
-        
-                new_page = int(new_page) + 1
-                
-                if 'status' in response:
-                    if response['status'] == 'Success.':
-                        new_page = 0
-
-                payload = {
-                    'cartKey' : key,
-                    'sessionID' : sessionID,
-                    'fields' : {
-                        'page' : new_page
-                    }
-                    }
- 
-                await update_cartridge_field(payload, convoID)
-                return response           
-        # await asyncio.sleep(0.001)
-        command_return['status'] = "Error."
-        command_return['message'] = "File not found."
-        return command_return
 
     if name == 'open':
         response = await open_file(name, args, sessionID, convoID, loadout)
         eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
                 
-    if name == 'write':
-        eZprint('writing file')
-        text = ''
-        if 'text' in args:
-            text = args['text']
-        if 'filename' in args:
-            filename = args['filename']
-
-            for key, val in active_cartridges[convoID].items():
-                string_match = distance(filename, str(val['label']))
-                # print('distance: ' + str(string_match))
-                # print('filename: ' + filename)
-                # print('label: ' + str(val['label']))
-                if string_match < 3:
-                    print('file exists so appending')
-                    if 'text' in val:
-                        val['text'] += "\n"+text
-                    else:
-                        val['text'] = text
-                    payload = {
-                        'sessionID': sessionID,
-                        'cartKey' : key,
-                        'fields':
-                                {'text': val['text']}
-                                }
-                    await update_cartridge_field(payload, convoID, loadout, True)
-                    command_return['status'] = "Success."
-                    command_return['message'] = "file '" +filename  + "' exists, so appending to file"
-                    print(command_return)
-                    return command_return
-                
-            cartVal = {
-            'label' : filename,
-            'text' :text,
-            'type' : 'note',
-            'enabled' : True,
-            'minimised' : False,
-            }
-
-            print(cartVal)
-            await addCartridge(cartVal, sessionID, loadout, convoID, True)
-
-            command_return['status'] = "Success."
-            command_return['message'] = "file '" + filename  + "' written"
-            print(command_return)
-            return command_return
-            
-        command_return['status'] = "Error."
-        command_return['message'] = "Arg 'filename' missing"
-        return command_return
-
     if 'append' in name or name in 'append':
         eZprint('appending file')
         if 'text' in args:
@@ -603,6 +620,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     #     return command_return
 
 
+async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None):
+
+    command_return = {"status": "", "name" :name, "message": ""}
+
+    eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
+    command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
+    return command_return
+
+
 async def open_file(name, args, sessionID, convoID, loadout):
     command_return = {"status": "", "name" :name, "message": ""}
     eZprint_anything(['reading file', args], ['COMMANDS', 'OPEN_FILE'])            
@@ -888,27 +914,10 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
 async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None):
 
     command_return = {"status": "", "name" :name, "message": ""}
-    # if text_body == '':
-    #     command_return['status'] = "Error."
-    #     command_return['message'] = "No text supplied"
-    #     return command_return
-    
 
-                    
-    # if len(text_body) > 2000 or len(str(elements)) > 2000:
     eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
     command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
     return command_return
-
-    # else:
-
-    #     command_return['status'] = "Success."
-    #     command_return['message'] = text_title + '\n' + text_body
-    #     if elements:
-    #         element_text = parse_elements(elements, 2000)
-    #         command_return['elements'] = element_text
-    #     return command_return
-    
 
 
 

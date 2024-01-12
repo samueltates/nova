@@ -2,6 +2,8 @@ from session.sessionHandler import  command_loops
 from tools.debug import eZprint, eZprint_anything
 import re
 
+DEBUG_KEYS = ['TEXT']
+
 async def large_document_loop(title, text_to_read, command = '', convoID= '', thread = 0, requested_page = None, elements = None, break_into_sections = False):
 
     command_return = {"status": "", "name" : command, "message": ""}
@@ -65,6 +67,8 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
         eZprint('only one page', ['COMMANDS', 'READ', 'PAGES'])
         command_return['status'] = "Read complete."
         command_return['message'] = message
+
+
 
     if len(paginated_sections) > 1:
 
@@ -490,6 +494,237 @@ markdown_syntax_map = {
 #             parsed_content += parse_tiptap_to_markdown(node_content, level+1)
 #     return parsed_content
 
+## need a router so if a new doc then wraps in doc, if existing, appends to existing
+
+def create_json_doc(text, DEBUG_KEYS = DEBUG_KEYS):
+
+    eZprint('new document called', DEBUG_KEYS)
+
+    
+    parsed_content = parse_text_to_json(text, DEBUG_KEYS)
+    
+
+    document_json = {
+        'type':'doc',
+        'content':parsed_content
+        }
+
+    return document_json
+
+def update_json_doc(text, existing_doc, DEBUG_KEYS = DEBUG_KEYS):
+
+    parsed_content = parse_text_to_json(text, DEBUG_KEYS)
+    existing_doc.setdefault('content', []).extend(parsed_content)
+
+    return existing_doc
+
+def parse_text_to_json(text, DEBUG_KEYS = DEBUG_KEYS):
+    PARSE_DEBUG = DEBUG_KEYS + ['PARSE']
+    
+    eZprint('parse_text_to_json_called', PARSE_DEBUG)
+    lines = text.split('\n')
+    content = []
+    current_parent = content
+    parent_type = ''
+    stack = [{'level':0, 'node': content}]
+
+    for line in lines:
+        eZprint_anything(line, PARSE_DEBUG, message = 'line being checked')
+        type, level =  determine_text_type(line, PARSE_DEBUG)
+        content_node = create_content_node(line, type, PARSE_DEBUG)
+        if parent_type != wrapper_types.get(type,''):
+            eZprint('parent doesnt match required type so creating wrapper ', PARSE_DEBUG)
+            parent_node = create_wrapper_node(type, PARSE_DEBUG)
+            current_parent.append(parent_node)
+            current_parent = parent_node.get('content',[])
+            parent_type = wrapper_types.get(type,'')
+            ## how does it handle if it drops a level while still in same 'type' ...
+        if level > stack[-1]['level']:
+            ## child of current so add
+            eZprint('child of current, dropping a level, so creating new parent ', PARSE_DEBUG)
+            current_parent.append(content_node)
+            stack.append({'level': level, 'node':content_node})
+            current_parent = content_node.get('content', [])
+        elif level < stack[-1]['level']:
+            #higher in stack so remove till get to sibling
+            eZprint('lower level than current so clearing stack till find sibling', PARSE_DEBUG)
+            while stack and stack[-1]['level'] >= level:
+                stack.pop()
+            stack[-1]['node']['content'].append(content_node)
+            current_parent = content_node.get('content', [])
+        else:
+            #sibbling so add? whats different
+            eZprint('sibbling of current so appending', PARSE_DEBUG)
+            current_parent.append(content_node)
+
+        eZprint_anything(current_parent, PARSE_DEBUG, message = 'current parent after cycle')
+        eZprint_anything(stack, PARSE_DEBUG, message = 'stack after cycle')
+    
+    #so this returns whole doc which is maybe fine for raw text
+    return content            
+   
+"""
+    - break text into chunks
+    - cycle through
+    - detect type
+    - if parent type create type, text, content, stores level
+    - loop through adding nodes as children
+    - if hits same or lower level breaks
+    - how do we account for depth via tab?
+
+"""
+
+
+def determine_text_type(line, DEBUG_KEYS = DEBUG_KEYS):
+    level = None
+    type = 'text'
+    if line.startswith('#'):
+        level = line.count('#')
+        type = 'heading'
+    if line.startswith('- ') or line.startswith('* '):
+        type = 'listItem'
+    if line.startswith('-[ ] '):
+        type = 'taskItem'
+    if isinstance(line[0], int) :
+        type = 'orderedListItem'
+    if not level:
+        level = line.count('  ')
+    eZprint('line assesed, type is ' + type + ' level is ' + str(level), DEBUG_KEYS)    
+    return type, level
+    
+
+wrapper_types = {
+    #child type : parent type
+    'text':'paragraph',
+    'listItem':'bulletList',
+    'taskItem':'taskList',
+    'orderedListItem': 'orderedList'
+}
+
+
+def create_wrapper_node(type, DEBUG_KEYS = DEBUG_KEYS):
+    # TODO : could probably parse just type to get corresponding, then one item
+
+    # handles default esp text
+    parent_type = wrapper_types.get(type, 'paragraph')
+
+    wrapper_object = {
+        'type':parent_type,
+        'content':[]
+    }
+
+    eZprint_anything(wrapper_object, DEBUG_KEYS, message = 'parent after transform')
+
+    return wrapper_object
+
+
+def create_content_node(line, type, level):
+    # Create a JSON node based on type, this is a placeholder for actual handler functions
+    # maybe this is parent node creator, so if new level then parent node creator v child
+
+
+    if type == 'heading':
+        content_node = handle_heading_item(line, level, DEBUG_KEYS)
+    
+    elif type == 'listItem':    
+        content_node = handle_list_item(line, DEBUG_KEYS)
+
+    elif type == 'taskItem' :
+        content_node = handle_task_item(line, DEBUG_KEYS)
+    elif type == 'text':
+        content_node = handle_text_item(line, DEBUG_KEYS)
+    else: 
+        content_node = handle_generic_item(line, type, DEBUG_KEYS)
+
+    return content_node
+
+
+
+def handle_heading_item(line, level, DEBUG_KEYS):
+    eZprint('handling heading item', DEBUG_KEYS)
+    heading_json = {'type': 'heading', 
+        'attrs':{'level':level},
+        'content': [
+            {'text':line}
+            ]
+        }
+    eZprint_anything(heading_json, DEBUG_KEYS, message = 'heading json returned')
+
+    return heading_json
+
+def handle_text_item(line, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling text item', DEBUG_KEYS)
+
+    text_json = {
+        'type': 'text',
+        'text': line
+    }
+    eZprint_anything(text_json, DEBUG_KEYS, message = 'text json returned')
+    return text_json
+
+def handle_generic_item(line, type, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling generic item', DEBUG_KEYS)
+    generic_json = {'type': type, 'content': [
+        {
+            'type':'text',
+            'text': line
+        }
+
+    ]}
+    eZprint_anything(generic_json, DEBUG_KEYS, message = 'generic json returned')
+
+    return generic_json
+
+
+def handle_list_item(line, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling list item', DEBUG_KEYS)
+    list_item_json =  {
+            'type':'paragraph',
+            'content': [{
+                'type': 'text',
+                'text' : line
+            }]
+        }
+    eZprint_anything(list_item_json, DEBUG_KEYS, message = 'list json returned')
+
+    return list_item_json
+
+def handle_task_item(line, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling task item', DEBUG_KEYS)
+    task_item_pattern = r'^- \[(x|X| )\] (.*)'
+
+    match = re.match(task_item_pattern, line.strip())
+
+    if match:
+
+        eZprint_anything(match, DEBUG_KEYS, message = 'handling task item')
+        checked_state = match.group(1).strip().lower() == 'x'  # Determine if the task is checked
+        task_description = match.group(2).strip()
+
+        task_item_json = {
+            'type': "taskItem",
+            'attrs': {
+                'checked': checked_state
+            },
+            'content':[{
+            'type':'paragraph',
+            'content': [{
+                'type': 'text',
+                'text' : task_description
+                }]
+            }]
+        }
+
+        eZprint_anything(task_item_json, DEBUG_KEYS, message = 'task json returned')
+        return task_item_json
+    
+
+        
+    
+
+
+    
+        
 
 def parse_object_to_markdown(parent_node, level = 0):
     eZprint_anything(parent_node, ['COMMANDS', 'PAGINATE'], message= 'object received to parse , level ' + str(level))
@@ -524,18 +759,6 @@ def handle_by_type(node, level):
         string = ''
     
     return string
-
-
-
-    # if node_type == 'taskItem':
-
-    # if node_type == 'text':
-    #     depth = ''
-
-    # if 'content' in node:
-    #     eZprint('found content so looping',['COMMANDS', 'PAGINATE'] )
-    #     return_string += parse_object_to_markdown(parent_node['content'], level + 1)
-    # return depth + syntax
 
 def handle_heading (node, level, syntax):
 
