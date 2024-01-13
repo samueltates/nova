@@ -297,6 +297,30 @@ markdown_syntax_map = {
     # Additional types like Emoji or YouTube need custom handling
 }
 
+parent_type_required = {
+    #child type : parent type
+    # 'text':'paragraph',
+    'listItem':'bulletList',
+    'taskItem':'taskList',
+    'orderedListItem': 'orderedList'
+}
+
+
+def create_wrapper_node(type, DEBUG_KEYS = DEBUG_KEYS):
+    # TODO : could probably parse just type to get corresponding, then one item
+
+    # handles default esp text
+    parent_type = parent_type_required.get(type, 'paragraph')
+
+    wrapper_object = {
+        'type':parent_type,
+        'content':[]
+    }
+
+    eZprint_anything(wrapper_object, DEBUG_KEYS, message = 'parent after transform')
+
+    return wrapper_object
+
 def create_json_doc(text, DEBUG_KEYS = DEBUG_KEYS):
 
     eZprint('new document called', DEBUG_KEYS)
@@ -327,35 +351,66 @@ def parse_text_to_json(text, DEBUG_KEYS = DEBUG_KEYS):
     content = []
     current_parent = content
     parent_type = ''
-    stack = [{'level':0, 'node': content}]
+    stack = [{'level':0, 'node': content, 'depth': 0}]
 
     for line in lines:
         eZprint_anything(line, PARSE_DEBUG, message = 'line being checked')
-        type, level =  determine_text_type(line, PARSE_DEBUG)
+        type, level, depth =  determine_line_properties(line, PARSE_DEBUG)
         content_node = create_content_node(line, type, level, PARSE_DEBUG)
-        if parent_type != wrapper_types.get(type,''):
-            eZprint('parent doesnt match required type so creating wrapper ', PARSE_DEBUG)
-            parent_node = create_wrapper_node(type, PARSE_DEBUG)
-            current_parent.append(parent_node)
-            current_parent = parent_node.get('content',[])
-            parent_type = wrapper_types.get(type,'')
+        
+        if parent_type_required.get(type,'') != '' : 
+            #needs injected parent,
+            eZprint('node needs injected parent: ' + parent_type_required.get(type,'') + ' and parent type is: '+ parent_type, PARSE_DEBUG)
+
+            if parent_type != '' and parent_type_required.get(type, '') != parent_type:
+                # current parent not injected, so need to add
+                eZprint('parent type does not match so clearing ', PARSE_DEBUG)
+
+                if len(stack)>1:
+                    # stack.pop()
+                    current_parent = stack[-1]['node'].get('content', [])
+                else:
+                    eZprint('stack empty? what does that mean', PARSE_DEBUG)
+            
+            if parent_type != parent_type_required.get(type,''):
+                
+                eZprint('parent doesnt match required type so creating wrapper ', PARSE_DEBUG)
+                parent_node = create_wrapper_node(type, PARSE_DEBUG)
+                current_parent.append(parent_node)
+                current_parent = parent_node.get('content',[])
+                parent_type = parent_type_required.get(type,'')
             ## how does it handle if it drops a level while still in same 'type' ...
-        if level and level > stack[-1]['level']:
-            ## child of current so add
-            eZprint('child of current, dropping a level, so creating new parent ', PARSE_DEBUG)
+        if parent_type_required.get(type, '') == '' and parent_type != '':
+            #doesn't need injected parent, is inside one (break out)
+            # if we're in an injected wraper and we don't need it any more
+            eZprint(' type does not require parent, but injected wrapper present so breaking out', PARSE_DEBUG)
+            if len(stack)>1:
+                # stack.pop()
+                current_parent= stack[-1]['node'].get('content', [])
+            parent_type = ''
+            eZprint_anything(stack, PARSE_DEBUG, message = 'stack after resetting parent')
+        if depth > stack[-1]['depth']:
+            ## NEW LEVEL
+            #1. if current has level and so does parent compare, if higher then drop
+            #3. if current depth higher than last then drop 
+            eZprint('current higher level or depth so childing then making parent (new level), level is ' + str(level) + ' depth is ' + str(depth), PARSE_DEBUG)
             current_parent.append(content_node)
-            stack.append({'level': level, 'node':content_node})
+            stack.append({'level': level, 'node':content_node, 'depth': depth})
             current_parent = content_node.get('content', [])
-        elif level and level < stack[-1]['level']:
-            #higher in stack so remove till get to sibling
-            eZprint('lower level than current so clearing stack till find sibling', PARSE_DEBUG)
-            while stack and stack[-1]['level'] >= level:
+        elif depth < stack[-1]['depth']:
+            # OLD LEVEL
+            #1. if current level lower than parent then going up
+            #2. if current level any value and last has none (eg heading v para)
+            eZprint('lower level or depth than parent so moving up stack till find sibling level is ' + str(level) + ' depth is ' + str(depth), PARSE_DEBUG)
+            while depth >= stack[-1]['depth']:
+                #clears the stack while same level or below
                 stack.pop()
+            # now only has higher so parent
             stack[-1]['node']['content'].append(content_node)
             current_parent = content_node.get('content', [])
         else:
-            #sibbling so add? whats different
-            eZprint('sibbling of current so appending', PARSE_DEBUG)
+            # SAME LEVEL
+            eZprint('sibbling of current so appending level is ' + str(level) + ' depth is ' + str(depth), PARSE_DEBUG)
             current_parent.append(content_node)
 
         eZprint_anything(current_parent, PARSE_DEBUG, message = 'current parent after cycle')
@@ -376,7 +431,7 @@ def parse_text_to_json(text, DEBUG_KEYS = DEBUG_KEYS):
 """
 
 
-def determine_text_type(line, DEBUG_KEYS = DEBUG_KEYS):
+def determine_line_properties(line, DEBUG_KEYS = DEBUG_KEYS):
     level = None
     type = 'text'
     if line.startswith('#'):
@@ -389,11 +444,11 @@ def determine_text_type(line, DEBUG_KEYS = DEBUG_KEYS):
     if len(line) > 1 and line[0].isdigit() and line[1] == '.': 
         type = 'orderedListItem'
     depth = calculate_depth(line)
-    if depth:
-        level = depth
+    # if depth:
+    #     level = depth
 
-    eZprint('line assesed, type is ' + type + ' level is ' + str(level), DEBUG_KEYS)    
-    return type, level
+    eZprint('line assesed, type is ' + type + ' level is ' + str(level) + ' and depth is ' + str(depth), DEBUG_KEYS)    
+    return type, level, depth
     
 def calculate_depth(line, spaces_per_indent=2):
     # Count leading spaces
@@ -406,29 +461,6 @@ def calculate_depth(line, spaces_per_indent=2):
     depth = (leading_spaces // spaces_per_indent) + leading_tabs
     
     return depth
-wrapper_types = {
-    #child type : parent type
-    'text':'paragraph',
-    'listItem':'bulletList',
-    'taskItem':'taskList',
-    'orderedListItem': 'orderedList'
-}
-
-
-def create_wrapper_node(type, DEBUG_KEYS = DEBUG_KEYS):
-    # TODO : could probably parse just type to get corresponding, then one item
-
-    # handles default esp text
-    parent_type = wrapper_types.get(type, 'paragraph')
-
-    wrapper_object = {
-        'type':parent_type,
-        'content':[]
-    }
-
-    eZprint_anything(wrapper_object, DEBUG_KEYS, message = 'parent after transform')
-
-    return wrapper_object
 
 
 def create_content_node(line, type, level, DEBUG_KEYS = DEBUG_KEYS):
