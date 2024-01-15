@@ -37,12 +37,19 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
             text_to_read = parse_object_to_markdown(text_to_read, 0)
 
         if elements:
-            parsed_elements_text = parse_elements(elements)
-            eZprint_anything(elements, ['COMMANDS', 'READ'], message= 'elements returned')
-            if parsed_elements_text:
-                # paginated_content += elements
-                combined_sections_text += parsed_elements_text
-            eZprint_anything(combined_sections_text, ['COMMANDS', 'PAGINATE'], message= 'combined_sections_text returned')
+            # Create the mapping dictionaries
+            id_map = create_id_map(elements)
+            parent_child_map = create_parent_child_map(elements)
+
+            # Build the nested JSON structure
+            nested_elements = build_nested_json(id_map, parent_child_map)
+
+            # parsed_elements_text = parse_elements(elements)
+            eZprint_anything(nested_elements, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned')
+            if nested_elements:
+                combined_sections_text += parse_object_to_markdown(nested_elements, 0)
+                eZprint(text_to_read, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned as markdown' )
+
         
         
         combined_sections_text += text_to_read
@@ -60,8 +67,9 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
     
     if page > len(paginated_sections)-1:
         page = len(paginated_sections)-1
-        
-    message += str(paginated_sections[page])
+
+    if paginated_sections[page]:
+        message += str(paginated_sections[page])
     
     if len(paginated_sections) == 1:
         eZprint('only one page', ['COMMANDS', 'READ', 'PAGES'])
@@ -283,6 +291,7 @@ markdown_syntax_map = {
     "detailscontent": "",
     "hardbreak": "\n\n",
     "heading": "#",
+    "title": "#",
     "horizontalrule": "\n---\n",
     "image": "![alt text]({url})",  # Images will be included inline
     "listitem": "- ",  # Nested lists will increase indentation
@@ -299,12 +308,15 @@ markdown_syntax_map = {
 
 parent_type_required = {
     #child type : parent type
-    # 'text':'paragraph',
+    # 'paragraph':'paragraph',
     'listItem':'bulletList',
     'taskItem':'taskList',
     'orderedListItem': 'orderedList'
+
 }
 
+
+## MARKDOWN TO JSON
 
 def create_wrapper_node(type, DEBUG_KEYS = DEBUG_KEYS):
     # TODO : could probably parse just type to get corresponding, then one item
@@ -351,26 +363,29 @@ def parse_text_to_json(text, DEBUG_KEYS = DEBUG_KEYS):
     content = []
     current_parent = content
     parent_type = ''
-    stack = [{'level':0, 'node': content, 'depth': 0}]
+    stack = [{'level':0, 'node': {'content':content}, 'depth': 0}]
+
 
     for line in lines:
         eZprint_anything(line, PARSE_DEBUG, message = 'line being checked')
         type, level, depth =  determine_line_properties(line, PARSE_DEBUG)
         content_node = create_content_node(line, type, level, PARSE_DEBUG)
         
-        if parent_type_required.get(type,'') != '' : 
+        
+        if parent_type_required.get(type, '') != '' : 
             #needs injected parent,
             eZprint('node needs injected parent: ' + parent_type_required.get(type,'') + ' and parent type is: '+ parent_type, PARSE_DEBUG)
 
-            if parent_type != '' and parent_type_required.get(type, '') != parent_type:
-                # current parent not injected, so need to add
-                eZprint('parent type does not match so clearing ', PARSE_DEBUG)
+            # if parent_type != '' and parent_type_required.get(type, '') != parent_type:
+            #     # current parent not injected, so need to add
+            #     eZprint('parent type does not match so clearing ', PARSE_DEBUG)
 
-                if len(stack)>1:
-                    # stack.pop()
-                    current_parent = stack[-1]['node'].get('content', [])
-                else:
-                    eZprint('stack empty? what does that mean', PARSE_DEBUG)
+            #     if len(stack)>1:
+            #         # stack.pop()
+            #         current_parent = stack[-1]['node'].get('content', [])
+            #     else:
+            #         current_parent = stack[0]['node'].get('content', [])
+            #         eZprint('stack empty? what does that mean', PARSE_DEBUG)
             
             if parent_type != parent_type_required.get(type,''):
                 
@@ -387,8 +402,12 @@ def parse_text_to_json(text, DEBUG_KEYS = DEBUG_KEYS):
             if len(stack)>1:
                 # stack.pop()
                 current_parent= stack[-1]['node'].get('content', [])
+            else:
+                current_parent = stack[0]['node'].get('content', [])
             parent_type = ''
             eZprint_anything(stack, PARSE_DEBUG, message = 'stack after resetting parent')
+            
+
         if depth > stack[-1]['depth']:
             ## NEW LEVEL
             #1. if current has level and so does parent compare, if higher then drop
@@ -443,6 +462,11 @@ def determine_line_properties(line, DEBUG_KEYS = DEBUG_KEYS):
         type = 'listItem'
     if len(line) > 1 and line[0].isdigit() and line[1] == '.': 
         type = 'orderedListItem'
+    # check for just '\n'
+    if line == '\n':
+        type = 'paragraph'
+    if line == '':
+        type = 'paragraph'
     depth = calculate_depth(line)
     # if depth:
     #     level = depth
@@ -466,7 +490,7 @@ def calculate_depth(line, spaces_per_indent=2):
 def create_content_node(line, type, level, DEBUG_KEYS = DEBUG_KEYS):
     # Create a JSON node based on type, this is a placeholder for actual handler functions
     # maybe this is parent node creator, so if new level then parent node creator v child
-
+    content_node = handle_generic_item(line, type, DEBUG_KEYS)
 
     if type == 'heading':
         content_node = handle_heading_item(line, level, DEBUG_KEYS)
@@ -480,11 +504,13 @@ def create_content_node(line, type, level, DEBUG_KEYS = DEBUG_KEYS):
     if type == 'text':
         content_node = handle_text_item(line, DEBUG_KEYS)
 
- 
+    if type == 'orderedListItem':
+        content_node = handle_ordered_list_item(line, DEBUG_KEYS)
 
-    return content_node
+    if type == 'paragraph':
+        content_node = handle_paragraph_item(line, DEBUG_KEYS)
 
-
+    return content_node 
 
 def handle_heading_item(line, level, DEBUG_KEYS):
     eZprint('handling heading item', DEBUG_KEYS)
@@ -531,6 +557,18 @@ def handle_generic_item(line, type, DEBUG_KEYS = DEBUG_KEYS):
 
     return generic_json
 
+def handle_ordered_list_item(line, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling ordered list item', DEBUG_KEYS)
+    ordered_list_item_json =  {
+            'type':'paragraph',
+            'content': [{
+                'type': 'text',
+                'text' : line
+            }]
+        }
+    eZprint_anything(ordered_list_item_json, DEBUG_KEYS, message = 'ordered list json returned')
+
+    return ordered_list_item_json
 
 def handle_list_item(line, DEBUG_KEYS = DEBUG_KEYS):
     eZprint('handling list item', DEBUG_KEYS)
@@ -572,20 +610,41 @@ def handle_task_item(line, DEBUG_KEYS = DEBUG_KEYS):
 
         eZprint_anything(task_item_json, DEBUG_KEYS, message = 'task json returned')
         return task_item_json
+    
+def handle_paragraph_item(line, DEBUG_KEYS = DEBUG_KEYS):
+    eZprint('handling paragraph item', DEBUG_KEYS)
+    paragraph_json =  {
+            'type':'paragraph',
+            'content': []
+        }
+    eZprint_anything(paragraph_json, DEBUG_KEYS, message = 'paragraph json returned')
+    return paragraph_json
 
+## JSON TO MARKDOWN
 def parse_object_to_markdown(parent_node, level = 0):
     eZprint_anything(parent_node, ['COMMANDS', 'PAGINATE'], message= 'object received to parse , level ' + str(level))
     return_string = ''
+    
     if isinstance(parent_node, dict):
+        eZprint('object is a dict so checking type', ['COMMANDS', 'PAGINATE'])
         if 'type' in parent_node:
             eZprint(parent_node['type'] + ' found so transforming', ['COMMANDS', 'PAGINATE'])
             return_string += handle_by_type(parent_node, level)
+        elif 'content' in parent_node:
+            eZprint('content found so looping', ['COMMANDS', 'PAGINATE'])
+            for child_object in parent_node['content']:
+                eZprint_anything(child_object, ['COMMANDS', 'PAGINATE'], message= 'content object')
+                return_string += parse_object_to_markdown(child_object, level)
 
-    if isinstance(parent_node, list):
+
+    elif isinstance(parent_node, list):
         eZprint('object is a list so looping',['COMMANDS', 'PAGINATE'])
         for child_object in parent_node:
             eZprint_anything(child_object, ['COMMANDS', 'PAGINATE'], message= 'list object')
             return_string += parse_object_to_markdown(child_object, level)
+    else:
+        istance_is = str(type(parent_node))
+        eZprint_anything(istance_is, ['COMMANDS', 'PAGINATE'], message= 'instance is')
 
     eZprint('return string is ' + return_string, ['COMMANDS', 'PAGINATE'])
     return return_string
@@ -607,6 +666,7 @@ def handle_by_type(node, level):
     
     return string
 
+## TIPTAP types
 def handle_heading (node, level, syntax):
 
     eZprint_anything(node, ['COMMANDS', 'PAGINATE'], message= 'heading node returned')
@@ -617,12 +677,13 @@ def handle_heading (node, level, syntax):
     if node.get('attrs',{}).get('level'):
         string = syntax * node.get('attrs',{}).get('level') + " " 
 
+    # handling text in parent ()
+    # if 'text' in node:
+    #     string += node['text']
     string = depth + string + parse_object_to_markdown(node.get('content','')) + '\n'
     
     eZprint('return string is ' + string, ['COMMANDS', 'PAGINATE'],)
     return string
-
-
 
 def handle_paragraph(node, level, syntax):
     eZprint_anything(node, ['COMMANDS', 'PAGINATE'], message= 'paragraph node returned')
@@ -655,9 +716,11 @@ def handle_listitem(node, level, syntax):
     string = ''
     eZprint_anything(node, ['COMMANDS', 'PAGINATE'], message= 'listitem node returned')
     # List items should start with '-'
-    string =  syntax + parse_object_to_markdown(node.get('content',''), level) 
+    # if 'text' in node:
+    #     string += handle_text(node, level, syntax)
+    string +=  parse_object_to_markdown(node.get('content',''), level) 
+    string = syntax + string
     eZprint('return string is ' + string, ['COMMANDS', 'PAGINATE'])
-
     return string
 
 def handle_tasklist (node, level, syntax):
@@ -689,6 +752,16 @@ def handle_orderedlist(node, level, syntax):
         markdown_list += "  " * level + str(i) + '. ' + parse_object_to_markdown(item, level + 1) + '\n'
     return markdown_list
 
+## UNSTRUCTURED types
+
+def handle_narrativetext(node, level, syntax):
+    return handle_text(node, level, syntax)
+
+def handle_uncategorizedtext(node, level, syntax):
+    return handle_text(node, level, syntax)
+
+def handle_title(node, level, syntax):
+    return handle_heading(node, level, syntax)  
 
 import re
 
@@ -743,3 +816,105 @@ def parse_markdown_styles(line):
         content_nodes.append(plain_text_node)
 
     return content_nodes
+
+
+## UNSTRUCTURED (FLAT) TO TIPTAP (NESTED)
+
+def create_id_map(unstructured_data):
+    id_map = {}
+    for element in unstructured_data:
+        id_map[element["element_id"]] = element
+    return id_map
+
+def create_parent_child_map(unstructured_data):
+    parent_child_map = {}
+    for element in unstructured_data:
+        parent_id = element.get("metadata", {}).get("parent_id", None)
+        if parent_id:
+            if parent_id not in parent_child_map:
+                parent_child_map[parent_id] = []
+            parent_child_map[parent_id].append(element["element_id"])
+    return parent_child_map
+
+def build_nested_json(id_map, parent_child_map):
+
+    ELEMENT_DEBUG = DEBUG_KEYS + ['ELEMENTS']
+    # Initialize an empty JSON structure
+    nested_json = {
+        'type': "doc",
+        'content': []
+    }
+
+    # Function to recursively add children to their parents
+    def add_children_to_parent(parent_id):
+        eZprint_anything(parent_id, ELEMENT_DEBUG, message = 'working on node')
+        parent_element = id_map[parent_id]
+        children_ids = parent_child_map.get(parent_id, [])
+        parent_element['content'] = [ id_map[child_id] for child_id in children_ids ]
+
+        if 'type' in parent_element:
+            parent_element = handle_unstructured_type(parent_element)
+
+        for child_id in children_ids:
+            eZprint_anything(child_id, ELEMENT_DEBUG, message = 'working on child of node')
+
+            add_children_to_parent(child_id)  # recursive call for any grandchildren
+
+        # Convert to expected TipTap node format if necessary
+        # parent_element = convert_element_to_tip_tap_node(parent_element)
+        eZprint_anything(parent_element, ELEMENT_DEBUG, message = 'node after children parsed')
+        return parent_element
+
+    # Find root elements (those without a parent_id in the metadata)
+    for element_id, element in id_map.items():
+        if 'parent_id' not in element.get("metadata", {}):
+            eZprint_anything(element_id, ELEMENT_DEBUG, message = 'working on top level node')
+            nested_json['content'].append(add_children_to_parent(element_id))
+            
+    return nested_json
+
+def handle_unstructured_type(node):
+    if node.get('type') == 'Title':
+        node.get('content',[]).insert(0, {'type':'text', 'text': node.get('text','')+'\n'})
+        node.get('attrs', {})['level'] = 3
+    if node.get('type') == 'ListItem':
+        node.get('content',[]).insert(0, {'type':'text', 'text': node.get('text','')})
+    return node
+
+
+# def detect_and_structure_list_items(text_blob):
+#     # Pattern to detect list items starting with numbers (e.g., "1. Item1 2. Item2")
+#     numbered_items_pattern = r'(\d+\.\s*[^:]+?:[^0-9]+)'
+#     # Extract the numbered list items
+#     potential_list_items = re.findall(numbered_items_pattern, text_blob)
+    
+#     # If no numbered patterns are matched, search for other patterns like "Priority:"
+#     if not potential_list_items:
+#         priority_items_pattern = r'(Priority:\s*[^\d]+(?:\.\s+|\.$))'
+#         potential_list_items = re.findall(priority_items_pattern, text_blob)
+#         # If no numbered or "Priority:" patterns are matched, we may need to look for other indicators or return the blob as-is.
+#         if not potential_list_items:
+#             return [text_blob]
+    
+#     # Clean and separate the items
+#     structured_list = [{'type':'text','text':item.strip()} for item in potential_list_items]
+
+    return structured_list
+
+
+# def convert_element_to_tip_tap_node(element):
+#     # Assuming this is a placeholder for the actual conversion logic
+#     # This would transform a single unstructured element into the TipTap
+#     # node structure if necessary. For now, we'll return element as is.
+#     return element
+
+# # Example unstructured data array
+# unstructured_data = [ ... ]  # This is where the unstructured JSON data would be placed
+
+# # Create the mapping dictionaries
+# id_map = create_id_map(unstructured_data)
+# parent_child_map = create_parent_child_map(unstructured_data)
+
+# # Build the nested JSON structure
+# nested_json = build_nested_json(id_map, parent_child_map)
+

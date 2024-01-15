@@ -1120,7 +1120,7 @@ async def summariseChatBlocks(input,  loadout = None):
     }    
     # print(summarDict)
     summaryID = None
-    summaryID = await create_summary_record(userID, messageIDs, summaryKey, summary, 0, meta, sessionID, loadout)
+    summaryID = await create_summary_record(userID, messageIDs, summaryKey, summary, 0, meta)
     eZprint(summary, DEBUG_KEYS, 'summary')
     fields = {}
     for key, value in summarDict.items():

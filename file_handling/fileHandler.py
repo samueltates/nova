@@ -119,7 +119,9 @@ async def handle_file_end(data):
             stream_source.seek(0)
 
             elements = partition_pdf(filename=stream_source.name)
+            print(f"{str(elements)}")
             elements = convert_to_dict(elements)
+            print(f"{str(elements)}")
 
             # Wait for some data to be written before starting to chunk
             

@@ -143,14 +143,15 @@ async def construct_system_string(prompt_objects, convoID):
 async def construct_content_string(prompt_objects, convoID):
     content_string = ''
 
+
     if 'index' in prompt_objects:
-        content_string += '\n\n### Files\n_Files can be queried using natural language_ \n'
+        content_string += '\n\n### Open Files\n_Files can be queried using natural language_ \n'
         content_string += prompt_objects['index']['string'] 
     if 'note' in prompt_objects:
-        content_string += '\n\n### Notes\n _Notes can be written, appended, read, queried or closed_\n'
+        content_string += '\n\n### Open Notes\n _Notes can be written, appended, read, queried or closed_\n'
         content_string += prompt_objects['note']['string']
     if 'media' in prompt_objects:
-        content_string += "\n### Media"
+        content_string += "\n### Open Media"
         content_string += '\n_Media can be analysed, closed or queried_'
         content_string += prompt_objects['media']['string']
 
