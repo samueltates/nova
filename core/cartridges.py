@@ -12,6 +12,7 @@ from session.sessionHandler import novaConvo, active_loadouts, active_cartridges
 from core.loadout import current_loadout, add_cartridge_to_loadout, update_settings_in_loadout
 from tools.debug import eZprint, eZprint_anything
 
+DEBUG_KEYS = ['CARTRIDGES']
 
 
 whole_cartridge_list = {}
@@ -413,7 +414,20 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
                             }
             await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload, 'convoID':convoID}))
 
+async def get_cartridge_field(cartKey, field, loadout):
 
+    matchedCart = await prisma.cartridge.find_first(
+        where={
+        'key':
+        {'equals': cartKey}
+        },         
+    )
+    if matchedCart:
+        matchedCartVal = json.loads(matchedCart.json())['blob'][cartKey]
+        return matchedCartVal[field]
+    else:
+        return None
+    
 async def updateContentField(input):
     convoID = input['convoID']
     # print('update chatlog field')
@@ -505,21 +519,44 @@ async def copy_cartridges_from_loadout(loadout: str, sessionID):
 
     
    
-async def search_cartridges(search_query, sessionID):
+async def search_cartridges(search_query, sessionID, DEBUG_KEYS = DEBUG_KEYS):
+
+
     matching_objects = []
     #sort by last updated
-    print('search cartridges')
+    eZprint('search cartridges', DEBUG_KEYS)
     if sessionID not in whole_cartridge_list:
         whole_cartridge_list[sessionID] = {}
         await get_cartridge_list(sessionID)
 
+    # cartridges = await prisma.cartridge.find_many(
+    #     where={ 
+    #             "UserID": novaSession[sessionID]['userID'],
+    #             "blob": {'contains': search_query}
+    #             },
+    # )
+    # matched_cartridges  = {}
+
+    # eZprint_anything(cartridges, DEBUG_KEYS, message='cartridges matched')
+    # for cartridge in cartridges:
+    #     blob = json.loads(cartridge.json())['blob']
+    #     for key, val in blob.items():
+    #         if 'supersoftdelete' in val and 'supersoftdelete' == True:
+    #             continue
+    #         matched_cartridges[key] = val
+    #         val.update({'key':key})
+    #         matching_objects.append(val)
+
+    matched_cartridges = whole_cartridge_list[sessionID]
+
     default_value = '1970-01-01 00:00:00.000000'
-    sorted_cartridge_list = sorted(whole_cartridge_list[sessionID].items(), key=lambda x: x[1].get('lastUpdated', default_value), reverse=True)
+    sorted_cartridge_list = sorted(matched_cartridges.items(), key=lambda x: x[1].get('lastUpdated', default_value), reverse=True)
     search_query = search_query.lower()
     for key, val in sorted_cartridge_list:
         for field, value in val.items():
             value = str(value).lower()
             if len(str(value)) and search_query in str(value):
+                eZprint_anything(value, DEBUG_KEYS, message= 'match found')
                 match_index = str(value).index(search_query)
                 # print(match_index)
                 start = max(0, match_index - 120) # slice bounds handling

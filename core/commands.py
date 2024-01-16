@@ -16,6 +16,8 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
+from index.handle_llama_index import handle_query
+
 DEBUG_KEYS = ['COMMANDS']
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
@@ -156,7 +158,53 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         # print(command_return)
         return command_return
         
+    if name == 'query':
 
+        QUERY_KEYS = DEBUG_KEYS + ['QUERY']
+        eZprint('querying file', QUERY_KEYS)
+
+        if 'query' not in args or args['query']=='':
+            command_return['status'] = "Error."
+            command_return['message'] = "Arg 'query' missing"
+            return command_return
+
+        if 'filename' in args:
+            filename = args['filename']
+
+            for cartKey, cartVal in active_cartridges[convoID].items():
+                string_match = distance(filename, str(cartVal['label']))
+
+                if string_match < 2:
+                    eZprint('found match' + str(cartVal['label']), QUERY_KEYS)
+
+                    if 'query' in args:
+
+                        query = str(args['query'])
+                        response = await handle_query(cartVal, query, sessionID, convoID, loadout)
+                        response = str(response)
+
+                        command_return['status'] = "Success."
+                        command_return['message'] = query + ": from " + args['filename']  + ": "+ response
+                        print(command_return)
+                        return command_return
+                    
+                    else:
+                        command_return['status'] = "Error."
+                        command_return['message'] = "Arg 'query' missing"
+                        return command_return
+
+    if name == 'search_files':
+        if args.get('query'):
+            # if args.get('type') == 'files':
+            response = await search_files(name, args, sessionID, loadout, thread) 
+            return response
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Query can't be blank"
+            return command_return
+            # elif args.get('type') == 'web':
+            #     # response = await search_web(name, args, sessionID, loadout, thread)
+            #     return response
     if  name in 'list_files':
         response = await list_files(name, sessionID, loadout, convoID)
         print('back at list parent function')
@@ -176,18 +224,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return 
 
 
-    if 'search_files' in name or name in 'search_files':
-        if args.get('query'):
-            # if args.get('type') == 'files':
-            response = await search_files(name, args, sessionID, loadout, thread) 
-            return response
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Query can't be blank"
-            return command_return
-            # elif args.get('type') == 'web':
-            #     # response = await search_web(name, args, sessionID, loadout, thread)
-            #     return response
+
 
     if 'search_web' in name or name in 'search_web':
             # elif args.get('type') == 'web':
@@ -230,11 +267,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return command_return
 
 
-    if 'query' in name or name in 'query':
-        response = await broad_query(name, args, sessionID, thread, convoID, loadout)
-        print(response)
-        return response
-    
 
     if name == 'open':
         response = await open_file(name, args, sessionID, convoID, loadout)
@@ -288,46 +320,46 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(command_return)
         return command_return
 
-    if name in 'preview' or 'preview' in name:
-        eZprint('previewing file')
-        all_text = ''
-        if 'filename' in args:
-            filename = args['filename']
+    # if name in 'preview' or 'preview' in name:
+    #     eZprint('previewing file')
+    #     all_text = ''
+    #     if 'filename' in args:
+    #         filename = args['filename']
 
-            for key, val in active_cartridges[convoID].items():
-                all_text += str(val)
-                string_match = distance(filename, str(val['label']))
-                if string_match < 3:
-                    preview_string = val['label'] + '\n'
-                    if 'blocks' in val:
-                        preview_string += str(val['blocks'] )+ '\n'
-                        # if isinstance(val['blocks'], list):
-                        #     for block in val['blocks']:
-                        #         if isinstance(block, dict):
-                        #             for key, val in block.items():
-                        #                 preview_string += key + ': ' + str(val) + '\n'
-                        #         else:
-                        #             preview_string +=  str(block) + '\n'
-                        # for block in val['blocks']:
-                        #     preview_string +=  str(block) + '\n'
-                    if 'text' in val:
-                        preview_string += val['text'] + '\n'
+    #         for key, val in active_cartridges[convoID].items():
+    #             all_text += str(val)
+    #             string_match = distance(filename, str(val['label']))
+    #             if string_match < 3:
+    #                 preview_string = val['label'] + '\n'
+    #                 if 'blocks' in val:
+    #                     preview_string += str(val['blocks'] )+ '\n'
+    #                     # if isinstance(val['blocks'], list):
+    #                     #     for block in val['blocks']:
+    #                     #         if isinstance(block, dict):
+    #                     #             for key, val in block.items():
+    #                     #                 preview_string += key + ': ' + str(val) + '\n'
+    #                     #         else:
+    #                     #             preview_string +=  str(block) + '\n'
+    #                     # for block in val['blocks']:
+    #                     #     preview_string +=  str(block) + '\n'
+    #                 if 'text' in val:
+    #                     preview_string += val['text'] + '\n'
 
-                    preview_string = preview_string[0:500]
-                    preview_string += '\n'
-                    command_return['status'] = "Success."
-                    command_return['message'] = preview_string
-                    print(command_return)
-                    return command_return
-            command_return['status'] = "Error."
-            command_return['message'] = "File not found."
-            print(command_return)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'filename' missing"
-            print(command_return)
-            return command_return
+    #                 preview_string = preview_string[0:500]
+    #                 preview_string += '\n'
+    #                 command_return['status'] = "Success."
+    #                 command_return['message'] = preview_string
+    #                 print(command_return)
+    #                 return command_return
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "File not found."
+    #         print(command_return)
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "Arg 'filename' missing"
+    #         print(command_return)
+    #         return command_return
                 
 
     if name == 'close':
@@ -721,9 +753,7 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
         for cartKey, cartVal in active_cartridges[convoID].items():
             all_text += str(cartVal)
             string_match = distance(filename, str(cartVal['label']))
-            # print('distance: ' + str(string_match))
-            # print('filename: ' + filename)
-            # print('label: ' + str(cartVal['label']))
+
             if string_match < 3:
                 print('found match' + str(cartVal['label']))
                 if 'type' in cartVal and cartVal['type'] == 'index':
@@ -736,7 +766,7 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
                             'query' : str(args['query'])
                         }
 
-                        response = await handleIndexQuery(input, convoID, loadout)
+                        response = await handle_query(input, convoID, loadout)
                         response = str(response)
 
                         command_return['status'] = "Success."
@@ -749,62 +779,62 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
                         command_return['message'] = "Arg 'query' missing"
                         return command_return
 
-                if 'type' in cartVal and cartVal['type'] == 'summary':
-                    if 'query' in args:
-                        if 'blocks' in cartVal:
-                            if 'summaries' in cartVal['blocks']:
-                                query_response = await traverse_blocks(args['query'], cartVal['blocks'], sessionID,cartKey, convoID, loadout)
-                                command_return['status'] = "Success."
-                                command_return['message'] = "From " + filename  + ": "+ str(query_response)
-                                print(command_return)
-                                return command_return
+    #             if 'type' in cartVal and cartVal['type'] == 'summary':
+    #                 if 'query' in args:
+    #                     if 'blocks' in cartVal:
+    #                         if 'summaries' in cartVal['blocks']:
+    #                             query_response = await traverse_blocks(args['query'], cartVal['blocks'], sessionID,cartKey, convoID, loadout)
+    #                             command_return['status'] = "Success."
+    #                             command_return['message'] = "From " + filename  + ": "+ str(query_response)
+    #                             print(command_return)
+    #                             return command_return
                             
 
-                if 'query' in args:
-                    string_to_query = ''
+    #             if 'query' in args:
+    #                 string_to_query = ''
 
-                    if 'text' in cartVal:
-                        string_to_query += cartVal['text']
-                    if 'json' in cartVal:
-                        string_to_query += str(cartVal['json'])
+    #                 if 'text' in cartVal:
+    #                     string_to_query += cartVal['text']
+    #                 if 'json' in cartVal:
+    #                     string_to_query += str(cartVal['json'])
 
-                    if string_to_query != '':
-                        query_response = await quick_query(str(string_to_query), str(args['query']))
-                        command_return['status'] = "Success."
-                        command_return['message'] = "From " + filename  + ": "+ str(query_response)
-                        print(command_return)
-                        return command_return
+    #                 if string_to_query != '':
+    #                     query_response = await quick_query(str(string_to_query), str(args['query']))
+    #                     command_return['status'] = "Success."
+    #                     command_return['message'] = "From " + filename  + ": "+ str(query_response)
+    #                     print(command_return)
+    #                     return command_return
                     
-        for cartKey, cartVal in active_cartridges[convoID].items():
-            if 'type' in cartVal and cartVal['type'] == 'summary':
-                # print('searching summary for pointer')
-                if 'blocks' in cartVal:
-                    if 'summaries' in cartVal['blocks']:
-                        for summaries in cartVal['blocks']['summaries']:
-                            for summaryKey, summaryVal in summaries.items():
-                                if 'title' in summaryVal:
-                                    similarity = distance(filename, summaryVal['title'])
-                                    # print('distance: ' + str(similarity))
-                                    # print('filename: ' + filename)
-                                    # print('label: ' + str(summaryVal['title']))
-                                    if similarity <3:
-                                        # print('found match' + str(summaryVal))
-                                        if 'query' in args:
-                                            query_response = await traverse_blocks(args['query'], cartVal['blocks'], sessionID,cartKey, convoID, loadout)
-                                            command_return['status'] = "Success."
-                                            command_return['message'] = "From " + filename  + ": "+ str(query_response)
-                                            print(command_return)
-                                            return command_return
+    #     for cartKey, cartVal in active_cartridges[convoID].items():
+    #         if 'type' in cartVal and cartVal['type'] == 'summary':
+    #             # print('searching summary for pointer')
+    #             if 'blocks' in cartVal:
+    #                 if 'summaries' in cartVal['blocks']:
+    #                     for summaries in cartVal['blocks']['summaries']:
+    #                         for summaryKey, summaryVal in summaries.items():
+    #                             if 'title' in summaryVal:
+    #                                 similarity = distance(filename, summaryVal['title'])
+    #                                 # print('distance: ' + str(similarity))
+    #                                 # print('filename: ' + filename)
+    #                                 # print('label: ' + str(summaryVal['title']))
+    #                                 if similarity <3:
+    #                                     # print('found match' + str(summaryVal))
+    #                                     if 'query' in args:
+    #                                         query_response = await traverse_blocks(args['query'], cartVal['blocks'], sessionID,cartKey, convoID, loadout)
+    #                                         command_return['status'] = "Success."
+    #                                         command_return['message'] = "From " + filename  + ": "+ str(query_response)
+    #                                         print(command_return)
+    #                                         return command_return
                                     
 
-    print('all text query')
-    query = ''
-    if 'query' in args:
-        # query = args['query']
-        # query_response = await quick_query(all_text, str(query))
-        command_return['status'] = "Return."
-        command_return['message'] = "File not found, please use exact filename"
-        return command_return
+    # print('all text query')
+    # query = ''
+    # if 'query' in args:
+    #     # query = args['query']
+    #     # query_response = await quick_query(all_text, str(query))
+    #     command_return['status'] = "Return."
+    #     command_return['message'] = "File not found, please use exact filename"
+    #     return command_return
 
 
 async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
@@ -986,10 +1016,11 @@ async def list_files(name, sessionID, loadout, convoID, thread = 0):
 
 
 async def search_files(name, args, sessionID, loadout, thread = 0):
+    SEARCH_DEBUG_KEYS = DEBUG_KEYS + ['SEARCH']
     command_return = {"status": "", "name" : name, "message": ""}
 
     query = args.get('query', '')
-    results = await search_cartridges(query, sessionID)
+    results = await search_cartridges(query, sessionID, SEARCH_DEBUG_KEYS)
     # print(results)
     scope = None
     if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
@@ -1003,7 +1034,7 @@ async def search_files(name, args, sessionID, loadout, thread = 0):
         # for key, val in cartridge.items():
         if scope == 'global' or loadout == None or 'initial-loadout' in cartridge and cartridge['initial-loadout'] == loadout:
             if cartridge.get('label', None):
-                print(cartridge['label'])
+                eZprint(cartridge['label'], SEARCH_DEBUG_KEYS)
                 search_response += '\n- **' + cartridge['label'] + '**'
             if cartridge.get('lastUpdated', None):
                 search_response += ' | _Last updated_:' + cartridge['lastUpdated'] + f" | [Read]() | [Query]()" 

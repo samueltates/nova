@@ -37,18 +37,7 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
             text_to_read = parse_object_to_markdown(text_to_read, 0)
 
         if elements:
-            # Create the mapping dictionaries
-            id_map = create_id_map(elements)
-            parent_child_map = create_parent_child_map(elements)
-
-            # Build the nested JSON structure
-            nested_elements = build_nested_json(id_map, parent_child_map)
-
-            # parsed_elements_text = parse_elements(elements)
-            eZprint_anything(nested_elements, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned')
-            if nested_elements:
-                combined_sections_text += parse_object_to_markdown(nested_elements, 0)
-                eZprint(text_to_read, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned as markdown' )
+            combined_sections_text += parse_elements_to_markdown(elements)
 
         
         
@@ -103,7 +92,20 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
     
     return command_return
 
+def parse_elements_to_markdown(elements):
+    text_to_return = ''
+    id_map = create_id_map(elements)
+    parent_child_map = create_parent_child_map(elements)
 
+    # Build the nested JSON structure
+    nested_elements = build_nested_json(id_map, parent_child_map)
+
+    # parsed_elements_text = parse_elements(elements)
+    eZprint_anything(nested_elements, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned')
+    if nested_elements:
+        text_to_return += parse_object_to_markdown(nested_elements, 0)
+        eZprint(text_to_return, ['COMMANDS', 'READ','ELEMENTS'], message = 'elements returned as markdown' )
+        return text_to_return
 
 
 def break_into_sections(text):

@@ -144,40 +144,40 @@ async def runCartridges(sessionID,  convoID, loadout = None):
                     # if 'running' in cartVal:
                     #     eZprint(cartVal['running'], ['SUMMARY'], message='running value')
                     # if cartVal.get('running', False) == False or 'running' not in cartVal:
-                    try : 
+                    # try : 
 
-                        eZprint('attempting summarisation cycle', ['SUMMARY'])
-                        input = {
-                            'cartKey': cartKey,
-                            'sessionID': sessionID,
-                            'fields': {
-                                'running': True,
-                            }
-                        }
-                        await update_cartridge_field(input, convoID, loadout, system = True)
-                        asyncio.create_task(run_summary_cartridges(convoID, sessionID, cartKey, cartVal, loadout))
+                    #     eZprint('attempting summarisation cycle', ['SUMMARY'])
+                    #     input = {
+                    #         'cartKey': cartKey,
+                    #         'sessionID': sessionID,
+                    #         'fields': {
+                    #             'running': True,
+                    #         }
+                    #     }
+                    #     await update_cartridge_field(input, convoID, loadout, system = True)
+                    #     asyncio.create_task(run_summary_cartridges(convoID, sessionID, cartKey, cartVal, loadout))
                                             
-                        input = {
-                            'cartKey': cartKey,
-                            'sessionID': sessionID,
-                            'fields': {
-                                'running': False,
-                            }
-                        }
-                        await update_cartridge_field(input, convoID, loadout, system = True)
+                    #     input = {
+                    #         'cartKey': cartKey,
+                    #         'sessionID': sessionID,
+                    #         'fields': {
+                    #             'running': False,
+                    #         }
+                    #     }
+                    #     await update_cartridge_field(input, convoID, loadout, system = True)
 
-                    except Exception as e:
-                        eZprint_anything(e, ['SUMMARY'], 'summary failed')
-                        # eZprint('attempting summarisation cycle', ['SUMMARY'])
+                    # except Exception as e:
+                    #     eZprint_anything(e, ['SUMMARY'], 'summary failed')
+                    #     # eZprint('attempting summarisation cycle', ['SUMMARY'])
 
-                        input = {
-                            'cartKey': cartKey,
-                            'sessionID': sessionID,
-                            'fields': {
-                                'running': False,
-                            }
-                        }
-                        await update_cartridge_field(input, convoID, loadout, system = True)
+                    #     input = {
+                    #         'cartKey': cartKey,
+                    #         'sessionID': sessionID,
+                    #         'fields': {
+                    #             'running': False,
+                    #         }
+                    #     }
+                    #     await update_cartridge_field(input, convoID, loadout, system = True)
 
                     
         
