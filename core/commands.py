@@ -92,7 +92,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "File not found."
         return command_return
     
-    if name == 'write':
+    if name == 'write' or name == 'append':
         WRITE_DEBUG_KEYS = DEBUG_KEYS + ['WRITE']
         new_text = args.get('text', '')
         filename = args.get('filename', '')
@@ -157,6 +157,54 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "file '" + filename  + "' written"
         # print(command_return)
         return command_return
+    
+             
+    # if 'append' in name or name in 'append':
+    #     eZprint('appending file')
+    #     if 'text' in args:
+    #         text = args['text']
+    #     if 'filename' in args:
+    #         filename = args['filename']
+
+
+    #         for key, val in active_cartridges[convoID].items():
+    #             string_match = distance(filename, str(val['label']))
+    #             if string_match < 3:
+    #                 current_text = ''
+    #                 if 'text' in val:
+    #                     current_text = val['text']
+    #                     current_text += '\n\n' + text
+    #                 val['text'] = current_text
+
+    #                 payload = {
+    #                     'sessionID': sessionID,
+    #                     'cartKey' : key,
+    #                     'fields':
+    #                             {'text': val['text']}
+    #                             }
+    #                 loadout = current_loadout[sessionID]
+    #                 await update_cartridge_field(payload, convoID, loadout, True)                    
+    #                 command_return['status'] = "Success."
+    #                 command_return['message'] = "file " +args['filename']  + " appended."
+    #                 print(command_return)
+    #                 return command_return
+    #         cartVal = {
+    #         'label' : args['filename'],
+    #         'text' : text,
+    #         'type' : 'note',
+    #         'enabled' : True,
+    #         }
+
+    #         # print(cartVal)
+    #         await addCartridge(cartVal, sessionID, loadout, convoID, True)
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
+    #         return command_return
+        
+    #     command_return['status'] = "Error."
+    #     command_return['message'] = "Arg 'filename' missing"
+    #     print(command_return)
+    #     return command_return
         
     if name == 'query':
 
@@ -207,8 +255,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             #     return response
     if  name in 'list_files':
         response = await list_files(name, sessionID, loadout, convoID)
-        print('back at list parent function')
-        print(response)
         return response
     
     # print('shouldnt be going past here')
@@ -272,53 +318,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         response = await open_file(name, args, sessionID, convoID, loadout)
         eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
-                
-    if 'append' in name or name in 'append':
-        eZprint('appending file')
-        if 'text' in args:
-            text = args['text']
-        if 'filename' in args:
-            filename = args['filename']
-
-
-            for key, val in active_cartridges[convoID].items():
-                string_match = distance(filename, str(val['label']))
-                if string_match < 3:
-                    current_text = ''
-                    if 'text' in val:
-                        current_text = val['text']
-                        current_text += '\n\n' + text
-                    val['text'] = current_text
-
-                    payload = {
-                        'sessionID': sessionID,
-                        'cartKey' : key,
-                        'fields':
-                                {'text': val['text']}
-                                }
-                    loadout = current_loadout[sessionID]
-                    await update_cartridge_field(payload, convoID, loadout, True)                    
-                    command_return['status'] = "Success."
-                    command_return['message'] = "file " +args['filename']  + " appended."
-                    print(command_return)
-                    return command_return
-            cartVal = {
-            'label' : args['filename'],
-            'text' : text,
-            'type' : 'note',
-            'enabled' : True,
-            }
-
-            # print(cartVal)
-            await addCartridge(cartVal, sessionID, loadout, convoID, True)
-            command_return['status'] = "Success."
-            command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
-            return command_return
-        
-        command_return['status'] = "Error."
-        command_return['message'] = "Arg 'filename' missing"
-        print(command_return)
-        return command_return
+       
 
     # if name in 'preview' or 'preview' in name:
     #     eZprint('previewing file')
@@ -955,7 +955,7 @@ async def read_text(name, text_title, text_body, convoID, thread = 0, page = Non
 async def list_files(name, sessionID, loadout, convoID, thread = 0):
     command_return = {"status": "", "name" : name, "message": ""}
 
-    eZprint('list available files')
+    eZprint('list available files', ['COMMANDS', 'LIST_FILES'])
     string = '\nOpen files:\n'
 
     label = ''
@@ -975,8 +975,8 @@ async def list_files(name, sessionID, loadout, convoID, thread = 0):
                     string += ' | Last updated : ' + val['lastUpdated']
                 if val.get('summary', None):
                     string += ' | Summary: ' + val['summary']
-                if val.get('text', None):
-                    string += val['text'][0:280] + '...\n'
+                # if val.get('text', None):
+                #     string += val['text'][0:280] + '...\n'
     scope = None
     if sessionID in novaSession and 'convoID' in novaSession[sessionID]:
         convoID = novaSession[sessionID]['convoID'] 
@@ -999,8 +999,8 @@ async def list_files(name, sessionID, loadout, convoID, thread = 0):
                         string += ' | Last updated : ' + val['lastUpdated']
                     if val.get('summary', None):
                         string += ' | Summary: ' + val['summary']
-                    if val.get('text', None):
-                        string += val['text'][0:280] + '...\n'
+                    # if val.get('text', None):
+                    #     string += val['text'][0:280] + '...\n'
         string += '[Closed file commands: Open, Read, Query or Delete.]'
 
     if string == '':

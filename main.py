@@ -808,7 +808,7 @@ async def process_message(parsed_data):
 
     if(parsed_data['type']=='search_cartridges'):
         eZprint('search_cartridges route hit')
-        print(parsed_data['data'])
+        # print(parsed_data['data'])
         convoID = parsed_data['data']['convoID']
         sessionID = novaConvo[convoID]['sessionID']
         query = parsed_data['data']['query']
