@@ -10,6 +10,7 @@ from prisma import Json
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
+from llama_index.retrievers import QueryFusionRetriever
 
 from session.appHandler import  websocket
 from session.sessionHandler import novaSession
@@ -39,6 +40,13 @@ DEBUG_KEYS = ['INDEX']
 
 async def handle_cartridge_query(cartridge, query, sessionID, convoID, client_loadout):
     eZprint('handle query', DEBUG_KEYS, line_break=True)
+
+    index = await retrieve_cartridge_index(cartridge, sessionID, convoID, client_loadout)
+    response = await query_index(query, index)
+
+    return response
+
+async def retrieve_cartridge_index(cartridge, userID, sessionID, convoID, client_loadout):
     cartKey = cartridge.get('key', None)
     index_key = cartridge.get('index', None)
     index = None
@@ -50,8 +58,6 @@ async def handle_cartridge_query(cartridge, query, sessionID, convoID, client_lo
         content += parse_object_to_markdown(cartridge.get('text'))
     if cartridge.get('elements'):
         content += parse_elements_to_markdown(cartridge.get('elements'))
-
-
     if index_key is None:
         if content == '':
             eZprint('no content', DEBUG_KEYS)
@@ -67,10 +73,33 @@ async def handle_cartridge_query(cartridge, query, sessionID, convoID, client_lo
     if index is None and index_key is not None:
         index = await get_index(index_key)
 
+    return index
+
+async def handle_multi_cartridge_query(cartridges, query, sessionID, convoID, client_loadout):
+    eZprint('handle multi query', DEBUG_KEYS, line_break=True)
+    indexes = []
+    for cartridge in cartridges:
+        index = await retrieve_cartridge_index(cartridge, query, sessionID, convoID, client_loadout)
+        indexes.append(index)
+
+    eZprint_anything(indexes, DEBUG_KEYS, message='subsections are')
+    docstore = []
+    index_store = []
+    default__vector_store = []
+
+    for index in indexes:
+        docstore.append(index.docstore)
+        index_store.append(index.index_store)
+        default__vector_store.append(index.default__vector_store)
+    
+    eZprint_anything([docstore, index_store, default__vector_store], DEBUG_KEYS, message='subsections are')
+    index = VectorStoreIndex.from_documents(docstore, llm_predictor=llm_predictor_gpt3)
+
     response = await query_index(query, index)
 
     return response
 
+    
 
 
 async def create_index(title, content, userID, sessionID):

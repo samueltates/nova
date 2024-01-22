@@ -168,13 +168,14 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
         if isinstance(filename, str):
             cartVal = find_cartridge(filename, convoID)
-            respone = handle_cartridge_query(cartVal, query, sessionID, convoID, loadout)
+            response = handle_cartridge_query(cartVal, query, sessionID, convoID, loadout)
         elif isinstance(filename, list):
             carts = []
             for file in filename:
                 cartVal = find_cartridge(file, convoID)
                 carts.append(cartVal)
             cartVal = carts
+            
 
             
         command_return['status'] = "Success."
