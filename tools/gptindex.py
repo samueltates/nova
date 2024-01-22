@@ -11,17 +11,15 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
-from session.appHandler import app, websocket
-from session.sessionHandler import novaConvo, active_cartridges, cartdigeLookup
+from session.appHandler import  websocket
+from session.sessionHandler import active_cartridges
 from session.prismaHandler import prisma
-from core.cartridges import addCartridgeTrigger, update_cartridge_field, addCartridge, addCartridgePrompt
-from tools.debug import eZprint
-from llama_index import download_loader
+from core.cartridges import update_cartridge_field
+from tools.debug import eZprint, eZprint_anything
 
 from tools.GoogleDocsReader import GoogleDocsReader 
 from tools.UnstructuredReader import UnstructuredReader
 from tools.UnstructuredURLLoader import UnstructuredURLLoader
-# UnstructuredReader = download_loader('UnstructuredReader')
 
 from llama_index import (
     Document,
@@ -29,19 +27,13 @@ from llama_index import (
     StorageContext, load_index_from_storage,
     ServiceContext,
     VectorStoreIndex,
-    
 )
-from llama_index.node_parser import SimpleNodeParser
-from llama_index.logger import LlamaLogger
-from langchain.chat_models import ChatOpenAI
-from langchain.llms import OpenAI
-# from IPython.display import Markdown, display
 
+from llama_index.logger import LlamaLogger
+from langchain.llms import OpenAI
 
 llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003"))
 
-#query Index
-from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 
 async def indexDocument(payload, client_loadout):
     eZprint('indexDocument called')

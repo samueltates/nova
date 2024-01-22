@@ -5,7 +5,7 @@ import json
 
 from session.sessionHandler import active_cartridges, current_loadout, novaConvo, novaSession, system_threads, command_loops, command_state
 from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_list, whole_cartridge_list, add_existing_cartridge, search_cartridges
-from core.cartridges import whole_cartridge_list
+from core.cartridges import whole_cartridge_list, find_cartridge
 from web_handling.google_search import google_api_search
 from web_handling.url_scraper import advanced_scraper
 from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
@@ -16,7 +16,7 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-from index.handle_llama_index import handle_query
+from index.handle_llama_index import handle_cartridge_query
 
 DEBUG_KEYS = ['COMMANDS']
 
@@ -157,89 +157,31 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "file '" + filename  + "' written"
         # print(command_return)
         return command_return
-    
-             
-    # if 'append' in name or name in 'append':
-    #     eZprint('appending file')
-    #     if 'text' in args:
-    #         text = args['text']
-    #     if 'filename' in args:
-    #         filename = args['filename']
-
-
-    #         for key, val in active_cartridges[convoID].items():
-    #             string_match = distance(filename, str(val['label']))
-    #             if string_match < 3:
-    #                 current_text = ''
-    #                 if 'text' in val:
-    #                     current_text = val['text']
-    #                     current_text += '\n\n' + text
-    #                 val['text'] = current_text
-
-    #                 payload = {
-    #                     'sessionID': sessionID,
-    #                     'cartKey' : key,
-    #                     'fields':
-    #                             {'text': val['text']}
-    #                             }
-    #                 loadout = current_loadout[sessionID]
-    #                 await update_cartridge_field(payload, convoID, loadout, True)                    
-    #                 command_return['status'] = "Success."
-    #                 command_return['message'] = "file " +args['filename']  + " appended."
-    #                 print(command_return)
-    #                 return command_return
-    #         cartVal = {
-    #         'label' : args['filename'],
-    #         'text' : text,
-    #         'type' : 'note',
-    #         'enabled' : True,
-    #         }
-
-    #         # print(cartVal)
-    #         await addCartridge(cartVal, sessionID, loadout, convoID, True)
-    #         command_return['status'] = "Success."
-    #         command_return['message'] = "File " +args['filename']  + " not found, so new file created and text appended."
-    #         return command_return
-        
-    #     command_return['status'] = "Error."
-    #     command_return['message'] = "Arg 'filename' missing"
-    #     print(command_return)
-    #     return command_return
         
     if name == 'query':
 
         QUERY_KEYS = DEBUG_KEYS + ['QUERY']
         eZprint('querying file', QUERY_KEYS)
 
-        if 'query' not in args or args['query']=='':
-            command_return['status'] = "Error."
-            command_return['message'] = "Arg 'query' missing"
-            return command_return
+        query = args.get('query', '')
+        filename = args.get('filename', '')
 
-        if 'filename' in args:
-            filename = args['filename']
+        if isinstance(filename, str):
+            cartVal = find_cartridge(filename, convoID)
+            respone = handle_cartridge_query(cartVal, query, sessionID, convoID, loadout)
+        elif isinstance(filename, list):
+            carts = []
+            for file in filename:
+                cartVal = find_cartridge(file, convoID)
+                carts.append(cartVal)
+            cartVal = carts
 
-            for cartKey, cartVal in active_cartridges[convoID].items():
-                string_match = distance(filename, str(cartVal['label']))
-
-                if string_match < 2:
-                    eZprint('found match' + str(cartVal['label']), QUERY_KEYS)
-
-                    if 'query' in args:
-
-                        query = str(args['query'])
-                        response = await handle_query(cartVal, query, sessionID, convoID, loadout)
-                        response = str(response)
-
-                        command_return['status'] = "Success."
-                        command_return['message'] = query + ": from " + args['filename']  + ": "+ response
-                        print(command_return)
-                        return command_return
-                    
-                    else:
-                        command_return['status'] = "Error."
-                        command_return['message'] = "Arg 'query' missing"
-                        return command_return
+            
+        command_return['status'] = "Success."
+        command_return['message'] = query + ": from " + args['filename']  + ": "+ response
+        print(command_return)
+        return command_return
+    
 
     if name == 'search_files':
         if args.get('query'):
@@ -766,7 +708,7 @@ async def broad_query(name, args, sessionID, thread, convoID, loadout):
                             'query' : str(args['query'])
                         }
 
-                        response = await handle_query(input, convoID, loadout)
+                        response = await handle_cartridge_query(input, convoID, loadout)
                         response = str(response)
 
                         command_return['status'] = "Success."

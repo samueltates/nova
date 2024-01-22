@@ -587,3 +587,12 @@ async def search_cartridges(search_query, sessionID, DEBUG_KEYS = DEBUG_KEYS):
     # print(matching_objects)
     await websocket.send(json.dumps({'event': 'filtered_cartridge_list', 'payload': matching_objects}))
     return matching_objects
+
+async def find_cartridge(label, convoID, DEBUG_KEYS = DEBUG_KEYS):
+
+    for cartKey, cartVal in active_cartridges[convoID].items():
+        string_match = distance(label, str(cartVal['label']))
+
+        if string_match < 2:
+            eZprint('found match' + str(cartVal['label']), DEBUG_KEYS)
+            return cartVal

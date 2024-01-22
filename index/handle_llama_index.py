@@ -37,7 +37,7 @@ llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-dav
 
 DEBUG_KEYS = ['INDEX']  
 
-async def handle_query(cartridge, query, sessionID, convoID, client_loadout):
+async def handle_cartridge_query(cartridge, query, sessionID, convoID, client_loadout):
     eZprint('handle query', DEBUG_KEYS, line_break=True)
     cartKey = cartridge.get('key', None)
     index_key = cartridge.get('index', None)
