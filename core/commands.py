@@ -216,23 +216,27 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
 
 
-    if 'search_web' in name or name in 'search_web':
+    if name == 'search_web':
             # elif args.get('type') == 'web':
-            if args.get('query'):
-                # Call the Google API Search function
-                searchResults = google_api_search(args.get('query'))
-                results = []
-                for result in searchResults:
-                    results.append({'title': result['title'], 'snippet': result ['snippet'], 'link': result['link']})
-                # Return results
-                command_return['status'] = 'Success.'
-                command_return['message'] = 'Google web search completed. Results : ' + str(results)
-                # command_return['data'] = searchResults
-                return command_return
-            else:
-                command_return['status'] = "Error."
-                command_return['message'] = "Query can't be blank"
-                return command_return
+        if args.get('query'):
+            # Call the Google API Search function
+            searchResults = google_api_search(args.get('query'))
+
+            eZprint_anything(searchResults, DEBUG_KEYS +['SEACH_WEB'], message = 'google search results')
+
+            response = await large_document_loop(args.get('query'),searchResults, name, convoID, thread, None)
+            # results = []
+            # for result in searchResults:
+            #     results.append({'title': result['title'], 'snippet': result ['snippet'], 'link': result['link']})
+            # Return results
+            # command_return['status'] = 'Success.'
+            # command_return['message'] = response
+            # command_return['data'] = searchResults
+            return response
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "Query can't be blank"
+            return command_return
      
     if name == 'query_website':
         if args.get('website_url'):
@@ -885,14 +889,6 @@ async def traverse_blocks(query, blocks, sessionID, cartKey, convoID, loadout):
         response = str(response)
         print(response)
         return response
-
-async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None):
-
-    command_return = {"status": "", "name" :name, "message": ""}
-
-    eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
-    command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
-    return command_return
 
 
 

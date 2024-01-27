@@ -662,9 +662,7 @@ def handle_heading (node, level, syntax):
     if node.get('attrs',{}).get('level'):
         string = syntax * node.get('attrs',{}).get('level') + " " 
 
-    # handling text in parent ()
-    # if 'text' in node:
-    #     string += node['text']
+
     string = depth + string + parse_object_to_markdown(node.get('content','')) + '\n'
     
     eZprint('return string is ' + string, ['COMMANDS', 'PAGINATE'],)

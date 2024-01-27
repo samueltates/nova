@@ -5,7 +5,7 @@ import os
 
 def build_search_request(query, apiKey, cseID):
     service = build('customsearch', 'v1', developerKey=apiKey)
-    return service.cse().list(q=query, cx=cseID, num=3)
+    return service.cse().list(q=query, cx=cseID, num=10)
 
 # define the execute_search function
 def execute_search(request):
@@ -35,5 +35,53 @@ def google_api_search(query):
      # Execute the search
      response = execute_search(request)
      # Process search results
-     return process_search_results(response)
+     return parse_to_nodes(response)
 
+def parse_to_nodes(response):
+    items = response.get('items')
+    content = []
+    parent = {
+        'type':'google_search',
+        'content':content
+    }
+
+    for item in items:
+        if item.get('title'):
+            content.append({
+                'type':'heading',
+                'attrs':{
+                    'level':3
+                },
+                'content':[
+                    {
+                    'type':'text',    
+                    'text':item['title'],
+                    'marks':[
+                        { 
+                            'type':'link',
+                            'attrs' :{'href':item['link']}
+
+                        }
+                    ]}
+                ]
+            })
+        if item.get('snippet'):
+            content.append({
+                'type':'text',
+                'text':item['snippet'],
+            })
+        if item.get('displayLink'):
+            content.append({
+                'type':'text',
+                'text':item['displayLink'],
+                'marks':[
+                    { 
+                        'type':'link',
+                        'attrs' :{'href':item['link']}
+
+                    }
+                ]
+            })
+    return parent
+
+    
