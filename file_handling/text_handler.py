@@ -108,29 +108,29 @@ def parse_elements_to_markdown(elements):
         return text_to_return
 
 
-def break_into_sections(text):
-    sections = {}
-    sections['Overview'] = []
-    current_section = 'Introduction'
-    sections[current_section] = []
+# def break_into_sections(text):
+#     sections = {}
+#     sections['Overview'] = []
+#     current_section = 'Introduction'
+#     sections[current_section] = []
 
-    for line in text.split('\n'):
-        if re.match(r'^#+ ', line):  # Matches markdown headings
-            current_section = line.strip()
-            sections[current_section] = []
-            sections['Overview'].append(line.strip())
-        else:
-            sections[current_section].append(line.strip())
+#     for line in text.split('\n'):
+#         if re.match(r'^#+ ', line):  # Matches markdown headings
+#             current_section = line.strip()
+#             sections[current_section] = []
+#             sections['Overview'].append(line.strip())
+#         else:
+#             sections[current_section].append(line.strip())
 
 
-    return sections
+#     return sections
 
-def get_section_titles(text):
-    titles = []
-    for line in text.split('\n'):
-        if re.match(r'^#+ ', line):  # Matches markdown headings
-            titles.append("- " + line.strip())
-    return titles
+# def get_section_titles(text):
+#     titles = []
+#     for line in text.split('\n'):
+#         if re.match(r'^#+ ', line):  # Matches markdown headings
+#             titles.append("- " + line.strip())
+#     return titles
 
 
 
@@ -161,125 +161,125 @@ def paginate_text(text, max_words_per_page=500):
 
     return pages
 
-def parse_elements(elements ):
-    sections = []
-    section_titles = []
+# def parse_elements(elements ):
+#     sections = []
+#     section_titles = []
 
-    current_section = ' '
-    for element in elements:
-        eZprint_anything(element, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element returned')
-        if element.get('type') == 'Title':
+#     current_section = ' '
+#     for element in elements:
+#         eZprint_anything(element, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element returned')
+#         if element.get('type') == 'Title':
 
-            current_section = element.get('text')
-            new_header = adjust_header_depth(current_section, 4)
-            # new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
-            section_titles.append(new_header)
-            eZprint_anything(new_header, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'new_header returned')
-        if element.get('type') == 'ListItem':
-            eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
-            sections.append((current_section, element.get('text')))
-        if element.get('type') == 'NarrativeText':
-            eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
-            sections.append((current_section, element.get('text')))
+#             current_section = element.get('text')
+#             new_header = adjust_header_depth(current_section, 4)
+#             # new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
+#             section_titles.append(new_header)
+#             eZprint_anything(new_header, ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'new_header returned')
+#         if element.get('type') == 'ListItem':
+#             eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
+#             sections.append((current_section, element.get('text')))
+#         if element.get('type') == 'NarrativeText':
+#             eZprint_anything(element.get('text'), ['COMMANDS', 'PAGINATE', 'ELEMENTS'], message= 'element.get(text) returned')
+#             sections.append((current_section, element.get('text')))
             
-    # ez
-    combined_sections_text = "### Overview\n"
-    for title in section_titles:
-        # change heading level from current to -###
-        combined_sections_text += title + '\n'
-        #preview 
-        # if len(sections[0][1]) > 200:
-        #     combined_sections_text += sections[0][1][0:200] + '...\n'
-        # else:
-        #     combined_sections_text += sections[0][1] + '\n'
-    for section, content in sections:
-        combined_sections_text += '\n' + section + '\n' + content + '\n'
+#     # ez
+#     combined_sections_text = "### Overview\n"
+#     for title in section_titles:
+#         # change heading level from current to -###
+#         combined_sections_text += title + '\n'
+#         #preview 
+#         # if len(sections[0][1]) > 200:
+#         #     combined_sections_text += sections[0][1][0:200] + '...\n'
+#         # else:
+#         #     combined_sections_text += sections[0][1] + '\n'
+#     for section, content in sections:
+#         combined_sections_text += '\n' + section + '\n' + content + '\n'
     
-    return combined_sections_text
+#     return combined_sections_text
 
         
 
 
-def parse_sections(unsorted_text):
-    # Split the text into sections
-    sections_pattern = re.compile(r'(#{1,6}\s[^\n]+)')
-    eZprint_anything(unsorted_text, ['COMMANDS', 'PAGINATE'], message= 'unsorted_text returned')
-    sections_parts = sections_pattern.split(unsorted_text)
-    eZprint_anything(sections_parts, ['COMMANDS', 'PAGINATE'], message= 'sections_parts returned')
-    # Pair section headings with their content and strip extra spaces
-    section_titles = []
-    sections = []
-    current_section = ' '
-    for part in sections_parts:
-        eZprint('part is' + str(part), ['COMMANDS', 'PAGINATE'])
-        if part.startswith('#'):
-            current_section = part.strip()
-            # new_header = adjust_header_depth(current_section, 4)
-            # new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
-            eZprint('new_header is' + str(current_section), ['COMMANDS', 'PAGINATE'])
+# def parse_sections(unsorted_text):
+#     # Split the text into sections
+#     sections_pattern = re.compile(r'(#{1,6}\s[^\n]+)')
+#     eZprint_anything(unsorted_text, ['COMMANDS', 'PAGINATE'], message= 'unsorted_text returned')
+#     sections_parts = sections_pattern.split(unsorted_text)
+#     eZprint_anything(sections_parts, ['COMMANDS', 'PAGINATE'], message= 'sections_parts returned')
+#     # Pair section headings with their content and strip extra spaces
+#     section_titles = []
+#     sections = []
+#     current_section = ' '
+#     for part in sections_parts:
+#         eZprint('part is' + str(part), ['COMMANDS', 'PAGINATE'])
+#         if part.startswith('#'):
+#             current_section = part.strip()
+#             # new_header = adjust_header_depth(current_section, 4)
+#             # new_header = adjust_list_items(new_header, indent_depth=1, list_signifier='-')
+#             eZprint('new_header is' + str(current_section), ['COMMANDS', 'PAGINATE'])
             
-            # eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
-            section_titles.append(current_section)
-        elif current_section:
-            eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
-            sections.append((current_section, part))
+#             # eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
+#             section_titles.append(current_section)
+#         elif current_section:
+#             eZprint('current_section is' + str(current_section), ['COMMANDS', 'PAGINATE'])
+#             sections.append((current_section, part))
 
-    # Generate a flat list of section texts for pagination
-    combined_sections_text = "### Overview\n"
-    for title in section_titles:
-        combined_sections_text += title + '\n'
-    for section, content in sections:
-        combined_sections_text += '\n' + section + '\n' + content + '\n'
+#     # Generate a flat list of section texts for pagination
+#     combined_sections_text = "### Overview\n"
+#     for title in section_titles:
+#         combined_sections_text += title + '\n'
+#     for section, content in sections:
+#         combined_sections_text += '\n' + section + '\n' + content + '\n'
     
 
-    return combined_sections_text
+#     return combined_sections_text
 
 
-def adjust_header_depth(markdown_text, target_depth):
-    lines = markdown_text.splitlines()
-    adjusted_lines = []
+# def adjust_header_depth(markdown_text, target_depth):
+#     lines = markdown_text.splitlines()
+#     adjusted_lines = []
 
-    for line in lines:
-        # Increase header depth
-        if line.startswith('#'):
-            current_depth = len(line) - len(line.lstrip('#'))
-            depth_difference = target_depth - current_depth
-            adjusted_line = '#' * depth_difference + line if depth_difference > 0 else line
-        else:
-            adjusted_line = line
-        adjusted_lines.append(adjusted_line)
+#     for line in lines:
+#         # Increase header depth
+#         if line.startswith('#'):
+#             current_depth = len(line) - len(line.lstrip('#'))
+#             depth_difference = target_depth - current_depth
+#             adjusted_line = '#' * depth_difference + line if depth_difference > 0 else line
+#         else:
+#             adjusted_line = line
+#         adjusted_lines.append(adjusted_line)
 
-    return '\n'.join(adjusted_lines)
+#     return '\n'.join(adjusted_lines)
 
 
-def adjust_list_items(markdown_text, indent_depth=None, list_signifier=None, add_check=False, remove_check=False):
-    lines = markdown_text.splitlines()
-    adjusted_lines = []
+# def adjust_list_items(markdown_text, indent_depth=None, list_signifier=None, add_check=False, remove_check=False):
+#     lines = markdown_text.splitlines()
+#     adjusted_lines = []
 
-    for line in lines:
-        stripped_line = line.lstrip()
-        is_list_item = stripped_line.startswith(('-', '*', '+'))
-        is_checked = stripped_line.startswith('- [x]') or stripped_line.startswith('- [ ]')
+#     for line in lines:
+#         stripped_line = line.lstrip()
+#         is_list_item = stripped_line.startswith(('-', '*', '+'))
+#         is_checked = stripped_line.startswith('- [x]') or stripped_line.startswith('- [ ]')
         
-        # Adjust indentation
-        new_indent = ' ' * (2 * indent_depth) if indent_depth is not None else ''
-        # Change the list bullet signifier if requested
-        if list_signifier:
+#         # Adjust indentation
+#         new_indent = ' ' * (2 * indent_depth) if indent_depth is not None else ''
+#         # Change the list bullet signifier if requested
+#         if list_signifier:
 
-            bullet, rest_of_line = stripped_line.split(' ', 1)
-            if not is_checked or add_check or remove_check:
-                stripped_line = list_signifier + ' ' + rest_of_line
-        # Add or remove task checkboxes if requested
-        if add_check and not is_checked:
-            stripped_line = '- [ ] ' + stripped_line.lstrip('-*+ ')
-        if remove_check and is_checked:
-            stripped_line = '- ' + stripped_line[5:]
-        # Combine the new indent with the updated line
-        line = new_indent + stripped_line
+#             bullet, rest_of_line = stripped_line.split(' ', 1)
+#             if not is_checked or add_check or remove_check:
+#                 stripped_line = list_signifier + ' ' + rest_of_line
+#         # Add or remove task checkboxes if requested
+#         if add_check and not is_checked:
+#             stripped_line = '- [ ] ' + stripped_line.lstrip('-*+ ')
+#         if remove_check and is_checked:
+#             stripped_line = '- ' + stripped_line[5:]
+#         # Combine the new indent with the updated line
+#         line = new_indent + stripped_line
             
-        adjusted_lines.append(line)
+#         adjusted_lines.append(line)
 
-    return '\n'.join(adjusted_lines)
+#     return '\n'.join(adjusted_lines)
 
 
 
@@ -683,7 +683,16 @@ def handle_paragraph(node, level, syntax):
 def handle_text(node, level, syntax):
     eZprint_anything(node, ['COMMANDS', 'PAGINATE'], message= 'text node returned')
     # Text nodes have no special formatting, return the text directly
-    return node['text'] if 'text' in node else ''
+    text = node.get('text','')
+    if node.get('marks', None):
+        eZprint('mark found', ['COMMANDS', 'PAGINATE'])
+        for mark in node['marks']:
+            if mark.get('type') == 'link':
+                href =  mark.get('attrs',{}).get('href')
+                if href:
+                    text = '['+text+']'+'('+href+')'
+
+    return text
 
 def handle_bulletlist(node, level, syntax):
     eZprint_anything(node, ['COMMANDS', 'PAGINATE'], message= 'bulletlist node returned')
@@ -703,8 +712,8 @@ def handle_listitem(node, level, syntax):
     # List items should start with '-'
     # if 'text' in node:
     #     string += handle_text(node, level, syntax)
-    string +=  parse_object_to_markdown(node.get('content',''), level) 
-    string = syntax + string
+    depth = '\n' + ('  ' * level)
+    string = depth + syntax + parse_object_to_markdown(node.get('content',''), level) 
     eZprint('return string is ' + string, ['COMMANDS', 'PAGINATE'])
     return string
 
@@ -839,6 +848,47 @@ def build_nested_json(id_map, parent_child_map):
 
         if 'type' in parent_element:
             parent_element = handle_unstructured_type(parent_element)
+
+        if 'metadata' in parent_element:
+            link_texts = parent_element['metadata'].get('link_texts', None)
+            link_urls = parent_element['metadata'].get('link_urls', None)
+            eZprint_anything(parent_element['metadata'], ELEMENT_DEBUG, message = 'metadata found')
+
+            if link_texts:
+                link_id = 0
+                for link_text in link_texts:
+                    ## basically just getting the urls and making hyperlinks is easier, though would like nicer way for now
+                    # text = parent_element.get('text')
+                    # parts = text.split(link_text)
+
+                    # if len(parts) > 1:
+                    #     parent_element['content'].append({
+                    #         'type': 'text',
+                    #         'text': parts[0]
+                    #     })
+                    parent_element['content'].append({
+                        'type':'text',
+                        'text': link_text,
+                        'marks':[
+                            {'type': 'link',
+                            'attrs':{
+                                'href': link_urls[link_id]
+                            }}
+                        ]
+                        }
+                    )
+                        # parent_element['text'] = parts[1]
+
+                        # markdown_text = '['+link_text+']'+'('+link_urls[link_id]+')'
+                        # parent_element['text'] = parts[0] + markdown_text + parts[1]
+                        # eZprint(parent_element['text'], ELEMENT_DEBUG)
+                    # else :
+                    #     parent_element['text'] = parts[0]
+                    link_id += 1
+
+
+
+                    
 
         for child_id in children_ids:
             eZprint_anything(child_id, ELEMENT_DEBUG, message = 'working on child of node')

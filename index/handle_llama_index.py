@@ -28,13 +28,15 @@ from llama_index import (
     LLMPredictor,
     StorageContext, load_index_from_storage,
     ServiceContext,
+    SimpleKeywordTableIndex,
     VectorStoreIndex,
 )
 
 from llama_index.logger import LlamaLogger
-from langchain.llms import OpenAI
+from llama_index.indices.composability import ComposableGraph
 
-llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003"))
+from langchain_openai import ChatOpenAI
+llm_predictor_gpt3 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="text-davinci-003"))
 
 DEBUG_KEYS = ['INDEX']  
 
@@ -46,7 +48,7 @@ async def handle_cartridge_query(cartridge, query, sessionID, convoID, client_lo
 
     return response
 
-async def retrieve_cartridge_index(cartridge, userID, sessionID, convoID, client_loadout):
+async def retrieve_cartridge_index(cartridge, sessionID, convoID, client_loadout):
     cartKey = cartridge.get('key', None)
     index_key = cartridge.get('index', None)
     index = None
@@ -77,27 +79,116 @@ async def retrieve_cartridge_index(cartridge, userID, sessionID, convoID, client
 
 async def handle_multi_cartridge_query(cartridges, query, sessionID, convoID, client_loadout):
     eZprint('handle multi query', DEBUG_KEYS, line_break=True)
-    indexes = []
+    llm_gpt4 = ChatOpenAI(temperature=0, model="gpt-4")
+    service_context = ServiceContext.from_defaults(llm=llm_gpt4, chunk_size=1024)
+
+
+    #based on https://docs.llamaindex.ai/en/stable/understanding/putting_it_all_together/q_and_a/unified_query.html
+    vector_indices = {}
+    index_summaries = {}
     for cartridge in cartridges:
-        index = await retrieve_cartridge_index(cartridge, query, sessionID, convoID, client_loadout)
-        indexes.append(index)
+        index = await retrieve_cartridge_index(cartridge, sessionID, convoID, client_loadout)
+        label = cartridge.get('label', '')
+        eZprint(label, DEBUG_KEYS, message = 'returned_label')
+        vector_indices[label] = index
+        summary = cartridge.get('summary', None)
+        if summary is None:
+            summary = await get_summary(index)
+            await update_cartridge_field({'sessionID': sessionID, 'cartKey': cartridge['key'],
+            'fields': {
+                # 'label' : title,
+                'summary': str(summary),
+            }
+            }, convoID, client_loadout, system=True)
+            
 
-    eZprint_anything(indexes, DEBUG_KEYS, message='subsections are')
-    docstore = []
-    index_store = []
-    default__vector_store = []
 
-    for index in indexes:
-        docstore.append(index.docstore)
-        index_store.append(index.index_store)
-        default__vector_store.append(index.default__vector_store)
+        index_summaries[label] = str(summary)
     
-    eZprint_anything([docstore, index_store, default__vector_store], DEBUG_KEYS, message='subsections are')
-    index = VectorStoreIndex.from_documents(docstore, llm_predictor=llm_predictor_gpt3)
+    eZprint_anything([vector_indices, index_summaries], DEBUG_KEYS, message = 'vectors and summaries')
 
-    response = await query_index(query, index)
+    graph = ComposableGraph.from_indices(
+        SimpleKeywordTableIndex,
+        [index for _, index in vector_indices.items()],
+        [summary for _, summary in index_summaries.items()],
+        max_keywords_per_chunk=50,
+    )
+    eZprint(graph, DEBUG_KEYS, message= 'whole graph')
+    eZprint(graph.index_struct, DEBUG_KEYS, message = 'graph index struct')
+    # eZprint(graph.index_struct.get('root_id', ''), DEBUG_KEYS, 'root ID apparentluy')
+    # root_index = graph.get_index(
+    #     graph.index_struct.root_id, SimpleKeywordTableIndex
+    # )
 
+    # root_index.set_index_id("compare_contrast")
+    # root_summary = (
+    #     "This index contains documents that are being queried by an AI agent, use it to answer questions across documents"
+    # )
+    from llama_index.indices.query.query_transform.base import (
+        DecomposeQueryTransform,
+    )
+
+    decompose_transform = DecomposeQueryTransform(verbose=True)
+
+    # define custom query engines
+    from llama_index.query_engine.transform_query_engine import (
+        TransformQueryEngine,
+    )
+
+    custom_query_engines = {}
+    for key, index in vector_indices.items():
+        query_engine = index.as_query_engine(service_context=service_context)
+        summary = index_summaries.get(key,'')
+        query_engine = TransformQueryEngine(
+            query_engine,
+            query_transform=decompose_transform,
+            transform_metadata={"index_summary": summary},
+        )
+        custom_query_engines[index.index_id] = query_engine
+    
+    custom_query_engines[graph.root_id] = graph.root_index.as_query_engine(
+        retriever_mode="simple",
+        response_mode="tree_summarize",
+        service_context=service_context,
+    )
+
+    # eZprint_anything(custom_query_engines, DEBUG_KEYS, message = 'query engines')
+    query_engine = graph.as_query_engine(custom_query_engines=custom_query_engines)
+    # eZprint_anything(query_engine.get_prompts(), DEBUG_KEYS, "query engine getprompts")
+    
+    response = query_engine.query(query)
     return response
+
+    # eZprint_anything(indexes, DEBUG_KEYS, message='subsections are')
+    # docstores = {}
+    # index_store = {}
+    # vector_store = {}
+
+    # # Assume index.docstore, index.index_store, and index.vector_store are dictionaries
+    # for index in vector_indices.items():
+    #     if index.docstore is not None:
+    #         eZprint_anything(index.docstore, DEBUG_KEYS, message='subsections are')
+    #         # docstores.update(index.docstore)
+
+    #     # if index.index_store is not None:
+    #     #     index_store.update(index.index_store)
+    #     if index.vector_store is not None:
+    #         vector_store.update(index.vector_store)
+
+    # # Now, instead of lists, we have single dictionaries with all key-value pairs merged
+    # storage_context = StorageContext.from_dict(
+    #     {
+    #         "docstore": docstores,
+    #         "index_store": index_store,
+    #         "vector_store": vector_store,
+    #     }
+    # )
+
+
+    # index = load_index_from_storage(storage_context)
+    # response = await query_index(query, index)
+    # eZprint_anything(response, DEBUG_KEYS, message='subsections are')
+    # return response
 
     
 
@@ -152,6 +243,9 @@ async def query_index(queryString, index ):
     
     return response 
 
+async def get_summary(index):
+    summary = await query_index('provide a short summary of this document', index)
+    return summary
 
 
 async def serialise_index(index_key, index, sessionID):
@@ -159,7 +253,7 @@ async def serialise_index(index_key, index, sessionID):
     index.set_index_id(index_key)
     tmpDir = tempfile.mkdtemp()+"/"+sessionID+"/storage"
     index.storage_context.persist(tmpDir)
-    print(tmpDir)
+    eZprint(tmpDir, DEBUG_KEYS)
     indexJson = dict()
     for file in os.listdir(tmpDir):
         if file.endswith(".json"):
@@ -190,6 +284,7 @@ async def deserialise_index(index_key):
     )
     dbRecord = json.loads(index_record.json())
     tmpDir = tempfile.mkdtemp()
+    eZprint(tmpDir, DEBUG_KEYS)
 
     for key, val in dbRecord.items():
         try:

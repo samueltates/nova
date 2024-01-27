@@ -4,6 +4,11 @@
 # The 'get_text' Command
 import requests
 from bs4 import BeautifulSoup as BS
+from tools.debug import eZprint
+from unstructured.partition.html import partition_html
+from unstructured.staging.base import convert_to_dict
+
+DEBUG_KEYS = ['URL']
 
 async def get_text(url):
     res = requests.get(url)
@@ -17,11 +22,23 @@ async def read(text, window_size):
     return chunks
 
 async def advanced_scraper(url):
+    SCRAPE_KEYS = DEBUG_KEYS + ['SCRAPE']
+    elements = partition_html(url=url)
+    eZprint(elements, SCRAPE_KEYS, message = 'unstructured return')
+
+    elements = convert_to_dict(elements)
+    eZprint(elements, SCRAPE_KEYS, message = 'converted to dictionary')
+
+    return elements
+
     res = requests.get(url)
     soup = BS(res.text, 'html.parser')
 
     for script in soup(["script", "style"]):
         script.decompose()
+
+    
+
 
     elements = []
 
@@ -39,4 +56,11 @@ async def advanced_scraper(url):
         if element:
             elements.append(element)
 
-    return elements
+
+
+    document_json = {
+        'type':'doc',
+        'content':elements
+        }
+
+    return document_json

@@ -57,5 +57,7 @@ opencv-contrib-python = "*"
 pikepdf = "*"
 pypdf = "*"
 torch = "*"
+langchain-community = "*"
+langchain-openai = "*"
 
 [dev-packages]

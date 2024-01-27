@@ -16,7 +16,7 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-from index.handle_llama_index import handle_cartridge_query
+from index.handle_llama_index import handle_cartridge_query, handle_multi_cartridge_query
 
 DEBUG_KEYS = ['COMMANDS']
 
@@ -167,19 +167,20 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         filename = args.get('filename', '')
 
         if isinstance(filename, str):
-            cartVal = find_cartridge(filename, convoID)
-            response = handle_cartridge_query(cartVal, query, sessionID, convoID, loadout)
+            cartVal = await find_cartridge(filename, convoID)
+            response = await handle_cartridge_query(cartVal, query, sessionID, convoID, loadout)
         elif isinstance(filename, list):
             carts = []
             for file in filename:
-                cartVal = find_cartridge(file, convoID)
+                cartVal = await find_cartridge(file, convoID)
                 carts.append(cartVal)
             cartVal = carts
+            response = await handle_multi_cartridge_query(cartVal, query, sessionID, convoID, loadout)
             
 
             
         command_return['status'] = "Success."
-        command_return['message'] = query + ": from " + args['filename']  + ": "+ response
+        command_return['message'] = query + ": from " + str(args['filename'])  + ": "+ str(response)
         print(command_return)
         return command_return
     
@@ -565,7 +566,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         print(output)
         cartVal = {
         'label' : 'scrape of ' + website_url,
-        'text' :str(scraped_data),
+        'elements' :scraped_data,
         'type' : 'note',
         'enabled' : True,
         'minimised' : False,
