@@ -39,7 +39,6 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
     if extension == 'video/mp4':
         processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
-
     elif extension == 'video/quicktime':
         processed_file = tempfile.NamedTemporaryFile(suffix=".mov", delete=True)
     elif extension == 'video/x-matroska':
@@ -57,13 +56,12 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
         clip = VideoFileClip(processed_file.name)
         rotated = await is_rotated(processed_file.name)
-        clip_audio = clip.audio
-        clip_duration = clip.duration
-        clip_size = clip.size
-
         if rotated:
             clip = clip.resize(clip.size[::-1])
 
+        clip_audio = clip.audio
+        clip_duration = clip.duration
+        clip_size = clip.size
         clip_dimensions = clip.get_frame(0).shape
         layout = await determine_orientation(clip_dimensions)
         composites.append(clip)
