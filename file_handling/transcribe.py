@@ -25,17 +25,18 @@ async def transcribe_file(file_content, file_key, file_name, file_type, sessionI
     processed_file.write(file_content)
     processed_file.close()
     transcript_text = ''
-    if file_type == 'video/mp4':
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
-    elif file_type == 'video/quicktime':
+    if 'video/' in file_type:
         print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key )
-    elif file_type == 'video/x-matroska':
-        print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID,convoID,  loadout, file_key )
-    elif file_type == 'audio/mpeg':
-        print('audio requested')
-        transcript_text = await transcribe_audio_file(processed_file, file_name, sessionID,convoID,  loadout, file_key)
+        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
+    elif 'audio/' in file_type:
+
+        audio = AudioSegment.from_file(processed_file.name)
+        transcript_text = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
+        processed_file.close()
+        
+
+    else:
+        transcript_text = "Unsupported file type for transcription"
 
     return transcript_text
 
@@ -44,14 +45,15 @@ async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey
     clip = VideoFileClip(file.name)
     audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
     clip.audio.write_audiofile(audio_temp.name)
+    audio = AudioSegment.from_file(audio_temp.name)
 
-    transcript_text = await transcribe_audio_file(audio_temp, name, sessionID, convoID, loadout, cartKey)
+    transcript_text = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
     audio_temp.close()
     return transcript_text
 
-async def transcribe_audio_file(file, name, sessionID, convoID, loadout, cartKey):
-    eZprint(f"file to transcribe {file.name}", ['FILE_HANDLING', 'TRANSCRIBE'])
-    audio = AudioSegment.from_mp3(file.name)
+async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey):
+    # eZprint(f"file to transcribe {file.name}", ['FILE_HANDLING', 'TRANSCRIBE'])
+    # audio = AudioSegment.from_mp3(file.name)
     avg_loudness = audio.dBFS
     
     # Try reducing these values to create smaller clips

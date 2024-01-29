@@ -37,14 +37,13 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
     clip = None
     protect_ends = True
 
-    if extension == 'video/mp4':
-        processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
-    elif extension == 'video/quicktime':
-        processed_file = tempfile.NamedTemporaryFile(suffix=".mov", delete=True)
-    elif extension == 'video/x-matroska':
-        processed_file = tempfile.NamedTemporaryFile(suffix=".mkv", delete=True)
-    elif extension == 'audio/mpeg':
-        processed_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=True)
+    if 'video' in extension:
+        processed_file = tempfile.NamedTemporaryFile( delete=True)
+    elif 'audio' in extension:
+        processed_file = tempfile.NamedTemporaryFile( delete=True)
+    # else:
+    #     # Handle other file types or raise an error if unsupported type.
+    #     processed_file = None
 
     processed_file.write(media_file)
     composites = []
@@ -52,7 +51,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
     clip_duration = 0
     clip_size = None
 
-    if extension != 'audio/mpeg':
+    if 'video' in extension:
 
         clip = VideoFileClip(processed_file.name)
         rotated = await is_rotated(processed_file.name)
@@ -131,24 +130,14 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             # # Crop excess width/height if necessary
             start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
             start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
-            # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
-
 
             resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
-
-            # cv2.imwrite(processed_image.name, resized_image)
 
             image_clip = ImageClip(resized_image)
             image_clip = image_clip.set_duration(duration)
             image_clip = image_clip.set_start(start)
             #set default position
             image_clip = image_clip.set_position('center')
-
-            # if 'zoom' in media:
-            #     start_zoom = float(media['zoom'].get('start_size', 1))
-            #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
-            #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
-
 
             if 'position' in b_roll:
                 eZprint('position found', DEBUG_KEYS)
@@ -161,18 +150,6 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     image_clip = image_clip.crossfadein(fadein_duration)
                 if fadeout_duration:
                     image_clip = image_clip.crossfadeout(fadeout_duration)
-            # if 'position' in media:
-            #     start_pos = float(media['position'].get('start', 'center'))
-            #     end_pos = float(media['position'].get('end', start_pos))
-            #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
-
-
-            # scale_modifier = clip_widest / 1920
-            # pixels_per_second = 90 * scale_modifier
-            # eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
-            # directions = ['left', 'right']
-            # #choose random direction
-            # direction = random.choice(directions)   
 
 
             scale_modifier = clip_widest / 1920
@@ -183,25 +160,11 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             direction = random.choice(directions)   
 
             if 'pan' in b_roll:
-                # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
-                # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
                 if b_roll['pan'] == 'left':
                     direction = 'left'
                 elif b_roll['pan'] == 'right':
                     direction = 'right'
 
-            # # Where you set your position for the image clip
-            # if direction == 'left':
-            #     start_position = 0
-            #     end_position = -start_x*2
-
-            #     image_clip = image_clip.set_position(
-            #         lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
-            #         (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
-            #     )
-
-     
-            # Where you set your position for the image clip
             if direction == 'left':
                 start_position = 0
                 end_position = -start_x*2

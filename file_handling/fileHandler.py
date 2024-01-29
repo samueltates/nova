@@ -86,13 +86,51 @@ async def handle_file_end(data):
     extension = file_type.split('/')[1]
     if extension == 'quicktime':
         extension = 'mov'
-    if extension == 'x-matroska':
+    elif extension == 'x-matroska':
         extension = 'mkv'
-    if extension == 'mpeg':
+    elif extension == 'mpeg':
         extension = 'mp3'
-    if extension == 'plain':
+    elif extension == 'plain':
         extension = 'txt'
+    elif extension == 'x-m4a':
+        extension = 'm4a'
+    elif extension == 'mp4':
+        extension = 'mp4'
+    elif extension == 'mp3':
+        extension = 'mp3'   
+    elif extension == 'x-wav':
+        extension = 'wav'
+    elif extension == 'wav':
+        extension = 'wav'
+        
+    elif extension == 'x-ms-wma':
+        extension = 'wma'
+    elif extension == 'x-ms-wmv':
+        extension = 'wmv'
+    elif extension == 'x-ms-asf':
+        extension = 'asf'
+    elif extension == 'x-msvideo':
+        extension = 'avi'
+    elif extension == 'x-flv':
+        extension = 'flv'
+    elif extension == 'flac':
+        extension = 'flac'
+    elif extension == 'x-msvideo':
+        extension = 'avi'
+    elif extension == 'x-flv':
+        extension = 'flv'
+    elif extension == 'ogg':
+        if 'video/' in file_type:
+            extension = 'ogv'
+        else:
+            extension = 'ogg'  # Assuming it's audio if not specified as video.
+    elif extension == 'webm':
+        if 'video/' in file_type:
+            extension = 'webm'
+        else:
+            extension = 'webm'
 
+        
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     file_name_to_write = cartKey + '.' + extension
