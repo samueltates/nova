@@ -363,12 +363,14 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
 
     if matchedCart:
         # print('matched cart ' + str(matchedCart.id))
+        eZprint('matched cart ' + str(matchedCart.id), DEBUG_KEYS)
         matchedCartVal = json.loads(matchedCart.json())['blob'][targetCartKey]
         # print ('checking loadout ' + str(loadout))
             # print('loadout match')
         if client_loadout:
             #if coming from loadout then it doesn't update the base settings, they get applied at loadout level
             # print('update settings in loadout')
+            eZprint('update settings in loadout', DEBUG_KEYS)
             setting_update = False
             for key, val in input['fields'].items():
                     if key in ['enabled', 'minimised', 'pinned', 'position']:
@@ -387,6 +389,7 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
         elif client_loadout == None: 
             #if not coming from loadout then applies to base
             # print('update base cartridge')
+            eZprint('update base cartridge', DEBUG_KEYS)
 
             for key, val in input['fields'].items():
                 matchedCartVal[key] = val
@@ -406,8 +409,10 @@ async def update_cartridge_field(input, convoID, client_loadout= None, system = 
             }
         )
         # print('updated cart' + str(updatedCart.id))
+        eZprint('updated cart' + str(updatedCart.id), DEBUG_KEYS)
         if system:
             # print('system update')
+            eZprint('system update', DEBUG_KEYS)
             payload = { 'key':targetCartKey,
                         'fields': input['fields'], 
                         'convoID': convoID,

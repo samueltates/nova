@@ -489,7 +489,7 @@ async def process_message(parsed_data):
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID, params)
-        await runCartridges(convoID, loadout)  
+        await runCartridges(sessionID, convoID, loadout)  
 
     if(parsed_data['type'] == 'add_loadout'):
         eZprint('add_loadout route hit', ['LOADOUT', 'INITIALISE'], line_break=True)
@@ -508,7 +508,7 @@ async def process_message(parsed_data):
 
         await retrieve_loadout_cartridges(loadout, convoID)
         await initialise_conversation(sessionID, convoID)
-        await runCartridges(convoID, loadout)  
+        await runCartridges(sessionID,convoID, loadout)  
 
     if(parsed_data['type']=='clear_loadout'):
         eZprint('clear_loadout route hit', ['LOADOUT'], line_break=True)
@@ -528,7 +528,7 @@ async def process_message(parsed_data):
         convoID = await start_new_convo(sessionID, None)
 
         await initialise_conversation(sessionID, convoID, params)
-        await initialiseCartridges(sessionID, convoID, None)
+        await runCartridges(sessionID,convoID, loadout)  
 
 
     if(parsed_data['type']== 'add_convo'):
@@ -550,6 +550,7 @@ async def process_message(parsed_data):
         await websocket.send(json.dumps({'event':'add_convo', 'payload': session}))    
         await retrieve_loadout_cartridges(loadout, convoID_full)
         await initialise_conversation(sessionID, convoID_full)
+        await runCartridges(sessionID,convoID, loadout)  
 
 
     if(parsed_data['type'] == 'set_convo'):
@@ -574,6 +575,10 @@ async def process_message(parsed_data):
         await set_convo(requestedConvoID, sessionID, loadout)
         await set_user_value(userID, 'latest_convo-' + loadout, requestedConvoID)
         await retrieve_loadout_cartridges(loadout, requestedConvoID)
+        
+        await initialise_conversation(sessionID, requestedConvoID)
+        await runCartridges(sessionID,requestedConvoID, loadout)  
+
 
     if(parsed_data['type'] == 'add_loadout_to_profile'):
         eZprint('add_loadout_to_profile route hit', ['LOADOUT'], line_break=True)
