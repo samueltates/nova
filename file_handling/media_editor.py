@@ -105,8 +105,8 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             start = start_delta.total_seconds()
 
             if protect_ends:
-                if duration < 4:
-                    duration = 4
+                if duration < 5:
+                    duration = 5
                 if start < 3:
                     # break out of this image
                     continue 
