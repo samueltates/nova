@@ -14,6 +14,9 @@ from file_handling.image_handling import generate_image, generate_images
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
+from index.handle_llama_index import handle_cartridge_query, handle_multi_cartridge_query
+from core.services import get_media_from_request 
+
 
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
@@ -487,7 +490,23 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if args.get('b_roll'):
             b_roll_to_overlay = args['b_roll']
 
-        overlay_video_name = await overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout)
+        json_object = None
+        transcript_object = None
+        transcript_lines = None
+
+        if main_video_cartridge.get('json', None):
+            json_object = json.loads(main_video_cartridge['json'])
+
+        if json_object:
+            transcript_object = json_object.get('transcript_object', None)        
+            eZprint_anything([transcript_object], ['OVERLAY'])
+
+        if transcript_object:
+            transcript_lines = transcript_object.get('lines', None)
+        # overlay_video_name = await overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, convoID, loadout)
+        overlay_video_url = get_media_from_request(aws_key= main_video_cartridge.get('aws_key',''), extension =  main_video_cartridge.get('extension', 'video/mp4' ), b_roll_to_overlay = b_roll_to_overlay, text_to_overlay = transcript_lines)
+
+        addCartridge(overlay_video_url, sessionID, loadout, convoID, True)
         if overlay_video_name:
             command_return['status'] = "Success."
             command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
@@ -525,8 +544,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if args.get('text_to_overlay'):
             text_to_overlay = args['text_to_overlay']
         print(media_to_overlay)
+        
 
         overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, convoID, loadout) 
+
         if overlay_video_name:
             command_return['status'] = "Success."
             command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
