@@ -498,26 +498,38 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
         if json_object:
             transcript_object = json_object.get('transcript_object', None)        
-            eZprint_anything([transcript_object], ['OVERLAY'])
+            eZprint_anything(transcript_object, ['OVERLAY'])
 
         if transcript_object:
             transcript_lines = transcript_object.get('lines', None)
+            eZprint_anything(transcript_lines, ['OVERLAY'])
+
         aws_key = main_video_cartridge.get('aws_key','')
         extension =  main_video_cartridge.get('extension', 'video/mp4' )
         payload = {
             'aws_key' : aws_key,
             'extension' : extension,
             'b_roll_to_overlay' : b_roll_to_overlay,
-            'transcript_object' : transcript_lines
+            'transcript_lines' : transcript_lines
 
         }
         
-        overlay_video_url = get_media_from_request(payload)
+        file_name = main_video_cartridge.get('label','')
 
-        addCartridge(overlay_video_url, sessionID, loadout, convoID, True)
-        if overlay_video_name:
+        file_name_split = file_name.split('.')
+        file_name = file_name_split[0]
+
+        response = get_media_from_request(payload)
+        response.update({'label' : file_name + '_overlayed'})    
+        response.update({'type' : 'media'})        
+        response.update({'enabled' : True})
+        response.update({'extension' : 'video/mp4'})
+
+        cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
+
+        if cartKey:
             command_return['status'] = "Success."
-            command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
+            command_return['message'] = "video overlayed and saved as " + str(file_name + '_overlayed.mp4')
             return command_return
         else:
             command_return['status'] = "Error."
