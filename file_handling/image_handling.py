@@ -15,6 +15,7 @@ async def generate_temp_image(prompt):
     try:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, lambda: openai_client.images.generate(prompt=prompt,
+                                                                                        model='dall-e-3',
         n=1,
         size='1024x1024'))
     except Exception as e:
