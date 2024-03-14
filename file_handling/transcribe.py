@@ -47,7 +47,9 @@ async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey
     clip = VideoFileClip(file.name)
     audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
     clip.audio.write_audiofile(audio_temp.name)
-    audio = AudioSegment.from_file(audio_temp.name)
+    loop = asyncio.get_event_loop()
+    audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(audio_temp.name))
+    # audio = AudioSegment.from_file(audio_temp.name)
 
     transcript_text = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
     audio_temp.close()

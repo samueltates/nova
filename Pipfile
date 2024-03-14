@@ -51,10 +51,11 @@ openai = "*"
 pydantic = "*"
 unstructured-pytesseract = "*"
 unstructured-inference = "*"
-llama-index = "*"
-langchain = "*"
+llama-index = "0.9.10"
+langchain = "0.0.345"
 opencv-contrib-python = "*"
 pikepdf = "*"
 pypdf = "*"
+aiohttp = "*"
 
 [dev-packages]
