@@ -30,7 +30,9 @@ async def transcribe_file(file_content, file_key, file_name, file_type, sessionI
         transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
     elif 'audio/' in file_type:
 
-        audio = AudioSegment.from_file(processed_file.name)
+        loop = asyncio.get_event_loop()
+        audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(processed_file.name))
+        # audio = await AudioSegment.from_file(processed_file.name)
         transcript_text = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
         processed_file.close()
         

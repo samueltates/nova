@@ -3,7 +3,7 @@ import requests
 from tools.debug import eZprint, eZprint_anything
 import json
 
-def get_media_from_request(payload):
+async def get_media_from_request(payload):
     # takes initial input, sends to endpoint, returns media
     eZprint(payload, ['MEDIA'], message = 'media payload')
     headers = {'content-type': 'application/json'}
