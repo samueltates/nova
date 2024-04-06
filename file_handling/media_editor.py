@@ -71,10 +71,10 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
         clip_duration = clip_audio.duration
         # clip = AudioFileClip(processed_file.name)
         #set to 1080 x 1920
-        clip_size = 1080, 1920
+        clip_size = 720, 1280
         protect_ends = False 
 
-        clip_dimensions =  1920, 1080, 1
+        clip_dimensions =  1280, 720, 1
         layout = 'vertical'
 
     
