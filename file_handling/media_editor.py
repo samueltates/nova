@@ -96,15 +96,28 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             start = datetime.strptime(start, '%H:%M:%S.%f')
             end = datetime.strptime(end, '%H:%M:%S.%f')
             #get as  time delta
+            if not protect_ends: # stupid as fuck designator for if its audio or video - this is audio
+                if counter == 1:
+                    start = datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
+                if counter >= len(b_roll_to_overlay):
+                    # end = clip_duration
+                    # datetime.date(end)
+                    eZprint_anything(['on last clip',len(b_roll_to_overlay)], ['OVERLAY'], line_break=True)
+                else:
+                    end = b_roll_to_overlay[counter]['start']
+                    eZprint_anything(['not last clip',len(b_roll_to_overlay), end], ['OVERLAY'], line_break=True)
+                    end = datetime.strptime(end, '%H:%M:%S.%f')
 
             duration = end - start
             duration = duration.total_seconds()
 
-                
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
 
-            if protect_ends:
+            if not protect_ends and counter >= len(b_roll_to_overlay):
+                duration = clip_duration - start
+
+            if protect_ends: # this is video
                 if duration < 5:
                     duration = 5
                 if start < 3:
@@ -114,6 +127,8 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     # break out of this image
                     # duration = 3
                     continue
+            
+
             
             image = cv2.imread(processed_image.name)
 
@@ -154,6 +169,15 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
 
             scale_modifier = clip_widest / 1920
             pixels_per_second = 75 * scale_modifier
+
+            #based on time / length, changes speed ...
+            # eZprint()
+            width_pixels_to_cover_ps = (((resized_image.shape[1]/clip_dimensions[1] ) - 1 )/ duration) * clip_dimensions[1]
+            eZprint_anything(['values are',resized_image.shape[1],clip_dimensions[1], width_pixels_to_cover_ps  ],DEBUG_KEYS )
+ 
+            if width_pixels_to_cover_ps < pixels_per_second:
+                pixels_per_second = width_pixels_to_cover_ps
+
             eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
             directions = ['left', 'right']
             #choose random direction

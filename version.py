@@ -1,1 +1,1 @@
-__version__ = '0.5.8-easia.5'
+__version__ = '0.5.8-chops'
