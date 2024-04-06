@@ -128,7 +128,7 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     # duration = 3
                     continue
             
-
+            eZprint_anything([start, end, duration], ['OVERLAY'])
             
             image = cv2.imread(processed_image.name)
 
@@ -350,11 +350,16 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     eZprint(f'line start {line_start} line end {line_end} line duration {line_duration} line percent {line_percent}', ['OVERLAY', 'TRANSCRIBE'])
                     composites.append(text_clip)
    
-    compositeClip = CompositeVideoClip(composites, size=clip_size)
-    compositeClip.audio = clip_audio
+    def get_composite_clip(composites, clip_size, clip_audio, processed_file_name):
+        compositeClip = CompositeVideoClip(composites, size=clip_size)
+        compositeClip.audio = clip_audio
+        compositeClip.write_videofile(processed_file_name,  remove_temp=True, codec='libx264', audio_codec='aac', fps=24)
+        return processed_file_name
+    
+    composite_loop = asyncio.get_event_loop()
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-    write_loop = asyncio.get_event_loop()
-    await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac', fps=24))
+    file_name = await composite_loop.run_in_executor(None, lambda: get_composite_clip(composites, clip_size, clip_audio, file_to_send.name))
+   
     # compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
     # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')
