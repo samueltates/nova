@@ -523,6 +523,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
         response = await get_media_from_request(payload)
         response.update({'label' : file_name + '_overlayed'})    
+        response.update({'fileName' : file_name})
         response.update({'type' : 'media'})        
         response.update({'enabled' : True})
         response.update({'extension' : 'video/mp4'})
