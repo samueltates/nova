@@ -10,7 +10,6 @@ from prisma import Json
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-from llama_index.retrievers import QueryFusionRetriever
 
 from session.appHandler import  websocket
 from session.sessionHandler import novaSession
@@ -23,20 +22,20 @@ from tools.GoogleDocsReader import GoogleDocsReader
 from tools.UnstructuredReader import UnstructuredReader
 from tools.UnstructuredURLLoader import UnstructuredURLLoader
 
-from llama_index import (
+from llama_index.core import (
     Document,
-    LLMPredictor,
+    # LLMPredictor,
     StorageContext, load_index_from_storage,
     ServiceContext,
     SimpleKeywordTableIndex,
     VectorStoreIndex,
 )
 
-from llama_index.logger import LlamaLogger
-from llama_index.indices.composability import ComposableGraph
+# from llama_index import LlamaLogger
+from llama_index.core import ComposableGraph
 
 from langchain_openai import ChatOpenAI
-llm_predictor_gpt3 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="text-davinci-003"))
+# llm_predictor_gpt3 = LLMPredictor(llm=ChatOpenAI(temperature=0, model_name="text-davinci-003"))
 
 DEBUG_KEYS = ['INDEX']  
 
@@ -196,7 +195,9 @@ async def handle_multi_cartridge_query(cartridges, query, sessionID, convoID, cl
 async def create_index(title, content, userID, sessionID):
     eZprint('creating index', DEBUG_KEYS, line_break=True)
     doc = Document(text=content)
-    index = VectorStoreIndex.from_documents([doc], llm_predictor=llm_predictor_gpt3)
+    index = VectorStoreIndex.from_documents([doc]
+                                            # llm_predictor=llm_predictor_gpt3
+                                            )
     eZprint_anything(index, DEBUG_KEYS, message='index generated is')
     key = generate_id()
 

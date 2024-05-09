@@ -59,5 +59,7 @@ pypdf = "*"
 torch = "*"
 langchain-community = "*"
 langchain-openai = "*"
+aiohttp = "*"
+llama-index-multi-modal-llms-openai = "*"
 
 [dev-packages]

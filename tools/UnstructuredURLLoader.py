@@ -1,8 +1,9 @@
 import logging
 from typing import List
 
-from llama_index.readers.base import BaseReader
-from llama_index.schema import Document
+from llama_index.core.readers.base import BaseReader
+from llama_index.core.readers import Document
+
 
 logger = logging.getLogger(__file__)
 

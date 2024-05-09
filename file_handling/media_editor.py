@@ -1,4 +1,4 @@
-from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip, TextClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips, concatenate_audioclips, ImageClip, vfx, CompositeVideoClip, TextClip, AudioFileClip
 import json
 from moviepy.video.VideoClip import ColorClip
 from datetime import datetime
@@ -32,22 +32,52 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
     DEBUG_KEYS = ['OVERLAY']
     eZprint_anything(['Overlaying video',main_video_cartridge], ['OVERLAY'], line_break=True)
     main_video_key = main_video_cartridge['aws_key']
-    video_file = await read_file(main_video_key)
+    media_file = await read_file(main_video_key)
+    extension =  main_video_cartridge.get('extension', 'video/mp4' )
+    clip = None
+    protect_ends = True
 
-    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=True)
-    processed_file.write(video_file)
+    if 'video' in extension:
+        processed_file = tempfile.NamedTemporaryFile( delete=True)
+    elif 'audio' in extension:
+        processed_file = tempfile.NamedTemporaryFile( delete=True)
+    # else:
+    #     # Handle other file types or raise an error if unsupported type.
+    #     processed_file = None
+
+    processed_file.write(media_file)
     composites = []
+    clip_audio = None
+    clip_duration = 0
+    clip_size = None
 
-    clip = VideoFileClip(processed_file.name)
-    rotated = await is_rotated(processed_file.name)
+    if 'video' in extension:
 
-    if rotated:
-        clip = clip.resize(clip.size[::-1])
+        clip = VideoFileClip(processed_file.name)
+        rotated = await is_rotated(processed_file.name)
+        if rotated:
+            clip = clip.resize(clip.size[::-1])
 
-    clip_dimensions = clip.get_frame(0).shape
-    layout = await determine_orientation(clip_dimensions)
+        clip_audio = clip.audio
+        clip_duration = clip.duration
+        clip_size = clip.size
+        clip_dimensions = clip.get_frame(0).shape
+        layout = await determine_orientation(clip_dimensions)
+        composites.append(clip)
 
-    composites.append(clip)
+    else :
+        # create placeholder clip for audio
+        clip_audio = AudioFileClip(processed_file.name)
+        clip_duration = clip_audio.duration
+        # clip = AudioFileClip(processed_file.name)
+        #set to 1080 x 1920
+        clip_size = 1080, 1920
+        protect_ends = False 
+
+        clip_dimensions =  1920, 1080, 1
+        layout = 'vertical'
+
+    
     
     tasks = []
     for b_roll in b_roll_to_overlay:
@@ -66,16 +96,24 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             start = datetime.strptime(start, '%H:%M:%S.%f')
             end = datetime.strptime(end, '%H:%M:%S.%f')
             #get as  time delta
+
             duration = end - start
             duration = duration.total_seconds()
-            if duration < 3:
-                duration = 3
-            
+
+                
             start_delta = start - datetime.strptime('00:00:00.000', '%H:%M:%S.%f')
             start = start_delta.total_seconds()
-            if start < 3:
-                # break out of this image
-                continue 
+
+            if protect_ends:
+                if duration < 5:
+                    duration = 5
+                if start < 3:
+                    # break out of this image
+                    continue 
+                if start > clip_duration-2:
+                    # break out of this image
+                    # duration = 3
+                    continue
             
             image = cv2.imread(processed_image.name)
 
@@ -92,24 +130,14 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             # # Crop excess width/height if necessary
             start_x = max(0, (resized_image.shape[1] - clip_dimensions[1]) // 2)
             start_y = max(0, (resized_image.shape[0] - clip_dimensions[0]) // 2)
-            # resized_cropped_image = resized_image[start_y:start_y+clip_dimensions[0], start_x:start_x+clip_dimensions[1]]
-
 
             resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
-
-            # cv2.imwrite(processed_image.name, resized_image)
 
             image_clip = ImageClip(resized_image)
             image_clip = image_clip.set_duration(duration)
             image_clip = image_clip.set_start(start)
             #set default position
             image_clip = image_clip.set_position('center')
-
-            # if 'zoom' in media:
-            #     start_zoom = float(media['zoom'].get('start_size', 1))
-            #     end_zoom = float(media['zoom'].get('end_size', start_zoom))
-            #     image_clip = image_clip.resize(lambda t: start_zoom + ((t / duration) * (end_zoom - start_zoom)))
-
 
             if 'position' in b_roll:
                 eZprint('position found', DEBUG_KEYS)
@@ -122,18 +150,6 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     image_clip = image_clip.crossfadein(fadein_duration)
                 if fadeout_duration:
                     image_clip = image_clip.crossfadeout(fadeout_duration)
-            # if 'position' in media:
-            #     start_pos = float(media['position'].get('start', 'center'))
-            #     end_pos = float(media['position'].get('end', start_pos))
-            #     image_clip = image_clip.set_position(lambda t: ((1-t)*start_pos[0] + t*end_pos[0], (1-t)*start_pos[1] + t*end_pos[1]))
-
-
-            scale_modifier = clip_widest / 1920
-            pixels_per_second = 90 * scale_modifier
-            eZprint(f'pixels per second {pixels_per_second}', DEBUG_KEYS)
-            directions = ['left', 'right']
-            #choose random direction
-            direction = random.choice(directions)   
 
 
             scale_modifier = clip_widest / 1920
@@ -144,32 +160,11 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
             direction = random.choice(directions)   
 
             if 'pan' in b_roll:
-                # pan_from = float(media['pan'].get('pan_from', 0)) * (start_x)
-                # pan_to = float(media['pan'].get('pan_to', 0)) * (start_x)
                 if b_roll['pan'] == 'left':
                     direction = 'left'
                 elif b_roll['pan'] == 'right':
                     direction = 'right'
 
-            # Where you set your position for the image clip
-            if direction == 'left':
-                start_position = 0
-                end_position = -start_x*2
-
-                image_clip = image_clip.set_position(
-                    lambda t, start_position=start_position, end_position=end_position, pixels_per_second=pixels_per_second, direction=direction: 
-                    (calculate_pan_position(t, direction, start_position, end_position, pixels_per_second), 'center')
-                )
-
-            elif direction == 'right':
-                start_position = -start_x*2
-                end_position = 0
-                if b_roll['pan'] == 'left':
-                    direction = 'left'
-                elif b_roll['pan'] == 'right':
-                    direction = 'right'
-
-            # Where you set your position for the image clip
             if direction == 'left':
                 start_position = 0
                 end_position = -start_x*2
@@ -331,11 +326,11 @@ async def overlay_b_roll(main_video_cartridge, b_roll_to_overlay, sessionID, con
                     eZprint(f'line start {line_start} line end {line_end} line duration {line_duration} line percent {line_percent}', ['OVERLAY', 'TRANSCRIBE'])
                     composites.append(text_clip)
    
-    compositeClip = CompositeVideoClip(composites, size=clip.size)
-    compositeClip.audio = clip.audio
+    compositeClip = CompositeVideoClip(composites, size=clip_size)
+    compositeClip.audio = clip_audio
     file_to_send =  tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     write_loop = asyncio.get_event_loop()
-    await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac'))
+    await write_loop.run_in_executor(None, lambda: compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac', fps=24))
     # compositeClip.write_videofile(file_to_send.name,  remove_temp=True, codec='libx264', audio_codec='aac')
     await websocket.send(json.dumps({'event': 'video_ready', 'payload': {'video_name': file_to_send.name}}))
     # final_clip.write_videofile("my_concatenation.mp4", fps=24, codec='libx264', audio_codec='aac')

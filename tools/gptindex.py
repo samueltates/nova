@@ -21,18 +21,17 @@ from tools.GoogleDocsReader import GoogleDocsReader
 from tools.UnstructuredReader import UnstructuredReader
 from tools.UnstructuredURLLoader import UnstructuredURLLoader
 
-from llama_index import (
-    Document,
-    LLMPredictor,
-    StorageContext, load_index_from_storage,
-    ServiceContext,
-    VectorStoreIndex,
-)
 
-from llama_index.logger import LlamaLogger
+from llama_index.core.indices import VectorStoreIndex
+from llama_index.core.readers import Document
+from llama_index.core.storage import StorageContext
+from llama_index.core.indices.loading import load_index_from_storage
+
+
+
+# from llama_index.core import LlamaLogger
 from langchain.llms import OpenAI
 
-llm_predictor_gpt3 = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003"))
 
 
 async def indexDocument(payload, client_loadout):
@@ -181,8 +180,7 @@ async def reconstructIndex(indexJson, cartKey):
     # print(index)
     # nova.eZprint("reconstructIndex: tmpDir={}".format(tmpDir))
     # print(indexJson)
-    llama_logger = LlamaLogger()
-    service_context = ServiceContext.from_defaults(llama_logger=llama_logger)
+    # llama_logger = LlamaLogger()
     # service_context.set_global_service_context(service_context)
     # print(indexJson)
     docstore = None
@@ -244,8 +242,8 @@ async def quick_query(text, query):
 def quicker_query(text, query, meta = '' ):
     # print(text)
     document = Document(text, extra_info=meta)
-    logger = LlamaLogger()
-    logger.set_log_level(logging.DEBUG)
+    # logger = LlamaLogger()
+    # logger.set_log_level(logging.DEBUG)
     index = VectorStoreIndex.from_documents([document])
     nodes = index.docstore.get_nodes()
     # print(nodes)

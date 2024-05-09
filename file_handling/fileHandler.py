@@ -8,10 +8,9 @@ from quart import send_file
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file
 from file_handling.transcribe import transcribe_file
-from tools.debug import eZprint, eZprint_anything
-#named temporary
-from tempfile import NamedTemporaryFile
-from unstructured.staging.base import convert_to_dict
+from tools.debug import eZprint
+
+
 
 file_chunks = {}
 
@@ -30,7 +29,7 @@ async def handle_file_start(data):
 
 
 async def handle_file_chunk(data):
-    eZprint('file chunk',  ['FILE_HANDLING'], line_break=True)
+    # print('file chunk')
     tempKey = data["tempKey"]
     file_chunks[tempKey]["chunks_received"] += 1
     # Decode the base64-encoded chunkContent
@@ -41,7 +40,7 @@ async def handle_file_chunk(data):
   # instead of collecting all chunks in `file_chunks` and processing them later
 
 async def handle_file_end(data):
-    eZprint('file end', ['FILE_HANDLING'], line_break=True  )
+    print('file end')
     tempKey = data["tempKey"]
     file_metadata = file_chunks[tempKey]["metadata"]
     file_content = b''.join(file_chunks[tempKey]["content"])
@@ -84,54 +83,59 @@ async def handle_file_end(data):
         'enabled' : True,
     }
 
-    if file_type:
-        extension = file_type.split('/')[1]
-    else:
-        # split file name on period
-        file_name_split = file_name.split('.')
-        extension = file_name_split[len(file_name_split) - 1]
-        cartVal['extension'] = extension
-    elements = []
-
+    extension = file_type.split('/')[1]
     if extension == 'quicktime':
         extension = 'mov'
-    if extension == 'x-matroska':
+    elif extension == 'x-matroska':
         extension = 'mkv'
-    if extension == 'mpeg':
+    elif extension == 'mpeg':
         extension = 'mp3'
-    if extension == 'plain':
+    elif extension == 'plain':
         extension = 'txt'
-        from unstructured.partition.text import partition_text
-        with NamedTemporaryFile(suffix='.'+extension, delete=False) as stream_source:
-            stream_source.write(file_content)
-            stream_source.seek(0)
-            elements = partition_text(filename=stream_source.name)
-            elements = convert_to_dict(elements)
-    if extension == 'pdf':
-        #make named temporary file
-        #write file content to it
-        #pass to unstructured reader
+    elif extension == 'x-m4a':
+        extension = 'm4a'
+    elif extension == 'mp4':
+        extension = 'mp4'
+    elif extension == 'mp3':
+        extension = 'mp3'   
+    elif extension == 'x-wav':
+        extension = 'wav'
+    elif extension == 'wav':
+        extension = 'wav'
         
-        from unstructured.partition.pdf import partition_pdf
+    elif extension == 'x-ms-wma':
+        extension = 'wma'
+    elif extension == 'x-ms-wmv':
+        extension = 'wmv'
+    elif extension == 'x-ms-asf':
+        extension = 'asf'
+    elif extension == 'x-msvideo':
+        extension = 'avi'
+    elif extension == 'x-flv':
+        extension = 'flv'
+    elif extension == 'flac':
+        extension = 'flac'
+    elif extension == 'x-msvideo':
+        extension = 'avi'
+    elif extension == 'x-flv':
+        extension = 'flv'
+    elif extension == 'ogg':
+        if 'video/' in file_type:
+            extension = 'ogv'
+        else:
+            extension = 'ogg'  # Assuming it's audio if not specified as video.
+    elif extension == 'webm':
+        if 'video/' in file_type:
+            extension = 'webm'
+        else:
+            extension = 'webm'
+
         
-        with NamedTemporaryFile(suffix='.'+extension, delete=False) as stream_source:
-            stream_source.write(file_content)
-            stream_source.seek(0)
-
-            elements = partition_pdf(filename=stream_source.name)
-            print(f"{str(elements)}")
-            elements = convert_to_dict(elements)
-            print(f"{str(elements)}")
-
-            # Wait for some data to be written before starting to chunk
-            
-
-        eZprint_anything(elements, ['FILE_HANDLING'], message='elements')
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     file_name_to_write = cartKey + '.' + extension
 
-    # transcript_text = await transcribe_file(file_content, cartKey, file_name, file_type, sessionID, convoID, loadout)
+    transcript_text = await transcribe_file(file_content, cartKey, file_name, file_type, sessionID, convoID, loadout)
  
     url = await write_file(file_content, file_name_to_write) 
 
@@ -139,13 +143,11 @@ async def handle_file_end(data):
 
     await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {
         'media_url': url,
-        'aws_key': file_name_to_write,
-        'elements': elements
+        'aws_key': file_name_to_write
         }}, convoID, loadout, True)
     
     del file_chunks[tempKey]
-    return file_name + ' uploaded' 
-    # return file_name + ' recieved' + ' ' + str(transcript_text)
+    return file_name + ' recieved' + ' ' + str(transcript_text)
 
 async def get_file_download_link(filename):    
     return await send_file(filename, attachment_filename=filename, as_attachment=True)
