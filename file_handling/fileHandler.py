@@ -7,7 +7,6 @@ from quart import send_file
 
 from core.cartridges import addCartridge, update_cartridge_field
 from file_handling.s3 import write_file
-from file_handling.transcribe import transcribe_file
 from tools.debug import eZprint
 
 
@@ -135,8 +134,6 @@ async def handle_file_end(data):
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
     file_name_to_write = cartKey + '.' + extension
 
-    transcript_text = await transcribe_file(file_content, cartKey, file_name, file_type, sessionID, convoID, loadout)
- 
     url = await write_file(file_content, file_name_to_write) 
 
     eZprint(f'file {file_name_to_write} written to {url}', ['FILE_HANDLING'])
@@ -147,7 +144,9 @@ async def handle_file_end(data):
         }}, convoID, loadout, True)
     
     del file_chunks[tempKey]
-    return file_name + ' recieved' + ' ' + str(transcript_text)
+    data.update({'cartKey': cartKey})
+    return data
+    # return file_name + ' recieved' + ' ' + str(transcript_text)
 
 async def get_file_download_link(filename):    
     return await send_file(filename, attachment_filename=filename, as_attachment=True)

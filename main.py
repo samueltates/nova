@@ -16,6 +16,7 @@ from session.appHandler import app, websocket, openai_client
 from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
 from session.user import update_user_events, get_user_events, set_user_value,get_user_value
 from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
+from core.workflows import check_for_workflow
 from chat.chat import handle_message, user_input, return_to_GPT
 from chat.query import getModels
 from core.convos import get_loadout_logs,  start_new_convo, get_loadout_logs, set_convo
@@ -692,35 +693,13 @@ async def process_message(parsed_data):
             await websocket.send(json.dumps({'event':'file_chunk', 'id': chunk }))
     elif parsed_data["type"] == "file_end":
         await websocket.send(json.dumps({'event':'file_end'}))
+        sessionID = parsed_data['sessionID']
+        loadout = parsed_data['loadout']
         convoID = parsed_data["data"]["convoID"]
-        result = await handle_file_end(parsed_data["data"])
-
-        actions = parsed_data["data"]["actions"]
-
-        if actions.get('transcribe'):
-            await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
-
-            action_modiier = """
-
-            To note
-            - B-roll must illustrate the transcript's key events, objects, locations or activities.
-            - B-roll must not illustrate specific people or animals named in the transcript.
-            - Do not place b-roll in the first 3 seconds of any video.
-            - B-roll must appear every 5 seconds and be held for a total of 4 seconds.
-            - B-roll must appear on screen 1 second before its prompting word or phrase.
-
-            IMPORTANT : Return the ‘overlay_b_roll’ function immediately upon receiving the transcript.
-            IMPORTANT : Do not return b_roll in the first 3 seconds.
-            IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
-            IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
-
-            """
-            result += action_modiier
-
-        if result:
-            convoID = parsed_data["data"]["convoID"]
-            await handle_message(convoID, result, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
-            # await return_to_GPT(convoID, 0)
+        data = await handle_file_end(parsed_data["data"])
+        triggers = parsed_data["data"].get("triggers")
+        if triggers:
+            await check_for_workflow(triggers, data, sessionID, convoID, loadout)
 
     ## EASIA VARIANT            
     # elif parsed_data["type"] == "file_end":
@@ -1000,9 +979,12 @@ if __name__ == '__main__':
     host=os.getenv("HOST", default='0.0.0.0')
     port=int(os.getenv("PORT", default=5000))
     config = Config()
+    # config.use_reloader = True
+    # config.debug = True
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
-    asyncio.run(serve(app, config))
+    # asyncio.run(serve(app, config))
+    app.run(host=host, port=port)
 
     # find and print list.log
  

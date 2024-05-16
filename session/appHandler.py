@@ -10,7 +10,7 @@ app.session = None
 
 app = cors(app, allow_origin=[os.environ.get("CORS_ALLOWED_ORIGINS")], allow_headers=['content-type','Authorization'],  max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-app.config['DEBUG'] = False
+app.config['DEBUG'] = os.environ.get("DEBUG_CONFIG", False)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SESSION_TYPE'] = 'redis'
 app.config['TEST'] = True
