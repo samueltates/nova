@@ -1,6 +1,8 @@
 import os
 import boto3
 from tools.debug import eZprint
+import asyncio
+
 s3 = boto3.client(
         's3',
         aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
@@ -10,7 +12,11 @@ s3 = boto3.client(
 async def write_file(file_content, file_name):
 
     eZprint(f'Writing file {file_name}', ['AWS', 'FILE_HANDLING'])
-    s3.put_object(Body=file_content, Bucket='ask-nova-media', Key=file_name)
+    def put_object():
+        s3.put_object(Body=file_content, Bucket='ask-nova-media', Key=file_name)
+    
+    await asyncio.get_event_loop().run_in_executor(None, put_object)
+    # s3.put_object(Body=file_content, Bucket='ask-nova-media', Key=file_name)
     url = await get_signed_urls(file_name)
     eZprint(f'File written to {url}', ['AWS', 'FILE_HANDLING'])
     return url

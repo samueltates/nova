@@ -50,6 +50,7 @@ action_modiier = """
     IMPORTANT : Do not return b_roll in the first 3 seconds.
     IMPORTANT : All b_roll must be synchronised with its prompting word or phrase.
     IMPORTANT : Do not run ‘overlay_b_roll’ a second time after receiving a result.
+    IMPORTANT : Use A b-roll clip at least every 10 seconds, so a one minute video should have at least 6 b-roll clips, and a 30 minute video should have at least 180 b-roll clips.
 
     """
 

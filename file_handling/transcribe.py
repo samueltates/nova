@@ -66,8 +66,9 @@ async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKe
 
     eZprint(f"silence thresh {silence_thresh} and min silence len {min_silence_len} from average loudness of {avg_loudness}", ['FILE_HANDLING', 'TRANSCRIBE'])
 
-
-    chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
+    chunk_loop = asyncio.get_event_loop()
+    chunks = await chunk_loop.run_in_executor( None, lambda: split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1))
+    # split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
     leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
     timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
     chunk_time_ms = 0
