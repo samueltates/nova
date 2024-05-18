@@ -70,6 +70,9 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 page = args.get('page', None)
                 text_to_read = val.get('text', '')
                 elements = val.get('elements', None)
+                json_object = val.get('json', None)
+                if json_object:
+                    text_to_read += json_object
 
                 response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements)
         
