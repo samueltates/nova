@@ -2,16 +2,21 @@ from session.appHandler import app, websocket
 from file_handling.transcribe import transcribe_file
 from chat.chat import handle_message, user_input, return_to_GPT
 from tools.debug import eZprint
+from core.commands import handle_commands
 import json
 
 DEBUG_KEYS = ['WORKFLOWS']
 
 async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
     eZprint('workflow check', DEBUG_KEYS)
-          
+
+    outputs = []      
+    trigger_count = 0
+    outputs.append(source)
     for trigger in triggers:
         for workflow in dummy_workflows:
             if trigger.get('type') == workflow.get('trigger'):
+                trigger_count += 1
                 response = ''
                 if workflow.get('action') == 'transcribe':
                     # status as transcriubing should come from action (ie updating user)
@@ -19,9 +24,21 @@ async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
                     target = trigger.get('target')
                     if target == 'source':
                         # maybe should get passed to commands from here and tap into that worfkflow ..
-                        response = await transcribe_file(source['file_content'], source['cartKey'], source['file_name'], source['file_type'], sessionID, convoID, loadout)
+                        target = outputs[-1]
+                        transcript_title = await transcribe_file(target['file_content'], target['cartKey'], target['file_name'], target['file_type'], sessionID, convoID, loadout)
+                        outputs.append(transcript_title)
+                        response = f"Transcription of {target['file_name']} has been completed. The transcript is titled {transcript_title}."
+                if workflow.get('action') == 'read':
+                    if target == 'source':
+                        #target as source (for now) being initial trigger file ... 
+                        target = outputs[-1]
+                        command = {"name": "read", "args": {"name": target}}
+                        response = await handle_commands(command, convoID, 0, loadout)
+                        outputs.append(response)
                 if workflow.get('action') == 'message':
                     response = workflow['content']
+
+                # could possibly just be actions as well ...
                 if workflow.get('print'):
                     await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
                 if workflow.get('return'):
@@ -64,6 +81,12 @@ dummy_workflows = [
      },
      {
         'trigger': 'transcribe',
+        'action' : 'read',
+        'print': True, # add as message to queue
+        'return': False # send to gpt (ends cycle)
+     },
+     {
+        'trigger': 'read',
         'action' : 'message',
         'content' : action_modiier,
         'print': True, # add as message to queue

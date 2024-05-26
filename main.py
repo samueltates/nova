@@ -59,11 +59,11 @@ async def shutdown():
     await prismaDisconnect()
     eZprint("Disconnected to Prisma")
 
-@app.before_request
-def make_session_permanent():
+# @app.before_request
+# def make_session_permanent():
 
-    app.session.permanent = True
-    # eZprint("Make session permanent")
+#     app.session.permanent = True
+#     # eZprint("Make session permanent")
 
 
 @app.route('/download_video', methods=['GET'])
@@ -195,6 +195,10 @@ async def awaitCredentialRequest():
     }
     return jsonify(credentialState)
 
+@app.route('/requestComplete', methods=['GET'])
+async def requestComplete():
+    eZprint('requestComplete route hit')
+    return redirect(os.environ.get('NOVAHOME'))
 # @app.route('/requestLogout', methods=['GET'])
 # async def requestLogout():
 #     eZprint('requestLogout route hit')
@@ -981,11 +985,11 @@ if __name__ == '__main__':
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
-    asyncio.run(serve(app, config))
+    # asyncio.run(serve(app, config))
     
     # config.use_reloader = True
     # config.debug = True
-    # app.run(host=host, port=port)
+    app.run(host=host, port=port)
 
     # find and print list.log
  

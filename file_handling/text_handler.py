@@ -1,10 +1,11 @@
 from session.sessionHandler import  command_loops
 from tools.debug import eZprint, eZprint_anything
 import re
+import json 
 
 DEBUG_KEYS = ['TEXT']
 
-async def large_document_loop(title, text_to_read, command = '', convoID= '', thread = 0, requested_page = None, elements = None, break_into_sections = False):
+async def large_document_loop(title, text_to_read, command = '', convoID= '', thread = 0, requested_page = None, elements = None, json_object = None, break_into_sections = False):
 
     command_return = {"status": "", "name" : command, "message": ""}
 
@@ -28,13 +29,16 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
         page = int(requested_page)
 
     combined_sections_text = ''
-    
+    eZprint('paginated_sections' + str('paginated_sections' in command_loops[convoID][thread][command][title]), ['COMMANDS', 'READ', 'PAGINATE'])
     if 'paginated_sections' not in command_loops[convoID][thread][command][title]:
 
         eZprint('getting text and creating sections', ['COMMANDS', 'READ', 'PAGINATE'])
 
         if isinstance(text_to_read, dict):
             text_to_read = parse_object_to_markdown(text_to_read, 0)
+
+        # if json_object:
+        #     combined_sections_text += json.dumps(json_object, indent=4)
 
         if elements:
             combined_sections_text += parse_elements_to_markdown(elements)
@@ -138,7 +142,8 @@ def parse_elements_to_markdown(elements):
 def paginate_text(text, max_words_per_page=500):
     eZprint('paginating text', ['COMMANDS', 'PAGINATE'])
     lines = text.splitlines()
-    eZprint_anything(lines, ['COMMANDS', 'PAGINATE'], message= 'lines returned')
+    # eZprint_anything(lines, ['COMMANDS', 'PAGINATE'], message= 'lines returned')
+    eZprint_anything(len(lines), ['COMMANDS', 'PAGINATE'], message= 'lines returned')
 
     pages = []
     current_page = []

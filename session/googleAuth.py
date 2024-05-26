@@ -123,21 +123,21 @@ async def authoriseRequest():
 
     return redirect(url_for('requestComplete'))
 
-@app.route('/requestComplete')
-async def requestComplete():
-    eZprint('requestComplete route hit')
-    return redirect(os.environ.get('NOVAHOME'))
+# @app.route('/requestComplete', methods=['GET'])
+# async def requestComplete():
+#     eZprint('requestComplete route hit')
+#     return redirect(os.environ.get('NOVAHOME'))
 
-    print(app.session)
-    sessionID = app.session.get('sessionID')
-    if sessionID in novaSession:
-        novaSession[sessionID]['requesting'] = False
-        if novaSession[sessionID]['profileAuthed']:
-            eZprint('profileAuthed')
-            return redirect(os.environ.get('NOVAHOME'))
-        if novaSession[sessionID]['docsAuthed']:
-            eZprint('docsAuthed')
-            return redirect(os.environ.get('NOVAHOME'))
+#     print(app.session)
+#     sessionID = app.session.get('sessionID')
+#     if sessionID in novaSession:
+#         novaSession[sessionID]['requesting'] = False
+#         if novaSession[sessionID]['profileAuthed']:
+#             eZprint('profileAuthed')
+#             return redirect(os.environ.get('NOVAHOME'))
+#         if novaSession[sessionID]['docsAuthed']:
+#             eZprint('docsAuthed')
+#             return redirect(os.environ.get('NOVAHOME'))
 
 async def getUserInfo(sessionID):
     eZprint('getUserInfo route hit')

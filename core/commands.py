@@ -71,10 +71,10 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 text_to_read = val.get('text', '')
                 elements = val.get('elements', None)
                 json_object = val.get('json', None)
-                if json_object:
-                    text_to_read += json_object
 
-                response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements)
+                # eZprint('reading file ' + val['label'] + 'with contents ' + str(val), ['COMMANDS', 'READ'])
+
+                response = await read_text(name, val['label'], text_to_read, convoID, thread, page, elements, json_object)
         
                 new_page = int(new_page) + 1
                 
@@ -488,6 +488,139 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "video overlay failed"
             return command_return
 
+    if 'create_edit_plan' in name:
+
+        main_video = args.get('main_video', None)
+        b_roll_to_overlay = args.get('b_roll', None)
+
+
+        payload = {
+            'label' : main_video + '_edit_plan',
+            'type' : 'edit_plan',
+            'edit_plan' : {
+                'main_video' : main_video,
+                'b_roll_to_overlay' : b_roll_to_overlay,
+            }
+        }
+    
+        await addCartridge(payload, sessionID, loadout, convoID, True)
+
+        command_return['status'] = "Success."
+        command_return['message'] = "edit plan created named " + str(main_video + '_edit_plan')
+        return command_return
+    
+    if 'update_edit_plan' in name:
+        edit_plan_label = args.get('edit_plan', None)
+        b_roll_to_overlay = args.get('b_roll', None)
+        for key, val in active_cartridges[convoID].items():
+            if 'label' in val and val['label'] == edit_plan_label:
+                val['edit_plan']['b_roll_to_overlay'] += b_roll_to_overlay
+                payload = {
+                    'sessionID': sessionID,
+                    'cartKey' : key,
+                    'fields':
+                            {'edit_plan': val['edit_plan']}
+                            }
+                await update_cartridge_field(payload, convoID, loadout, True)
+                command_return['status'] = "Success."
+                command_return['message'] = "edit plan updated"
+                return command_return
+        command_return['status'] = "Error."
+        command_return['message'] = "edit plan not found"
+        return command_return
+
+    if 'run_edit_plan' in name:
+        edit_plan_label = args.get('edit_plan', None)
+        edit_plan_key = None
+        edit_plan = None
+        main_video = None
+        b_roll_to_overlay = None
+        main_video_cartridge = None
+        json_object = None
+        transcript_object = None
+        transcript_lines = None
+
+        for key, val in active_cartridges[convoID].items():
+            if 'label' in val and val['label'] == edit_plan_label:
+                edit_plan_key = key
+                edit_plan = val['edit_plan']
+                main_video = val['edit_plan']['main_video']
+                b_roll_to_overlay = val['edit_plan']['b_roll_to_overlay']
+                break
+
+        if main_video:
+            for key, val in active_cartridges[convoID].items():
+                if 'label' in val and val['label'] == main_video:
+                    main_video_cartridge = val
+                    main_video_cartridge.update({'key' : key})
+                    print(main_video_cartridge)
+                    break
+
+        if main_video_cartridge:
+
+            if main_video_cartridge.get('json', None):
+                json_object = json.loads(main_video_cartridge['json'])
+
+            if json_object:
+                transcript_object = json_object.get('transcript_object', None)        
+                eZprint_anything(transcript_object, ['OVERLAY'])
+
+            if transcript_object:
+                transcript_lines = transcript_object.get('lines', None)
+                eZprint_anything(transcript_lines, ['OVERLAY'])
+
+            aws_key = main_video_cartridge.get('aws_key','')
+            extension =  main_video_cartridge.get('extension', 'video/mp4' )
+            payload = {
+                'aws_key' : aws_key,
+                'extension' : extension,
+                'b_roll_to_overlay' : b_roll_to_overlay,
+                'transcript_lines' : transcript_lines
+
+            }
+            
+            file_name = main_video_cartridge.get('label','')
+
+            file_name_split = file_name.split('.')
+            file_name = file_name_split[0]
+
+            # loop = asyncio.get_event_loop()
+            # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
+            response = await get_media_from_request(payload)
+            response.update({'label' : file_name + '_overlayed'})    
+            response.update({'fileName' : file_name})
+            response.update({'type' : 'media'})        
+            response.update({'enabled' : True})
+            response.update({'extension' : 'video/mp4'})
+
+            b_roll_from_response = response.get('b_roll', None)
+
+            if b_roll_from_response:
+                #replace edit plan b-roll with updates list without nesting
+                edit_plan['b_roll_to_overlay'] = b_roll_from_response
+
+            cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
+            if response.get('b_roll', None):
+                await update_cartridge_field(
+                    {
+                        'cartKey' : edit_plan_key,
+                        'sessionID' : sessionID,
+                        'fields' : {
+                            'edit_plan' : edit_plan
+
+                        }
+                    },
+                    convoID, loadout, True
+                    )
+                                
+            if cartKey:
+                command_return['status'] = "Success."
+                command_return['message'] = "video overlayed and saved as " + str(file_name + '_overlayed.mp4')
+                return command_return
+        else:
+            command_return['status'] = "Error."
+            command_return['message'] = "video overlay failed"
+            return command_return
 
     if 'overlay_video' in name:
         main_video_key = None
@@ -648,12 +781,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     #     return command_return
 
 
-async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None):
+async def read_text(name, text_title, text_body, convoID, thread = 0, page = None, elements = None, json_object = None):
 
     command_return = {"status": "", "name" :name, "message": ""}
 
     eZprint('text larger than 2k starting large doc loop ' + str(len(text_body)), ['COMMANDS', 'READ'])
-    command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, break_into_sections= True)
+    # eZprint_anything(text_body, ['TEXT'])
+    # eZprint_anything(elements, ['ELEMENTS'])
+    # eZprint_anything(json_object, ['JSON'])
+    command_return = await large_document_loop(text_title, text_body, name, convoID, thread, page, elements = elements, json_object = json_object, break_into_sections= True)
     return command_return
 
 

@@ -13,7 +13,7 @@ from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
 from pydub.silence import split_on_silence, detect_leading_silence, detect_nonsilent
 
-from core.cartridges import  update_cartridge_field
+from core.cartridges import  update_cartridge_field, addCartridge
 
 from file_handling.s3 import read_file
 from tools.debug import eZprint
@@ -24,23 +24,23 @@ async def transcribe_file(file_content, file_key, file_name, file_type, sessionI
     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
     processed_file.write(file_content)
     processed_file.close()
-    transcript_text = ''
+    transcript_title = ''
     if 'video/' in file_type:
         print('video requested')
-        transcript_text = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
+        transcript_title = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
     elif 'audio/' in file_type:
 
         loop = asyncio.get_event_loop()
         audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(processed_file.name))
         # audio = await AudioSegment.from_file(processed_file.name)
-        transcript_text = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
+        transcript_title = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
         processed_file.close()
         
 
     else:
-        transcript_text = "Unsupported file type for transcription"
+        transcript_title = "Unsupported file type for transcription"
 
-    return transcript_text
+    return transcript_title
 
 
 async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey):
@@ -51,9 +51,9 @@ async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey
     audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(audio_temp.name))
     # audio = AudioSegment.from_file(audio_temp.name)
 
-    transcript_text = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
+    transcript_title = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
     audio_temp.close()
-    return transcript_text
+    return transcript_title
 
 async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey):
     # eZprint(f"file to transcribe {file.name}", ['FILE_HANDLING', 'TRANSCRIBE'])
@@ -66,11 +66,20 @@ async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKe
 
     eZprint(f"silence thresh {silence_thresh} and min silence len {min_silence_len} from average loudness of {avg_loudness}", ['FILE_HANDLING', 'TRANSCRIBE'])
 
+
+
     chunk_loop = asyncio.get_event_loop()
     chunks = await chunk_loop.run_in_executor( None, lambda: split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1))
     # split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
-    leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
-    timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
+
+    silence_loop = asyncio.get_event_loop()
+    leading_silence = await silence_loop.run_in_executor(None, lambda: detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1))
+
+    timestamp_loop = asyncio.get_event_loop()
+    timestamps = await timestamp_loop.run_in_executor(None, lambda: detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1))
+
+    # leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
+    # timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
     chunk_time_ms = 0
     transcript_text = f'\n{name} - Transcription: \n\n'
     # payload = {
@@ -136,11 +145,20 @@ async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKe
     # transcript_text += "\n b roll elements required : " + str(rounded_length / 10) 
 
     payload = {
-            'sessionID': sessionID,
-            'cartKey' : cartKey,
+            'label' : name + '_transcript',
+            'type' : 'note',
+            'enabled' : True,
+            'text': transcript_text,
+
+            }
+    await addCartridge(payload, sessionID, loadout, convoID)
+
+    update_payload = {
+        'sessionID': sessionID,
+        'cartKey' : cartKey,
             'fields':
                 {
-                # 'text': transcript_text,
+
                 'json' : json.dumps({
                     'transcript_text': {
                         'description' : 'Complete transcription  of ' + name,
@@ -153,11 +171,11 @@ async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKe
                         'lines' : results,
                         'minimised': True
 
-                    } })
+                    } }, indent=4)
                 }
-            }
-    await update_cartridge_field(payload,convoID, loadout, True)
-    return transcript_text
+                }
+    await update_cartridge_field(update_payload,convoID, loadout, True)
+    return name + '_transcript'
 
 async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID=0):
     with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:
