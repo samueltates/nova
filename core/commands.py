@@ -16,7 +16,7 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-from core.services import get_media_from_request 
+from core.services import get_media_from_request, get_b_roll_images_from_request
 
 from index.handle_llama_index import handle_cartridge_query, handle_multi_cartridge_query
 
@@ -571,47 +571,43 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
 
             aws_key = main_video_cartridge.get('aws_key','')
             extension =  main_video_cartridge.get('extension', 'video/mp4' )
+            file_name = main_video_cartridge.get('label','')
+            
+            b_roll_from_response = await get_b_roll_images_from_request(b_roll_to_overlay)
+            edit_plan['b_roll_to_overlay'] = b_roll_from_response
+
+            await update_cartridge_field(
+                {
+                    'cartKey' : edit_plan_key,
+                    'sessionID' : sessionID,
+                    'fields' : {
+                        'edit_plan' : edit_plan
+
+                    }
+                },
+                convoID, loadout, True
+                )
+            
             payload = {
                 'aws_key' : aws_key,
                 'extension' : extension,
-                'b_roll_to_overlay' : b_roll_to_overlay,
+                'b_roll_to_overlay' : b_roll_from_response,
                 'transcript_lines' : transcript_lines
 
             }
             
-            file_name = main_video_cartridge.get('label','')
-
+            response = await get_media_from_request(payload)
             file_name_split = file_name.split('.')
             file_name = file_name_split[0]
 
-            # loop = asyncio.get_event_loop()
-            # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
-            response = await get_media_from_request(payload)
             response.update({'label' : file_name + '_overlayed'})    
             response.update({'fileName' : file_name})
             response.update({'type' : 'media'})        
             response.update({'enabled' : True})
             response.update({'extension' : 'video/mp4'})
 
-            b_roll_from_response = response.get('b_roll', None)
-
-            if b_roll_from_response:
-                #replace edit plan b-roll with updates list without nesting
-                edit_plan['b_roll_to_overlay'] = b_roll_from_response
 
             cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
-            if response.get('b_roll', None):
-                await update_cartridge_field(
-                    {
-                        'cartKey' : edit_plan_key,
-                        'sessionID' : sessionID,
-                        'fields' : {
-                            'edit_plan' : edit_plan
-
-                        }
-                    },
-                    convoID, loadout, True
-                    )
                                 
             if cartKey:
                 command_return['status'] = "Success."
