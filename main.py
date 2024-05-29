@@ -7,6 +7,7 @@ from quart import request, jsonify, url_for, session, render_template, redirect,
 from quart_session import Session
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
+import asyncio
 from datetime import datetime
 import stripe
 import secrets
@@ -239,10 +240,15 @@ async def paymentSuccessClient():
 
 @app.websocket('/ws')
 async def ws():
-    while True:
-        data = await websocket.receive()
-        parsed_data = json.loads(data)
-        asyncio.create_task(process_message(parsed_data))
+    try:
+        while True:
+            data = await websocket.receive()
+            parsed_data = json.loads(data)
+            asyncio.create_task(process_message(parsed_data))
+    except asyncio.CancelledError:
+        # Handle disconnection here
+        eZprint('websocket disconnected', ['WEBSOCKET'])
+        raise
 
 async def process_message(parsed_data):
     
@@ -751,7 +757,8 @@ async def process_message(parsed_data):
 
 
     if(parsed_data["type"] == '__ping__'):
-        # print('pong')
+        eZprint('ping route hit', ['WEBSOCKET'])
+        print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
     # if(parsed_data["type"] == 'setModel'):
     #     print('setModel called by html template.')
@@ -985,14 +992,9 @@ if __name__ == '__main__':
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
-    # asyncio.run(serve(app, config))
-    
-    # config.use_reloader = True
-    # config.debug = True
-    app.run(host=host, port=port)
-
-    # find and print list.log
- 
-
-    # app.run(debug=True, port=os.getenv("PORT", default=5000))
-    # app.run(host="127.0.0.1", port=5500) 
+    if os.getenv('ENVIRONMENT', default= 'production') == 'local':
+        app.run(host=host, port=port)
+        config.use_reloader = True
+        config.debug = True
+    else:
+        asyncio.run(serve(app, config), debug=True)
