@@ -1,5 +1,5 @@
 from session.appHandler import app, websocket
-from file_handling.transcribe import transcribe_file
+from core.services import transcribe_file
 from chat.chat import handle_message, user_input, return_to_GPT
 from tools.debug import eZprint
 from core.commands import handle_commands
@@ -25,7 +25,12 @@ async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
                     if target == 'source':
                         # maybe should get passed to commands from here and tap into that worfkflow ..
                         target = outputs[-1]
-                        transcript_title = await transcribe_file(target['file_content'], target['cartKey'], target['file_name'], target['file_type'], sessionID, convoID, loadout)
+                        payload = {
+                            'file_key' : target['cartKey'],
+                            'file_name' :target['file_name'],
+                            'file_type' : target['file_type']
+                        }
+                        transcript_title = await transcribe_file(target['cartKey'], target['file_name'], target['file_type'])
                         outputs.append(transcript_title)
                         response = f"Transcription of {target['file_name']} has been completed. The transcript is titled {transcript_title}."
                 if workflow.get('action') == 'read':
