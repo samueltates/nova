@@ -692,8 +692,8 @@ async def process_message(parsed_data):
         ##REST OF FILE HANDLING STUFF
 
     elif parsed_data["type"] == "file_start":
-        print('indexdoc_start')
-        print(parsed_data["data"])
+        # print('indexdoc_start')
+        # print(parsed_data["data"])
         started = await handle_file_start(parsed_data["data"])
         if started:
             await websocket.send(json.dumps({'event':'file_start'}))

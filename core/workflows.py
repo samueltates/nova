@@ -25,14 +25,11 @@ async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
                     if target == 'source':
                         # maybe should get passed to commands from here and tap into that worfkflow ..
                         target = outputs[-1]
-                        payload = {
-                            'file_key' : target['cartKey'],
-                            'file_name' :target['file_name'],
-                            'file_type' : target['file_type']
-                        }
-                        transcript_title = await transcribe_file(target['cartKey'], target['file_name'], target['file_type'])
-                        outputs.append(transcript_title)
-                        response = f"Transcription of {target['file_name']} has been completed. The transcript is titled {transcript_title}."
+                        command = {'name':'transcribe', 'args':{'file_key':target['cartKey'], 'file_name':target['file_name'], 'file_type':target['file_type'] }}
+                        response = await handle_commands(command, convoID, 0, loadout)
+                        if response.get('status') == 'Success':
+                            outputs.append(target['file_name'] + '_transcript')
+                        response = response.get('message')
                 if workflow.get('action') == 'read':
                     if target == 'source':
                         #target as source (for now) being initial trigger file ... 

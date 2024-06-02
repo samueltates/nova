@@ -16,7 +16,7 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-from core.services import get_media_from_request, get_b_roll_images_from_request
+from core.services import get_media_from_request, get_b_roll_images_from_request, transcribe_file
 
 from index.handle_llama_index import handle_cartridge_query, handle_multi_cartridge_query
 
@@ -442,15 +442,15 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         transcript_object = None
         transcript_lines = None
 
-        if main_video_cartridge.get('json', None):
-            json_object = json.loads(main_video_cartridge['json'])
+        if main_video_cartridge.get('transcript_lines', None):
+            transcript_lines = json.loads(main_video_cartridge['transcript_lines'])
 
-        if json_object:
-            transcript_object = json_object.get('transcript_object', None)        
-            eZprint_anything(transcript_object, ['OVERLAY'])
+        # if json_object:
+        #     transcript_object = json_object.get('transcript_object', None)        
+        #     eZprint_anything(transcript_object, ['OVERLAY'])
 
-        if transcript_object:
-            transcript_lines = transcript_object.get('lines', None)
+        # if transcript_object:
+        #     transcript_lines = transcript_object.get('lines', None)
             eZprint_anything(transcript_lines, ['OVERLAY'])
 
         aws_key = main_video_cartridge.get('aws_key','')
@@ -557,17 +557,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     break
 
         if main_video_cartridge:
+            transcript_lines = None
 
-            if main_video_cartridge.get('json', None):
-                json_object = json.loads(main_video_cartridge['json'])
+            if main_video_cartridge.get('transcript_lines', None):
+                transcript_lines = main_video_cartridge['transcript_lines']
 
-            if json_object:
-                transcript_object = json_object.get('transcript_object', None)        
-                eZprint_anything(transcript_object, ['OVERLAY'])
-
-            if transcript_object:
-                transcript_lines = transcript_object.get('lines', None)
-                eZprint_anything(transcript_lines, ['OVERLAY'])
+            eZprint_anything(transcript_lines, ['OVERLAY'])
 
             aws_key = main_video_cartridge.get('aws_key','')
             extension =  main_video_cartridge.get('extension', 'video/mp4' )
@@ -697,28 +692,56 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     
 
     if name == 'transcribe':
-        video_file_name = args['filename']
-        video_file = None
-        extension = None
+        
+
+        file_name = args.get('file_name')
+        file_key = None
+        file_type = None
+        
         for key, val in active_cartridges[convoID].items():
             # if 'type' in val and val['type'] == 'media':
-            if 'label' in val and val['label'] == video_file_name:
+            if 'label' in val and val['label'] == file_name:
                 eZprint(val, ['COMMANDS', 'TRANSCRIBE'])
-                video_file = val['aws_key']
-                extension = val['extension']
+                file_key = key
+                file_type = val.get('extension')
                 break
 
-        if video_file:
-            transcript = await transcribe_file(None, video_file, video_file_name, extension, sessionID, convoID,  loadout)
+        if file_key:
+            transcript_name = file_name + '_transcript'
+            transcript_object = await transcribe_file(file_key, file_name, file_type)
+            transcript_text = transcript_object.get('transcript_text')
+            transcript_lines = transcript_object.get('lines')
+            
+            payload = {
+            'label' : transcript_name,
+            'description' : 'Transcription from ' + name,
+            'type' : 'note',
+            'enabled' : True,
+            'text': transcript_text,
+            'transcript_lines':transcript_lines
+            }
+            cartKey = await addCartridge(payload, sessionID, loadout, convoID)
+                            
+            update_payload = {
+                    'sessionID': sessionID,
+                    'cartKey' : file_key,
+                    'fields':
+                            {'text': transcript_text,
+                            'transcript_lines':transcript_lines
 
-            if transcript:
+                             }
+                            }
+            await update_cartridge_field(update_payload, convoID, loadout, True)
+
+
+            if cartKey:
                 command_return['status'] = "Success."
-                command_return['message'] = "video transcript:\n" + str(transcript)
+                command_return['message'] = f"Transcription of {file_name} has been completed. The transcript is titled {transcript_name}."
                 eZprint_anything(command_return, ['COMMANDS', 'TRANSCRIBE'], message = 'transcript return')
                 return command_return
             else:
                 command_return['status'] = "Error."
-                command_return['message'] = "video transcript failed"
+                command_return['message'] = "Transcript failed"
                 eZprint_anything(command_return, ['COMMANDS', 'TRANSCRIBE'], message = 'transcript return')
                 return command_return
         else:

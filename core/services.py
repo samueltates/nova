@@ -12,10 +12,10 @@ async def transcribe_file(file_key, file_name, file_type):
         'file_name' : file_name,
         'file_type' : file_type
     }
-    eZprint(payload, ['TRRANSCRIBE'], message='request to transcribe sending to API')
+    eZprint(payload, ['TRANSCRIBE'], message='request to transcribe sending to API')
     headers = {'content-type': 'application/json'}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5000)) as session:
-        async with session.post(os.getenv('MEDIA_URL') + 'handle_generate_b_roll', data=json.dumps(payload), headers=headers) as response:
+        async with session.post(os.getenv('MEDIA_URL') + 'get_transcript', data=json.dumps(payload), headers=headers) as response:
             eZprint(response, ['TRRANSCRIBE'], message='API  response')
             response_text = await response.text()
             response_json = json.loads(response_text)

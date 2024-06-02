@@ -39,7 +39,7 @@ async def handle_file_chunk(data):
   # instead of collecting all chunks in `file_chunks` and processing them later
 
 async def handle_file_end(data):
-    print('file end')
+    eZprint('file end', ['FILE_HANDLING'])
     tempKey = data["tempKey"]
     file_metadata = file_chunks[tempKey]["metadata"]
     file_content = b''.join(file_chunks[tempKey]["content"])
@@ -132,15 +132,15 @@ async def handle_file_end(data):
         
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
-    file_name_to_write = cartKey + '.' + extension
+    # file_name_to_write = cartKey + '.' + extension
 
-    url = await write_file(file_content, file_name_to_write) 
+    url = await write_file(file_content, cartKey) 
 
-    eZprint(f'file {file_name_to_write} written to {url}', ['FILE_HANDLING'])
+    eZprint(f'file {cartKey} written to {url}', ['FILE_HANDLING'])
 
     await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {
         'media_url': url,
-        'aws_key': file_name_to_write
+        'aws_key': cartKey
         }}, convoID, loadout, True)
     
     del file_chunks[tempKey]
