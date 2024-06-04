@@ -12,6 +12,7 @@ from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from file_handling.video_editor import cut_video
+# from file_handling.s3 import start_test_for_request
 from file_handling.text_handler import large_document_loop, parse_text_to_json, create_json_doc, update_json_doc
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
@@ -509,6 +510,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "edit plan created named " + str(main_video + '_edit_plan')
         return command_return
     
+    if 'run_task' in name:
         response = await start_test_for_request('rendering') 
         eZprint_anything(response, ['AWS', 'RUN_TASK'], message='response from aws')
         command_return['status'] = 'Success.'
@@ -725,8 +727,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 end = line['end']
                 transcript_text += f"   {start} --> {end}\n{line['text']} \n\n"
 
-            if clip_length:
-                transcript_text +=  "\nTotal video clip length : " + clip_length + "s"
+            transcript_text +=  "\nTotal video clip length : " + clip_length + "s"
 
             payload = {
             'label' : transcript_name,

@@ -758,6 +758,7 @@ async def process_message(parsed_data):
 
     if(parsed_data["type"] == '__ping__'):
         eZprint('ping route hit', ['WEBSOCKET'])
+        # print('pong')
         await websocket.send(json.dumps({'event':'__pong__'}))
     # if(parsed_data["type"] == 'setModel'):
     #     print('setModel called by html template.')
