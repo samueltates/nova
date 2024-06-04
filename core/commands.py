@@ -12,6 +12,7 @@ from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
 from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
 from file_handling.video_editor import cut_video
+# from file_handling.s3 import start_test_for_request
 from file_handling.text_handler import large_document_loop, parse_text_to_json, create_json_doc, update_json_doc
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
@@ -443,7 +444,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         transcript_lines = None
 
         if main_video_cartridge.get('transcript_lines', None):
-            transcript_lines = json.loads(main_video_cartridge['transcript_lines'])
+            transcript_lines = main_video_cartridge['transcript_lines']
 
         # if json_object:
         #     transcript_object = json_object.get('transcript_object', None)        
@@ -508,6 +509,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['status'] = "Success."
         command_return['message'] = "edit plan created named " + str(main_video + '_edit_plan')
         return command_return
+    
+    if 'run_task' in name:
+        response = await start_test_for_request('rendering') 
+        eZprint_anything(response, ['AWS', 'RUN_TASK'], message='response from aws')
+        command_return['status'] = 'Success.'
+        # command_retun
     
     if 'update_edit_plan' in name:
         edit_plan_label = args.get('edit_plan', None)
@@ -709,9 +716,19 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if file_key:
             transcript_name = file_name + '_transcript'
             transcript_object = await transcribe_file(file_key, file_name, file_type)
-            transcript_text = transcript_object.get('transcript_text')
+            # transcript_text = transcript_object.get('transcript_text')
             transcript_lines = transcript_object.get('lines')
-            
+            transcript_text = ''
+            transcript_text += f"[00:00:00.000] Start of clip \n\n"
+            clip_length = transcript_object.get('clip_length')
+
+            for line in transcript_lines:
+                start = line['start']
+                end = line['end']
+                transcript_text += f"   {start} --> {end}\n{line['text']} \n\n"
+
+            transcript_text +=  "\nTotal video clip length : " + clip_length + "s"
+
             payload = {
             'label' : transcript_name,
             'description' : 'Transcription from ' + name,
