@@ -1,12 +1,14 @@
 [phases.setup]
-    nixPkgs = ["...", "nodejs", "redis","libGL", "libglibutil","ffmpeg", "fontconfig", "imagemagick", "barlow", "cudatoolkit"]
+    nixPkgs = ["...", "nodejs", "redis"]
+
+[variables]
+    NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM='1'
 
 [phases.install]
     cmds = [
         'PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy',
         'pipenv run prisma generate',
-        'pipenv run python -m nltk.downloader punkt',
-        'pipenv run python -m nltk.downloader averaged_perceptron_tagger',
+
     ]
 
 [start]
