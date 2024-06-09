@@ -8,10 +8,10 @@ from core.cartridges import addCartridge, update_cartridge_field, get_cartridge_
 from core.cartridges import whole_cartridge_list, find_cartridge
 from web_handling.google_search import google_api_search
 from web_handling.url_scraper import advanced_scraper
-from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
-from file_handling.transcribe import transcribe_file
+# from file_handling.media_editor import split_video,overlay_video,overlay_b_roll
+# from file_handling.transcribe import transcribe_file
 from file_handling.image_handling import generate_image, generate_images
-from file_handling.video_editor import cut_video
+# from file_handling.video_editor import cut_video
 # from file_handling.s3 import start_test_for_request
 from file_handling.text_handler import large_document_loop, parse_text_to_json, create_json_doc, update_json_doc
 from tools.memory import summarise_from_range, get_summary_children_by_key
@@ -426,68 +426,68 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "Arg 'prompts' missing"
             return command_return
         
-    if name == 'overlay_b_roll':
-        main_video_cartridge = None
-        if args.get('main_video'):
-            main_video = args['main_video']
-            for key, val in active_cartridges[convoID].items():
-                if 'label' in val and val['label'] == main_video:
-                    main_video_cartridge = val
-                    main_video_cartridge.update({'key' : key})
-                    print(main_video_cartridge)
-                    break
-        if args.get('b_roll'):
-            b_roll_to_overlay = args['b_roll']
+    # if name == 'overlay_b_roll':
+    #     main_video_cartridge = None
+    #     if args.get('main_video'):
+    #         main_video = args['main_video']
+    #         for key, val in active_cartridges[convoID].items():
+    #             if 'label' in val and val['label'] == main_video:
+    #                 main_video_cartridge = val
+    #                 main_video_cartridge.update({'key' : key})
+    #                 print(main_video_cartridge)
+    #                 break
+    #     if args.get('b_roll'):
+    #         b_roll_to_overlay = args['b_roll']
 
-        json_object = None
-        transcript_object = None
-        transcript_lines = None
+    #     json_object = None
+    #     transcript_object = None
+    #     transcript_lines = None
 
-        if main_video_cartridge.get('transcript_lines', None):
-            transcript_lines = main_video_cartridge['transcript_lines']
+    #     if main_video_cartridge.get('transcript_lines', None):
+    #         transcript_lines = main_video_cartridge['transcript_lines']
 
-        # if json_object:
-        #     transcript_object = json_object.get('transcript_object', None)        
-        #     eZprint_anything(transcript_object, ['OVERLAY'])
+    #     # if json_object:
+    #     #     transcript_object = json_object.get('transcript_object', None)        
+    #     #     eZprint_anything(transcript_object, ['OVERLAY'])
 
-        # if transcript_object:
-        #     transcript_lines = transcript_object.get('lines', None)
-            eZprint_anything(transcript_lines, ['OVERLAY'])
+    #     # if transcript_object:
+    #     #     transcript_lines = transcript_object.get('lines', None)
+    #         eZprint_anything(transcript_lines, ['OVERLAY'])
 
-        aws_key = main_video_cartridge.get('aws_key','')
-        extension =  main_video_cartridge.get('extension', 'video/mp4' )
-        payload = {
-            'aws_key' : aws_key,
-            'extension' : extension,
-            'b_roll_to_overlay' : b_roll_to_overlay,
-            'transcript_lines' : transcript_lines
+    #     aws_key = main_video_cartridge.get('aws_key','')
+    #     extension =  main_video_cartridge.get('extension', 'video/mp4' )
+    #     payload = {
+    #         'aws_key' : aws_key,
+    #         'extension' : extension,
+    #         'b_roll_to_overlay' : b_roll_to_overlay,
+    #         'transcript_lines' : transcript_lines
 
-        }
+    #     }
         
-        file_name = main_video_cartridge.get('label','')
+    #     file_name = main_video_cartridge.get('label','')
 
-        file_name_split = file_name.split('.')
-        file_name = file_name_split[0]
+    #     file_name_split = file_name.split('.')
+    #     file_name = file_name_split[0]
 
-        # loop = asyncio.get_event_loop()
-        # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
-        response = await get_media_from_request(payload)
-        response.update({'label' : file_name + '_overlayed'})    
-        response.update({'fileName' : file_name})
-        response.update({'type' : 'media'})        
-        response.update({'enabled' : True})
-        response.update({'extension' : 'video/mp4'})
+    #     # loop = asyncio.get_event_loop()
+    #     # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
+    #     response = await get_media_from_request(payload)
+    #     response.update({'label' : file_name + '_overlayed'})    
+    #     response.update({'fileName' : file_name})
+    #     response.update({'type' : 'media'})        
+    #     response.update({'enabled' : True})
+    #     response.update({'extension' : 'video/mp4'})
 
-        cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
+    #     cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
 
-        if cartKey:
-            command_return['status'] = "Success."
-            command_return['message'] = "video overlayed and saved as " + str(file_name + '_overlayed.mp4')
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "video overlay failed"
-            return command_return
+    #     if cartKey:
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "video overlayed and saved as " + str(file_name + '_overlayed.mp4')
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "video overlay failed"
+    #         return command_return
 
     if 'create_edit_plan' in name:
 
@@ -510,11 +510,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "edit plan created named " + str(main_video + '_edit_plan')
         return command_return
     
-    if 'run_task' in name:
-        response = await start_test_for_request('rendering') 
-        eZprint_anything(response, ['AWS', 'RUN_TASK'], message='response from aws')
-        command_return['status'] = 'Success.'
-        # command_retun
+    # if 'run_task' in name:
+    #     response = await start_test_for_request('rendering') 
+    #     eZprint_anything(response, ['AWS', 'RUN_TASK'], message='response from aws')
+    #     command_return['status'] = 'Success.'
+    #     # command_retun
     
     if 'update_edit_plan' in name:
         edit_plan_label = args.get('edit_plan', None)
@@ -620,82 +620,82 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "video overlay failed"
             return command_return
 
-    if 'overlay_video' in name:
-        main_video_key = None
-        main_video_cartridge = None
-        text_to_overlay = None
-        media_to_overlay = None
-        media_to_overlay_keys = []
-        if args.get('main_video'):
-            main_video = args['main_video']
-            for key, val in active_cartridges[convoID].items():
-                if 'label' in val and val['label'] == main_video:
-                    main_video_cartridge = val
-                    main_video_cartridge.update({'key' : key})
-                    print(main_video_cartridge)
-                    break
-        if args.get('media_to_overlay'):
-            media_to_overlay = args['media_to_overlay']
-            for media in media_to_overlay:
-                print(media)
-                if media.get('file_name'):
-                    print('file name found')
-                    for key, val in active_cartridges[convoID].items():
-                        if 'label' in val and val['label'] == media.get('file_name'):
-                            media.update({'aws_key' : key})
-                            break
-        if args.get('text_to_overlay'):
-            text_to_overlay = args['text_to_overlay']
-        print(media_to_overlay)
+    # if 'overlay_video' in name:
+    #     main_video_key = None
+    #     main_video_cartridge = None
+    #     text_to_overlay = None
+    #     media_to_overlay = None
+    #     media_to_overlay_keys = []
+    #     if args.get('main_video'):
+    #         main_video = args['main_video']
+    #         for key, val in active_cartridges[convoID].items():
+    #             if 'label' in val and val['label'] == main_video:
+    #                 main_video_cartridge = val
+    #                 main_video_cartridge.update({'key' : key})
+    #                 print(main_video_cartridge)
+    #                 break
+    #     if args.get('media_to_overlay'):
+    #         media_to_overlay = args['media_to_overlay']
+    #         for media in media_to_overlay:
+    #             print(media)
+    #             if media.get('file_name'):
+    #                 print('file name found')
+    #                 for key, val in active_cartridges[convoID].items():
+    #                     if 'label' in val and val['label'] == media.get('file_name'):
+    #                         media.update({'aws_key' : key})
+    #                         break
+    #     if args.get('text_to_overlay'):
+    #         text_to_overlay = args['text_to_overlay']
+    #     print(media_to_overlay)
         
 
-        overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, convoID, loadout) 
+    #     overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, convoID, loadout) 
 
-        if overlay_video_name:
-            command_return['status'] = "Success."
-            command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
-            return command_return
-        else:
-            command_return['status'] = "Error."
-            command_return['message'] = "video overlay failed"
-            return command_return
+    #     if overlay_video_name:
+    #         command_return['status'] = "Success."
+    #         command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
+    #         return command_return
+    #     else:
+    #         command_return['status'] = "Error."
+    #         command_return['message'] = "video overlay failed"
+    #         return command_return
         
 
-    if name == 'edit_video':
-        video_file = args['video_file']
-        extension = None
-        for key, val in active_cartridges[convoID].items():
-            # if 'type' in val and val['type'] == 'media':
-            if 'label' in val and val['label'] == video_file:
-                print(val)
-                video_file = val['key']
-                # extension = val['extension']
-                break
-        edited_video = await split_video(args, video_file)
-        print(edited_video)
-        command_return['status'] = "Success."
-        command_return['message'] = "video edited" 
-        print(command_return)
-        return command_return
+    # if name == 'edit_video':
+    #     video_file = args['video_file']
+    #     extension = None
+    #     for key, val in active_cartridges[convoID].items():
+    #         # if 'type' in val and val['type'] == 'media':
+    #         if 'label' in val and val['label'] == video_file:
+    #             print(val)
+    #             video_file = val['key']
+    #             # extension = val['extension']
+    #             break
+    #     edited_video = await split_video(args, video_file)
+    #     print(edited_video)
+    #     command_return['status'] = "Success."
+    #     command_return['message'] = "video edited" 
+    #     print(command_return)
+    #     return command_return
 
-    # if name == 'read_website':
+    # # if name == 'read_website':
 
-    if name == 'cut_video':
-        video_file = args['target_video']
-        extension = None
-        for key, val in active_cartridges[convoID].items():
-            # if 'type' in val and val['type'] == 'media':
-            if 'label' in val and val['label'] == video_file:
-                eZprint_anything(val, ['COMMANDS', 'VIDEO'], message='found target' )
-                video_file = val['key']
-                # extension = val['extension']
-                break
-        edited_video = await cut_video(video_file,args, sessionID, convoID, loadout )
-        eZprint_anything(edited_video)
-        command_return['status'] = "Success."
-        command_return['message'] = "video edited" 
-        print(command_return)
-        return command_return
+    # if name == 'cut_video':
+    #     video_file = args['target_video']
+    #     extension = None
+    #     for key, val in active_cartridges[convoID].items():
+    #         # if 'type' in val and val['type'] == 'media':
+    #         if 'label' in val and val['label'] == video_file:
+    #             eZprint_anything(val, ['COMMANDS', 'VIDEO'], message='found target' )
+    #             video_file = val['key']
+    #             # extension = val['extension']
+    #             break
+    #     edited_video = await cut_video(video_file,args, sessionID, convoID, loadout )
+    #     eZprint_anything(edited_video)
+    #     command_return['status'] = "Success."
+    #     command_return['message'] = "video edited" 
+    #     print(command_return)
+    #     return command_return
     
 
     if name == 'transcribe':

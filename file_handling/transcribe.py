@@ -9,173 +9,173 @@ import json
 import base64
 import subprocess
 
-from moviepy.editor import VideoFileClip
-from pydub import AudioSegment
-from pydub.silence import split_on_silence, detect_leading_silence, detect_nonsilent
+# from moviepy.editor import VideoFileClip
+# from pydub import AudioSegment
+# from pydub.silence import split_on_silence, detect_leading_silence, detect_nonsilent
 
 from core.cartridges import  update_cartridge_field, addCartridge
 
 from file_handling.s3 import read_file
 from tools.debug import eZprint
 
-async def transcribe_file(file_content, file_key, file_name, file_type, sessionID, convoID, loadout):
-    if not file_content:
-        file_content = await read_file(file_key)
-    processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-    processed_file.write(file_content)
-    processed_file.close()
-    transcript_title = ''
-    if 'video/' in file_type:
-        print('video requested')
-        transcript_title = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
-    elif 'audio/' in file_type:
+# async def transcribe_file(file_content, file_key, file_name, file_type, sessionID, convoID, loadout):
+#     if not file_content:
+#         file_content = await read_file(file_key)
+#     processed_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+#     processed_file.write(file_content)
+#     processed_file.close()
+#     transcript_title = ''
+#     if 'video/' in file_type:
+#         print('video requested')
+#         transcript_title = await transcribe_video_file(processed_file, file_name, sessionID, convoID, loadout, file_key)
+#     elif 'audio/' in file_type:
 
-        loop = asyncio.get_event_loop()
-        audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(processed_file.name))
-        # audio = await AudioSegment.from_file(processed_file.name)
-        transcript_title = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
-        processed_file.close()
+#         loop = asyncio.get_event_loop()
+#         audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(processed_file.name))
+#         # audio = await AudioSegment.from_file(processed_file.name)
+#         transcript_title = await transcribe_audio_file(audio, file_name, sessionID, convoID, loadout, file_key)
+#         processed_file.close()
         
 
-    else:
-        transcript_title = "Unsupported file type for transcription"
+#     else:
+#         transcript_title = "Unsupported file type for transcription"
 
-    return transcript_title
+#     return transcript_title
 
 
-async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey):
-    clip = VideoFileClip(file.name)
-    audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
-    clip.audio.write_audiofile(audio_temp.name)
-    loop = asyncio.get_event_loop()
-    audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(audio_temp.name))
-    # audio = AudioSegment.from_file(audio_temp.name)
+# async def transcribe_video_file(file, name, sessionID, convoID, loadout, cartKey):
+#     clip = VideoFileClip(file.name)
+#     audio_temp = tempfile.NamedTemporaryFile(delete=True, suffix=".mp3")
+#     clip.audio.write_audiofile(audio_temp.name)
+#     loop = asyncio.get_event_loop()
+#     audio = await loop.run_in_executor(None, lambda: AudioSegment.from_file(audio_temp.name))
+#     # audio = AudioSegment.from_file(audio_temp.name)
 
-    transcript_title = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
-    audio_temp.close()
-    return transcript_title
+#     transcript_title = await transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey)
+#     audio_temp.close()
+#     return transcript_title
 
-async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey):
-    # eZprint(f"file to transcribe {file.name}", ['FILE_HANDLING', 'TRANSCRIBE'])
-    # audio = AudioSegment.from_mp3(file.name)
-    avg_loudness = audio.dBFS
+# async def transcribe_audio_file(audio, name, sessionID, convoID, loadout, cartKey):
+#     # eZprint(f"file to transcribe {file.name}", ['FILE_HANDLING', 'TRANSCRIBE'])
+#     # audio = AudioSegment.from_mp3(file.name)
+#     avg_loudness = audio.dBFS
     
-    # Try reducing these values to create smaller clips
-    silence_thresh = avg_loudness + (avg_loudness * 0.2)
-    min_silence_len = 500
+#     # Try reducing these values to create smaller clips
+#     silence_thresh = avg_loudness + (avg_loudness * 0.2)
+#     min_silence_len = 500
 
-    eZprint(f"silence thresh {silence_thresh} and min silence len {min_silence_len} from average loudness of {avg_loudness}", ['FILE_HANDLING', 'TRANSCRIBE'])
+#     eZprint(f"silence thresh {silence_thresh} and min silence len {min_silence_len} from average loudness of {avg_loudness}", ['FILE_HANDLING', 'TRANSCRIBE'])
 
 
 
-    chunk_loop = asyncio.get_event_loop()
-    chunks = await chunk_loop.run_in_executor( None, lambda: split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1))
-    # split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
+#     chunk_loop = asyncio.get_event_loop()
+#     chunks = await chunk_loop.run_in_executor( None, lambda: split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1))
+#     # split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, keep_silence=True, seek_step=1)
 
-    silence_loop = asyncio.get_event_loop()
-    leading_silence = await silence_loop.run_in_executor(None, lambda: detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1))
+#     silence_loop = asyncio.get_event_loop()
+#     leading_silence = await silence_loop.run_in_executor(None, lambda: detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1))
 
-    timestamp_loop = asyncio.get_event_loop()
-    timestamps = await timestamp_loop.run_in_executor(None, lambda: detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1))
+#     timestamp_loop = asyncio.get_event_loop()
+#     timestamps = await timestamp_loop.run_in_executor(None, lambda: detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1))
 
-    # leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
-    # timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
-    chunk_time_ms = 0
-    transcript_text = f'\n{name} - Transcription: \n\n'
-    # payload = {
-    #     'sessionID': sessionID,
-    #     'cartKey' : cartKey,
-    #     'fields':
-    #             {'text':transcript_text }
-    #             }
+#     # leading_silence = detect_leading_silence(audio, silence_threshold=silence_thresh, chunk_size=1)
+#     # timestamps = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh, seek_step=1)
+#     chunk_time_ms = 0
+#     transcript_text = f'\n{name} - Transcription: \n\n'
+#     # payload = {
+#     #     'sessionID': sessionID,
+#     #     'cartKey' : cartKey,
+#     #     'fields':
+#     #             {'text':transcript_text }
+#     #             }
 
-    # await update_cartridge_field(payload, convoID, loadout, True)    
-    chunk_time_ms = 0
-    chunkID = 0
-    tasks = []
+#     # await update_cartridge_field(payload, convoID, loadout, True)    
+#     chunk_time_ms = 0
+#     chunkID = 0
+#     tasks = []
 
-    for chunk in chunks:
-        timestamp = timestamps[chunkID]
+#     for chunk in chunks:
+#         timestamp = timestamps[chunkID]
         
-        eZprint(f"chunk {chunkID} length {len(chunk)} and start time {timestamp[0]} and end time {timestamp[1] }", ['FILE_HANDLING', 'TRANSCRIBE'])
-        #getting start and finish but adding a bit
-        #this is with the actual start / finishes
-        # task = asyncio.create_task(transcribe_chunk(chunk, timestamp[0], timestamp[1] , chunkID))
+#         eZprint(f"chunk {chunkID} length {len(chunk)} and start time {timestamp[0]} and end time {timestamp[1] }", ['FILE_HANDLING', 'TRANSCRIBE'])
+#         #getting start and finish but adding a bit
+#         #this is with the actual start / finishes
+#         # task = asyncio.create_task(transcribe_chunk(chunk, timestamp[0], timestamp[1] , chunkID))
 
-        if (os.getenv('DEBUG_TRANSCRIBE_NO_GAPS') == 'True'):
-            start = chunk_time_ms
-            end = chunk_time_ms + len(chunk)
-            if chunkID == 0:
-                start = int(leading_silence/ 2)
-        elif (os.getenv('DEBUG_TRANSCRIBE_START_GAP') == 'True'):
-            start = timestamp[0]
-            end = chunk_time_ms + len(chunk)
-        elif (os.getenv('DEBUG_TRANSCRIBE_START_END_GAP') == 'True'):
-            start = timestamp[0]
-            end = timestamp[1]
-        else:
-            ## currently my favourite, uses exact start, but clip end ...
-            start = timestamp[0]
-            end = chunk_time_ms + len(chunk)
+#         if (os.getenv('DEBUG_TRANSCRIBE_NO_GAPS') == 'True'):
+#             start = chunk_time_ms
+#             end = chunk_time_ms + len(chunk)
+#             if chunkID == 0:
+#                 start = int(leading_silence/ 2)
+#         elif (os.getenv('DEBUG_TRANSCRIBE_START_GAP') == 'True'):
+#             start = timestamp[0]
+#             end = chunk_time_ms + len(chunk)
+#         elif (os.getenv('DEBUG_TRANSCRIBE_START_END_GAP') == 'True'):
+#             start = timestamp[0]
+#             end = timestamp[1]
+#         else:
+#             ## currently my favourite, uses exact start, but clip end ...
+#             start = timestamp[0]
+#             end = chunk_time_ms + len(chunk)
 
 
-        # if chunkID == len(chunks) - 1:
-        task = asyncio.create_task(transcribe_chunk(chunk, start, end , chunkID))
-        chunk_time_ms += len(chunk)
+#         # if chunkID == len(chunks) - 1:
+#         task = asyncio.create_task(transcribe_chunk(chunk, start, end , chunkID))
+#         chunk_time_ms += len(chunk)
         
-        tasks.append(task)
-        chunkID += 1
+#         tasks.append(task)
+#         chunkID += 1
 
-    results = await asyncio.gather(*tasks)
-    results.sort(key=lambda x: x['chunkID'])
-    end = ''
-    transcript_text += f"[00:00:00.000] Start of clip \n\n"
-    for result in results:
-        eZprint(f"chunk {result['chunkID']} start {result['start']} end {result['end']} text {result['text']}", ['FILE_HANDLING', 'TRANSCRIBE'])
-        start = result['start']
-        end = result['end']
-        transcript_text += f"{start} --> {end}\n{result['text']} \n\n"
-    # transcript text end time stap
-    transcript_text += f"[{end}] End of clip \n\n"
+#     results = await asyncio.gather(*tasks)
+#     results.sort(key=lambda x: x['chunkID'])
+#     end = ''
+#     transcript_text += f"[00:00:00.000] Start of clip \n\n"
+#     for result in results:
+#         eZprint(f"chunk {result['chunkID']} start {result['start']} end {result['end']} text {result['text']}", ['FILE_HANDLING', 'TRANSCRIBE'])
+#         start = result['start']
+#         end = result['end']
+#         transcript_text += f"{start} --> {end}\n{result['text']} \n\n"
+#     # transcript text end time stap
+#     transcript_text += f"[{end}] End of clip \n\n"
 
-    clip_length_in_seconds = len(audio) / 1000
-    rounded_length = round(clip_length_in_seconds, 2)
+#     clip_length_in_seconds = len(audio) / 1000
+#     rounded_length = round(clip_length_in_seconds, 2)
 
-    transcript_text +=  "\nTotal video clip length : " + str(rounded_length) + "s"
-    # transcript_text += "\n b roll elements required : " + str(rounded_length / 10) 
+#     transcript_text +=  "\nTotal video clip length : " + str(rounded_length) + "s"
+#     # transcript_text += "\n b roll elements required : " + str(rounded_length / 10) 
 
-    payload = {
-            'label' : name + '_transcript',
-            'type' : 'note',
-            'enabled' : True,
-            'text': transcript_text,
+#     payload = {
+#             'label' : name + '_transcript',
+#             'type' : 'note',
+#             'enabled' : True,
+#             'text': transcript_text,
 
-            }
-    await addCartridge(payload, sessionID, loadout, convoID)
+#             }
+#     await addCartridge(payload, sessionID, loadout, convoID)
 
-    update_payload = {
-        'sessionID': sessionID,
-        'cartKey' : cartKey,
-            'fields':
-                {
+#     update_payload = {
+#         'sessionID': sessionID,
+#         'cartKey' : cartKey,
+#             'fields':
+#                 {
 
-                'json' : json.dumps({
-                    'transcript_text': {
-                        'description' : 'Complete transcription  of ' + name,
-                        'transcript_text' : transcript_text,
-                        'minimised': False
-                        },
-                    'transcript_object':{
-                        'description' : 'Transcription object lines ' + name,
-                        'transcript_text' : transcript_text,
-                        'lines' : results,
-                        'minimised': True
+#                 'json' : json.dumps({
+#                     'transcript_text': {
+#                         'description' : 'Complete transcription  of ' + name,
+#                         'transcript_text' : transcript_text,
+#                         'minimised': False
+#                         },
+#                     'transcript_object':{
+#                         'description' : 'Transcription object lines ' + name,
+#                         'transcript_text' : transcript_text,
+#                         'lines' : results,
+#                         'minimised': True
 
-                    } }, indent=4)
-                }
-                }
-    await update_cartridge_field(update_payload,convoID, loadout, True)
-    return name + '_transcript'
+#                     } }, indent=4)
+#                 }
+#                 }
+#     await update_cartridge_field(update_payload,convoID, loadout, True)
+#     return name + '_transcript'
 
 async def transcribe_chunk(chunk, chunk_start, chunk_end, chunkID=0):
     with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as chunk_file:

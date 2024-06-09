@@ -2,6 +2,7 @@ import os
 from quart import Quart, render_template, websocket, request, jsonify
 from quart_cors import cors
 from openai import OpenAI
+import redis
 
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', default=None))
 
@@ -16,6 +17,14 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SESSION_TYPE'] = 'redis'
 app.config['TEST'] = True
 app.config['QUART_CORS_ALLOW_HEADERS'] = "contenttype, Authorization"
+redis_host = os.getenv('REDIS_HOST', 'redis')
+redis_port = int(os.getenv('REDIS_PORT', 6379))
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'session:'
+# app.config['SESSION_REDIS'] = f'redis://{redis_host}:{redis_port}/0'
+app.config['SESSION_REDIS'] = redis.StrictRedis(host=os.getenv('REDIS_HOST', 'redis'), port=int(os.getenv('REDIS_PORT', 6379)))
+
 # app.config['QUART_CORS_ALLOW_ORIGIN'] = os.environ.get("CORS_ALLOWED_ORIGINS")
 # app.config['QUART_CORS_ALLOW_CREDENTIALS'] = True
 # app.config['QUART_CORS_MAX_AGE'] = 86400

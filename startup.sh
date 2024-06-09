@@ -1,7 +1,7 @@
 #!/bin/bash
-redis-cli flushall &
-redis-server &
-REDIS_PID=$!
+# redis-cli flushall &
+# redis-server 
+# REDIS_PID=$!
 # convert -version
 
 # echo $FONTCONFIG_PATH
