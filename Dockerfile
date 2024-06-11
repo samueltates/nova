@@ -3,7 +3,7 @@ RUN mkdir -p /app
 WORKDIR /app
 COPY . .
 ENV PIPENV_VENV_IN_PROJECT=1
-# RUN apt-get update && apt-get install redis -y
+RUN apt-get update && apt-get install ffmpeg -y
 # RUN redis-server --port 6379 &
 
 RUN pip install pipenv 
@@ -27,6 +27,8 @@ CMD [ "bash", "startup.sh"]
 # FROM docker.io/oz123/pipenv:3.11-v2023-6-26 AS builder
 # ENV PIPENV_VENV_IN_PROJECT=1
 # ADD Pipfile.lock Pipfile /usr/src/
+# WORKDIR /usr/src
+
 # RUN /root/.local/bin/pipenv sync
 # RUN pipenv run prisma generate
 # RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"

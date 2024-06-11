@@ -17,14 +17,14 @@ app.config['SESSION_TYPE'] = 'redis'
 @app.before_serving
 async def setup():
     cache = await aioredis.Redis(
-        host="redis",
-        port=6379,
+        host=os.getenv('REDIS_HOST', default='redis'),
+        port=os.getenv('REDIS_PORT', default=6379),
     )
     
     app.config['SESSION_REDIS'] = cache
     Session(app)
     
-print(app.config)
+# print(app.config)
 
 
 app.config['DEBUG'] = False
