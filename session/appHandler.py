@@ -1,29 +1,37 @@
 import os
-from quart import Quart, render_template, websocket, request, jsonify
+from quart import Quart, session, render_template, websocket, request, jsonify
 from quart_cors import cors
 from openai import OpenAI
-import redis
+from quart_session import Session
+from redis.asyncio.client import Redis
+import aioredis
+
 
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', default=None))
 
 app = Quart(__name__)
-app.session = None
-
+app.session = session
 app = cors(app, allow_origin=[os.environ.get("CORS_ALLOWED_ORIGINS")], allow_headers=['content-type','Authorization'],  max_age=86400, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+app.config['SESSION_TYPE'] = 'redis'
+
+@app.before_serving
+async def setup():
+    cache = await aioredis.Redis(
+        host="redis",
+        port=6379,
+    )
+    
+    app.config['SESSION_REDIS'] = cache
+    Session(app)
+    
+print(app.config)
+
 
 app.config['DEBUG'] = False
-# app.config['DEBUG'] = os.environ.get("DEBUG_CONFIG", False)
+# # app.config['DEBUG'] = os.environ.get("DEBUG_CONFIG", False)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SESSION_TYPE'] = 'redis'
 app.config['TEST'] = True
 app.config['QUART_CORS_ALLOW_HEADERS'] = "contenttype, Authorization"
-redis_host = os.getenv('REDIS_HOST', 'redis')
-redis_port = int(os.getenv('REDIS_PORT', 6379))
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_USE_SIGNER'] = True
-app.config['SESSION_KEY_PREFIX'] = 'session:'
-# app.config['SESSION_REDIS'] = f'redis://{redis_host}:{redis_port}/0'
-app.config['SESSION_REDIS'] = redis.StrictRedis(host=os.getenv('REDIS_HOST', 'redis'), port=int(os.getenv('REDIS_PORT', 6379)))
 
 # app.config['QUART_CORS_ALLOW_ORIGIN'] = os.environ.get("CORS_ALLOWED_ORIGINS")
 # app.config['QUART_CORS_ALLOW_CREDENTIALS'] = True

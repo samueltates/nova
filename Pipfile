@@ -40,5 +40,7 @@ stripe = "*"
 unstructured = "*"
 redis = "*"
 pydub = "*"
+aioredis = "*"
+numpy = "*"
 
 [dev-packages]

@@ -3,8 +3,7 @@ import asyncio
 import json
 import base64
 
-from quart import request, jsonify, url_for, session, render_template, redirect, send_file
-from quart_session import Session
+from quart import request, jsonify, url_for, render_template, redirect, send_file
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 import asyncio
@@ -13,7 +12,7 @@ import stripe
 import secrets
 from random_word import RandomWords
 
-from session.appHandler import app, websocket, openai_client
+from session.appHandler import app, websocket, openai_client, session
 from session.sessionHandler import novaSession, novaConvo,current_loadout, current_config
 from session.user import update_user_events, get_user_events, set_user_value,get_user_value
 from core.nova import initialise_conversation, initialiseCartridges, loadCartridges, runCartridges
@@ -37,8 +36,8 @@ from file_handling.transcribe import handle_transcript_chunk, handle_transcript_
 from version import __version__
 
 
-app.session = session
-Session(app)
+
+
 r = RandomWords()
 
 @app.route("/")
@@ -75,6 +74,7 @@ async def download_video():
 
 @app.route("/startsession", methods=['POST'])
 async def startsession():
+
     eZprint_anything(['start-session route hit', request], ['AUTH', 'INITIALISE'], line_break=True)
     payload = await request.get_json()
     browserSession = payload['sessionID']
