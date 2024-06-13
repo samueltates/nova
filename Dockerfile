@@ -1,5 +1,14 @@
 FROM --platform=linux/amd64 python:3.9
+
+
+## DEBUG echo contentsof env file
+# RUN cat .env 
+
 RUN mkdir -p /app
+
+ARG APP_ENV=local
+ENV APP_ENV=${APP_ENV}
+COPY ${APP_ENV}.env /app/.env
 WORKDIR /app
 COPY . .
 ENV PIPENV_VENV_IN_PROJECT=1
@@ -22,21 +31,7 @@ CMD [ "bash", "startup.sh"]
 # docker tag nova 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
 # docker push 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
 
-
-##attempt at multi stage
-# FROM docker.io/oz123/pipenv:3.11-v2023-6-26 AS builder
-# ENV PIPENV_VENV_IN_PROJECT=1
-# ADD Pipfile.lock Pipfile /usr/src/
-# WORKDIR /usr/src
-
-# RUN /root/.local/bin/pipenv sync
-# RUN pipenv run prisma generate
-# RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
-# FROM --platform=linux/amd64 docker.io/python:3.11 AS runtime
-# COPY --from=builder /usr/src/.venv/ /usr/src/.venv/
-# RUN /usr/src/.venv/bin/python -c "import requests; print(requests.__version__)"
-# RUN mkdir -p /app
-# WORKDIR /app
-# EXPOSE 5500
-# COPY . .
-# CMD [ "bash", "startup.sh"]
+# staging
+# docker build -t nova . --build-arg APP_ENV=staging
+# docker tag nova-staging 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
+# docker push 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest

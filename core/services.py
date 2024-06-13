@@ -14,9 +14,9 @@ async def transcribe_file(file_key, file_name, file_type):
     }
     eZprint(payload, ['TRANSCRIBE'], message='request to transcribe sending to API')
     headers = {'content-type': 'application/json'}
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5000)) as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
         async with session.post(os.getenv('MEDIA_URL') + 'get_transcript', data=json.dumps(payload), headers=headers) as response:
-            eZprint(response, ['TRRANSCRIBE'], message='API  response')
+            # eZprint(response, ['TRRANSCRIBE'], message='API  response')
             response_text = await response.text()
             response_json = json.loads(response_text)
 
@@ -27,12 +27,14 @@ async def transcribe_file(file_key, file_name, file_type):
 
 async def get_b_roll_images_from_request(payload):
     # Your debug print functions
-    eZprint(payload, ['BROLL'], message='b_roll payload')
+    eZprint('b_roll payload', ['BROLL'], line_break=True)
 
     headers = {'content-type': 'application/json'}
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5000)) as session:
+
+
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
         async with session.post(os.getenv('MEDIA_URL') + 'handle_generate_b_roll', data=json.dumps(payload), headers=headers) as response:
-            eZprint(response, ['BROLL'], message='b_roll response')
+            # eZprint(response, ['BROLL'], message='b_roll response')
             response_text = await response.text()
             response_json = json.loads(response_text)
 
@@ -42,14 +44,14 @@ async def get_b_roll_images_from_request(payload):
 
 async def get_media_from_request(payload):
     # Your debug print functions
-    eZprint(payload, ['MEDIA'], message='media payload')
+    eZprint('media payload', ['MEDIA'])
 
     headers = {'content-type': 'application/json'}
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5000)) as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
         async with session.post(os.getenv('MEDIA_URL') + 'transform', data=json.dumps(payload), headers=headers) as response:
             response_text = await response.text()
             response_json = json.loads(response_text)
 
     # Your debug print functions
-    eZprint_anything(response_json, ['MEDIA'], message='media response')
+    eZprint_anything('media returned')
     return response_json

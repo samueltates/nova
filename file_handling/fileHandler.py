@@ -145,6 +145,8 @@ async def handle_file_end(data):
     
     del file_chunks[tempKey]
     data.update({'cartKey': cartKey})
+    del data['file_content']
+
     return data
     # return file_name + ' recieved' + ' ' + str(transcript_text)
 

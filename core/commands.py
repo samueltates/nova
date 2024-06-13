@@ -32,7 +32,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
     if len(splitID) > 1:
         loadout = splitID[2]
 
-    print(command_object)
+    # print(command_object)
     if command_object:
         name = ''
         args = ''
@@ -60,7 +60,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return False
     
     command_return = {"status": "", "name" : name, "message": ""}
-    print( 'command name: ' + name + ' args: ' + str(args))
+    # print( 'command name: ' + name + ' args: ' + str(args))
 
 
     if name == 'read':
@@ -140,7 +140,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 await update_cartridge_field(payload, convoID, loadout, True)
                 command_return['status'] = "Success."
                 command_return['message'] = "file '" +filename  + "' exists, so appending to file"
-                print(command_return)
+                # print(command_return)
                 return command_return
             
         eZprint_anything(new_text, WRITE_DEBUG_KEYS,message = 'no existing file found, creating new')
@@ -187,7 +187,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             
         command_return['status'] = "Success."
         command_return['message'] = query + ": from " + str(args['filename'])  + ": "+ str(response)
-        print(command_return)
+        # print(command_return)
         return command_return
     
 
@@ -394,11 +394,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         if summmarised:
             command_return['status'] = "Success."
             command_return['message'] = "summary completed" 
-            print(command_return)
+            # print(command_return)
         else:
             command_return['status'] = "error"
             command_return['message'] = "summary failed"
-            print(command_return)
+            # print(command_return)
         return command_return
     
     if name == 'generate_image':
@@ -560,7 +560,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                 if 'label' in val and val['label'] == main_video:
                     main_video_cartridge = val
                     main_video_cartridge.update({'key' : key})
-                    print(main_video_cartridge)
+                    # print(main_video_cartridge)
                     break
 
         if main_video_cartridge:
