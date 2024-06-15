@@ -5,7 +5,9 @@ from openai import OpenAI
 from quart_session import Session
 from redis.asyncio.client import Redis
 import aioredis
+from dotenv import load_dotenv
 
+load_dotenv()  
 
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', default=None))
 
@@ -16,6 +18,8 @@ app.config['SESSION_TYPE'] = 'redis'
 
 @app.before_serving
 async def setup():
+    print("Setting up Redis session")
+
     cache = await aioredis.Redis(
         host=os.getenv('REDIS_HOST', default='redis'),
         port=os.getenv('REDIS_PORT', default=6379),

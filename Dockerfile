@@ -35,3 +35,5 @@ CMD [ "bash", "startup.sh"]
 # docker build -t nova . --build-arg APP_ENV=staging
 # docker tag nova-staging 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
 # docker push 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
+
+

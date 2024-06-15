@@ -51,13 +51,13 @@ async def hello():
 @app.before_serving
 async def startup():
     await prismaConnect()
-    print(app.config)
-    eZprint("Connected to Prisma")
+    # print(app.config)
+    # eZprint("Connected to Prisma")
 
 @app.after_serving
 async def shutdown():
     await prismaDisconnect()
-    eZprint("Disconnected to Prisma")
+    # eZprint("Disconnected to Prisma")
 
 # @app.before_request
 # def make_session_permanent():
@@ -986,15 +986,20 @@ async def handle_indexdoc_end(data):
 #     await runCartridges(sessionID, loadout)
 
 if __name__ == '__main__':
+    print("Starting server")
 
     host=os.getenv("HOST", default='0.0.0.0')
     port=int(os.getenv("PORT", default=5000))
     config = Config()
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+    config.worker_class = "asyncio"
+    config.workers = 1  # Ensure single worker for debugging
+
     if os.getenv('ENVIRONMENT', default= 'production') == 'local':
         app.run(host=host, port=port)
         config.use_reloader = True
         config.debug = True
     else:
-        asyncio.run(serve(app, config))
+        asyncio.run(serve(app, config), debug=False)

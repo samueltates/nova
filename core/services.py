@@ -12,7 +12,7 @@ async def transcribe_file(file_key, file_name, file_type):
         'file_name' : file_name,
         'file_type' : file_type
     }
-    eZprint(payload, ['TRANSCRIBE'], message='request to transcribe sending to API')
+    eZprint('request to transcribe sending to API', ['TRANSCRIBE','SERVICE'])
     headers = {'content-type': 'application/json'}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
         async with session.post(os.getenv('MEDIA_URL') + 'get_transcript', data=json.dumps(payload), headers=headers) as response:
@@ -21,13 +21,13 @@ async def transcribe_file(file_key, file_name, file_type):
             response_json = json.loads(response_text)
 
     # Your debug print functions
-    eZprint_anything(response_json, ['TRANSCRIBE'], message='transcribe json response')
+    eZprint('transcribe json response', ['TRANSCRIBE','SERVICE'])
     return response_json
 
 
 async def get_b_roll_images_from_request(payload):
     # Your debug print functions
-    eZprint('b_roll payload', ['BROLL'], line_break=True)
+    eZprint('b_roll requested', ['BROLL','SERVICE'])
 
     headers = {'content-type': 'application/json'}
 
@@ -39,12 +39,12 @@ async def get_b_roll_images_from_request(payload):
             response_json = json.loads(response_text)
 
     # Your debug print functions
-    eZprint_anything(response_json, ['BROLL'], message='b_roll response')
+    eZprint('b_roll returned', ['BROLL', 'SERVICE'])
     return response_json
 
 async def get_media_from_request(payload):
     # Your debug print functions
-    eZprint('media payload', ['MEDIA'])
+    eZprint('media payload', ['MEDIA','SERVICE'])
 
     headers = {'content-type': 'application/json'}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None)) as session:
@@ -53,5 +53,5 @@ async def get_media_from_request(payload):
             response_json = json.loads(response_text)
 
     # Your debug print functions
-    eZprint_anything('media returned')
+    eZprint('media returned', ['MEDIA', 'SERVICE'])
     return response_json
