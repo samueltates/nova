@@ -24,9 +24,12 @@ async def setup():
         host=os.getenv('REDIS_HOST', default='redis'),
         port=os.getenv('REDIS_PORT', default=6379),
     )
-    
+    print('cache', cache)
     app.config['SESSION_REDIS'] = cache
+
     Session(app)
+
+    print("Redis session setup complete")
     
 # print(app.config)
 
@@ -46,3 +49,5 @@ app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE')  #
 app.config["WEBSOCKET_MAX_SIZE"] = 1024 * 1024 * 100  # Maximum size set to 1MB (adjust as needed)
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 100  # Setting the maximum request size to 100MB
  
+
+print('app created')

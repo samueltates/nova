@@ -17,7 +17,7 @@ from file_handling.text_handler import large_document_loop, parse_text_to_json, 
 from tools.memory import summarise_from_range, get_summary_children_by_key
 from tools.gptindex import handleIndexQuery, quick_query, QuickUrlQuery
 from tools.debug import eZprint, eZprint_anything
-from core.services import get_media_from_request, get_b_roll_images_from_request, transcribe_file
+from core.services import get_media_from_request, get_b_roll_images_from_request, transcribe_file, debug_request
 
 from index.handle_llama_index import handle_cartridge_query, handle_multi_cartridge_query
 
@@ -425,6 +425,12 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['status'] = "Error."
             command_return['message'] = "Arg 'prompts' missing"
             return command_return
+        
+    if name == 'debug_request':
+        response = await debug_request(args)
+        command_return['status'] = "Success."
+        command_return['message'] = "debug request"
+        return command_return
         
     # if name == 'overlay_b_roll':
     #     main_video_cartridge = None

@@ -9,7 +9,7 @@ ENV PYTHONFAULTHANDLER 1
 FROM base AS python-deps
 RUN pip install pipenv 
 
-RUN apt-get update && apt-get install ffmpeg -y
+# RUN apt-get update && apt-get install ffmpeg -y
 # RUN redis-server --port 6379 &
 COPY Pipfile .
 COPY Pipfile.lock .
@@ -39,8 +39,8 @@ RUN apt-get update && apt-get install ffmpeg -y
 # RUN echo $DATABASE_URL
 
 EXPOSE 5500
-CMD ["sleep", "infinity"]
-# CMD ["python", "-m","main.py"]
+# CMD ["sleep", "infinity"]
+CMD ["python", "main.py"]
 
 # sudo docker build -t nova-multi -f dockerfilemulti/Dockerfile . 
 
