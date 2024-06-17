@@ -986,14 +986,12 @@ async def handle_indexdoc_end(data):
 #     await runCartridges(sessionID, loadout)
 
 if __name__ == '__main__':
-    print("Starting server")
-
     host=os.getenv("HOST", default='0.0.0.0')
     port=int(os.getenv("PORT", default=5000))
     config = Config()
     config.keep_alive_timeout = 5000
-    config.debug = False
-    config.graceful_timeout = 5000
+    # config.debug = False
+    # config.graceful_timeout = 5000
     config.bind = [str(host)+":"+str(port)]  # As an example configuration setting
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
     if os.getenv('ENVIRONMENT', default= 'production') == 'local':

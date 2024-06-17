@@ -7,8 +7,8 @@ import os
 import asyncio
 from human_id import generate_id
 from prisma import Json
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+# logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+# logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 from session.appHandler import  websocket
@@ -30,7 +30,7 @@ from llama_index.core.indices.loading import load_index_from_storage
 
 
 # from llama_index.core import LlamaLogger
-from langchain.llms import OpenAI
+# from langchain.llms import OpenAI
 
 
 

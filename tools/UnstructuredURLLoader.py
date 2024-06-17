@@ -5,7 +5,7 @@ from llama_index.core.readers.base import BaseReader
 from llama_index.core.readers import Document
 
 
-logger = logging.getLogger(__file__)
+# logger = logging.getLogger(__file__)
 
 
 class UnstructuredURLLoader(BaseReader):

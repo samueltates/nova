@@ -5,7 +5,7 @@ from prisma import Prisma
 from prisma import Json
 from human_id import generate_id
 import logging
-logging.basicConfig()
+# logging.basicConfig()
 prisma = Prisma()
 import pytz
 utc=pytz.UTC

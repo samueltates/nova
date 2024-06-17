@@ -75,7 +75,8 @@ EXPOSE 5500
 # EXPOSE 6379
 
 ENV NAME World
-CMD [ "bash", "startup.sh"]
+# CMD [ "bash", "startup.sh"]
+CMD [ "pipenv", "run", "python", "./main.py"]
 
 # docker build -t nova . 
 # aws configure sso --profile samazon

@@ -1,16 +1,38 @@
 import os
 import requests
+from quart import request
 from tools.debug import eZprint, eZprint_anything
 import json
 import aiohttp 
+# import logging
+from session.appHandler import app
 
 timeout = aiohttp.ClientTimeout(total=5000)
 
 session = None
 
+awaited_media = {}
+
 async def initiate_session():
     global session
+    # async def on_request_start(
+    #     session, trace_config_ctx, params):
+    #     print("Starting request")
+    #     logging.getLogger('aiohttp.client').debug(f'Starting request <{params}>')
+
+
+
+    # async def on_request_end(session, trace_config_ctx, params):
+    #     print("Ending request")
+
+    # trace_config = aiohttp.TraceConfig()
+    # trace_config.on_request_start.append(on_request_start)
+    # trace_config.on_request_end.append(on_request_end)
+    # trace_config.on_request_exception.append(on_request_end)
+
+    # session = aiohttp.ClientSession(timeout=timeout, trace_configs=[trace_config])
     session = aiohttp.ClientSession(timeout=timeout)
+
 
 
 async def transcribe_file(file_key, file_name, file_type):
@@ -25,9 +47,12 @@ async def transcribe_file(file_key, file_name, file_type):
         'file_type' : file_type
     }
     eZprint('request to transcribe sending to API', ['TRANSCRIBE','SERVICE'])
-    headers = {'content-type': 'application/json'}
+    headers = {'content-type': 'application/json'
+               }
 
     async with session.post(os.getenv('MEDIA_URL') + 'get_transcript', data=json.dumps(payload), headers=headers) as response:
+        
+
         response_text = await response.text()
         response_json = json.loads(response_text)
     # async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -87,9 +112,19 @@ async def get_media_from_request(payload):
     eZprint('media returned', ['MEDIA', 'SERVICE'])
     return response_json
 
+
+app.route('/receive_response', methods=['POST'])
+async def receive_response():
+    data = await request.get_json()
+    eZprint(data, ['RECEIVE'], message='received response')
+    awaited_media[data['file_key']] = data
+    return jsonify({'status':'success'})
+
+
+
 # debug request sends time ti wait before return
 async def debug_request(payload):
-    eZprint('debug request', ['DEBUG','SERVICE'])
+    eZprint('debug request' , ['DEBUG','SERVICE'])
 
     if not session:
         await initiate_session()
