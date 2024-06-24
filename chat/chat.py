@@ -90,7 +90,7 @@ async def user_input(sessionData):
     # if 'command' in novaConvo[convoID]:
     #     content = user_name + ': ' + content
         
-    await handle_message(convoID, content, 'user', user_name, sessionData['key'])
+    id = await handle_message(convoID, content, 'user', user_name, sessionData['key'])
     await construct_query(convoID)
     query_object = current_prompt[convoID].get('prompt',[]) + current_prompt[convoID].get('chat',[]) 
 
@@ -98,7 +98,7 @@ async def user_input(sessionData):
         query_object += current_prompt[convoID]['emphasise']
     
     if 'command-loop' in novaConvo[convoID] and novaConvo[convoID]['command-loop']:
-        print('setting user interupt to true')
+        eZprint('setting user interupt to true', ['COMMAND', 'THREAD'])
         novaConvo[convoID]['user-interupt'] = True
     # print(query_object)    current_prompt[convoID]['prompt'] = list_to_send
     model = 'gpt-3.5-turbo'
@@ -112,11 +112,11 @@ async def user_input(sessionData):
         if json_object != None:
             command = await get_json_val(json_object, 'command')
             if command:
-                await command_interface(command, convoID, 0, source = 'user')
-                print('command found from user')
+                eZprint('command found, starting thread ' + str(id), ['COMMAND', 'THREAD'])
+                await command_interface(command, convoID, id, source = 'user')
                 return
 
-    print('sending user message to GPT')
+    eZprint('sending user message to GPT', ['CHAT', 'USER_INPUT'])
     functions = None
     if novaConvo[convoID].get('return_type', '') == 'openAI' and current_prompt[convoID].get('openAI_functions', None):
         functions = current_prompt[convoID]['openAI_functions']
@@ -151,6 +151,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     if function_call:
         #  check if type of Function  object
         # if isinstance(function_call, openai.api_resources.function.Function):
+        eZprint('function call found', ['FUNCTION', 'THREAD'])
         function_call_json = function_call.json()
 
     messageObject = {
@@ -170,7 +171,7 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     # print('message object is: ' + str(messageObject))
 
     id = await logMessage(messageObject)
-    
+
     eZprint_anything(chatlog[convoID], ['CHAT', 'HANDLE_MESSAGE'], line_break = True)
 
 
@@ -187,31 +188,31 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     
     command = None
 
-    if thread:
-        ##TODO : command returns can give those deeper functions, and include 'close' to close loop
-        ##TODO : heck it could even be an array of loops, should get / build events for this
-        ##TODO : Clear these threads when done 
+    # if thread:
+    #     ##TODO : command returns can give those deeper functions, and include 'close' to close loop
+    #     ##TODO : heck it could even be an array of loops, should get / build events for this
+    #     ##TODO : Clear these threads when done 
 
-        if convoID not in system_threads:
-            system_threads[convoID] = {}
-        if thread not in system_threads[convoID]:
-            ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
-            eZprint('NEW THREAD')
-            system_threads[convoID][thread] = []
-            messageObject.update({'thread':thread})
-            # chatlog[convoID].append(messageObject)
-            system_threads[convoID][thread].append(messageObject)
-            # print(system_threads[convoID][thread])
+    #     if convoID not in system_threads:
+    #         system_threads[convoID] = {}
+    #     if thread not in system_threads[convoID]:
+    #         ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
+    #         eZprint('NEW THREAD')
+    #         system_threads[convoID][thread] = []
+    #         messageObject.update({'thread':thread})
+    #         # chatlog[convoID].append(messageObject)
+    #         system_threads[convoID][thread].append(messageObject)
+    #         # print(system_threads[convoID][thread])
 
-        else:
+    #     else:
 
-            ##after that each loop it adds to thread 
-            ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
-            eZprint('THREAD UPDATE')
-            # print(system_threads[convoID][thread])
-            system_threads[convoID][thread].append(messageObject)
-    else:     
-        chatlog[convoID].append(messageObject)
+    #         ##after that each loop it adds to thread 
+    #         ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
+    #         eZprint('THREAD UPDATE')
+    #         # print(system_threads[convoID][thread])
+    #         system_threads[convoID][thread].append(messageObject)
+    # else:     
+    chatlog[convoID].append(messageObject)
 
     simple_response = None
     # print('json return is ' + str(json_return)) 
@@ -240,24 +241,35 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
                 if command:
                     copiedMessage['content'] = ""
                     copiedMessage['command'] = command
-
+                   
+                    if thread == 0:
+                    #if its a function that isn't on a thread then it makes the initiating message the thread ID
+                        eZprint('thread started for message id ' + str(id), ['THREAD'])
+                        thread == id
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
             else: 
+                if thread != 0:
+                #if its a message, but its on a thread it'll break back out to main
+                    eZprint('thread ended for message id ' + str(id), ['THREAD'])
+                    thread = 0
+
                 asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
+                    
 
         else:
             asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':copiedMessage, 'convoID': convoID})))
         
         if voice:
             await text_to_speech(content)
-            
 
+       
         if len(simple_agents) > 0 and thread == 0:
             if 'user-interupt' not in novaConvo[convoID] or not novaConvo[convoID]['user-interupt']:
                 asyncio.create_task(simple_agent_response(convoID))
                 
         if command:
-            # print('comand found')
+            ## TODO REVIEW IF THIS IS OLD COMMAND AND SCRAP 
+            eZprint('command found', ['COMMAND', 'THREAD'])
             asyncio.create_task(command_interface(command, convoID, thread))
         else:
             # print('no command, resetting')
@@ -273,9 +285,16 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         asyncio.create_task(websocket.send(json.dumps({'event':'sendResponse', 'payload':messageObject, 'convoID': convoID})))
     
     if function_call:
+        if thread == 0:
+    #if its a function that isn't on a thread then it makes the initiating message the thread ID
+            eZprint('thread started for message id ' + str(id), ['THREAD'])
+            thread = id
+        eZprint('function call found thread ' + str(thread), ['FUNCTION', 'THREAD'])
         asyncio.create_task(command_interface(function_call, convoID, thread))
     if len(chatlog[convoID]) == 5:
         asyncio.create_task( summarise_messages_by_convo(userID, sessionID, convoID))
+
+    return id
 
 
 async def logMessage(messageObject):
@@ -395,7 +414,7 @@ async def send_to_GPT(convoID, promptObject, thread = 0, model = 'gpt-3.5-turbo'
 async def command_interface(command, convoID, threadRequested, source = 'assistant'):
     #handles commands from user input
     DEBUG_KEYS = ['CHAT', 'COMMAND_INTERFACE']
-    eZprint('running commands',DEBUG_KEYS)
+    eZprint('running commands', DEBUG_KEYS)
     # print('nova convo is ' + str(novaConvo))
     # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}}))
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': 'thinking'}, 'convoID': convoID}))
@@ -413,7 +432,7 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
     # await websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
     command_response = await handle_commands(command, convoID, threadRequested)
     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}, 'convoID': convoID}))
-
+    # DEBUG_KEYS += ['THREADS']
     # except Exception as e:
     #     error_handler()
     #     logging.error(str(e))
@@ -426,7 +445,7 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
     # eZprint('command response recieved from command')
     eZprint(command_response, DEBUG_KEYS)
     
-    thread = 0
+    # thread = 0
 
     if command_response:
         #bit of a lazy hack to get it to match what the assistant parse takes
@@ -467,7 +486,7 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
         
         ##if there's not a new thread requested, it'll open a new one and return a message to the main thread
         if not threadRequested:
-            # print('no recognised return, so far in progress from command')
+            eZprint('no recognised return, so far in progress from command', DEBUG_KEYS+['THREAD'])
             if convoID not in system_threads:
                 system_threads[convoID] = {}
             
@@ -481,10 +500,10 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
             # command_object = json.dumps(command_object)
             # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
 
-            await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
+            await handle_message(convoID, return_content, 'function', '', None, threadRequested, 'terminal', name )
         
         else:
-            # print('thread requested so same again but this time on a thread')
+            eZprint('thread requested so same again but this time on a thread', DEBUG_KEYS+['THREAD'])
             thread = threadRequested
             command_object = {'system':{
                     "name" : name, 
@@ -496,10 +515,10 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
             
             command_object = json.dumps(command_object)
 
-            await handle_message(convoID, return_content, 'function', '', None, 0, 'terminal', name )
+            await handle_message(convoID, return_content, 'function', '', None, threadRequested, 'terminal', name )
 
         if source == 'assistant':
-            await return_to_GPT(convoID, thread)
+            await return_to_GPT(convoID, threadRequested)
  
 
 async def return_to_GPT(convoID, thread = 0):
