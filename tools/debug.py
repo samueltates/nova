@@ -16,10 +16,10 @@ def setup_logger(name):
     logger.setLevel(logging.DEBUG)
     
     # Could further customize with handlers, formatters, etc.
-    console_handler = logging.StreamHandler()
+    # console_handler = logging.StreamHandler()
     # formatter = logging.Formatter('%(asctimes - %(name)s - %(levelname)s - %(message)s')
     # console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    # logger.addHandler(console_handler)
     
     return logger
 
@@ -101,12 +101,11 @@ def eZprint_object_list(data, tags = [], line_break= False, indent='', message =
         
 
 def eZprint(string, tags = [], line_break=False, message = None):
-    # print('eZprint')
+
     if not check_debug(tags):
         return
-    
     logger.debug(string)
-    logger.debug(message)
+    # logger.debug(message)
     return
     if line_break:
         print('---------------------')

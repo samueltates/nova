@@ -27,5 +27,8 @@
 # echo $MAGIC_FONT_PATH
 # echo $(fc-list)
 # echo $(convert -list font)
-
+echo "Starting child script from directory: $(pwd)"
+export PIPENV_VENV_IN_PROJECT=1 
+export PIPENV_VERBOSITY=-1
+pipenv run prisma generate
 pipenv run python main.py
