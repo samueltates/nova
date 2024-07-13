@@ -132,15 +132,15 @@ async def handle_file_end(data):
         
 
     cartKey = await addCartridge(cartVal, sessionID, loadout, convoID)
-    # file_name_to_write = cartKey + '.' + extension
+    file_name_to_write = cartKey + '.' + extension
 
-    url = await write_file(file_content, cartKey) 
+    url = await write_file(file_content, file_name_to_write) 
 
     eZprint(f'file {cartKey} written to {url}', ['FILE_HANDLING'])
 
     await update_cartridge_field({'sessionID': sessionID, 'cartKey' : cartKey, 'fields': {
         'media_url': url,
-        'aws_key': cartKey
+        'aws_key': file_name_to_write
         }}, convoID, loadout, True)
     
     del file_chunks[tempKey]

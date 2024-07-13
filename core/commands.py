@@ -24,15 +24,14 @@ from index.handle_llama_index import handle_cartridge_query, handle_multi_cartri
 DEBUG_KEYS = ['COMMANDS']
 
 async def handle_commands(command_object, convoID, thread = 0, loadout = None):
-    # eZprint('handling command')
+
     sessionID = novaConvo[convoID]['sessionID']
-    # loadout = novaConvo[convoID]['loadout']
     splitID = convoID.split('-')
     loadout = None
+    
     if len(splitID) > 1:
         loadout = splitID[2]
-
-    # print(command_object)
+    
     if command_object:
         name = ''
         args = ''
@@ -51,7 +50,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             if command_object.get('arguments'):
                 args = json.loads(command_object['arguments'], strict=False)
 
-    eZprint('parsing command')
     if convoID not in command_state:
         command_state[convoID] = {}
 
@@ -60,8 +58,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return False
     
     command_return = {"status": "", "name" : name, "message": ""}
-    # print( 'command name: ' + name + ' args: ' + str(args))
-
 
     if name == 'read':
         for key, val in active_cartridges[convoID].items():
@@ -220,8 +216,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         return 
 
 
-
-
     if name == 'search_web':
             # elif args.get('type') == 'web':
         if args.get('query'):
@@ -266,55 +260,11 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "Response : " + str(response)
         return command_return
 
-
-
     if name == 'open':
         response = await open_file(name, args, sessionID, convoID, loadout)
         eZprint(response, DEBUG_KEYS.append( 'OPEN_FILE'), message = 'response from opening')
         return response
        
-
-    # if name in 'preview' or 'preview' in name:
-    #     eZprint('previewing file')
-    #     all_text = ''
-    #     if 'filename' in args:
-    #         filename = args['filename']
-
-    #         for key, val in active_cartridges[convoID].items():
-    #             all_text += str(val)
-    #             string_match = distance(filename, str(val['label']))
-    #             if string_match < 3:
-    #                 preview_string = val['label'] + '\n'
-    #                 if 'blocks' in val:
-    #                     preview_string += str(val['blocks'] )+ '\n'
-    #                     # if isinstance(val['blocks'], list):
-    #                     #     for block in val['blocks']:
-    #                     #         if isinstance(block, dict):
-    #                     #             for key, val in block.items():
-    #                     #                 preview_string += key + ': ' + str(val) + '\n'
-    #                     #         else:
-    #                     #             preview_string +=  str(block) + '\n'
-    #                     # for block in val['blocks']:
-    #                     #     preview_string +=  str(block) + '\n'
-    #                 if 'text' in val:
-    #                     preview_string += val['text'] + '\n'
-
-    #                 preview_string = preview_string[0:500]
-    #                 preview_string += '\n'
-    #                 command_return['status'] = "Success."
-    #                 command_return['message'] = preview_string
-    #                 print(command_return)
-    #                 return command_return
-    #         command_return['status'] = "Error."
-    #         command_return['message'] = "File not found."
-    #         print(command_return)
-    #         return command_return
-    #     else:
-    #         command_return['status'] = "Error."
-    #         command_return['message'] = "Arg 'filename' missing"
-    #         print(command_return)
-    #         return command_return
-                
 
     if name == 'close':
         eZprint('closing file')
@@ -432,69 +382,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "debug request"
         return command_return
         
-    # if name == 'overlay_b_roll':
-    #     main_video_cartridge = None
-    #     if args.get('main_video'):
-    #         main_video = args['main_video']
-    #         for key, val in active_cartridges[convoID].items():
-    #             if 'label' in val and val['label'] == main_video:
-    #                 main_video_cartridge = val
-    #                 main_video_cartridge.update({'key' : key})
-    #                 print(main_video_cartridge)
-    #                 break
-    #     if args.get('b_roll'):
-    #         b_roll_to_overlay = args['b_roll']
-
-    #     json_object = None
-    #     transcript_object = None
-    #     transcript_lines = None
-
-    #     if main_video_cartridge.get('transcript_lines', None):
-    #         transcript_lines = main_video_cartridge['transcript_lines']
-
-    #     # if json_object:
-    #     #     transcript_object = json_object.get('transcript_object', None)        
-    #     #     eZprint_anything(transcript_object, ['OVERLAY'])
-
-    #     # if transcript_object:
-    #     #     transcript_lines = transcript_object.get('lines', None)
-    #         eZprint_anything(transcript_lines, ['OVERLAY'])
-
-    #     aws_key = main_video_cartridge.get('aws_key','')
-    #     extension =  main_video_cartridge.get('extension', 'video/mp4' )
-    #     payload = {
-    #         'aws_key' : aws_key,
-    #         'extension' : extension,
-    #         'b_roll_to_overlay' : b_roll_to_overlay,
-    #         'transcript_lines' : transcript_lines
-
-    #     }
-        
-    #     file_name = main_video_cartridge.get('label','')
-
-    #     file_name_split = file_name.split('.')
-    #     file_name = file_name_split[0]
-
-    #     # loop = asyncio.get_event_loop()
-    #     # response = loop.run_in_executor(None, lambda: get_media_from_request(payload))
-    #     response = await get_media_from_request(payload)
-    #     response.update({'label' : file_name + '_overlayed'})    
-    #     response.update({'fileName' : file_name})
-    #     response.update({'type' : 'media'})        
-    #     response.update({'enabled' : True})
-    #     response.update({'extension' : 'video/mp4'})
-
-    #     cartKey = await addCartridge(response, sessionID, loadout, convoID, True)
-
-    #     if cartKey:
-    #         command_return['status'] = "Success."
-    #         command_return['message'] = "video overlayed and saved as " + str(file_name + '_overlayed.mp4')
-    #         return command_return
-    #     else:
-    #         command_return['status'] = "Error."
-    #         command_return['message'] = "video overlay failed"
-    #         return command_return
-
     if 'create_edit_plan' in name:
 
         main_video = args.get('main_video', None)
@@ -516,11 +403,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
         command_return['message'] = "edit plan created named " + str(main_video + '_edit_plan')
         return command_return
     
-    # if 'run_task' in name:
-    #     response = await start_test_for_request('rendering') 
-    #     eZprint_anything(response, ['AWS', 'RUN_TASK'], message='response from aws')
-    #     command_return['status'] = 'Success.'
-    #     # command_retun
     
     if 'update_edit_plan' in name:
         edit_plan_label = args.get('edit_plan', None)
@@ -589,7 +471,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                     'cartKey' : edit_plan_key,
                     'sessionID' : sessionID,
                     'fields' : {
-                        'edit_plan' : edit_plan
+                        'edit_plan' : edit_plan 
 
                     }
                 },
@@ -609,7 +491,7 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             file_name = file_name_split[0]
 
             response.update({'label' : file_name + '_overlayed'})    
-            response.update({'fileName' : file_name})
+            response.update({'fileName' : file_name + '_overlayed'})
             response.update({'type' : 'media'})        
             response.update({'enabled' : True})
             response.update({'extension' : 'video/mp4'})
@@ -626,103 +508,25 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "video overlay failed"
             return command_return
 
-    # if 'overlay_video' in name:
-    #     main_video_key = None
-    #     main_video_cartridge = None
-    #     text_to_overlay = None
-    #     media_to_overlay = None
-    #     media_to_overlay_keys = []
-    #     if args.get('main_video'):
-    #         main_video = args['main_video']
-    #         for key, val in active_cartridges[convoID].items():
-    #             if 'label' in val and val['label'] == main_video:
-    #                 main_video_cartridge = val
-    #                 main_video_cartridge.update({'key' : key})
-    #                 print(main_video_cartridge)
-    #                 break
-    #     if args.get('media_to_overlay'):
-    #         media_to_overlay = args['media_to_overlay']
-    #         for media in media_to_overlay:
-    #             print(media)
-    #             if media.get('file_name'):
-    #                 print('file name found')
-    #                 for key, val in active_cartridges[convoID].items():
-    #                     if 'label' in val and val['label'] == media.get('file_name'):
-    #                         media.update({'aws_key' : key})
-    #                         break
-    #     if args.get('text_to_overlay'):
-    #         text_to_overlay = args['text_to_overlay']
-    #     print(media_to_overlay)
-        
-
-    #     overlay_video_name = await overlay_video(main_video_cartridge, media_to_overlay,text_to_overlay, sessionID, convoID, loadout) 
-
-    #     if overlay_video_name:
-    #         command_return['status'] = "Success."
-    #         command_return['message'] = "video overlayed and saved as " + str(overlay_video_name)
-    #         return command_return
-    #     else:
-    #         command_return['status'] = "Error."
-    #         command_return['message'] = "video overlay failed"
-    #         return command_return
-        
-
-    # if name == 'edit_video':
-    #     video_file = args['video_file']
-    #     extension = None
-    #     for key, val in active_cartridges[convoID].items():
-    #         # if 'type' in val and val['type'] == 'media':
-    #         if 'label' in val and val['label'] == video_file:
-    #             print(val)
-    #             video_file = val['key']
-    #             # extension = val['extension']
-    #             break
-    #     edited_video = await split_video(args, video_file)
-    #     print(edited_video)
-    #     command_return['status'] = "Success."
-    #     command_return['message'] = "video edited" 
-    #     print(command_return)
-    #     return command_return
-
-    # # if name == 'read_website':
-
-    # if name == 'cut_video':
-    #     video_file = args['target_video']
-    #     extension = None
-    #     for key, val in active_cartridges[convoID].items():
-    #         # if 'type' in val and val['type'] == 'media':
-    #         if 'label' in val and val['label'] == video_file:
-    #             eZprint_anything(val, ['COMMANDS', 'VIDEO'], message='found target' )
-    #             video_file = val['key']
-    #             # extension = val['extension']
-    #             break
-    #     edited_video = await cut_video(video_file,args, sessionID, convoID, loadout )
-    #     eZprint_anything(edited_video)
-    #     command_return['status'] = "Success."
-    #     command_return['message'] = "video edited" 
-    #     print(command_return)
-    #     return command_return
-    
 
     if name == 'transcribe':
-        
 
         file_name = args.get('file_name')
         file_key = None
         file_type = None
-        
+        sourceCartKey = None
         for key, val in active_cartridges[convoID].items():
             # if 'type' in val and val['type'] == 'media':
             if 'label' in val and val['label'] == file_name:
                 eZprint(val, ['COMMANDS', 'TRANSCRIBE'])
-                file_key = key
+                file_key = val.get('aws_key')
                 file_type = val.get('extension')
+                sourceCartKey = key
                 break
 
         if file_key:
             transcript_name = file_name + '_transcript'
             transcript_object = await transcribe_file(file_key, file_name, file_type)
-            # transcript_text = transcript_object.get('transcript_text')
             transcript_lines = transcript_object.get('lines')
             transcript_text = ''
             transcript_text += f"[00:00:00.000] Start of clip \n\n"
@@ -747,15 +551,14 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
                             
             update_payload = {
                     'sessionID': sessionID,
-                    'cartKey' : file_key,
+                    'cartKey' : sourceCartKey,
                     'fields':
                             {'text': transcript_text,
                             'transcript_lines':transcript_lines
 
                              }
-                            }
+                        }
             await update_cartridge_field(update_payload, convoID, loadout, True)
-
 
             if cartKey:
                 command_return['status'] = "Success."
@@ -772,8 +575,6 @@ async def handle_commands(command_object, convoID, thread = 0, loadout = None):
             command_return['message'] = "video not found"
             eZprint(command_return)
             return command_return
-
-        
 
     if name == 'scrape_website':
         website_url = args['website_url']
