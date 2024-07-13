@@ -20,16 +20,18 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
         command_loops[convoID][thread][command][title] = {}
 
     if 'page' not in command_loops[convoID][thread][command][title]:
-        command_loops[convoID][thread][command][title]['page'] = 0
+        eZprint('page not in command_loops', ['COMMANDS', 'READ'])
+        command_loops[convoID][thread][command][title]['page'] = 1
     
     page = command_loops[convoID][thread][command][title]['page']
     eZprint('current page is ' + str(page) + ' and thread is ' + str(thread), ['COMMANDS', 'READ'])
 
     if requested_page:
+        eZprint('requested page is ' + str(requested_page), ['COMMANDS', 'READ'])
         page = int(requested_page)
 
     combined_sections_text = ''
-    eZprint('paginated_sections' + str('paginated_sections' in command_loops[convoID][thread][command][title]), ['COMMANDS', 'READ', 'PAGINATE'])
+    eZprint('paginated_sections : ' + str('paginated_sections' in command_loops[convoID][thread][command][title]), ['COMMANDS', 'READ', 'PAGINATE'])
     if 'paginated_sections' not in command_loops[convoID][thread][command][title]:
 
         eZprint('getting text and creating sections', ['COMMANDS', 'READ', 'PAGINATE'])
@@ -53,45 +55,48 @@ async def large_document_loop(title, text_to_read, command = '', convoID= '', th
     
     paginated_sections = command_loops[convoID][thread][command][title]['paginated_sections']
 
-    if page == 0:
+    if page == 1:
         message = "\n## "+ title + "\n\n "
     else:
         message = "\n#### " + title + " \n\n\n " 
-    
-    if page > len(paginated_sections)-1:
+        
+    if page > len(paginated_sections):
+        eZprint('setting to last ' + str(page) + ' to 0 because greater than length of paginated_sections ' + str(len(paginated_sections)), ['COMMANDS', 'READ', 'PAGES'])
         page = len(paginated_sections)-1
 
-    if paginated_sections[page]:
-        message += str(paginated_sections[page])
+    ## doing an index shuffle on the page when used as index cause gpt loves using page 1 as 1
+    page_index = page - 1
+    if paginated_sections[(page_index)]:
+        message += str(paginated_sections[page_index])
     
     if len(paginated_sections) == 1:
         eZprint('only one page', ['COMMANDS', 'READ', 'PAGES'])
-        command_return['status'] = "Read complete."
+        command_return['status'] = "Page " + str(page) + " of " + str(len(paginated_sections)) + " returned."
         command_return['message'] = message
 
 
 
     if len(paginated_sections) > 1:
 
-        eZprint('adding page counter page' + str(page),  ['COMMANDS', 'READ', 'PAGES'])
-        message += "\n\n#### Page " + str(page) + " of " + str(len(paginated_sections)-1)
+        eZprint('adding page counter for page ' + str(page),  ['COMMANDS', 'READ', 'PAGES'])
+        message += "\n\n#### Page " + str(page) + " of " + str(len(paginated_sections))
 
         if page < len(paginated_sections)-1:
             
-            eZprint('not final page, current page :' + str(page) + ' of ' + str(len(paginated_sections)-1),  ['COMMANDS', 'READ', 'PAGES'])
+            eZprint('not final page, current page :' + str(page) + ' of ' + str(len(paginated_sections)),  ['COMMANDS', 'READ', 'PAGES'])
 
-            command_return['status'] = 'Page returned.'
+            command_return['status'] = "Page " + str(page) + " of " + str(len(paginated_sections)) + " returned."
             command_return['message'] = message + "\n\n_Use '" + command + " " + title + "' for next page or include page for a specific page._"
             command_return['name'] = command
-            command_loops[convoID][thread][command][title]['page'] += 1
+            command_loops[convoID][thread][command][title]['page'] = page + 1
 
 
         else:
             eZprint('on final page :' + str(page) + ' of ' + str(len(paginated_sections)),  ['COMMANDS', 'READ', 'PAGES'])
-            command_return['status'] = "Read complete."
+            command_return['status'] =  "Page " + str(page) + " of " + str(len(paginated_sections)) + " returned."
             command_return['message'] = message + "\n\n**" + command + " " +title + " is complete.**" 
             command_return['message']  += "\n\n_Use " + command + " " + title + " to restart or or include page for a specific page._"
-            command_loops[convoID][thread][command][title]['page'] = 0
+            command_loops[convoID][thread][command][title]['page'] = 1
 
     
     return command_return

@@ -172,62 +172,111 @@ async def construct_content_string(prompt_objects, convoID):
 
 async def construct_chat(convoID, thread = 0):
     current_chat = []
+
     if convoID in chatlog:
         eZprint_object_list(chatlog[convoID], ['CHAT', 'CONSTRUCT_CHAT'], line_break=True)
-        for log in chatlog[convoID]:
-            if 'muted' not in log or log['muted'] == False:
-                object = {}
-                if 'role' not in log:
-                    log['role'] = 'user'
-                object.update({ "role":  log['role']})
-                if log['role'] == 'system':
-                    if log.get('contentType') == 'summary':
-                        content_string = '### Conversation section\n'
-                        if log.get('timestamp'):
-                            content_string += f"""_Time range_: {str(log['timestamp'])}"""
-                        if log.get('title'):
-                            content_string += f"""### {log['title']}"""
-                        if log.get('minimised') == False:
-                            if log.get('body'):
-                                content_string += f""" : {str(log['body'])}"""
-                        object.update({'content': f"""{str(content_string)}""" })
-
-                if log.get('content'):
-                    if log['content'] != 'None':
-                        object.update({'content': f"""{str(log['content'])}""" })
-                    else:
-                        object.update({'content': ''})
-                else:
-                    object.update({'content': ''})
-
-                if log.get('function_call'):
-                    if log['function_call'] != 'None':  
-                        try :
-                            function_json = json.loads(log['function_call'], strict=False)
-                        except:
-                            function_json = log['function_call']
-                        
-                        object.update({'function_call': function_json })
-                        #     print('function call error')
-                        #     print(log['function_call'])
-                if log.get('role') == 'function':
-                    object.update({"name": log['function_name']})
-                current_chat.append(object)
+        current_chat += await parse_thread(chatlog[convoID], thread)
+        
 
     if convoID in system_threads:
-        if thread in system_threads[convoID]:
-            thread_system_preline = await get_system_preline_object()
-            current_chat.append(thread_system_preline)
-            if convoID in command_loops and thread in command_loops[convoID]:
-                last_command = system_threads[convoID][thread][-1]
-                current_chat.append({"role": "system", "content":  f"{last_command['body']}"})
-            else:
-                for obj in system_threads[convoID][thread]:
-                    current_chat.append({"role": "system", "content":  f"{obj['body']}"})
 
+        for chat in current_chat:
+            chat_id = chat.get('id', None)
+            if system_threads[convoID].get(chat_id, None):
+                if chat_id == thread:
+                    thread_chat = await parse_thread(system_threads[convoID][chat_id], thread)
+                    eZprint("initiating message for current thread", ['CHAT', 'THREAD'])
+                else:
+                    thread_chat = await give_thread_summary(system_threads[convoID][chat_id], thread)
+                    eZprint("initiating message for seperate thread", ['CHAT', 'THREAD'])
+                append_after = chat
+                for message in thread_chat:
+                    eZprint("appending message", ['CHAT', 'THREAD'])
+                    current_chat.insert(current_chat.index(append_after) + 1, message)
+                    append_after = message
+                    # break 
+                   
+
+            
     if convoID not in current_prompt:
         current_prompt[convoID] = {}
     current_prompt[convoID]['chat'] = current_chat
+
+async def parse_thread(log_list, thread):
+    eZprint('parsing thread', ['CHAT', 'THREAD'])   
+    log_count = 0
+    thread_list = []
+    for log in log_list:
+        if 'muted' not in log or log['muted'] == False:
+            # if thread != 0:  
+            #     eZprint('in thread loop ' + str(thread), ['CHAT', 'THREAD'])
+            #     if log['thread'] != thread:
+            #         eZprint("thread element from this thread", ['CHAT', 'THREAD'])
+            #     elif log['thread'] == 0:
+            #         eZprint(" element on main thread", ['CHAT', 'THREAD'])
+            #     else:
+            #         eZprint("thread element not this thread", ['CHAT', 'THREAD'])
+            #         continue
+            object = {}
+            if 'role' not in log:
+                log['role'] = 'user'
+            object.update({ "role":  log['role']})
+            object.update({ "id": log['id']}) 
+            if log['role'] == 'system':
+                if log.get('contentType') == 'summary':
+                    content_string = '### Conversation section\n'
+                    if log.get('timestamp'):
+                        content_string += f"""_Time range_: {str(log['timestamp'])}"""
+                    if log.get('title'):
+                        content_string += f"""### {log['title']}"""
+                    if log.get('minimised') == False:
+                        if log.get('body'):
+                            content_string += f""" : {str(log['body'])}"""
+                    object.update({'content': f"""{str(content_string)}""" })
+            if log.get('content'):
+                if log['content'] != 'None':
+                    object.update({'content': f"""{str(log['content'])}""" })
+                else:
+                    object.update({'content': ''})
+            else:
+                object.update({'content': ''})
+
+            if log.get('function_call'):
+                if log['function_call'] != 'None':  
+                    try :
+                        function_json = json.loads(log['function_call'], strict=False)
+                    except:
+                        function_json = log['function_call']
+                    
+                    object.update({'function_call': function_json })
+                    #     print('function call error')
+                    #     print(log['function_call'])
+            if log.get('role') == 'function':
+                object.update({"name": log['function_name']})
+                #check if last in list
+                if log_count != len(log_list) - 1:
+                    # truncuate if not last
+                    object['content'] = object['content'][0:100] + '...'
+                    #strip
+                    object['content'] = object['content'].strip('\n')  
+
+            thread_list.append(object)
+        log_count += 1
+    return thread_list
+
+async def give_thread_summary(thread_object, thread):
+    eZprint('creating thread summary', ['CHAT', 'THREAD'])   
+    object = {}
+
+    content_string = f"Function completed over {str(len(thread_object))} steps"
+
+    object.update({
+         "role":  'function',
+         "name" : 'thread',
+         "content": content_string,
+                   })
+    return [object]
+
 
 async def construct_context(convoID):
     # print('constructing context')
@@ -288,7 +337,7 @@ async def construct_objects(convoID, system_string = None, content_string = None
     current_prompt[convoID] = {}    # clears prompt so if empty no holdovers
 
     if 'system' in prompt_objects:
-        print('system found')
+        # print('system found')
         # print(prompt_objects['system']['values'])
  
         # cycles through setting cartridge values and applies

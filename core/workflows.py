@@ -16,9 +16,11 @@ async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
     for trigger in triggers:
         for workflow in dummy_workflows:
             if trigger.get('type') == workflow.get('trigger'):
+                eZprint(f"match of trigger {trigger.get('type')} and workflow {workflow.get('trigger')}", DEBUG_KEYS)
                 trigger_count += 1
                 response = ''
                 if workflow.get('action') == 'transcribe':
+                    eZprint('transcribe workflow matched', DEBUG_KEYS)
                     # status as transcriubing should come from action (ie updating user)
                     await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'whisper', 'state': ''}, 'convoID': convoID}))
                     target = trigger.get('target')
@@ -30,20 +32,23 @@ async def check_for_workflow(triggers, source, sessionID, convoID, loadout):
                         if response.get('status') == 'Success':
                             outputs.append(target['file_name'] + '_transcript')
                         response = response.get('message')
-                if workflow.get('action') == 'read':
-                    if target == 'source':
-                        #target as source (for now) being initial trigger file ... 
-                        target = outputs[-1]
-                        command = {"name": "read", "args": {"name": target}}
-                        response = await handle_commands(command, convoID, 0, loadout)
-                        outputs.append(response)
+                # if workflow.get('action') == 'read':
+                #     if target == 'source':
+                #         #target as source (for now) being initial trigger file ... 
+                #         target = outputs[-1]
+                #         command = {"name": "read", "args": {"name": target}}
+                #         response = await handle_commands(command, convoID, 0, loadout)
+                #         outputs.append(response)
                 if workflow.get('action') == 'message':
+                    eZprint('message workflow matched', DEBUG_KEYS)
                     response = workflow['content']
 
                 # could possibly just be actions as well ...
                 if workflow.get('print'):
+                    eZprint('print is true', DEBUG_KEYS)
                     await handle_message(convoID, response, 'function', '', None,0, meta = 'terminal', function_name='file_handler')
                 if workflow.get('return'):
+                    eZprint('return is true', DEBUG_KEYS)
                     await return_to_GPT(convoID, 0)
 
 
@@ -81,14 +86,15 @@ dummy_workflows = [
         'print': True, # add as message to queue
         'return': False # send to gpt (ends cycle) 
      },
+     # dropping read for now as it makes kinda weird logic, eg adds message to end of first page ...
+    #  {
+    #     'trigger': 'transcribe',
+    #     'action' : 'read',
+    #     'print': True, # add as message to queue
+    #     'return': False # send to gpt (ends cycle)
+    #  },
      {
         'trigger': 'transcribe',
-        'action' : 'read',
-        'print': True, # add as message to queue
-        'return': False # send to gpt (ends cycle)
-     },
-     {
-        'trigger': 'read',
         'action' : 'message',
         'content' : action_modiier,
         'print': True, # add as message to queue

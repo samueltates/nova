@@ -153,6 +153,10 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         # if isinstance(function_call, openai.api_resources.function.Function):
         eZprint('function call found', ['FUNCTION', 'THREAD'])
         function_call_json = function_call.json()
+    else:
+        if thread != 0 and role == 'assistant':
+            eZprint('thread ended for message id ' + str(thread), ['THREAD'])
+            thread = 0
 
     messageObject = {
         "key": key,
@@ -188,31 +192,31 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
     
     command = None
 
-    # if thread:
-    #     ##TODO : command returns can give those deeper functions, and include 'close' to close loop
-    #     ##TODO : heck it could even be an array of loops, should get / build events for this
-    #     ##TODO : Clear these threads when done 
+    if thread:
+        ##TODO : command returns can give those deeper functions, and include 'close' to close loop
+        ##TODO : heck it could even be an array of loops, should get / build events for this
+        ##TODO : Clear these threads when done 
 
-    #     if convoID not in system_threads:
-    #         system_threads[convoID] = {}
-    #     if thread not in system_threads[convoID]:
-    #         ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
-    #         eZprint('NEW THREAD')
-    #         system_threads[convoID][thread] = []
-    #         messageObject.update({'thread':thread})
-    #         # chatlog[convoID].append(messageObject)
-    #         system_threads[convoID][thread].append(messageObject)
-    #         # print(system_threads[convoID][thread])
+        if convoID not in system_threads:
+            system_threads[convoID] = {}
+        if thread not in system_threads[convoID]:
+            ##first log in thread updates chatlog with injected thread (to keep system thread referring to that)
+            eZprint(f'NEW THREAD ${thread}', ['THREAD'])
+            system_threads[convoID][thread] = []
+            messageObject.update({'thread':thread})
+            # chatlog[convoID].append(messageObject)
+            system_threads[convoID][thread].append(messageObject)
+            # print(system_threads[convoID][thread])
 
-    #     else:
+        else:
 
-    #         ##after that each loop it adds to thread 
-    #         ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
-    #         eZprint('THREAD UPDATE')
-    #         # print(system_threads[convoID][thread])
-    #         system_threads[convoID][thread].append(messageObject)
-    # else:     
-    chatlog[convoID].append(messageObject)
+            ##after that each loop it adds to thread 
+            ##may be that it needs to bring in updates every so often, but I think just 'waiting for result' on main, and then 'finished or updated' and that can be driven by config
+            eZprint('THREAD UPDATE')
+            # print(system_threads[convoID][thread])
+            system_threads[convoID][thread].append(messageObject)
+    else:     
+        chatlog[convoID].append(messageObject)
 
     simple_response = None
     # print('json return is ' + str(json_return)) 
@@ -291,6 +295,11 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
             thread = id
         eZprint('function call found thread ' + str(thread), ['FUNCTION', 'THREAD'])
         asyncio.create_task(command_interface(function_call, convoID, thread))
+    else:
+        if thread != 0:
+        #if its a message, but its on a thread it'll break back out to main
+            eZprint('thread ended for message id ' + str(id), ['THREAD'])
+            thread = 0
     if len(chatlog[convoID]) == 5:
         asyncio.create_task( summarise_messages_by_convo(userID, sessionID, convoID))
 
@@ -476,6 +485,7 @@ async def command_interface(command, convoID, threadRequested, source = 'assista
     
         command_object = json.dumps(command_object)
         return_content = status + ' : ' + message
+        # return_content = message
 
         meta = 'terminal'
         # await  websocket.send(json.dumps({'event':'recieve_agent_state', 'payload':{'agent': 'system', 'state': ''}}))
