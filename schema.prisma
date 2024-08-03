@@ -25,6 +25,9 @@ model log {
   UserID    String  @default("")
   batched   Boolean @default(false)
   key       String  @default("")
+  lastEdit  String  @default("")
+  blob   Json?
+
 }
 
 model convo {

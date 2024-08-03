@@ -16,7 +16,7 @@ from session.prismaHandler import prisma
 from core.cartridges import copy_cartridges_from_loadout, update_cartridge_field
 from chat.chat import agent_initiate_convo, construct_query, get_prompt_object
 from session.tokens import update_coin_count
-from tools.memory import run_summary_cartridges
+from tools.memory import run_summary_cartridges, get_summary_tree
 from file_handling.s3 import get_signed_urls
 from tools.debug import fakeResponse, eZprint, eZprint_anything
 
@@ -139,60 +139,62 @@ async def runCartridges(sessionID,  convoID, loadout = None):
             if cartVal['type'] == 'summary':
                 if 'enabled' in cartVal and cartVal['enabled'] == True:
                     eZprint('running summary cartridge on loadout ' + str(loadout), ['SUMMARY'])
-                    # if cartVal['state'] != 'loading':
-                    #     eZprint('running summary cartridge' + str(cartVal), ['SUMMARY'])
-                    # if 'running' in cartVal:
-                    #     eZprint(cartVal['running'], ['SUMMARY'], message='running value')
-                    # if cartVal.get('running', False) == False or 'running' not in cartVal:
-                    # try : 
+                    if cartVal['state'] != 'loading':
+                        eZprint('running summary cartridge' + str(cartVal), ['SUMMARY'])
+                    if 'running' in cartVal:
+                        eZprint(cartVal['running'], ['SUMMARY'], message='running value')
+                    if cartVal.get('running', False) == False or 'running' not in cartVal:
+                        try : 
 
-                    #     eZprint('attempting summarisation cycle', ['SUMMARY'])
-                    #     input = {
-                    #         'cartKey': cartKey,
-                    #         'sessionID': sessionID,
-                    #         'fields': {
-                    #             'running': True,
-                    #         }
-                    #     }
-                    #     await update_cartridge_field(input, convoID, loadout, system = True)
-                    #     asyncio.create_task(run_summary_cartridges(convoID, sessionID, cartKey, cartVal, loadout))
-                                            
-                    #     input = {
-                    #         'cartKey': cartKey,
-                    #         'sessionID': sessionID,
-                    #         'fields': {
-                    #             'running': False,
-                    #         }
-                    #     }
-                    #     await update_cartridge_field(input, convoID, loadout, system = True)
+                            eZprint('attempting summarisation cycle', ['SUMMARY'])
+                            input = {
+                                'cartKey': cartKey,
+                                'sessionID': sessionID,
+                                'fields': {
+                                    'running': True,
+                                }
+                            }
+                            await update_cartridge_field(input, convoID, loadout, system = True)
+                            asyncio.create_task(run_summary_cartridges(convoID, sessionID, cartKey, cartVal, loadout))
+                    # await get_summary_tree(loadout, convoID, sessionID, cartKey)
+                            # input = {
+                            #     'cartKey': cartKey,
+                            #     'sessionID': sessionID,
+                            #     'fields': {
+                            #         'running': False,
+                            #     }
+                            # }
+                            # await update_cartridge_field(input, convoID, loadout, system = True)
 
-                    # except Exception as e:
-                    #     eZprint_anything(e, ['SUMMARY'], 'summary failed')
-                    #     # eZprint('attempting summarisation cycle', ['SUMMARY'])
+                        except Exception as e:
+                            eZprint_anything(e, ['SUMMARY'], 'summary failed')
+                            # eZprint('attempting summarisation cycle', ['SUMMARY'])
 
-                    #     input = {
-                    #         'cartKey': cartKey,
-                    #         'sessionID': sessionID,
-                    #         'fields': {
-                    #             'running': False,
-                    #         }
-                    #     }
-                    #     await update_cartridge_field(input, convoID, loadout, system = True)
+                            input = {
+                                'cartKey': cartKey,
+                                'sessionID': sessionID,
+                                'fields': {
+                                    'running': False,
+                                }
+                            }
+                            await update_cartridge_field(input, convoID, loadout, system = True)
 
-                    
+                        
         
-                    # else:
-                    #     cartVal['state'] = ''
-                    #     cartVal['status'] = ''
-                    #     input = {
-                    #     'cartKey': cartKey,
-                    #     'convoID': convoID,
-                    #     'fields': {
-                    #         'state': cartVal['state'],
-                    #         'status': cartVal['status'],
-                    #         },
-                    #     }
-                    #     await update_cartridge_field(input, convoID, loadout, system = True)
+                    else:
+                        cartVal['state'] = ''
+                        cartVal['status'] = ''
+                        input = {
+                        'cartKey': cartKey,
+                        'convoID': convoID,
+                        'fields': {
+                            'state': cartVal['state'],
+                            'status': cartVal['status'],
+                            'running': False,
+
+                            },
+                        }
+                        await update_cartridge_field(input, convoID, loadout, system = True)
             convoID = novaSession[sessionID]['convoID']
             if cartVal['type'] == 'system':
                 novaConvo[convoID]['token_limit'] = 4000

@@ -6,7 +6,7 @@ import json
 import aiohttp 
 # import logging
 from session.appHandler import app
-
+from aws.scale_handler import run_scale_handler
 timeout = aiohttp.ClientTimeout(total=5000)
 
 session = None
@@ -34,9 +34,8 @@ async def initiate_session():
     session = aiohttp.ClientSession(timeout=timeout)
 
 
-
 async def transcribe_file(file_key, file_name, file_type):
-
+    run_scale_handler()
     if not session:
         await initiate_session()
 
@@ -91,6 +90,7 @@ async def get_b_roll_images_from_request(payload):
     return response_json
 
 async def get_media_from_request(payload):
+    run_scale_handler()
     # Your debug print functions
     eZprint('media payload', ['MEDIA','SERVICE'])
 

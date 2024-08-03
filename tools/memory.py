@@ -6,9 +6,9 @@ import secrets
 from datetime import datetime
 
 from session.prismaHandler import prisma
-from session.sessionHandler import novaConvo,novaSession, active_cartridges, chatlog, current_loadout
+from session.sessionHandler import novaConvo,novaSession, active_cartridges, chatlog, current_loadout, available_convos
 from session.appHandler import websocket
-from core.cartridges import update_cartridge_field
+from core.cartridges import update_cartridge_field, get_recent_updated_cartridges_by_type
 from chat.query import sendChat, get_summary_with_prompt, parse_json_string
 from tools.debug import eZprint, get_fake_messages, get_fake_summaries, debug, eZprint_anything
 from tools.keywords import get_keywords_from_summaries
@@ -31,14 +31,16 @@ async def run_summary_cartridges(convoID, sessionID, cartKey, cartVal, client_lo
             # print('no summary target')
             target_loadout = client_loadout
         # if convoID in novaConvo and 'owner' in novaConvo[convoID] and novaConvo[convoID]['owner']:
-        await summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout, target_loadout)
-        await get_summaries(userID, sessionID, target_loadout)
+        # await summarise_convos(convoID, sessionID, cartKey, cartVal, client_loadout, target_loadout)
+        # await get_summaries(userID, sessionID, target_loadout)
+        # await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
+        # await get_overview(convoID, sessionID, cartKey, cartVal, client_loadout)
+        # await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
+        # # await get_keywords_from_summaries(convoID, sessionID, cartKey, cartVal, client_loadout,
+        # #     target_loadout)
+        await get_logs_from_loadout(convoID, sessionID, cartKey, cartVal, client_loadout)
+        await get_recent_notes_from_loadout(convoID, sessionID, cartKey, cartVal, client_loadout)
         await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
-        await get_overview(convoID, sessionID, cartKey, cartVal, client_loadout)
-        await update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID, client_loadout)
-        await get_keywords_from_summaries(convoID, sessionID, cartKey, cartVal, client_loadout,
-            target_loadout)
-        
 
         input = {
             'cartKey': cartKey,
@@ -217,7 +219,7 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
     )
 
     conversations = await prisma.log.find_many(
-            where={
+            where={ 
             'SessionID': { 'contains': str(target_loadout) },
             }
     )
@@ -254,7 +256,7 @@ async def summarise_messages(userID, sessionID, client_loadout = None, target_lo
                 # print(message)
                 if meta == ' ':
                     format = '%Y-%m-%dT%H:%M:%S.%f%z'
-                    date = datetime.strptime(message.timestamp, format)
+                    # date = datetime.strptime(message.timestamp, format)
                     meta = {        
                         'docID': conversation.SessionID,
                         'timestamp': message.timestamp,
@@ -722,7 +724,7 @@ async def summarise_epochs(userID, sessionID, client_loadout = None, target_load
                 if 'epoch-summarised' in val:
                     if val['epoch-summarised'] == True:
                         continue
-                eZprint('found summary candidate' + str(val), EPOCH_KEYS)
+                eZprint('found summary candidate' + str(val.get('title')), EPOCH_KEYS)
                 epoch_no = 'epoch_' + str(val['epoch'])
                 val.update({'id': candidate.id})
                 # eZprint('found summary candidate')
@@ -1443,7 +1445,6 @@ async def update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID,
 
     if userID+sessionID not in windows:
         windows[userID+sessionID] = []
-
     cartVal['blocks']['summaries'] = []
     for window in windows[userID+sessionID]:
         window_counter += 1
@@ -1475,15 +1476,39 @@ async def update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID,
                 if 'summaries' not in cartVal['blocks']:
                     cartVal['blocks']['summaries'] = []
             cartVal['blocks']['summaries'].append({key:{ 'title':title, 'body':body, 'timestamp':timestamp, 'epoch': "epoche: " + str(epoch), 'keywords':keywords}})
-
-    # if client_loadout == current_loadout[sessionID]:
-    active_cartridges[convoID][cartKey] = cartVal
+      
     cartVal['state'] = ''
     cartVal['status'] = ''
     fields = {  
         'state': cartVal['state'],
         'status': cartVal['status'],
-        'blocks': cartVal['blocks']
+        'blocks': cartVal['blocks'],
+    }
+    input = {
+        'cartKey': cartKey,
+        'sessionID': sessionID,
+        'fields': fields,
+    }
+    await update_cartridge_field(input, convoID, client_loadout, system=True)
+
+async def get_logs_from_loadout(convoID, sessionID, cartKey, cartVal, client_loadout = None):
+    # if client_loadout == current_loadout[sessionID]:
+    cartVal['blocks']['logs'] = []
+    # get last five reverse from available_convos[sessionID]
+    if sessionID in available_convos:
+        # gets max range either 10 or the length of the convo list
+        convo_range_max = 10 if len(available_convos[sessionID]) else len(available_convos[sessionID])
+        convo_list = available_convos[sessionID][-convo_range_max:-1]
+        convo_list.reverse()
+        for convo in convo_list:
+            cartVal['blocks']['logs'].append(convo)
+
+    eZprint_anything(cartVal['blocks']['logs'], ['RECENT_CONVOS'], 'logs')
+
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+    fields = {  
+        'logs' : cartVal['blocks']['logs']
     }
     input = {
         'cartKey': cartKey,
@@ -1493,3 +1518,106 @@ async def update_cartridge_summary(convoID, userID, cartKey, cartVal, sessionID,
     await update_cartridge_field(input, convoID, client_loadout, system=True)
 
         # await  websocket.send(json.dumps({'event':'updateCartridgeFields', 'payload':payload}))    
+
+async def get_recent_notes_from_loadout(convoID, sessionID, cartKey, cartVal, client_loadout = None):
+    cartVal['blocks']['logs'] = []
+    recent_notes = await get_recent_updated_cartridges_by_type(client_loadout, convoID)
+    cartVal['blocks']['recent_notes'] = recent_notes
+
+    cartVal['state'] = ''
+    cartVal['status'] = ''
+    fields = {
+        'recent_notes' : cartVal['blocks']['recent_notes']
+    }
+    input = {
+        'cartKey': cartKey,
+        'sessionID': sessionID,
+        'fields': fields,
+    }
+    await update_cartridge_field(input, convoID, client_loadout, system=True)
+
+
+
+
+
+async def get_summaries_unsorted(userID, sessionID, target_loadout):
+
+    # eZprint('getting summaries')
+    summaries = await prisma.summary.find_many(
+        where={
+        'UserID': userID,
+        }
+    ) 
+
+    summary_candidates = []
+    if len(summaries) == 0:
+        return 
+    # print('loadoutID is ' + str(loadoutID))
+    for summary in summaries:
+        # print(summary)
+        splitID = str(summary.SessionID).split('-')
+        # print(splitID)
+        if target_loadout in summary.SessionID:
+            summary_candidates.append(summary)
+
+        elif target_loadout == None:
+            # print('adding on a none loadout')
+            summary_candidates.append(summary)
+
+    summaries_to_return = []
+
+    for summary in summaries:
+        summaryObj = dict(summary.blob)
+
+        for key, val in summaryObj.items():
+            eZprint_anything(val, DEBUG_KEYS, message = 'summary found')
+            if val.get('summarised') == True:
+                    continue
+            if val.get('trigger') == 'cartridge':
+                #skips if trigger for summary was cartridge  (only convo chunks)
+                continue
+            if val.get('convo-summarised') == True:
+                #skips if summarised by convo summariser
+                continue
+            if val.get('epoch-summarised') == True:
+            #     #skips if summarised by epoch summariser
+                continue
+
+                #leaving only unsumarised top of convo and epoch summaries
+            # eZprint('found summary candidate')
+            eZprint_anything(val, DEBUG_KEYS, message = 'summary to show')
+
+            val.update({'key': summary.key})
+            summaries_to_return.append(summaryObj)
+
+    return summaries_to_return
+
+async def get_summary_tree(loadout, convoID, sessionID, cartKey):
+    userID = novaSession[sessionID]['userID']
+    summaries = await get_summaries_unsorted(userID, sessionID, loadout)
+    print(summaries)
+    for summary in summaries:
+
+        for key, val in summary.items():
+            children = await get_summary_children_by_key(key, convoID, sessionID, cartKey, loadout)    
+            val.update({'children':children})
+    print(summaries)
+    fields = {  
+        'summaries' : summaries
+    }
+    input = {
+        'cartKey': cartKey,
+        'sessionID': sessionID,
+        'fields': fields,
+    }
+    await update_cartridge_field(input, convoID, loadout, system=True)
+    return summaries
+
+
+async def build_children_recursive(summary, convoID, sessionID, cartKey, loadout):
+    for key, val in summary.items():
+        children = await get_summary_children_by_key(key, convoID, sessionID, cartKey, loadout)
+        for child in children:
+            grandchildren = await build_children_recursive(child, convoID, sessionID, cartKey, loadout)
+            child.update({'children': grandchildren})
+    return children

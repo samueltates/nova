@@ -155,7 +155,7 @@ async def deleteCartridges(userID):
         where = {'UserID' : userID,}
     )
 
-async def findSummaries(userID, epoch = None, summarised = None):
+async def findSummaries(userID, loadout = None, epoch = None, summarised = None):
     summaries = await prisma.summary.find_many(
                 where = {'UserID' : userID}
     )
@@ -167,12 +167,21 @@ async def findSummaries(userID, epoch = None, summarised = None):
         id = summary.id
         blob = json.loads(summary.json())['blob']
         # print(blob)
+        if loadout != None:
+            if loadout not in summary.SessionID:
+                continue
         for key, val in blob.items():
-            if 'summarised' in val :
-                if not val['summarised']:
-                    counter += 1
-                    print(summary)
-                    print('\n')
+
+            if epoch != None:
+                if val['epoch'] != epoch:
+                    continue
+            if summarised != None:
+                if val['summarised'] != summarised:
+                    continue
+
+            counter += 1
+            print(summary)
+            print('\n')
     print(counter)
 
     
@@ -743,18 +752,109 @@ async def update_summaries_for_testing(userID):
         blob = json.loads(summary.json())['blob']
         # print(blob)
         for key, val in blob.items():
-            # epoch = int(val['epoch'])
-            # if epoch == 2:
-            #     val['summarised'] = False
-            #     update = await prisma.summary.update(
-            #         where={'id': summary.id},
-            #         data={'blob':Json({key: val})}
-            #     )
-            #     print(update)
-            # if epoch > 2:
-            delete = await prisma.summary.delete(
-                where={'id': summary.id},
-            )
+            epoch = int(val['epoch'])
+            if epoch == 2:
+                val['summarised'] = False
+                val['epoch-summarised'] = False
+                val['convo-summarised'  ] = False
+                update = await prisma.summary.update(
+                    where={'id': summary.id},
+                    data={'blob':Json({key: val})}
+                )
+                print(update)
+            if epoch > 2:
+                print('deleting' + str(summary.id))
+                delete = await prisma.summary.delete(
+                    where={'id': summary.id},
+                )
+
+async def get_summary_count_per_epoch(userID):
+    summaries = await prisma.summary.find_many(
+        where = {
+            'UserID' : userID,
+            }
+    )
+    epochs = {}
+    for summary in summaries:
+
+        # print(summary)
+        blob = json.loads(summary.json())['blob']
+        # print(blob)
+        for key, val in blob.items():
+            epoch = val['epoch']
+            if not epoch in epochs:
+                epochs[epoch] = 0
+            epochs[epoch] += 1
+    print(epochs)
+
+async def delete_duplicate_summary_by_epoch(userID):
+    #psuedo code
+    # go through epoch
+
+    # for item (first)
+    # - go through epochs again
+    #     - if not itself, but is same sourcid, delete
+    #         - save deleted sourceid
+    # - go through deleted sources, 
+    #     - if deleted source, delete, add to deleted
+
+    summaries = await prisma.summary.find_many(
+        where = {
+            'UserID' : userID,
+            }
+    )
+    epochs = {}
+    for summary in summaries:
+            
+            # print(summary)
+            blob = json.loads(summary.json())['blob']
+            # print(blob)
+            for key, val in blob.items():
+                val.update({'id': summary.id})
+                epoch = val['epoch']
+                if not epoch in epochs:
+                    epochs[epoch] = []
+                epochs[epoch].append(val)
+    # print(epochs)
+
+    deleted_sourceIDs = []
+    last_deleted = None
+    for epoch in epochs:
+        for summary in epochs[epoch]:
+            for sourceID in deleted_sourceIDs:
+                # print('checking ' + str(sourceID) + ' against ' + str(summary.get('id')))
+                if summary.get('id') == sourceID and last_deleted != sourceID:
+                    print('deleting parent ' + str(summary.get('id')))
+                    delete = await prisma.summary.delete(
+                        where={'id': summary.get('id')}
+                    )
+                    deleted_sourceIDs.append(summary.get('id'))
+                    last_deleted = sourceID
+
+            for summary2 in epochs[epoch]:
+                if summary != summary2:
+                    if summary.get('sourceIDs') == summary2.get('sourceIDs'):
+                        print('deleting ' + str(summary2.get('id')) + ' because of ' + str(summary.get('id')) + ' matching sourceIDs' + str(summary.get('sourceIDs'))) 
+                        delete = await prisma.summary.delete(
+                            where={'id': summary2.get('id')}
+                        )
+                        deleted_sourceIDs.append(summary2.get('id'))
+
+    # while deleted_sourceIDs:
+    #     for sourceID in deleted_sourceIDs:
+    #         print('deleting ' + str(sourceID))
+    #         delete = await prisma.summary.delete(
+    #             where={'id': sourceID}
+    #         )
+    #         deleted_sourceIDs.remove(sourceID)
+    #         print(delete)
+
+
+                        
+
+
+
+
 
 async def find_users():
     users = await prisma.user.find_many(
@@ -995,9 +1095,8 @@ async def main() -> None:
     # await find_user('116777617360760933319')
     # await find_loadouts_and_convos('110327569930296986874')
 
-    await clear_user_history( '116777617360760933319')
-    await delete_user('116777617360760933319')
-    
+    # await clear_user_history( '116777617360760933319')
+    # await delete_user('116777617360760933319')
     # await findIndexes('108238407115881872743')
     # await findBatches()
     # await add_nova_coin_to_user('115938550830353942191')
@@ -1009,7 +1108,12 @@ async def main() -> None:
     # await findmessages__set_unsummarised_by_session('110327569930296986874', '7531ab40afd82ba4')
     # await find_summary_by_key('4831b822')
     # await find_summaries_by_ID('110327569930296986874', '04f101f0c836520d')
-    # await findSummaries('110327569930296986874')
+
+    await update_summaries_for_testing('110327569930296986874')
+    # await findSummaries('110327569930296986874', '04f101f0c836520d', 2, False)
+
+    # await get_summary_count_per_epoch('110327569930296986874')
+    # await delete_duplicate_summary_by_epoch('110327569930296986874')
     # await findLogSummaries('110327569930296986874', '04f101f0c836520d')
     # await findMessages('110327569930296986874')
     # await find_messages_after(5286)
@@ -1017,7 +1121,6 @@ async def main() -> None:
     # await deleteSummaries('110327569930296986874')
     # await deleteCartridges( '108238407115881872743')
     # await findMessages_set_unsummarised('110327569930296986874')
-    # await update_summaries_for_testing('110327569930296986874')
     # await findLogs('110327569930296986874')
     # await findCartridges()
     # await editCartridge('110327569930296986874')

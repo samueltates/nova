@@ -39,31 +39,3 @@ async def get_signed_urls(file_name):
         Params={'Bucket': 'ask-nova-media', 'Key': file_name}, 
         ExpiresIn=3600)
     return presigned_url
-
-# async def start_test_for_request(task_name):
-    
-#     subnets = [
-#         'subnet-0e2208a3c08aa7d54' ,
-#         'subnet-0577d0375fdecb35c' ,
-#         'subnet-0ba506eb8456a5b27' ,
-#         ]
-#     network = 'vpc-0a4d90b48b7fdae50'
-#     sg = ['sg-080f878cf5d1de129']
-#     response = ecs.run_task(
-    
-#         cluster='default',
-#         taskDefinition=task_name,
-#         count=1,  # Launch one instance of the task
-#         networkConfiguration ={
-#             'awsvpcConfiguration':{
-#                 'subnets':subnets,
-#                 'securityGroups':sg,
-#                 'assignPublicIp':'DISABLED'
-
-#             }
-#         }
-
-#     )
-
-#     return response
-

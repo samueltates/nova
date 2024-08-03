@@ -74,32 +74,61 @@ async def unpack_cartridges(convoID):
                     eZprint(f'string updated to read {cartridge_contents[cartVal["type"]]["string"]}', DEBUG_KEYS)
 
         
-            if 'blocks' in cartVal and 'summaries' in cartVal['blocks']:    
-                for summary in cartVal['blocks']['summaries']:
-                    for key, value in summary.items():
-                        if 'title' in value:
-                            cartridge_contents[cartVal['type']]['string'] += "\n- **" + str(value['title']) + "**"
-                        
-                        if 'timestamp' in value:
-                            try:
-                                timestamped = datetime.fromtimestamp(value['timestamp'])
-                                cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(timestamped)
-                            except:
-                                eZprint('timestamp error', DEBUG_KEYS)                        
-                                cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(value['timestamp'])
-                        cartridge_contents[cartVal['type']]['string'] += f" | [Expand]({key}) | [Query]({key})" 
-                        cartridge_contents[cartVal['type']]['string'] += "\n    - "
-                        if 'epoch' in value:
-                            cartridge_contents[cartVal['type']]['string'] += "Level : " + str(value['epoch'])
-                        if 'keywords' in value:
-                            cartridge_contents[cartVal['type']]['string'] += " | Keywords : " + str(value['keywords'])
-                    # if 'queries' in cartVal['blocks']:
-                    #     if 'minimised' in cartVal and not cartVal['minimised']:
-                    #         if 'query' in cartVal['blocks']['queries']:
-                    #             cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
-                    #         if 'response' in cartVal['blocks']['queries']:
-                    #             cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
-                            # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+            if 'blocks' in cartVal:
+                if 'logs' in cartVal['blocks']:
+                    for log in cartVal['blocks']['logs']:
+                        if 'summary' in log:
+                            cartridge_contents[cartVal['type']]['string'] += "\n- **" + str(log['summary']) + "**"
+                            if 'last_edit' in log and log['last_edit'] != '':
+                                # convert to human readable from timestamp
+                                cartridge_contents[cartVal['type']]['string'] += " | _Last updated_: " + log['last_edit']
+                            elif 'date' in log:
+                                cartridge_contents[cartVal['type']]['string'] += " | _Created_: " + log['date']
+                
+
+                
+                if 'overview' in cartVal['blocks']:
+                    cartridge_contents[cartVal['type']]['string'] += "\n### Past conversations"
+                    cartridge_contents[cartVal['type']]['string'] += "\n\n" + str(cartVal['blocks']['overview'])  
+                    # cartridge_contents[cartVal['type']]['string'] += "\n\n[READ]({key}) | [QUERY]({key})"
+                # if 'summaries' in cartVal['blocks']:    
+                #     for summary in cartVal['blocks']['summaries']:
+                #         for key, value in summary.items():
+                #             if 'title' in value:
+                #                 cartridge_contents[cartVal['type']]['string'] += "\n- **" + str(value['title']) + "**"
+                            
+                #             if 'timestamp' in value:
+                #                 try:
+                #                     timestamped = datetime.fromtimestamp(value['timestamp'])
+                #                     cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(timestamped)
+                #                 except:
+                #                     eZprint('timestamp error', DEBUG_KEYS)                        
+                #                     cartridge_contents[cartVal['type']]['string'] += " | _Time Range_:" +  str(value['timestamp'])
+                #             cartridge_contents[cartVal['type']]['string'] += f" | [Expand]({key}) | [Query]({key})" 
+                #             cartridge_contents[cartVal['type']]['string'] += "\n    - "
+                #             if 'epoch' in value:
+                #                 cartridge_contents[cartVal['type']]['string'] += "Level : " + str(value['epoch'])
+                #             if 'keywords' in value:
+                #                 cartridge_contents[cartVal['type']]['string'] += " | Keywords : " + str(value['keywords'])
+                        # if 'queries' in cartVal['blocks']:
+                        #     if 'minimised' in cartVal and not cartVal['minimised']:
+                        #         if 'query' in cartVal['blocks']['queries']:
+                        #             cartridge_contents[cartVal['type']]['string'] += "\n"+ str(cartVal['blocks']['queries']['query']) + " : "
+                        #         if 'response' in cartVal['blocks']['queries']:
+                        #             cartridge_contents[cartVal['type']]['string'] += str(cartVal['blocks']['queries']['response']) + "\n"
+                                # cartridge_contents[cartVal['type']]['string'] +=  str(cartVal['blocks']['queries'])[0:500]
+                if 'recent_notes' in cartVal['blocks']:
+                    cartridge_contents[cartVal['type']]['string'] += "\n### Recent Notes"
+                    for note in cartVal['blocks']['recent_notes']:
+                        cartridge_contents[cartVal['type']]['string'] += "\n- **" + str(note.get('label')) + "**"
+                        if 'lastUpdated' in note:
+                            cartridge_contents[cartVal['type']]['string'] += " | _Last updated_: " + note['lastUpdated']
+                        # if 'summary' in note:
+                        #     cartridge_contents[cartVal['type']]['string'] += " | " + note['summary']
+                        if 'key' in note:
+                            cartridge_contents[cartVal['type']]['string'] += f" | [Read]({note['key']}) | [Query]({note['key']})"
+
+                        # cartridge_contents[cartVal['type']]['string'] += "\n\n[READ]({key}) | [QUERY]({key})"
             if 'values' in cartVal:
                 cartridge_contents[cartVal['type']]['values'] = cartVal['values']
             if cartVal['type'] == 'simple-agent':
@@ -147,6 +176,12 @@ async def construct_content_string(prompt_objects, convoID):
     if 'index' in prompt_objects:
         content_string += '\n\n### Open Files\n_Files can be queried using natural language_ \n'
         content_string += prompt_objects['index']['string'] 
+
+    if 'summary' in prompt_objects:
+        # content_string += "\n***\n"
+        content_string += "\n### Recent Conversations"
+        content_string += prompt_objects['summary']['string'] 
+
     if 'note' in prompt_objects:
         content_string += '\n\n### Open Notes\n _Notes can be written, appended, read, queried or closed_\n'
         content_string += prompt_objects['note']['string']
@@ -162,11 +197,6 @@ async def construct_content_string(prompt_objects, convoID):
 
     if content_string != '':
         content_string = "\n***"+content_string
-
-    if 'summary' in prompt_objects:
-        content_string += "\n***\n"
-        content_string += "\n### Recent Conversations"
-        content_string += prompt_objects['summary']['string'] 
 
     return content_string
 
@@ -232,6 +262,8 @@ async def parse_thread(log_list, thread):
                     if log.get('minimised') == False:
                         if log.get('body'):
                             content_string += f""" : {str(log['body'])}"""
+                        if log.get('content'):
+                            content_string += f""" : {str(log['content'])}"""
                     object.update({'content': f"""{str(content_string)}""" })
             if log.get('content'):
                 if log['content'] != 'None':

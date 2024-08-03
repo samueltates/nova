@@ -51,7 +51,7 @@ async def get_loadout_logs(loadout, sessionID ):
     if logs:
         for log in logs:
             splitID = log.SessionID.split('-')
-        
+            eZprint_anything(logs, ['CONVO', 'INITIALISE'], message = 'logs found')
             if len(splitID) >=2:
             #    
                 session ={
@@ -60,6 +60,7 @@ async def get_loadout_logs(loadout, sessionID ):
                     'convoID' : splitID[1],
                     'date' : log.date,
                     'summary':log.summary,
+                    'last_edit': log.lastEdit
                 }
                 available_convos[sessionID].append(session)
             else:
@@ -69,9 +70,14 @@ async def get_loadout_logs(loadout, sessionID ):
                     'convoID' : splitID,
                     'date' : log.date,
                     'summary': log.summary,
+                    'last_edit': log.lastEdit
+
                 }
                 available_convos[sessionID].append(session)
                 # convos.append(splitID)
+
+            # sort by last edited
+    available_convos[sessionID] = sorted(available_convos[sessionID], key=lambda x: x['last_edit'])
 
     await websocket.send(json.dumps({'event': 'populate_convos', 'payload': available_convos[sessionID]}))
     asyncio.create_task( populate_summaries(sessionID))

@@ -137,6 +137,47 @@ async def retrieve_loadout_cartridges(loadout_key, convoID):
     eZprint_anything(active_cartridges[convoID], DEBUG_KEYS, message = 'cartridges from server')
     await websocket.send(json.dumps({'event': 'sendCartridges', 'cartridges': active_cartridges[convoID], 'convoID' : convoID}))
 
+async def get_recent_updated_cartridges_by_type(loadout_key, convoID):
+
+    loadout_record = await prisma.loadout.find_first(
+        where={ "key": str(loadout_key) },
+    )
+    if loadout_record:
+        loadout = json.loads(loadout_record.json()).get('blob', {}).get(loadout_key, None)
+ 
+    loadout_cartridges = loadout.get('cartridges', None)
+    #remove duplicates
+
+    loadout_cartridges = list({v['key']:v for v in loadout_cartridges}.values())
+
+    recent_cartridges = []
+    for loadout_cartridge in loadout_cartridges:
+        cartKey = loadout_cartridge.get('key', None)
+        if cartKey:
+            cartridge = await prisma.cartridge.find_first(
+                where={ "key": cartKey },
+            )
+        if cartridge:
+            blob = json.loads(cartridge.json())
+            for cartKey, cartVal in blob['blob'].items():
+                if cartVal.get('key') not in active_cartridges.get(convoID, {}) and cartVal['type'] in ['note', 'media']:
+                    #check if key n ot already present
+                    if cartVal.get('key') not in recent_cartridges:
+
+                        recent_cartridges.append(cartVal)
+                        # eZprint('recent cartridge added' + str(cartVal.get('key')), ['CARTRIDGES', 'RECENT_UPDATED'])
+                # sort by last updated first 
+                
+    sorted_cartridges = sorted(recent_cartridges, key=lambda x: x.get('lastUpdated', '1970-01-01 00:00:00.000000'), reverse=True)
+
+    #return only most recent 5
+    return sorted_cartridges[:10]
+        
+
+
+
+
+
 async def get_cartridge_list(sessionID, target_loadout = None):
     userID = novaSession[sessionID]['userID']
     print('get cartridge list triggered')
@@ -156,6 +197,7 @@ async def get_cartridge_list(sessionID, target_loadout = None):
             val.update({'key':key})
             cartridge_list.append(val)
     await websocket.send(json.dumps({'event': 'cartridge_list', 'payload': cartridge_list}))
+
 
 
 async def addCartridge(cartVal, sessionID, client_loadout = None, convoID = None, system = False):

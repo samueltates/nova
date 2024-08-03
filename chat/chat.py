@@ -300,8 +300,8 @@ async def handle_message(convoID, content, role = 'user', user_name ='', key = N
         #if its a message, but its on a thread it'll break back out to main
             eZprint('thread ended for message id ' + str(id), ['THREAD'])
             thread = 0
-    if len(chatlog[convoID]) == 5:
-        asyncio.create_task( summarise_messages_by_convo(userID, sessionID, convoID))
+    # if len(chatlog[convoID]) == 5:
+    #     asyncio.create_task( summarise_messages_by_convo(userID, sessionID, convoID))
 
     return id
 
@@ -321,7 +321,8 @@ async def logMessage(messageObject):
                 "SessionID": messageObject['convoID'],
                 "UserID": messageObject['userID'],
                 "date": datetime.now().strftime("%Y%m%d%H%M%S"),
-                "summary": "",
+                "lastEdit": datetime.now().strftime("%Y%m%d%H%M%S"),
+                "summary": str(messageObject.get('content','')),
                 "body": "",
                 "batched": False,
             }
@@ -329,11 +330,20 @@ async def logMessage(messageObject):
         convoID = messageObject['convoID']
         splitID = convoID.split('-')
         loadout = None
+        # if log.get('last_edit') is not datetime.now().strftime("%Y%m%d%H%M%S"):
+
         if len(splitID) > 1:
             loadout = splitID[2]
         if loadout:
             await update_loadout_field(loadout, 'latest_convo', convoID)
         await set_user_value(messageObject['userID'], 'latest_convo-'+loadout, convoID)
+
+    await prisma.log.update(
+        where={'id': log.id},
+        data={
+            "lastEdit": datetime.now().strftime("%Y%m%d%H%M%S")
+        }
+    )
 
 
 
