@@ -1,95 +1,111 @@
 import boto3
 import time
+import os
+import asyncio  
+from tools.debug import eZprint, eZprint_anything
 
+DEBUG_KEYS = ['AWS', 'SCALE_HANDLER']
 # Initialize boto3 clients
-ec2_client = boto3.client('ec2')
-asg_client = boto3.client('autoscaling')
-ecs_client = boto3.client('ecs')
+ec2_client = boto3.client('ec2', region_name='us-east-1',aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'))
+asg_client = boto3.client('autoscaling', region_name='us-east-1',aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'))
+ecs_client = boto3.client('ecs', region_name='us-east-1',aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'))
 
-def scale_asg(asg_name, desired_capacity):
+async def scale_asg(asg_name, desired_capacity):
 
     #check if the desired capacity is already set
-    response = asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, lambda: asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name]))
     current_capacity = response['AutoScalingGroups'][0]['DesiredCapacity']
-    if current_capacity >= desired_capacity:
-        print("ASG already at desired capacity.")
-        return True
+    if current_capacity == desired_capacity:
+        eZprint("ASG already at desired capacity.", DEBUG_KEYS)
+        return
     
-    print("Scaling ASG...")
+    eZprint("Scaling ASG...", DEBUG_KEYS)
 
-    asg_client.set_desired_capacity(
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, lambda: asg_client.set_desired_capacity(
         AutoScalingGroupName=asg_name,
         DesiredCapacity=desired_capacity,
         HonorCooldown=False
-    )
+    ))
 
-    return False
 
-def check_instance_ready(asg_name):
-    print("Checking for ready instance...")
+    # return False
+
+async def check_instance_ready(asg_name):
+    eZprint("Checking for ready instance...", DEBUG_KEYS)
     while True:
-        response = asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+        loop = asyncio.get_event_loop()
+        # response = asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+        response = await loop.run_in_executor(None, lambda: asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name]))
         instances = response['AutoScalingGroups'][0]['Instances']
         if any(i['LifecycleState'] == 'InService' for i in instances):
             print("Instance ready.")
             break
-        time.sleep(10)
+        await asyncio.sleep(1)
 
-def scale_ecs_service(service_name, cluster_name, count):
+async def scale_ecs_service(service_name, cluster_name, count):
 
-    # #get services list
-    # response = ecs_client.list_services(
-    #     cluster=cluster_name
-    # )
-
-    # print(response)
-
-    #check if the desired count is already set
-    response = ecs_client.describe_services(
-        cluster=cluster_name,
-        services=[service_name]
-    )
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, lambda: ecs_client.describe_services(cluster=cluster_name, services=[service_name]))
     current_count = response['services'][0]['desiredCount']
-    if current_count >= count:
-        print("ECS Service already at desired count.")
+    if current_count == count:
+        eZprint("ECS Service already at desired count.", DEBUG_KEYS)
         return
     
     print("Scaling ECS Service...")
-    ecs_client.update_service(
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None , lambda: ecs_client.update_service(
         cluster=cluster_name,
         service=service_name,
         desiredCount=count
-    )
+    ))
 
-def check_task_ready(service_name, cluster_name):
-    print("Checking for ready task...")
+
+async def check_task_ready(service_name, cluster_name):
+    eZprint("Checking for ready task...", DEBUG_KEYS)
     while True:
-        response = ecs_client.describe_services(
-            cluster=cluster_name,
-            services=[service_name]
-        )
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: ecs_client.describe_services(cluster=cluster_name, services=[service_name]))
         services = response['services']
         if any(s['runningCount'] for s in services):
-            print("Task is now running.")
+            eZprint("Task is now running.", DEBUG_KEYS)
             break
-        time.sleep(10)
+        await asyncio.sleep(1)
 
-def on_demand_scaling(asg_name, service_name, cluster_name):
+async def on_demand_scaling(asg_name, service_name, cluster_name):
     # Scale ASG
-    already_running = scale_asg(asg_name, 1)
-    if already_running:
-        return
-    check_instance_ready(asg_name)
+    await scale_asg(asg_name, 1)
+    await check_instance_ready(asg_name)
     
     # Scale ECS service
-    scale_ecs_service(service_name, cluster_name, 1)
-    check_task_ready(service_name, cluster_name)
+    await scale_ecs_service(service_name, cluster_name, 1)
+    await check_task_ready(service_name, cluster_name)
+    return True
 
-def run_scale_handler():
+async def run_scale_handler():
     hydra_asg = 'hydra'
     lightning_service = 'nova-lightning'
     ecs_cluster = 'default' # Update this with your cluster name
-    on_demand_scaling(hydra_asg, lightning_service, ecs_cluster)
+    # create async loop 
+    response = await on_demand_scaling(hydra_asg, lightning_service, ecs_cluster)
+    
+    return response
+
+# await on_demand_scaling(hydra_asg, lightning_service, ecs_cluster)
+
+async def set_services_to_zero():
+    hydra_asg = 'hydra'
+    lightning_service = 'nova-lightning'
+    ecs_cluster = 'default' # Update this with your cluster name
+    # Scale ASG
+    await scale_asg(hydra_asg, 0)
+    await check_instance_ready(hydra_asg)
+    
+    # Scale ECS service
+    await scale_ecs_service(lightning_service, ecs_cluster, 0)
+    # await check_task_ready(lightning_service, ecs_cluster)
+    return True
 
 if __name__ == "__main__":
-    run_scale_handler()
+    set_services_to_zero()

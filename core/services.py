@@ -35,7 +35,7 @@ async def initiate_session():
 
 
 async def transcribe_file(file_key, file_name, file_type):
-    run_scale_handler()
+    await run_scale_handler()
     if not session:
         await initiate_session()
 
@@ -67,6 +67,7 @@ async def transcribe_file(file_key, file_name, file_type):
 
 async def get_b_roll_images_from_request(payload):
     # Your debug print functions
+    await run_scale_handler()
     eZprint('b_roll requested', ['BROLL','SERVICE'])
 
     headers = {'content-type': 'application/json'}
@@ -90,7 +91,7 @@ async def get_b_roll_images_from_request(payload):
     return response_json
 
 async def get_media_from_request(payload):
-    run_scale_handler()
+    await run_scale_handler()
     # Your debug print functions
     eZprint('media payload', ['MEDIA','SERVICE'])
 
