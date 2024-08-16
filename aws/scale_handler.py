@@ -84,9 +84,9 @@ async def on_demand_scaling(asg_name, service_name, cluster_name):
     return True
 
 async def run_scale_handler():
-    hydra_asg = 'hydra'
-    lightning_service = 'nova-lightning'
-    ecs_cluster = 'default' # Update this with your cluster name
+    hydra_asg = os.environ.get('ASG')
+    lightning_service = os.environ.get('SERVICE')
+    ecs_cluster = os.environ.get('CLUSTER')
     # create async loop 
     response = await on_demand_scaling(hydra_asg, lightning_service, ecs_cluster)
     
@@ -95,10 +95,9 @@ async def run_scale_handler():
 # await on_demand_scaling(hydra_asg, lightning_service, ecs_cluster)
 
 async def set_services_to_zero():
-    hydra_asg = 'hydra'
-    lightning_service = 'nova-lightning'
-    ecs_cluster = 'default' # Update this with your cluster name
-    # Scale ASG
+    hydra_asg = os.environ.get('ASG')
+    lightning_service = os.environ.get('SERVICE')
+    ecs_cluster = os.environ.get('CLUSTER')
     await scale_asg(hydra_asg, 0)
     await check_instance_ready(hydra_asg)
     

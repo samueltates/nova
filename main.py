@@ -34,13 +34,13 @@ from session.tokens import update_coin_count
 from file_handling.fileHandler import handle_file_start, handle_file_chunk, handle_file_end
 from file_handling.transcribe import handle_transcript_chunk, handle_transcript_end, setup_transcript_chunk
 from version import __version__
-from aws.run_task import run_task
+from aws.scale_handler import run_scale_handler
 
-@app.route('/runtest')
-async def runtest():
-    await run_task()
-    return 'task run'
-
+@app.route('/scaleup')
+async def scaleup():
+    # scale up the ECS service
+    await run_scale_handler
+    return "Scaling up..."
 
 
 r = RandomWords()

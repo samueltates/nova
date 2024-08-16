@@ -90,3 +90,7 @@ CMD [ "pipenv", "run", "python", "./main.py"]
 # docker push 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:latest
 
 
+# production
+# docker build -t nova-production . --build-arg APP_ENV=production
+# docker tag nova-production 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:production
+# docker push 914796322262.dkr.ecr.us-east-1.amazonaws.com/nova:production
